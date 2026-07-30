@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /worlds/{worldId} {
+      function signedIn() {
+        return request.auth != null && request.auth.token.email != null;
+      }
+
+      function currentRole() {
+        return resource.data.workspace.access[request.auth.token.email];
+      }
+
+      function requestedRole() {
+        return request.resource.data.workspace.access[request.auth.token.email];
+      }
+
+      allow create: if signedIn()
+        && request.resource.data.workspace.ownerUid == request.auth.uid
+        && requestedRole() == 'Owner';
+
+      allow read: if signedIn()
+        && resource.data.workspace.access[request.auth.token.email] != null;
+
+      allow update: if signedIn()
+        && currentRole() in ['Owner', 'Admin', 'Editor'];
+
+      allow delete: if signedIn() && currentRole() == 'Owner';
+    }
+  }
+}
