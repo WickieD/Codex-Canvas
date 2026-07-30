@@ -2318,6 +2318,87 @@ button:disabled { cursor: not-allowed; opacity: .48; }
   word-break: normal !important;
 }
 </style>
+
+<style id="text-image-layer-access-fix">
+/* Keep direct word editing in the element's existing layer and position. */
+.direct-word-editor-active {
+  z-index: auto !important;
+  background: transparent !important;
+}
+.character-flow-line.direct-word-editor-active {
+  position: absolute !important;
+  z-index: auto !important;
+}
+.character-text-content.direct-word-editor-active,
+.character-inline-surface.direct-word-editor-active,
+.character-inline-writing.direct-word-editor-active {
+  position: static !important;
+  z-index: auto !important;
+}
+/* A selected image temporarily rises above the writing, regardless of its saved layer. */
+.character-image-block.is-selected,
+.character-image-block.is-editing {
+  z-index: 150 !important;
+}
+.text-image-layer-picker {
+  position: fixed;
+  z-index: 240;
+  width: min(330px, calc(100vw - 20px));
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel-strong) 94%, transparent);
+  box-shadow: 0 14px 38px rgba(25, 20, 16, .28);
+  padding: 9px;
+  backdrop-filter: blur(12px);
+}
+.text-image-layer-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 4px 7px;
+}
+.text-image-layer-picker-head button {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel-strong);
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1;
+}
+.text-image-layer-picker-list { display: grid; gap: 6px; }
+.text-image-layer-picker-choice {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 34px minmax(0,1fr);
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-strong);
+  padding: 9px 10px;
+  color: var(--text);
+  text-align: left;
+}
+.text-image-layer-picker-choice:hover { border-color: var(--accent); background: var(--accent-soft); }
+.text-image-layer-picker-choice > span:first-child {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 850;
+}
+.text-image-layer-picker-choice > span:last-child { display: grid; gap: 2px; min-width: 0; }
+.text-image-layer-picker-choice small { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
+
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -9710,6 +9791,116 @@ window.FIREBASE_CONFIG = {
     const close=event.target.closest('[data-text-popover-close]');
     if(close){event.preventDefault();event.stopImmediatePropagation();closeTextActionPopover();}
   },true);
+
+
+  /* Text and image layer access fix.
+     Editing words must not alter an image's saved layer. When an image and the
+     active writing occupy the same spot, let the user choose which one to edit. */
+  let textImageLayerPicker = null;
+  let textImageLayerPickerState = null;
+  let suppressTextImageLayerClickUntil = 0;
+
+  function closeTextImageLayerPicker() {
+    textImageLayerPicker?.remove();
+    textImageLayerPicker = null;
+    textImageLayerPickerState = null;
+  }
+
+  function imageChoiceLabel(choice) {
+    const info = blockFromRef(choice.ref);
+    const name = String(info.block?.alt || 'Image').trim() || 'Image';
+    const behavior = choice.layout === 'behind' ? 'behind the writing' : choice.layout === 'front' ? 'in front of the writing' : 'with text wrapping';
+    return {name, behavior};
+  }
+
+  function openTextImageLayerPicker(event, active, images) {
+    closeTextImageLayerPicker();
+    const offset = textOffsetAtPoint(active.editable, event.clientX, event.clientY);
+    textImageLayerPickerState = {active, offset, x:event.clientX, y:event.clientY};
+    const picker = document.createElement('div');
+    picker.className = 'text-image-layer-picker';
+    picker.setAttribute('role','dialog');
+    picker.setAttribute('aria-label','Choose the writing or image to edit');
+    picker.innerHTML = `<div class="text-image-layer-picker-head"><strong>What are you trying to edit?</strong><button type="button" data-text-image-picker-close aria-label="Close">×</button></div><div class="text-image-layer-picker-list"><button class="text-image-layer-picker-choice" type="button" data-text-image-picker-words><span>T</span><span><strong>Keep editing the words</strong><small>Place the cursor where you clicked</small></span></button>${images.map(choice=>{const label=imageChoiceLabel(choice);return `<button class="text-image-layer-picker-choice" type="button" data-text-image-picker-image="${esc(choice.ref)}"><span>▧</span><span><strong>Edit ${esc(label.name)}</strong><small>${esc(label.behavior)}</small></span></button>`;}).join('')}</div>`;
+    document.body.append(picker);
+    const rect = picker.getBoundingClientRect();
+    picker.style.left = `${Math.max(8, Math.min(window.innerWidth - rect.width - 8, event.clientX + 10))}px`;
+    picker.style.top = `${Math.max(8, Math.min(window.innerHeight - rect.height - 8, event.clientY + 10))}px`;
+    picker.addEventListener('pointerdown', pointerEvent => pointerEvent.preventDefault());
+    textImageLayerPicker = picker;
+    suppressTextImageLayerClickUntil = Date.now() + 300;
+  }
+
+  const finishInPlaceTextEditBeforeLayerFix = finishInPlaceTextEdit;
+  finishInPlaceTextEdit = function(save=true) {
+    closeTextImageLayerPicker();
+    return finishInPlaceTextEditBeforeLayerFix(save);
+  };
+
+  document.addEventListener('pointerdown', event => {
+    if (!activeInPlaceTextEdit || event.button > 0 || event.target.closest('.text-image-layer-picker,.image-edit-toolbar,.image-selection-edit,.image-resize-dot')) return;
+    const active = activeInPlaceTextEdit;
+    const list = active.list || active.editable.closest('.character-block-list');
+    if (!list) return;
+    const editRect = active.editable.getBoundingClientRect();
+    if (!pointInsideRect(event.clientX, event.clientY, editRect)) return;
+    const images = imageLayersAtPoint(list, event.clientX, event.clientY);
+    if (!images.length) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    openTextImageLayerPicker(event, active, images);
+  }, true);
+
+  document.addEventListener('click', event => {
+    const close = event.target.closest('[data-text-image-picker-close]');
+    if (close) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      closeTextImageLayerPicker();
+      activeInPlaceTextEdit?.editable?.focus({preventScroll:true});
+      return;
+    }
+    const words = event.target.closest('[data-text-image-picker-words]');
+    if (words) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const stateForPicker = textImageLayerPickerState;
+      closeTextImageLayerPicker();
+      const active = stateForPicker?.active;
+      if (activeInPlaceTextEdit && activeInPlaceTextEdit === active) {
+        active.editable.focus({preventScroll:true});
+        placeCaretAtTextOffset(active.editable, Math.min(stateForPicker.offset || 0, active.editable.textContent?.length || 0));
+      }
+      return;
+    }
+    const image = event.target.closest('[data-text-image-picker-image]');
+    if (image) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const ref = image.dataset.textImagePickerImage;
+      closeTextImageLayerPicker();
+      finishInPlaceTextEdit(true);
+      selectImage(ref);
+      requestAnimationFrame(() => document.querySelector(`[data-image-block="${CSS.escape(ref)}"]`)?.scrollIntoView({block:'nearest'}));
+      return;
+    }
+    if (Date.now() < suppressTextImageLayerClickUntil && textImageLayerPicker && !event.target.closest('.text-image-layer-picker')) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    if (textImageLayerPicker && !event.target.closest('.text-image-layer-picker')) {
+      closeTextImageLayerPicker();
+    }
+  }, true);
+
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && textImageLayerPicker) {
+      event.preventDefault();
+      closeTextImageLayerPicker();
+      activeInPlaceTextEdit?.editable?.focus({preventScroll:true});
+    }
+  }, true);
 
 
   render();
