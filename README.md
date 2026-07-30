@@ -1,6 +1,3 @@
-# Codex-Canvas
-A collaborative worldbuilding and roleplay workspace for organizing characters, locations, lore, timelines, relationship graphs, and continuous story archives.
-
 # Codex Canvas
 
 Codex Canvas is a worldbuilding workspace I started making because I wanted something more flexible than a basic document or database.
