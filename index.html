@@ -2304,6 +2304,19 @@ button:disabled { cursor: not-allowed; opacity: .48; }
   color: var(--muted);
   opacity: .65;
 }
+
+/* Keyboard-safe direct text editing. */
+.character-inline-surface[role="button"] {
+  appearance: none;
+  -webkit-appearance: none;
+}
+.character-inline-surface.direct-word-editor-active,
+.character-text-content.direct-word-editor-active,
+.character-flow-line.direct-word-editor-active {
+  white-space: pre-wrap !important;
+  overflow-wrap: break-word !important;
+  word-break: normal !important;
+}
 </style>
 </head>
 <body>
@@ -8577,6 +8590,9 @@ window.FIREBASE_CONFIG = {
   });
 
   document.addEventListener('keydown',event=>{
+    // Direct word editing owns normal typing, including Space and Enter.
+    // Do not allow page-level shortcuts to intercept contenteditable controls.
+    if(activeInPlaceTextEdit || event.target.closest('[contenteditable="true"],input,textarea,select'))return;
     const block=event.target.closest('[data-block]');if(!block)return;
     const [kind,itemId,indexRaw]=block.dataset.block.split(':');const index=Number(indexRaw);const target=resolveBlockTarget(kind,itemId);if(!target)return;
     if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();target.blocks.splice(index+1,0,{id:id('block'),type:'text',content:''});scheduleSave();if(kind==='world')renderWorld();else renderEntity(kind,itemId);requestAnimationFrame(()=>document.querySelector(`[data-block="${kind}:${itemId}:${index+1}"]`)?.focus());}
@@ -8929,7 +8945,7 @@ window.FIREBASE_CONFIG = {
     const surfaceClass=block.type==='divider'?'character-inline-divider-button':'character-inline-writing block-content';
     const typeAttr=block.type==='divider'?'':` data-type="${esc(block.type)}"`;
     return `<div class="block-row character-inline-element${selected}" data-block-row="${ref}" data-inline-ref="${ref}">
-      <button class="${surfaceClass} character-inline-surface" type="button" data-flow-select="${ref}" data-flow-edit="${ref}"${typeAttr} aria-label="Select ${esc(unifiedTextTypeLabel(block.type))}">${content}</button>
+      <div class="${surfaceClass} character-inline-surface" role="button" tabindex="0" data-flow-select="${ref}" data-flow-edit="${ref}"${typeAttr} aria-label="Select ${esc(unifiedTextTypeLabel(block.type))}">${content}</div>
       <div class="flow-element-controls" aria-label="Selected writing controls">
         <button type="button" data-flow-open-settings="${ref}">Shape</button>
         <button type="button" data-flow-move="${ref}" title="Drag to place this anywhere">Move</button>
@@ -9621,6 +9637,7 @@ window.FIREBASE_CONFIG = {
     }
     active.editable.removeAttribute('contenteditable');
     active.editable.removeAttribute('spellcheck');
+    active.editable.removeAttribute('aria-multiline');
     active.editable.classList.remove('direct-word-editor-active');
     if(active.originalType===null)active.editable.removeAttribute('type');else if(active.originalType!==undefined)active.editable.setAttribute('type',active.originalType);
     restoreRememberedAttributes(active.rememberedAttrs);
@@ -9658,14 +9675,19 @@ window.FIREBASE_CONFIG = {
       }
     }
     const triggerNodes=[editable,editable.closest('[data-flow-select]'),editable.closest('[data-text-select]'),editable.closest('[data-flow-edit]')].filter(Boolean);
-    const rememberedAttrs=rememberAndRemoveAttributes([...new Set(triggerNodes)],['data-flow-edit','data-flow-select','data-text-select','type']);
+    const rememberedAttrs=rememberAndRemoveAttributes([...new Set(triggerNodes)],['data-flow-edit','data-flow-select','data-text-select','type','role','tabindex','aria-label']);
     editable.setAttribute('contenteditable','true');
     editable.setAttribute('spellcheck','true');
+    editable.setAttribute('role','textbox');
+    editable.setAttribute('aria-multiline','true');
     editable.classList.add('direct-word-editor-active');
     activeInPlaceTextEdit={ref,mode,range,editable,list,originalHTML,originalType,rememberedAttrs,blurTimer:null};
     editable.addEventListener('keydown',event=>{
-      if(event.key==='Escape'){event.preventDefault();event.stopPropagation();finishInPlaceTextEdit(false);return;}
-      if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();event.stopPropagation();finishInPlaceTextEdit(true);}
+      // Keep every typing key inside the editor. Do not prevent the browser's
+      // native Space or Enter behavior.
+      event.stopPropagation();
+      if(event.key==='Escape'){event.preventDefault();finishInPlaceTextEdit(false);return;}
+      if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();finishInPlaceTextEdit(true);}
     });
     editable.addEventListener('blur',()=>{
       const active=activeInPlaceTextEdit;if(!active||active.editable!==editable)return;
