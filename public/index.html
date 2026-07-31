@@ -9071,6 +9071,226 @@ document.addEventListener('change',event=>{
 },true);
 
 
+/* === Firestore-safe shared image assets === */
+const FIRESTORE_ASSET_COLLECTION = 'assets';
+const FIRESTORE_ASSET_MAX_DATA_URL = 700000;
+firebase.remoteCache.assets ||= new Map();
+firebase.assetData ||= new Map();
+
+function isInlineImageSource(value){
+  return typeof value === 'string' && value.startsWith('data:image/');
+}
+function walkImageMedia(value,visit,seen=new WeakSet()){
+  if(!value || typeof value !== 'object' || seen.has(value))return;
+  seen.add(value);
+  if(Array.isArray(value)){
+    value.forEach(child=>walkImageMedia(child,visit,seen));
+    return;
+  }
+  if(value.assetId || isInlineImageSource(value.src) || (value.type === 'image' && typeof value.src === 'string'))visit(value);
+  for(const [key,child] of Object.entries(value)){
+    if(key === 'src')continue;
+    if(child && typeof child === 'object')walkImageMedia(child,visit,seen);
+  }
+}
+function ensureImageAssetId(media){
+  if(!media.assetId)media.assetId=id('asset');
+  return media.assetId;
+}
+function imageAssetCollection(){
+  return firebase.api.collection(firebaseWorkspaceRef(),FIRESTORE_ASSET_COLLECTION);
+}
+function imageAssetRef(assetId){
+  return firebase.api.doc(imageAssetCollection(),String(assetId).replaceAll('/','_'));
+}
+function canvasDataUrl(canvas,quality){
+  let data=canvas.toDataURL('image/webp',quality);
+  if(!data.startsWith('data:image/webp'))data=canvas.toDataURL('image/jpeg',quality);
+  return data;
+}
+async function loadImageSource(source){
+  return await new Promise((resolve,reject)=>{
+    const image=new Image();
+    image.onload=()=>resolve(image);
+    image.onerror=()=>reject(new Error('The image could not be opened.'));
+    image.src=source;
+  });
+}
+async function compressImageSource(source,targetLength=FIRESTORE_ASSET_MAX_DATA_URL,maxSide=1600){
+  const image=await loadImageSource(source);
+  let scale=Math.min(1,maxSide/Math.max(image.naturalWidth,image.naturalHeight));
+  let width=Math.max(1,Math.round(image.naturalWidth*scale));
+  let height=Math.max(1,Math.round(image.naturalHeight*scale));
+  let quality=.82,data='';
+  for(let attempt=0;attempt<12;attempt++){
+    const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+    const context=canvas.getContext('2d',{alpha:true});
+    context.imageSmoothingEnabled=true;context.imageSmoothingQuality='high';
+    context.drawImage(image,0,0,width,height);
+    data=canvasDataUrl(canvas,quality);
+    if(data.length<=targetLength)return {data,width,height};
+    if(quality>.52)quality=Math.max(.52,quality-.08);
+    else{width=Math.max(420,Math.round(width*.84));height=Math.max(260,Math.round(height*.84));quality=.72;}
+  }
+  if(data.length>900000)throw new Error('This image is too detailed to prepare safely. Try a smaller image.');
+  return {data,width,height};
+}
+
+imageFileToBlock=async function(file,character){
+  if(!file || !file.type?.startsWith('image/'))throw new Error('Choose an image file.');
+  if(file.size>18*1024*1024)throw new Error('That image is larger than 18 MB.');
+  const source=await new Promise((resolve,reject)=>{
+    const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('The image could not be read.'));reader.readAsDataURL(file);
+  });
+  const prepared=await compressImageSource(source);
+  return {id:id('image'),type:'image',content:'',src:prepared.data,assetId:id('asset'),alt:`${character?.name||'World'} image`,layout:'front',wrapSide:'left',width:Math.min(360,prepared.width),padding:18,xPct:8,y:24,opacity:1,ratio:prepared.width/prepared.height};
+};
+
+async function collectStateImageAssets(){
+  const assets=new Map();
+  for(const kind of SYNC_COLLECTIONS){
+    for(const item of state[kind]||[]){
+      const mediaNodes=[];walkImageMedia(item,media=>mediaNodes.push(media));
+      for(const media of mediaNodes){
+        const assetId=media.assetId || (isInlineImageSource(media.src)?ensureImageAssetId(media):'');
+        if(!assetId)continue;
+        let dataUrl=isInlineImageSource(media.src)?media.src:(firebase.assetData.get(assetId)||'');
+        if(dataUrl && dataUrl.length>FIRESTORE_ASSET_MAX_DATA_URL){
+          const compressed=await compressImageSource(dataUrl);
+          dataUrl=compressed.data;media.src=dataUrl;
+        }
+        assets.set(assetId,{assetId,dataUrl,ownerKind:kind,ownerId:item.id||'',updatedAt:item.updatedAt||nowISO()});
+      }
+    }
+  }
+  return assets;
+}
+function assetSafeClone(value){
+  const clone=cleanFirestoreValue(value);
+  walkImageMedia(clone,media=>{
+    if(isInlineImageSource(media.src)){
+      ensureImageAssetId(media);
+      delete media.src;
+    }
+  });
+  return clone;
+}
+function hydrateImageAssets(value){
+  walkImageMedia(value,media=>{
+    if(media.assetId){
+      const dataUrl=firebase.assetData.get(media.assetId);
+      if(dataUrl)media.src=dataUrl;
+    }
+  });
+  return value;
+}
+function hydrateAllStateImages(){
+  for(const kind of SYNC_COLLECTIONS)for(const item of state[kind]||[])hydrateImageAssets(item);
+}
+function comparableEntity(value){return JSON.stringify(assetSafeClone(value));}
+
+loadRemoteWorkspace=async function(){
+  const api=firebase.api,workspaceRef=firebaseWorkspaceRef();
+  const [metaSnap,assetSnap,...collectionSnaps]=await Promise.all([
+    api.getDoc(workspaceRef),api.getDocs(imageAssetCollection()),...SYNC_COLLECTIONS.map(kind=>api.getDocs(api.collection(workspaceRef,kind)))
+  ]);
+  firebase.assetData=new Map();firebase.remoteCache.assets=new Map();
+  assetSnap.docs.forEach(docSnap=>{
+    const raw=docSnap.data();
+    if(raw.dataUrl)firebase.assetData.set(docSnap.id,raw.dataUrl);
+    firebase.remoteCache.assets.set(docSnap.id,JSON.stringify(raw));
+  });
+  const next=deepClone(window.INITIAL_WORLD_DATA);
+  if(metaSnap.exists())Object.assign(next,metaSnap.data());
+  SYNC_COLLECTIONS.forEach((kind,i)=>{
+    const docs=collectionSnaps[i].docs.map(docSnap=>{
+      const raw=docSnap.data(),order=Number(raw.__order)||0;delete raw.__order;hydrateImageAssets(raw);return {value:raw,order};
+    }).sort((a,b)=>a.order-b.order).map(entry=>entry.value);
+    next[kind]=docs;
+    firebase.remoteCache.collections[kind]=new Map(collectionSnaps[i].docs.map(docSnap=>[docSnap.id,JSON.stringify(docSnap.data())]));
+  });
+  firebase.remoteCache.meta=metaSnap.exists()?JSON.stringify(metaSnap.data()):'';
+  const members=state.workspace?.members||[],access=state.workspace?.access||{};
+  firebase.applyingRemote=true;state=next;normalizeState();state.workspace.members=members;state.workspace.access=access;hydrateAllStateImages();localStateSnapshot();firebase.applyingRemote=false;
+};
+
+syncStateToFirestore=async function(force=false){
+  if(!firebase.connected||!firebase.user||firebase.applyingRemote||!canEditSharedWorld())return;
+  const api=firebase.api,workspaceRef=firebaseWorkspaceRef(),operations=[];
+  const assets=await collectStateImageAssets(),nextAssetIds=new Set();
+  const assetCache=firebase.remoteCache.assets||new Map();
+  for(const [assetId,asset] of assets){
+    nextAssetIds.add(assetId);
+    if(!asset.dataUrl)continue;
+    const data={dataUrl:asset.dataUrl,ownerKind:asset.ownerKind,ownerId:asset.ownerId,updatedAt:asset.updatedAt};
+    const json=JSON.stringify(data);
+    if(force||assetCache.get(assetId)!==json){operations.push({type:'set',ref:imageAssetRef(assetId),data});assetCache.set(assetId,json);}
+    firebase.assetData.set(assetId,asset.dataUrl);
+  }
+  for(const oldId of [...assetCache.keys()])if(!nextAssetIds.has(oldId)){
+    operations.push({type:'delete',ref:imageAssetRef(oldId)});assetCache.delete(oldId);firebase.assetData.delete(oldId);
+  }
+  firebase.remoteCache.assets=assetCache;
+  const meta=stateMetaPayload(),metaJson=JSON.stringify(meta);
+  if(force||metaJson!==firebase.remoteCache.meta){operations.push({type:'set',ref:workspaceRef,data:meta});firebase.remoteCache.meta=metaJson;}
+  for(const kind of SYNC_COLLECTIONS){
+    const cache=firebase.remoteCache.collections[kind]||new Map(),nextIds=new Set();
+    (state[kind]||[]).forEach((item,index)=>{
+      const docId=String(item.id||id(kind)).replaceAll('/','_');if(!item.id)item.id=docId;nextIds.add(docId);
+      const data=assetSafeClone({...item,__order:index}),json=JSON.stringify(data);
+      if(force||cache.get(docId)!==json){operations.push({type:'set',ref:api.doc(api.collection(workspaceRef,kind),docId),data});cache.set(docId,json);}
+    });
+    for(const oldId of [...cache.keys()])if(!nextIds.has(oldId)){
+      operations.push({type:'delete',ref:api.doc(api.collection(workspaceRef,kind),oldId)});cache.delete(oldId);
+    }
+    firebase.remoteCache.collections[kind]=cache;
+  }
+  if(operations.length)await commitFirestoreOperations(operations);
+};
+
+attachFirestoreListeners=function(){
+  detachFirestoreListeners();const api=firebase.api,workspaceRef=firebaseWorkspaceRef();
+  firebase.unsubscribes.push(api.onSnapshot(firebaseMembersCollection(),{includeMetadataChanges:true},snap=>{
+    if(snap.metadata.hasPendingWrites)return;
+    const members=snap.docs.map(docSnap=>({id:docSnap.id,...docSnap.data()})).sort((a,b)=>{
+      const order={Owner:0,Admin:1,Editor:2,Commenter:3,Viewer:4};return (order[a.role]??9)-(order[b.role]??9)||a.email.localeCompare(b.email);
+    });
+    state.workspace.members=members;state.workspace.access=Object.fromEntries(members.map(member=>[normalizeMemberEmail(member.email),member.role]));
+    firebase.currentMember=members.find(member=>normalizeMemberEmail(member.email)===normalizeMemberEmail(firebase.user?.email))||null;
+    firebase.currentRole=firebase.currentMember?.role||'';localStateSnapshot();render();
+  },error=>{console.error(error);toast('Member access updates stopped. Check the Firestore rules.','error');}));
+  firebase.unsubscribes.push(api.onSnapshot(workspaceRef,{includeMetadataChanges:true},snap=>{
+    if(!snap.exists()||snap.metadata.hasPendingWrites)return;const data=snap.data(),json=JSON.stringify(data);firebase.remoteCache.meta=json;
+    if(json===JSON.stringify(stateMetaPayload()))return;applyRemoteMeta(data);queueRemoteRender();
+  },error=>{console.error(error);toast('Live workspace updates stopped. Check the Firestore rules.','error');}));
+  firebase.unsubscribes.push(api.onSnapshot(imageAssetCollection(),{includeMetadataChanges:true},snap=>{
+    if(snap.metadata.hasPendingWrites)return;
+    const nextData=new Map(),nextCache=new Map();
+    snap.docs.forEach(docSnap=>{const raw=docSnap.data();if(raw.dataUrl)nextData.set(docSnap.id,raw.dataUrl);nextCache.set(docSnap.id,JSON.stringify(raw));});
+    firebase.assetData=nextData;firebase.remoteCache.assets=nextCache;firebase.applyingRemote=true;hydrateAllStateImages();firebase.applyingRemote=false;localStateSnapshot();queueRemoteRender();
+  },error=>{console.error(error);toast('Shared images stopped syncing. Publish the updated Firestore rules.','error');}));
+  for(const kind of SYNC_COLLECTIONS){
+    firebase.unsubscribes.push(api.onSnapshot(api.collection(workspaceRef,kind),{includeMetadataChanges:true},snap=>{
+      if(snap.metadata.hasPendingWrites)return;
+      const entries=snap.docs.map(docSnap=>{
+        const raw=docSnap.data(),json=JSON.stringify(raw),order=Number(raw.__order)||0;
+        firebase.remoteCache.collections[kind].set(docSnap.id,json);delete raw.__order;hydrateImageAssets(raw);return {value:raw,order};
+      }).sort((a,b)=>a.order-b.order);
+      const incoming=entries.map(x=>x.value);
+      const incomingComparable=JSON.stringify(incoming.map(value=>assetSafeClone(value)));
+      const localComparable=JSON.stringify((state[kind]||[]).map(value=>assetSafeClone(value)));
+      if(incomingComparable===localComparable)return;
+      firebase.applyingRemote=true;state[kind]=incoming;firebase.applyingRemote=false;queueRemoteRender();
+    },error=>{console.error(error);toast(`Live ${kind} updates stopped.`,'error');}));
+  }
+};
+
+const saveStateBeforeImageAssets=saveState;
+saveState=async function(){
+  await saveStateBeforeImageAssets();
+};
+
+
 initFirebase();
 
 })();
