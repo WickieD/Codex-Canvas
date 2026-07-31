@@ -3457,8 +3457,394 @@ button:disabled { cursor: not-allowed; opacity: .48; }
   <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="true"></div>
   <div id="modalRoot"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js">
+
+/* === Section image slots for Locations, Species, and Factions === */
+(function(){
+  const style = document.createElement('style');
+  style.textContent = `
+    .section-media-hero{display:grid;gap:14px;margin-bottom:18px}
+    .section-media-cover-slot{position:relative;min-height:220px;border-radius:22px;overflow:hidden;border:1px solid var(--section-line);background:linear-gradient(135deg,var(--section-paper-2),var(--section-panel));box-shadow:0 20px 40px rgba(0,0,0,.08)}
+    .section-media-cover-slot img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(1.02)}
+    .section-media-cover-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.08),rgba(0,0,0,.38));pointer-events:none}
+    .section-media-mark{position:absolute;left:18px;bottom:18px;z-index:2;max-width:min(520px,92%)}
+    .section-media-slot,.section-media-cover-slot{cursor:pointer}
+    .section-media-placeholder,.section-media-placeholder-compact{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:18px;color:var(--section-ink)}
+    .section-media-placeholder .title,.section-media-placeholder-compact .title{font-size:1rem;font-weight:700;display:block;margin-bottom:6px}
+    .section-media-placeholder .help,.section-media-placeholder-compact .help{font-size:.92rem;color:var(--section-muted)}
+    .section-media-controls{position:absolute;right:12px;top:12px;display:flex;gap:8px;opacity:0;transform:translateY(-6px);transition:opacity .18s ease,transform .18s ease;z-index:3}
+    .section-media-slot.is-media-selected .section-media-controls,.section-media-cover-slot.is-media-selected .section-media-controls,.section-media-slot:hover .section-media-controls,.section-media-cover-slot:hover .section-media-controls{opacity:1;transform:translateY(0)}
+    .section-media-controls .button{backdrop-filter:blur(6px);background:rgba(255,255,255,.82)}
+    .section-media-portrait-card{margin-bottom:14px}
+    .section-media-portrait-label{font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--section-muted);margin-bottom:10px}
+    .section-media-slot{position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--section-line);background:linear-gradient(135deg,var(--section-paper-2),var(--section-panel));min-height:260px;box-shadow:0 14px 28px rgba(0,0,0,.06)}
+    .section-media-slot.compact{min-height:200px}
+    .section-media-slot img{width:100%;height:100%;display:block;object-fit:cover}
+    .section-media-slot .button.small,.section-media-cover-slot .button.small{font-size:.82rem;padding:7px 10px}
+    .section-image-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;color:var(--section-muted);font-size:.88rem}
+    .section-image-dot{width:7px;height:7px;border-radius:999px;background:var(--section-accent);display:inline-block}
+    @media (max-width: 980px){.section-media-cover-slot{min-height:180px}.section-media-slot{min-height:220px}}
+  `;
+  document.head.appendChild(style);
+
+  const MEDIA_COPY = {
+    locations:{coverTitle:'Add location cover',coverHelp:'Header image for the place, landscape, room, or skyline',portraitTitle:'Add location image',portraitHelp:'Portrait, map, landmark, or interior view',detailLabel:'Location image'},
+    species:{coverTitle:'Add species cover',coverHelp:'Header image for the species, lineage, or culture',portraitTitle:'Add species image',portraitHelp:'Representative portrait, symbol, or reference art',detailLabel:'Species image'},
+    factions:{coverTitle:'Add faction cover',coverHelp:'Header image for the faction, hideout, or visual identity',portraitTitle:'Add faction image',portraitHelp:'Crest, emblem, leader image, or group reference',detailLabel:'Faction image'}
+  };
+
+  const baseRenderProperties = renderProperties;
+  renderProperties = function(kind,item){
+    if(kind==='species'){
+      return `<div class="property-list">
+        ${propertyInput('Classification','classification',item.classification||'',kind,item.id)}
+        ${propertyInput('Origin','origin',item.origin||'',kind,item.id)}
+        ${propertyTextarea('Description','description',item.description||'',kind,item.id)}
+        ${propertyTextarea('Traits / physiology','traitsText',item.traitsText||'',kind,item.id)}
+        ${propertyTextarea('Culture / society','culture',item.culture||'',kind,item.id)}
+        <div class="property-row"><label>Known members</label>${linkedPills('characters',item.keyMemberIds)}</div>
+        ${propertyTextarea('Notes','notes',item.notes||'',kind,item.id)}
+      </div>`;
+    }
+    return baseRenderProperties(kind,item);
+  };
+
+  function sectionMediaField(slot){ return slot === 'cover' ? 'headerImage' : 'profileImage'; }
+  function sectionMediaDefaultY(slot){ return slot === 'cover' ? 45 : 25; }
+  function sectionMediaStyle(media, slot){
+    const x = Math.max(0, Math.min(100, Number(media?.positionX ?? 50)));
+    const y = Math.max(0, Math.min(100, Number(media?.positionY ?? sectionMediaDefaultY(slot))));
+    const zoom = Math.max(1, Math.min(3, Number(media?.zoom ?? 1)));
+    const fit = media?.fit === 'contain' ? 'contain' : 'cover';
+    return `object-position:${x}% ${y}%;transform:scale(${zoom});transform-origin:${x}% ${y}%;object-fit:${fit};`;
+  }
+  function setSectionMedia(kind, itemId, slot, file){
+    const item = getItem(kind, itemId); if(!item || !file) return;
+    const field = sectionMediaField(slot);
+    const reader = new FileReader();
+    reader.onload = () => {
+      item[field] = { src: reader.result, alt: item.name + ' ' + slot + ' image', positionX:50, positionY:sectionMediaDefaultY(slot), zoom:1, fit:'cover' };
+      item.updatedAt = nowISO();
+      scheduleSave();
+      renderEntity(kind, itemId);
+      toast(`${slot === 'cover' ? 'Cover' : 'Image'} updated.`);
+    };
+    reader.readAsDataURL(file);
+  }
+  function removeSectionMedia(kind, itemId, slot){
+    const item = getItem(kind, itemId); if(!item) return;
+    delete item[sectionMediaField(slot)];
+    item.updatedAt = nowISO();
+    scheduleSave();
+    renderEntity(kind, itemId);
+    toast(`${slot === 'cover' ? 'Cover' : 'Image'} removed.`);
+  }
+  function clearSectionMediaSelection(except){
+    document.querySelectorAll('.section-media-slot.is-media-selected,.section-media-cover-slot.is-media-selected').forEach(node=>{ if(node !== except) node.classList.remove('is-media-selected'); });
+  }
+  function renderSectionCoverImageSlot(kind, item){
+    const copy = MEDIA_COPY[kind] || MEDIA_COPY.locations;
+    const media = item.headerImage || null;
+    const image = media?.src || '';
+    return `<div class="section-media-cover-slot ${image ? 'has-image' : ''}" data-section-media-select="${kind}:cover:${item.id}" ${image ? `tabindex="0" role="button" aria-label="Select the cover image for ${esc(item.name)}"` : ''}>
+      ${image ? `<img src="${esc(image)}" alt="${esc(media?.alt || (item.name + ' cover image'))}" style="${sectionMediaStyle(media,'cover')}"><div class="section-media-cover-overlay"></div>` : ''}
+      ${image ? `<div class="section-media-controls"><button class="button small secondary" type="button" data-section-media-trigger="${kind}:cover:${item.id}">Replace cover</button><button class="button small ghost" type="button" data-section-media-remove="${kind}:cover:${item.id}">Remove</button></div>` : ''}
+      ${!image ? `<div class="section-media-placeholder"><div><span class="title">${esc(copy.coverTitle)}</span><span class="help">${esc(copy.coverHelp)}</span></div></div>` : ''}
+      <input type="file" accept="image/*" hidden data-section-media-input="${kind}:cover:${item.id}">
+    </div>`;
+  }
+  function renderSectionPortraitSlot(kind, item){
+    const copy = MEDIA_COPY[kind] || MEDIA_COPY.locations;
+    const media = item.profileImage || null;
+    const image = media?.src || '';
+    return `<section class="panel section-media-portrait-card"><div class="section-media-portrait-label">${esc(copy.detailLabel)}</div><div class="section-media-slot compact ${image ? 'has-image' : ''}" data-section-media-select="${kind}:profile:${item.id}" ${image ? `tabindex="0" role="button" aria-label="Select the image for ${esc(item.name)}"` : ''}>
+      ${image ? `<img src="${esc(image)}" alt="${esc(media?.alt || (item.name + ' image'))}" style="${sectionMediaStyle(media,'profile')}">` : ''}
+      ${image ? `<div class="section-media-controls"><button class="button small secondary" type="button" data-section-media-trigger="${kind}:profile:${item.id}">Replace image</button><button class="button small ghost" type="button" data-section-media-remove="${kind}:profile:${item.id}">Remove</button></div>` : `<div class="section-media-placeholder-compact"><div><span class="title">${esc(copy.portraitTitle)}</span><span class="help">${esc(copy.portraitHelp)}</span></div></div>`}
+      <input type="file" accept="image/*" hidden data-section-media-input="${kind}:profile:${item.id}">
+    </div>${image ? `<div class="section-image-meta"><span class="section-image-dot"></span><span>Click the image to reveal replace and remove controls.</span></div>` : ''}</section>`;
+  }
+
+  const baseSectionEntityCover = sectionEntityCover;
+  sectionEntityCover = function(kind, item){
+    if(!['locations','species','factions'].includes(kind)) return baseSectionEntityCover(kind, item);
+    let glyph='⌖', detail='';
+    if(kind==='locations'){ glyph = item.type === 'Region' ? '◉' : '⌖'; detail = `${item.type || 'Location'}${childrenOf(item.id).length ? ` · ${childrenOf(item.id).length} inside` : ''}`; }
+    else if(kind==='species'){ glyph = '◈'; detail = `${item.classification || 'Species'}${item.keyMemberIds?.length ? ` · ${item.keyMemberIds.length} known members` : ''}`; }
+    else { glyph = initials(item.name); detail = `${item.power || 'Faction'}${item.keyMemberIds?.length ? ` · ${item.keyMemberIds.length} key members` : ''}`; }
+    return `<div class="section-media-hero">${renderSectionCoverImageSlot(kind, item)}<div class="section-entity-mark section-media-mark"><span class="section-entity-glyph">${esc(glyph)}</span><strong>${esc(sectionTemplateName(kind))}</strong><span>${esc(detail)}</span></div></div>`;
+  };
+
+  const baseRenderEntity = renderEntity;
+  renderEntity = function(kind, itemId){
+    if(kind === 'characters') return baseRenderEntity(kind, itemId);
+    const item = getItem(kind, itemId); if(!item){ navigate(kind); return; }
+    const meta = COLLECTIONS[kind];
+    const breadcrumb = kind === 'locations' ? renderLocationBreadcrumb(item) : '';
+    const entityCover = ['locations','species','factions'].includes(kind) ? sectionEntityCover(kind,item) : sectionEntityCover(kind,item);
+    const templateToolbar = SECTION_TEMPLATE_CONFIG[kind] ? sectionDesignToolbar(kind) : '';
+    const portrait = ['locations','species','factions'].includes(kind) ? renderSectionPortraitSlot(kind,item) : '';
+    const body = `${templateToolbar}${breadcrumb}<section class="entity-hero">${entityCover}<div class="entity-title-row"><textarea class="entity-title-input" rows="1" aria-label="${meta.singular} name" data-title-kind="${kind}" data-title-id="${item.id}">${esc(item.name)}</textarea><button class="favorite-button ${item.favorite?'on':''}" type="button" data-favorite="${kind}:${item.id}" title="Favorite">☆</button></div></section><div class="entity-layout"><div class="editor-surface">${renderBlockEditor(kind,item.id,item.blocks,item.name)}</div><aside class="properties-panel">${portrait}<div class="panel-head" style="padding:0 0 14px"><h2>Properties</h2><button class="button ghost small" type="button" data-delete="${kind}:${item.id}">Delete</button></div>${renderProperties(kind,item)}</aside></div>`;
+    el.main.innerHTML = SECTION_TEMPLATE_CONFIG[kind] ? `<section class="${sectionCssClass(kind)}" style="${sectionThemeStyle(kind)}">${body}</section>` : body;
+    requestAnimationFrame(()=>autoSizeEntityTitle(document.querySelector('.entity-title-input')));
+  };
+
+  document.addEventListener('click', event => {
+    const trigger = event.target.closest('[data-section-media-trigger]');
+    if(trigger){
+      event.preventDefault();
+      const input = document.querySelector(`[data-section-media-input="${CSS.escape(trigger.dataset.sectionMediaTrigger)}"]`);
+      input?.click();
+      return;
+    }
+    const remove = event.target.closest('[data-section-media-remove]');
+    if(remove){
+      event.preventDefault();
+      const [kind, slot, itemId] = remove.dataset.sectionMediaRemove.split(':');
+      removeSectionMedia(kind, itemId, slot);
+      return;
+    }
+    const slot = event.target.closest('.section-media-slot,.section-media-cover-slot');
+    const control = event.target.closest('.section-media-controls');
+    if(slot && slot.classList.contains('has-image')){
+      clearSectionMediaSelection(slot);
+      if(!control){
+        event.preventDefault();
+        slot.classList.toggle('is-media-selected');
+      }
+      return;
+    }
+    if(!event.target.closest('.section-media-slot,.section-media-cover-slot')) clearSectionMediaSelection();
+  }, true);
+
+  document.addEventListener('keydown', event => {
+    const slot = event.target.closest?.('.section-media-slot.has-image,.section-media-cover-slot.has-image');
+    if(slot && (event.key === 'Enter' || event.key === ' ')){
+      event.preventDefault();
+      clearSectionMediaSelection(slot);
+      slot.classList.toggle('is-media-selected');
+    }
+    if(event.key === 'Escape') clearSectionMediaSelection();
+  });
+
+  document.addEventListener('change', event => {
+    const input = event.target.closest?.('[data-section-media-input]');
+    if(!input) return;
+    const file = [...(input.files || [])].find(item => item.type?.startsWith('image/'));
+    if(!file) return;
+    const [kind, slot, itemId] = input.dataset.sectionMediaInput.split(':');
+    setSectionMedia(kind, itemId, slot, file);
+    input.value = '';
+  });
+
+  document.addEventListener('dragover', event => {
+    const slot = event.target.closest?.('.section-media-slot,.section-media-cover-slot');
+    if(!slot) return; event.preventDefault();
+  });
+  document.addEventListener('drop', event => {
+    const slot = event.target.closest?.('[data-section-media-select]');
+    if(!slot) return; event.preventDefault();
+    const file = [...(event.dataTransfer?.files || [])].find(item => item.type?.startsWith('image/'));
+    if(!file) return;
+    const [kind, mediaSlot, itemId] = slot.dataset.sectionMediaSelect.split(':');
+    setSectionMedia(kind, itemId, mediaSlot, file);
+  });
+})();
+
+</script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js">
+
+/* === Section image slots for Locations, Species, and Factions === */
+(function(){
+  const style = document.createElement('style');
+  style.textContent = `
+    .section-media-hero{display:grid;gap:14px;margin-bottom:18px}
+    .section-media-cover-slot{position:relative;min-height:220px;border-radius:22px;overflow:hidden;border:1px solid var(--section-line);background:linear-gradient(135deg,var(--section-paper-2),var(--section-panel));box-shadow:0 20px 40px rgba(0,0,0,.08)}
+    .section-media-cover-slot img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(1.02)}
+    .section-media-cover-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.08),rgba(0,0,0,.38));pointer-events:none}
+    .section-media-mark{position:absolute;left:18px;bottom:18px;z-index:2;max-width:min(520px,92%)}
+    .section-media-slot,.section-media-cover-slot{cursor:pointer}
+    .section-media-placeholder,.section-media-placeholder-compact{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:18px;color:var(--section-ink)}
+    .section-media-placeholder .title,.section-media-placeholder-compact .title{font-size:1rem;font-weight:700;display:block;margin-bottom:6px}
+    .section-media-placeholder .help,.section-media-placeholder-compact .help{font-size:.92rem;color:var(--section-muted)}
+    .section-media-controls{position:absolute;right:12px;top:12px;display:flex;gap:8px;opacity:0;transform:translateY(-6px);transition:opacity .18s ease,transform .18s ease;z-index:3}
+    .section-media-slot.is-media-selected .section-media-controls,.section-media-cover-slot.is-media-selected .section-media-controls,.section-media-slot:hover .section-media-controls,.section-media-cover-slot:hover .section-media-controls{opacity:1;transform:translateY(0)}
+    .section-media-controls .button{backdrop-filter:blur(6px);background:rgba(255,255,255,.82)}
+    .section-media-portrait-card{margin-bottom:14px}
+    .section-media-portrait-label{font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--section-muted);margin-bottom:10px}
+    .section-media-slot{position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--section-line);background:linear-gradient(135deg,var(--section-paper-2),var(--section-panel));min-height:260px;box-shadow:0 14px 28px rgba(0,0,0,.06)}
+    .section-media-slot.compact{min-height:200px}
+    .section-media-slot img{width:100%;height:100%;display:block;object-fit:cover}
+    .section-media-slot .button.small,.section-media-cover-slot .button.small{font-size:.82rem;padding:7px 10px}
+    .section-image-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;color:var(--section-muted);font-size:.88rem}
+    .section-image-dot{width:7px;height:7px;border-radius:999px;background:var(--section-accent);display:inline-block}
+    @media (max-width: 980px){.section-media-cover-slot{min-height:180px}.section-media-slot{min-height:220px}}
+  `;
+  document.head.appendChild(style);
+
+  const MEDIA_COPY = {
+    locations:{coverTitle:'Add location cover',coverHelp:'Header image for the place, landscape, room, or skyline',portraitTitle:'Add location image',portraitHelp:'Portrait, map, landmark, or interior view',detailLabel:'Location image'},
+    species:{coverTitle:'Add species cover',coverHelp:'Header image for the species, lineage, or culture',portraitTitle:'Add species image',portraitHelp:'Representative portrait, symbol, or reference art',detailLabel:'Species image'},
+    factions:{coverTitle:'Add faction cover',coverHelp:'Header image for the faction, hideout, or visual identity',portraitTitle:'Add faction image',portraitHelp:'Crest, emblem, leader image, or group reference',detailLabel:'Faction image'}
+  };
+
+  const baseRenderProperties = renderProperties;
+  renderProperties = function(kind,item){
+    if(kind==='species'){
+      return `<div class="property-list">
+        ${propertyInput('Classification','classification',item.classification||'',kind,item.id)}
+        ${propertyInput('Origin','origin',item.origin||'',kind,item.id)}
+        ${propertyTextarea('Description','description',item.description||'',kind,item.id)}
+        ${propertyTextarea('Traits / physiology','traitsText',item.traitsText||'',kind,item.id)}
+        ${propertyTextarea('Culture / society','culture',item.culture||'',kind,item.id)}
+        <div class="property-row"><label>Known members</label>${linkedPills('characters',item.keyMemberIds)}</div>
+        ${propertyTextarea('Notes','notes',item.notes||'',kind,item.id)}
+      </div>`;
+    }
+    return baseRenderProperties(kind,item);
+  };
+
+  function sectionMediaField(slot){ return slot === 'cover' ? 'headerImage' : 'profileImage'; }
+  function sectionMediaDefaultY(slot){ return slot === 'cover' ? 45 : 25; }
+  function sectionMediaStyle(media, slot){
+    const x = Math.max(0, Math.min(100, Number(media?.positionX ?? 50)));
+    const y = Math.max(0, Math.min(100, Number(media?.positionY ?? sectionMediaDefaultY(slot))));
+    const zoom = Math.max(1, Math.min(3, Number(media?.zoom ?? 1)));
+    const fit = media?.fit === 'contain' ? 'contain' : 'cover';
+    return `object-position:${x}% ${y}%;transform:scale(${zoom});transform-origin:${x}% ${y}%;object-fit:${fit};`;
+  }
+  function setSectionMedia(kind, itemId, slot, file){
+    const item = getItem(kind, itemId); if(!item || !file) return;
+    const field = sectionMediaField(slot);
+    const reader = new FileReader();
+    reader.onload = () => {
+      item[field] = { src: reader.result, alt: item.name + ' ' + slot + ' image', positionX:50, positionY:sectionMediaDefaultY(slot), zoom:1, fit:'cover' };
+      item.updatedAt = nowISO();
+      scheduleSave();
+      renderEntity(kind, itemId);
+      toast(`${slot === 'cover' ? 'Cover' : 'Image'} updated.`);
+    };
+    reader.readAsDataURL(file);
+  }
+  function removeSectionMedia(kind, itemId, slot){
+    const item = getItem(kind, itemId); if(!item) return;
+    delete item[sectionMediaField(slot)];
+    item.updatedAt = nowISO();
+    scheduleSave();
+    renderEntity(kind, itemId);
+    toast(`${slot === 'cover' ? 'Cover' : 'Image'} removed.`);
+  }
+  function clearSectionMediaSelection(except){
+    document.querySelectorAll('.section-media-slot.is-media-selected,.section-media-cover-slot.is-media-selected').forEach(node=>{ if(node !== except) node.classList.remove('is-media-selected'); });
+  }
+  function renderSectionCoverImageSlot(kind, item){
+    const copy = MEDIA_COPY[kind] || MEDIA_COPY.locations;
+    const media = item.headerImage || null;
+    const image = media?.src || '';
+    return `<div class="section-media-cover-slot ${image ? 'has-image' : ''}" data-section-media-select="${kind}:cover:${item.id}" ${image ? `tabindex="0" role="button" aria-label="Select the cover image for ${esc(item.name)}"` : ''}>
+      ${image ? `<img src="${esc(image)}" alt="${esc(media?.alt || (item.name + ' cover image'))}" style="${sectionMediaStyle(media,'cover')}"><div class="section-media-cover-overlay"></div>` : ''}
+      ${image ? `<div class="section-media-controls"><button class="button small secondary" type="button" data-section-media-trigger="${kind}:cover:${item.id}">Replace cover</button><button class="button small ghost" type="button" data-section-media-remove="${kind}:cover:${item.id}">Remove</button></div>` : ''}
+      ${!image ? `<div class="section-media-placeholder"><div><span class="title">${esc(copy.coverTitle)}</span><span class="help">${esc(copy.coverHelp)}</span></div></div>` : ''}
+      <input type="file" accept="image/*" hidden data-section-media-input="${kind}:cover:${item.id}">
+    </div>`;
+  }
+  function renderSectionPortraitSlot(kind, item){
+    const copy = MEDIA_COPY[kind] || MEDIA_COPY.locations;
+    const media = item.profileImage || null;
+    const image = media?.src || '';
+    return `<section class="panel section-media-portrait-card"><div class="section-media-portrait-label">${esc(copy.detailLabel)}</div><div class="section-media-slot compact ${image ? 'has-image' : ''}" data-section-media-select="${kind}:profile:${item.id}" ${image ? `tabindex="0" role="button" aria-label="Select the image for ${esc(item.name)}"` : ''}>
+      ${image ? `<img src="${esc(image)}" alt="${esc(media?.alt || (item.name + ' image'))}" style="${sectionMediaStyle(media,'profile')}">` : ''}
+      ${image ? `<div class="section-media-controls"><button class="button small secondary" type="button" data-section-media-trigger="${kind}:profile:${item.id}">Replace image</button><button class="button small ghost" type="button" data-section-media-remove="${kind}:profile:${item.id}">Remove</button></div>` : `<div class="section-media-placeholder-compact"><div><span class="title">${esc(copy.portraitTitle)}</span><span class="help">${esc(copy.portraitHelp)}</span></div></div>`}
+      <input type="file" accept="image/*" hidden data-section-media-input="${kind}:profile:${item.id}">
+    </div>${image ? `<div class="section-image-meta"><span class="section-image-dot"></span><span>Click the image to reveal replace and remove controls.</span></div>` : ''}</section>`;
+  }
+
+  const baseSectionEntityCover = sectionEntityCover;
+  sectionEntityCover = function(kind, item){
+    if(!['locations','species','factions'].includes(kind)) return baseSectionEntityCover(kind, item);
+    let glyph='⌖', detail='';
+    if(kind==='locations'){ glyph = item.type === 'Region' ? '◉' : '⌖'; detail = `${item.type || 'Location'}${childrenOf(item.id).length ? ` · ${childrenOf(item.id).length} inside` : ''}`; }
+    else if(kind==='species'){ glyph = '◈'; detail = `${item.classification || 'Species'}${item.keyMemberIds?.length ? ` · ${item.keyMemberIds.length} known members` : ''}`; }
+    else { glyph = initials(item.name); detail = `${item.power || 'Faction'}${item.keyMemberIds?.length ? ` · ${item.keyMemberIds.length} key members` : ''}`; }
+    return `<div class="section-media-hero">${renderSectionCoverImageSlot(kind, item)}<div class="section-entity-mark section-media-mark"><span class="section-entity-glyph">${esc(glyph)}</span><strong>${esc(sectionTemplateName(kind))}</strong><span>${esc(detail)}</span></div></div>`;
+  };
+
+  const baseRenderEntity = renderEntity;
+  renderEntity = function(kind, itemId){
+    if(kind === 'characters') return baseRenderEntity(kind, itemId);
+    const item = getItem(kind, itemId); if(!item){ navigate(kind); return; }
+    const meta = COLLECTIONS[kind];
+    const breadcrumb = kind === 'locations' ? renderLocationBreadcrumb(item) : '';
+    const entityCover = ['locations','species','factions'].includes(kind) ? sectionEntityCover(kind,item) : sectionEntityCover(kind,item);
+    const templateToolbar = SECTION_TEMPLATE_CONFIG[kind] ? sectionDesignToolbar(kind) : '';
+    const portrait = ['locations','species','factions'].includes(kind) ? renderSectionPortraitSlot(kind,item) : '';
+    const body = `${templateToolbar}${breadcrumb}<section class="entity-hero">${entityCover}<div class="entity-title-row"><textarea class="entity-title-input" rows="1" aria-label="${meta.singular} name" data-title-kind="${kind}" data-title-id="${item.id}">${esc(item.name)}</textarea><button class="favorite-button ${item.favorite?'on':''}" type="button" data-favorite="${kind}:${item.id}" title="Favorite">☆</button></div></section><div class="entity-layout"><div class="editor-surface">${renderBlockEditor(kind,item.id,item.blocks,item.name)}</div><aside class="properties-panel">${portrait}<div class="panel-head" style="padding:0 0 14px"><h2>Properties</h2><button class="button ghost small" type="button" data-delete="${kind}:${item.id}">Delete</button></div>${renderProperties(kind,item)}</aside></div>`;
+    el.main.innerHTML = SECTION_TEMPLATE_CONFIG[kind] ? `<section class="${sectionCssClass(kind)}" style="${sectionThemeStyle(kind)}">${body}</section>` : body;
+    requestAnimationFrame(()=>autoSizeEntityTitle(document.querySelector('.entity-title-input')));
+  };
+
+  document.addEventListener('click', event => {
+    const trigger = event.target.closest('[data-section-media-trigger]');
+    if(trigger){
+      event.preventDefault();
+      const input = document.querySelector(`[data-section-media-input="${CSS.escape(trigger.dataset.sectionMediaTrigger)}"]`);
+      input?.click();
+      return;
+    }
+    const remove = event.target.closest('[data-section-media-remove]');
+    if(remove){
+      event.preventDefault();
+      const [kind, slot, itemId] = remove.dataset.sectionMediaRemove.split(':');
+      removeSectionMedia(kind, itemId, slot);
+      return;
+    }
+    const slot = event.target.closest('.section-media-slot,.section-media-cover-slot');
+    const control = event.target.closest('.section-media-controls');
+    if(slot && slot.classList.contains('has-image')){
+      clearSectionMediaSelection(slot);
+      if(!control){
+        event.preventDefault();
+        slot.classList.toggle('is-media-selected');
+      }
+      return;
+    }
+    if(!event.target.closest('.section-media-slot,.section-media-cover-slot')) clearSectionMediaSelection();
+  }, true);
+
+  document.addEventListener('keydown', event => {
+    const slot = event.target.closest?.('.section-media-slot.has-image,.section-media-cover-slot.has-image');
+    if(slot && (event.key === 'Enter' || event.key === ' ')){
+      event.preventDefault();
+      clearSectionMediaSelection(slot);
+      slot.classList.toggle('is-media-selected');
+    }
+    if(event.key === 'Escape') clearSectionMediaSelection();
+  });
+
+  document.addEventListener('change', event => {
+    const input = event.target.closest?.('[data-section-media-input]');
+    if(!input) return;
+    const file = [...(input.files || [])].find(item => item.type?.startsWith('image/'));
+    if(!file) return;
+    const [kind, slot, itemId] = input.dataset.sectionMediaInput.split(':');
+    setSectionMedia(kind, itemId, slot, file);
+    input.value = '';
+  });
+
+  document.addEventListener('dragover', event => {
+    const slot = event.target.closest?.('.section-media-slot,.section-media-cover-slot');
+    if(!slot) return; event.preventDefault();
+  });
+  document.addEventListener('drop', event => {
+    const slot = event.target.closest?.('[data-section-media-select]');
+    if(!slot) return; event.preventDefault();
+    const file = [...(event.dataTransfer?.files || [])].find(item => item.type?.startsWith('image/'));
+    if(!file) return;
+    const [kind, mediaSlot, itemId] = slot.dataset.sectionMediaSelect.split(':');
+    setSectionMedia(kind, itemId, mediaSlot, file);
+  });
+})();
+
+</script>
   <script>
 window.INITIAL_WORLD_DATA = {
   "schemaVersion": 1,
@@ -7315,6 +7701,199 @@ window.INITIAL_WORLD_DATA = {
   ]
 };
 
+
+
+/* === Section image slots for Locations, Species, and Factions === */
+(function(){
+  const style = document.createElement('style');
+  style.textContent = `
+    .section-media-hero{display:grid;gap:14px;margin-bottom:18px}
+    .section-media-cover-slot{position:relative;min-height:220px;border-radius:22px;overflow:hidden;border:1px solid var(--section-line);background:linear-gradient(135deg,var(--section-paper-2),var(--section-panel));box-shadow:0 20px 40px rgba(0,0,0,.08)}
+    .section-media-cover-slot img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(1.02)}
+    .section-media-cover-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.08),rgba(0,0,0,.38));pointer-events:none}
+    .section-media-mark{position:absolute;left:18px;bottom:18px;z-index:2;max-width:min(520px,92%)}
+    .section-media-slot,.section-media-cover-slot{cursor:pointer}
+    .section-media-placeholder,.section-media-placeholder-compact{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:18px;color:var(--section-ink)}
+    .section-media-placeholder .title,.section-media-placeholder-compact .title{font-size:1rem;font-weight:700;display:block;margin-bottom:6px}
+    .section-media-placeholder .help,.section-media-placeholder-compact .help{font-size:.92rem;color:var(--section-muted)}
+    .section-media-controls{position:absolute;right:12px;top:12px;display:flex;gap:8px;opacity:0;transform:translateY(-6px);transition:opacity .18s ease,transform .18s ease;z-index:3}
+    .section-media-slot.is-media-selected .section-media-controls,.section-media-cover-slot.is-media-selected .section-media-controls,.section-media-slot:hover .section-media-controls,.section-media-cover-slot:hover .section-media-controls{opacity:1;transform:translateY(0)}
+    .section-media-controls .button{backdrop-filter:blur(6px);background:rgba(255,255,255,.82)}
+    .section-media-portrait-card{margin-bottom:14px}
+    .section-media-portrait-label{font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--section-muted);margin-bottom:10px}
+    .section-media-slot{position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--section-line);background:linear-gradient(135deg,var(--section-paper-2),var(--section-panel));min-height:260px;box-shadow:0 14px 28px rgba(0,0,0,.06)}
+    .section-media-slot.compact{min-height:200px}
+    .section-media-slot img{width:100%;height:100%;display:block;object-fit:cover}
+    .section-media-slot .button.small,.section-media-cover-slot .button.small{font-size:.82rem;padding:7px 10px}
+    .section-image-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;color:var(--section-muted);font-size:.88rem}
+    .section-image-dot{width:7px;height:7px;border-radius:999px;background:var(--section-accent);display:inline-block}
+    @media (max-width: 980px){.section-media-cover-slot{min-height:180px}.section-media-slot{min-height:220px}}
+  `;
+  document.head.appendChild(style);
+
+  const MEDIA_COPY = {
+    locations:{coverTitle:'Add location cover',coverHelp:'Header image for the place, landscape, room, or skyline',portraitTitle:'Add location image',portraitHelp:'Portrait, map, landmark, or interior view',detailLabel:'Location image'},
+    species:{coverTitle:'Add species cover',coverHelp:'Header image for the species, lineage, or culture',portraitTitle:'Add species image',portraitHelp:'Representative portrait, symbol, or reference art',detailLabel:'Species image'},
+    factions:{coverTitle:'Add faction cover',coverHelp:'Header image for the faction, hideout, or visual identity',portraitTitle:'Add faction image',portraitHelp:'Crest, emblem, leader image, or group reference',detailLabel:'Faction image'}
+  };
+
+  const baseRenderProperties = renderProperties;
+  renderProperties = function(kind,item){
+    if(kind==='species'){
+      return `<div class="property-list">
+        ${propertyInput('Classification','classification',item.classification||'',kind,item.id)}
+        ${propertyInput('Origin','origin',item.origin||'',kind,item.id)}
+        ${propertyTextarea('Description','description',item.description||'',kind,item.id)}
+        ${propertyTextarea('Traits / physiology','traitsText',item.traitsText||'',kind,item.id)}
+        ${propertyTextarea('Culture / society','culture',item.culture||'',kind,item.id)}
+        <div class="property-row"><label>Known members</label>${linkedPills('characters',item.keyMemberIds)}</div>
+        ${propertyTextarea('Notes','notes',item.notes||'',kind,item.id)}
+      </div>`;
+    }
+    return baseRenderProperties(kind,item);
+  };
+
+  function sectionMediaField(slot){ return slot === 'cover' ? 'headerImage' : 'profileImage'; }
+  function sectionMediaDefaultY(slot){ return slot === 'cover' ? 45 : 25; }
+  function sectionMediaStyle(media, slot){
+    const x = Math.max(0, Math.min(100, Number(media?.positionX ?? 50)));
+    const y = Math.max(0, Math.min(100, Number(media?.positionY ?? sectionMediaDefaultY(slot))));
+    const zoom = Math.max(1, Math.min(3, Number(media?.zoom ?? 1)));
+    const fit = media?.fit === 'contain' ? 'contain' : 'cover';
+    return `object-position:${x}% ${y}%;transform:scale(${zoom});transform-origin:${x}% ${y}%;object-fit:${fit};`;
+  }
+  function setSectionMedia(kind, itemId, slot, file){
+    const item = getItem(kind, itemId); if(!item || !file) return;
+    const field = sectionMediaField(slot);
+    const reader = new FileReader();
+    reader.onload = () => {
+      item[field] = { src: reader.result, alt: item.name + ' ' + slot + ' image', positionX:50, positionY:sectionMediaDefaultY(slot), zoom:1, fit:'cover' };
+      item.updatedAt = nowISO();
+      scheduleSave();
+      renderEntity(kind, itemId);
+      toast(`${slot === 'cover' ? 'Cover' : 'Image'} updated.`);
+    };
+    reader.readAsDataURL(file);
+  }
+  function removeSectionMedia(kind, itemId, slot){
+    const item = getItem(kind, itemId); if(!item) return;
+    delete item[sectionMediaField(slot)];
+    item.updatedAt = nowISO();
+    scheduleSave();
+    renderEntity(kind, itemId);
+    toast(`${slot === 'cover' ? 'Cover' : 'Image'} removed.`);
+  }
+  function clearSectionMediaSelection(except){
+    document.querySelectorAll('.section-media-slot.is-media-selected,.section-media-cover-slot.is-media-selected').forEach(node=>{ if(node !== except) node.classList.remove('is-media-selected'); });
+  }
+  function renderSectionCoverImageSlot(kind, item){
+    const copy = MEDIA_COPY[kind] || MEDIA_COPY.locations;
+    const media = item.headerImage || null;
+    const image = media?.src || '';
+    return `<div class="section-media-cover-slot ${image ? 'has-image' : ''}" data-section-media-select="${kind}:cover:${item.id}" ${image ? `tabindex="0" role="button" aria-label="Select the cover image for ${esc(item.name)}"` : ''}>
+      ${image ? `<img src="${esc(image)}" alt="${esc(media?.alt || (item.name + ' cover image'))}" style="${sectionMediaStyle(media,'cover')}"><div class="section-media-cover-overlay"></div>` : ''}
+      ${image ? `<div class="section-media-controls"><button class="button small secondary" type="button" data-section-media-trigger="${kind}:cover:${item.id}">Replace cover</button><button class="button small ghost" type="button" data-section-media-remove="${kind}:cover:${item.id}">Remove</button></div>` : ''}
+      ${!image ? `<div class="section-media-placeholder"><div><span class="title">${esc(copy.coverTitle)}</span><span class="help">${esc(copy.coverHelp)}</span></div></div>` : ''}
+      <input type="file" accept="image/*" hidden data-section-media-input="${kind}:cover:${item.id}">
+    </div>`;
+  }
+  function renderSectionPortraitSlot(kind, item){
+    const copy = MEDIA_COPY[kind] || MEDIA_COPY.locations;
+    const media = item.profileImage || null;
+    const image = media?.src || '';
+    return `<section class="panel section-media-portrait-card"><div class="section-media-portrait-label">${esc(copy.detailLabel)}</div><div class="section-media-slot compact ${image ? 'has-image' : ''}" data-section-media-select="${kind}:profile:${item.id}" ${image ? `tabindex="0" role="button" aria-label="Select the image for ${esc(item.name)}"` : ''}>
+      ${image ? `<img src="${esc(image)}" alt="${esc(media?.alt || (item.name + ' image'))}" style="${sectionMediaStyle(media,'profile')}">` : ''}
+      ${image ? `<div class="section-media-controls"><button class="button small secondary" type="button" data-section-media-trigger="${kind}:profile:${item.id}">Replace image</button><button class="button small ghost" type="button" data-section-media-remove="${kind}:profile:${item.id}">Remove</button></div>` : `<div class="section-media-placeholder-compact"><div><span class="title">${esc(copy.portraitTitle)}</span><span class="help">${esc(copy.portraitHelp)}</span></div></div>`}
+      <input type="file" accept="image/*" hidden data-section-media-input="${kind}:profile:${item.id}">
+    </div>${image ? `<div class="section-image-meta"><span class="section-image-dot"></span><span>Click the image to reveal replace and remove controls.</span></div>` : ''}</section>`;
+  }
+
+  const baseSectionEntityCover = sectionEntityCover;
+  sectionEntityCover = function(kind, item){
+    if(!['locations','species','factions'].includes(kind)) return baseSectionEntityCover(kind, item);
+    let glyph='⌖', detail='';
+    if(kind==='locations'){ glyph = item.type === 'Region' ? '◉' : '⌖'; detail = `${item.type || 'Location'}${childrenOf(item.id).length ? ` · ${childrenOf(item.id).length} inside` : ''}`; }
+    else if(kind==='species'){ glyph = '◈'; detail = `${item.classification || 'Species'}${item.keyMemberIds?.length ? ` · ${item.keyMemberIds.length} known members` : ''}`; }
+    else { glyph = initials(item.name); detail = `${item.power || 'Faction'}${item.keyMemberIds?.length ? ` · ${item.keyMemberIds.length} key members` : ''}`; }
+    return `<div class="section-media-hero">${renderSectionCoverImageSlot(kind, item)}<div class="section-entity-mark section-media-mark"><span class="section-entity-glyph">${esc(glyph)}</span><strong>${esc(sectionTemplateName(kind))}</strong><span>${esc(detail)}</span></div></div>`;
+  };
+
+  const baseRenderEntity = renderEntity;
+  renderEntity = function(kind, itemId){
+    if(kind === 'characters') return baseRenderEntity(kind, itemId);
+    const item = getItem(kind, itemId); if(!item){ navigate(kind); return; }
+    const meta = COLLECTIONS[kind];
+    const breadcrumb = kind === 'locations' ? renderLocationBreadcrumb(item) : '';
+    const entityCover = ['locations','species','factions'].includes(kind) ? sectionEntityCover(kind,item) : sectionEntityCover(kind,item);
+    const templateToolbar = SECTION_TEMPLATE_CONFIG[kind] ? sectionDesignToolbar(kind) : '';
+    const portrait = ['locations','species','factions'].includes(kind) ? renderSectionPortraitSlot(kind,item) : '';
+    const body = `${templateToolbar}${breadcrumb}<section class="entity-hero">${entityCover}<div class="entity-title-row"><textarea class="entity-title-input" rows="1" aria-label="${meta.singular} name" data-title-kind="${kind}" data-title-id="${item.id}">${esc(item.name)}</textarea><button class="favorite-button ${item.favorite?'on':''}" type="button" data-favorite="${kind}:${item.id}" title="Favorite">☆</button></div></section><div class="entity-layout"><div class="editor-surface">${renderBlockEditor(kind,item.id,item.blocks,item.name)}</div><aside class="properties-panel">${portrait}<div class="panel-head" style="padding:0 0 14px"><h2>Properties</h2><button class="button ghost small" type="button" data-delete="${kind}:${item.id}">Delete</button></div>${renderProperties(kind,item)}</aside></div>`;
+    el.main.innerHTML = SECTION_TEMPLATE_CONFIG[kind] ? `<section class="${sectionCssClass(kind)}" style="${sectionThemeStyle(kind)}">${body}</section>` : body;
+    requestAnimationFrame(()=>autoSizeEntityTitle(document.querySelector('.entity-title-input')));
+  };
+
+  document.addEventListener('click', event => {
+    const trigger = event.target.closest('[data-section-media-trigger]');
+    if(trigger){
+      event.preventDefault();
+      const input = document.querySelector(`[data-section-media-input="${CSS.escape(trigger.dataset.sectionMediaTrigger)}"]`);
+      input?.click();
+      return;
+    }
+    const remove = event.target.closest('[data-section-media-remove]');
+    if(remove){
+      event.preventDefault();
+      const [kind, slot, itemId] = remove.dataset.sectionMediaRemove.split(':');
+      removeSectionMedia(kind, itemId, slot);
+      return;
+    }
+    const slot = event.target.closest('.section-media-slot,.section-media-cover-slot');
+    const control = event.target.closest('.section-media-controls');
+    if(slot && slot.classList.contains('has-image')){
+      clearSectionMediaSelection(slot);
+      if(!control){
+        event.preventDefault();
+        slot.classList.toggle('is-media-selected');
+      }
+      return;
+    }
+    if(!event.target.closest('.section-media-slot,.section-media-cover-slot')) clearSectionMediaSelection();
+  }, true);
+
+  document.addEventListener('keydown', event => {
+    const slot = event.target.closest?.('.section-media-slot.has-image,.section-media-cover-slot.has-image');
+    if(slot && (event.key === 'Enter' || event.key === ' ')){
+      event.preventDefault();
+      clearSectionMediaSelection(slot);
+      slot.classList.toggle('is-media-selected');
+    }
+    if(event.key === 'Escape') clearSectionMediaSelection();
+  });
+
+  document.addEventListener('change', event => {
+    const input = event.target.closest?.('[data-section-media-input]');
+    if(!input) return;
+    const file = [...(input.files || [])].find(item => item.type?.startsWith('image/'));
+    if(!file) return;
+    const [kind, slot, itemId] = input.dataset.sectionMediaInput.split(':');
+    setSectionMedia(kind, itemId, slot, file);
+    input.value = '';
+  });
+
+  document.addEventListener('dragover', event => {
+    const slot = event.target.closest?.('.section-media-slot,.section-media-cover-slot');
+    if(!slot) return; event.preventDefault();
+  });
+  document.addEventListener('drop', event => {
+    const slot = event.target.closest?.('[data-section-media-select]');
+    if(!slot) return; event.preventDefault();
+    const file = [...(event.dataTransfer?.files || [])].find(item => item.type?.startsWith('image/'));
+    if(!file) return;
+    const [kind, mediaSlot, itemId] = slot.dataset.sectionMediaSelect.split(':');
+    setSectionMedia(kind, itemId, mediaSlot, file);
+  });
+})();
+
 </script>
   <script>
 /*
@@ -7337,6 +7916,199 @@ window.FIREBASE_CONFIG = {
   appId: "..."
 };
 */
+
+
+
+/* === Section image slots for Locations, Species, and Factions === */
+(function(){
+  const style = document.createElement('style');
+  style.textContent = `
+    .section-media-hero{display:grid;gap:14px;margin-bottom:18px}
+    .section-media-cover-slot{position:relative;min-height:220px;border-radius:22px;overflow:hidden;border:1px solid var(--section-line);background:linear-gradient(135deg,var(--section-paper-2),var(--section-panel));box-shadow:0 20px 40px rgba(0,0,0,.08)}
+    .section-media-cover-slot img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(1.02)}
+    .section-media-cover-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.08),rgba(0,0,0,.38));pointer-events:none}
+    .section-media-mark{position:absolute;left:18px;bottom:18px;z-index:2;max-width:min(520px,92%)}
+    .section-media-slot,.section-media-cover-slot{cursor:pointer}
+    .section-media-placeholder,.section-media-placeholder-compact{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:18px;color:var(--section-ink)}
+    .section-media-placeholder .title,.section-media-placeholder-compact .title{font-size:1rem;font-weight:700;display:block;margin-bottom:6px}
+    .section-media-placeholder .help,.section-media-placeholder-compact .help{font-size:.92rem;color:var(--section-muted)}
+    .section-media-controls{position:absolute;right:12px;top:12px;display:flex;gap:8px;opacity:0;transform:translateY(-6px);transition:opacity .18s ease,transform .18s ease;z-index:3}
+    .section-media-slot.is-media-selected .section-media-controls,.section-media-cover-slot.is-media-selected .section-media-controls,.section-media-slot:hover .section-media-controls,.section-media-cover-slot:hover .section-media-controls{opacity:1;transform:translateY(0)}
+    .section-media-controls .button{backdrop-filter:blur(6px);background:rgba(255,255,255,.82)}
+    .section-media-portrait-card{margin-bottom:14px}
+    .section-media-portrait-label{font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--section-muted);margin-bottom:10px}
+    .section-media-slot{position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--section-line);background:linear-gradient(135deg,var(--section-paper-2),var(--section-panel));min-height:260px;box-shadow:0 14px 28px rgba(0,0,0,.06)}
+    .section-media-slot.compact{min-height:200px}
+    .section-media-slot img{width:100%;height:100%;display:block;object-fit:cover}
+    .section-media-slot .button.small,.section-media-cover-slot .button.small{font-size:.82rem;padding:7px 10px}
+    .section-image-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;color:var(--section-muted);font-size:.88rem}
+    .section-image-dot{width:7px;height:7px;border-radius:999px;background:var(--section-accent);display:inline-block}
+    @media (max-width: 980px){.section-media-cover-slot{min-height:180px}.section-media-slot{min-height:220px}}
+  `;
+  document.head.appendChild(style);
+
+  const MEDIA_COPY = {
+    locations:{coverTitle:'Add location cover',coverHelp:'Header image for the place, landscape, room, or skyline',portraitTitle:'Add location image',portraitHelp:'Portrait, map, landmark, or interior view',detailLabel:'Location image'},
+    species:{coverTitle:'Add species cover',coverHelp:'Header image for the species, lineage, or culture',portraitTitle:'Add species image',portraitHelp:'Representative portrait, symbol, or reference art',detailLabel:'Species image'},
+    factions:{coverTitle:'Add faction cover',coverHelp:'Header image for the faction, hideout, or visual identity',portraitTitle:'Add faction image',portraitHelp:'Crest, emblem, leader image, or group reference',detailLabel:'Faction image'}
+  };
+
+  const baseRenderProperties = renderProperties;
+  renderProperties = function(kind,item){
+    if(kind==='species'){
+      return `<div class="property-list">
+        ${propertyInput('Classification','classification',item.classification||'',kind,item.id)}
+        ${propertyInput('Origin','origin',item.origin||'',kind,item.id)}
+        ${propertyTextarea('Description','description',item.description||'',kind,item.id)}
+        ${propertyTextarea('Traits / physiology','traitsText',item.traitsText||'',kind,item.id)}
+        ${propertyTextarea('Culture / society','culture',item.culture||'',kind,item.id)}
+        <div class="property-row"><label>Known members</label>${linkedPills('characters',item.keyMemberIds)}</div>
+        ${propertyTextarea('Notes','notes',item.notes||'',kind,item.id)}
+      </div>`;
+    }
+    return baseRenderProperties(kind,item);
+  };
+
+  function sectionMediaField(slot){ return slot === 'cover' ? 'headerImage' : 'profileImage'; }
+  function sectionMediaDefaultY(slot){ return slot === 'cover' ? 45 : 25; }
+  function sectionMediaStyle(media, slot){
+    const x = Math.max(0, Math.min(100, Number(media?.positionX ?? 50)));
+    const y = Math.max(0, Math.min(100, Number(media?.positionY ?? sectionMediaDefaultY(slot))));
+    const zoom = Math.max(1, Math.min(3, Number(media?.zoom ?? 1)));
+    const fit = media?.fit === 'contain' ? 'contain' : 'cover';
+    return `object-position:${x}% ${y}%;transform:scale(${zoom});transform-origin:${x}% ${y}%;object-fit:${fit};`;
+  }
+  function setSectionMedia(kind, itemId, slot, file){
+    const item = getItem(kind, itemId); if(!item || !file) return;
+    const field = sectionMediaField(slot);
+    const reader = new FileReader();
+    reader.onload = () => {
+      item[field] = { src: reader.result, alt: item.name + ' ' + slot + ' image', positionX:50, positionY:sectionMediaDefaultY(slot), zoom:1, fit:'cover' };
+      item.updatedAt = nowISO();
+      scheduleSave();
+      renderEntity(kind, itemId);
+      toast(`${slot === 'cover' ? 'Cover' : 'Image'} updated.`);
+    };
+    reader.readAsDataURL(file);
+  }
+  function removeSectionMedia(kind, itemId, slot){
+    const item = getItem(kind, itemId); if(!item) return;
+    delete item[sectionMediaField(slot)];
+    item.updatedAt = nowISO();
+    scheduleSave();
+    renderEntity(kind, itemId);
+    toast(`${slot === 'cover' ? 'Cover' : 'Image'} removed.`);
+  }
+  function clearSectionMediaSelection(except){
+    document.querySelectorAll('.section-media-slot.is-media-selected,.section-media-cover-slot.is-media-selected').forEach(node=>{ if(node !== except) node.classList.remove('is-media-selected'); });
+  }
+  function renderSectionCoverImageSlot(kind, item){
+    const copy = MEDIA_COPY[kind] || MEDIA_COPY.locations;
+    const media = item.headerImage || null;
+    const image = media?.src || '';
+    return `<div class="section-media-cover-slot ${image ? 'has-image' : ''}" data-section-media-select="${kind}:cover:${item.id}" ${image ? `tabindex="0" role="button" aria-label="Select the cover image for ${esc(item.name)}"` : ''}>
+      ${image ? `<img src="${esc(image)}" alt="${esc(media?.alt || (item.name + ' cover image'))}" style="${sectionMediaStyle(media,'cover')}"><div class="section-media-cover-overlay"></div>` : ''}
+      ${image ? `<div class="section-media-controls"><button class="button small secondary" type="button" data-section-media-trigger="${kind}:cover:${item.id}">Replace cover</button><button class="button small ghost" type="button" data-section-media-remove="${kind}:cover:${item.id}">Remove</button></div>` : ''}
+      ${!image ? `<div class="section-media-placeholder"><div><span class="title">${esc(copy.coverTitle)}</span><span class="help">${esc(copy.coverHelp)}</span></div></div>` : ''}
+      <input type="file" accept="image/*" hidden data-section-media-input="${kind}:cover:${item.id}">
+    </div>`;
+  }
+  function renderSectionPortraitSlot(kind, item){
+    const copy = MEDIA_COPY[kind] || MEDIA_COPY.locations;
+    const media = item.profileImage || null;
+    const image = media?.src || '';
+    return `<section class="panel section-media-portrait-card"><div class="section-media-portrait-label">${esc(copy.detailLabel)}</div><div class="section-media-slot compact ${image ? 'has-image' : ''}" data-section-media-select="${kind}:profile:${item.id}" ${image ? `tabindex="0" role="button" aria-label="Select the image for ${esc(item.name)}"` : ''}>
+      ${image ? `<img src="${esc(image)}" alt="${esc(media?.alt || (item.name + ' image'))}" style="${sectionMediaStyle(media,'profile')}">` : ''}
+      ${image ? `<div class="section-media-controls"><button class="button small secondary" type="button" data-section-media-trigger="${kind}:profile:${item.id}">Replace image</button><button class="button small ghost" type="button" data-section-media-remove="${kind}:profile:${item.id}">Remove</button></div>` : `<div class="section-media-placeholder-compact"><div><span class="title">${esc(copy.portraitTitle)}</span><span class="help">${esc(copy.portraitHelp)}</span></div></div>`}
+      <input type="file" accept="image/*" hidden data-section-media-input="${kind}:profile:${item.id}">
+    </div>${image ? `<div class="section-image-meta"><span class="section-image-dot"></span><span>Click the image to reveal replace and remove controls.</span></div>` : ''}</section>`;
+  }
+
+  const baseSectionEntityCover = sectionEntityCover;
+  sectionEntityCover = function(kind, item){
+    if(!['locations','species','factions'].includes(kind)) return baseSectionEntityCover(kind, item);
+    let glyph='⌖', detail='';
+    if(kind==='locations'){ glyph = item.type === 'Region' ? '◉' : '⌖'; detail = `${item.type || 'Location'}${childrenOf(item.id).length ? ` · ${childrenOf(item.id).length} inside` : ''}`; }
+    else if(kind==='species'){ glyph = '◈'; detail = `${item.classification || 'Species'}${item.keyMemberIds?.length ? ` · ${item.keyMemberIds.length} known members` : ''}`; }
+    else { glyph = initials(item.name); detail = `${item.power || 'Faction'}${item.keyMemberIds?.length ? ` · ${item.keyMemberIds.length} key members` : ''}`; }
+    return `<div class="section-media-hero">${renderSectionCoverImageSlot(kind, item)}<div class="section-entity-mark section-media-mark"><span class="section-entity-glyph">${esc(glyph)}</span><strong>${esc(sectionTemplateName(kind))}</strong><span>${esc(detail)}</span></div></div>`;
+  };
+
+  const baseRenderEntity = renderEntity;
+  renderEntity = function(kind, itemId){
+    if(kind === 'characters') return baseRenderEntity(kind, itemId);
+    const item = getItem(kind, itemId); if(!item){ navigate(kind); return; }
+    const meta = COLLECTIONS[kind];
+    const breadcrumb = kind === 'locations' ? renderLocationBreadcrumb(item) : '';
+    const entityCover = ['locations','species','factions'].includes(kind) ? sectionEntityCover(kind,item) : sectionEntityCover(kind,item);
+    const templateToolbar = SECTION_TEMPLATE_CONFIG[kind] ? sectionDesignToolbar(kind) : '';
+    const portrait = ['locations','species','factions'].includes(kind) ? renderSectionPortraitSlot(kind,item) : '';
+    const body = `${templateToolbar}${breadcrumb}<section class="entity-hero">${entityCover}<div class="entity-title-row"><textarea class="entity-title-input" rows="1" aria-label="${meta.singular} name" data-title-kind="${kind}" data-title-id="${item.id}">${esc(item.name)}</textarea><button class="favorite-button ${item.favorite?'on':''}" type="button" data-favorite="${kind}:${item.id}" title="Favorite">☆</button></div></section><div class="entity-layout"><div class="editor-surface">${renderBlockEditor(kind,item.id,item.blocks,item.name)}</div><aside class="properties-panel">${portrait}<div class="panel-head" style="padding:0 0 14px"><h2>Properties</h2><button class="button ghost small" type="button" data-delete="${kind}:${item.id}">Delete</button></div>${renderProperties(kind,item)}</aside></div>`;
+    el.main.innerHTML = SECTION_TEMPLATE_CONFIG[kind] ? `<section class="${sectionCssClass(kind)}" style="${sectionThemeStyle(kind)}">${body}</section>` : body;
+    requestAnimationFrame(()=>autoSizeEntityTitle(document.querySelector('.entity-title-input')));
+  };
+
+  document.addEventListener('click', event => {
+    const trigger = event.target.closest('[data-section-media-trigger]');
+    if(trigger){
+      event.preventDefault();
+      const input = document.querySelector(`[data-section-media-input="${CSS.escape(trigger.dataset.sectionMediaTrigger)}"]`);
+      input?.click();
+      return;
+    }
+    const remove = event.target.closest('[data-section-media-remove]');
+    if(remove){
+      event.preventDefault();
+      const [kind, slot, itemId] = remove.dataset.sectionMediaRemove.split(':');
+      removeSectionMedia(kind, itemId, slot);
+      return;
+    }
+    const slot = event.target.closest('.section-media-slot,.section-media-cover-slot');
+    const control = event.target.closest('.section-media-controls');
+    if(slot && slot.classList.contains('has-image')){
+      clearSectionMediaSelection(slot);
+      if(!control){
+        event.preventDefault();
+        slot.classList.toggle('is-media-selected');
+      }
+      return;
+    }
+    if(!event.target.closest('.section-media-slot,.section-media-cover-slot')) clearSectionMediaSelection();
+  }, true);
+
+  document.addEventListener('keydown', event => {
+    const slot = event.target.closest?.('.section-media-slot.has-image,.section-media-cover-slot.has-image');
+    if(slot && (event.key === 'Enter' || event.key === ' ')){
+      event.preventDefault();
+      clearSectionMediaSelection(slot);
+      slot.classList.toggle('is-media-selected');
+    }
+    if(event.key === 'Escape') clearSectionMediaSelection();
+  });
+
+  document.addEventListener('change', event => {
+    const input = event.target.closest?.('[data-section-media-input]');
+    if(!input) return;
+    const file = [...(input.files || [])].find(item => item.type?.startsWith('image/'));
+    if(!file) return;
+    const [kind, slot, itemId] = input.dataset.sectionMediaInput.split(':');
+    setSectionMedia(kind, itemId, slot, file);
+    input.value = '';
+  });
+
+  document.addEventListener('dragover', event => {
+    const slot = event.target.closest?.('.section-media-slot,.section-media-cover-slot');
+    if(!slot) return; event.preventDefault();
+  });
+  document.addEventListener('drop', event => {
+    const slot = event.target.closest?.('[data-section-media-select]');
+    if(!slot) return; event.preventDefault();
+    const file = [...(event.dataTransfer?.files || [])].find(item => item.type?.startsWith('image/'));
+    if(!file) return;
+    const [kind, mediaSlot, itemId] = slot.dataset.sectionMediaSelect.split(':');
+    setSectionMedia(kind, itemId, mediaSlot, file);
+  });
+})();
 
 </script>
   <script>
@@ -12216,6 +12988,199 @@ document.addEventListener('click',event=>{
 
 })();
 
+
+
+/* === Section image slots for Locations, Species, and Factions === */
+(function(){
+  const style = document.createElement('style');
+  style.textContent = `
+    .section-media-hero{display:grid;gap:14px;margin-bottom:18px}
+    .section-media-cover-slot{position:relative;min-height:220px;border-radius:22px;overflow:hidden;border:1px solid var(--section-line);background:linear-gradient(135deg,var(--section-paper-2),var(--section-panel));box-shadow:0 20px 40px rgba(0,0,0,.08)}
+    .section-media-cover-slot img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(1.02)}
+    .section-media-cover-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.08),rgba(0,0,0,.38));pointer-events:none}
+    .section-media-mark{position:absolute;left:18px;bottom:18px;z-index:2;max-width:min(520px,92%)}
+    .section-media-slot,.section-media-cover-slot{cursor:pointer}
+    .section-media-placeholder,.section-media-placeholder-compact{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:18px;color:var(--section-ink)}
+    .section-media-placeholder .title,.section-media-placeholder-compact .title{font-size:1rem;font-weight:700;display:block;margin-bottom:6px}
+    .section-media-placeholder .help,.section-media-placeholder-compact .help{font-size:.92rem;color:var(--section-muted)}
+    .section-media-controls{position:absolute;right:12px;top:12px;display:flex;gap:8px;opacity:0;transform:translateY(-6px);transition:opacity .18s ease,transform .18s ease;z-index:3}
+    .section-media-slot.is-media-selected .section-media-controls,.section-media-cover-slot.is-media-selected .section-media-controls,.section-media-slot:hover .section-media-controls,.section-media-cover-slot:hover .section-media-controls{opacity:1;transform:translateY(0)}
+    .section-media-controls .button{backdrop-filter:blur(6px);background:rgba(255,255,255,.82)}
+    .section-media-portrait-card{margin-bottom:14px}
+    .section-media-portrait-label{font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--section-muted);margin-bottom:10px}
+    .section-media-slot{position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--section-line);background:linear-gradient(135deg,var(--section-paper-2),var(--section-panel));min-height:260px;box-shadow:0 14px 28px rgba(0,0,0,.06)}
+    .section-media-slot.compact{min-height:200px}
+    .section-media-slot img{width:100%;height:100%;display:block;object-fit:cover}
+    .section-media-slot .button.small,.section-media-cover-slot .button.small{font-size:.82rem;padding:7px 10px}
+    .section-image-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;color:var(--section-muted);font-size:.88rem}
+    .section-image-dot{width:7px;height:7px;border-radius:999px;background:var(--section-accent);display:inline-block}
+    @media (max-width: 980px){.section-media-cover-slot{min-height:180px}.section-media-slot{min-height:220px}}
+  `;
+  document.head.appendChild(style);
+
+  const MEDIA_COPY = {
+    locations:{coverTitle:'Add location cover',coverHelp:'Header image for the place, landscape, room, or skyline',portraitTitle:'Add location image',portraitHelp:'Portrait, map, landmark, or interior view',detailLabel:'Location image'},
+    species:{coverTitle:'Add species cover',coverHelp:'Header image for the species, lineage, or culture',portraitTitle:'Add species image',portraitHelp:'Representative portrait, symbol, or reference art',detailLabel:'Species image'},
+    factions:{coverTitle:'Add faction cover',coverHelp:'Header image for the faction, hideout, or visual identity',portraitTitle:'Add faction image',portraitHelp:'Crest, emblem, leader image, or group reference',detailLabel:'Faction image'}
+  };
+
+  const baseRenderProperties = renderProperties;
+  renderProperties = function(kind,item){
+    if(kind==='species'){
+      return `<div class="property-list">
+        ${propertyInput('Classification','classification',item.classification||'',kind,item.id)}
+        ${propertyInput('Origin','origin',item.origin||'',kind,item.id)}
+        ${propertyTextarea('Description','description',item.description||'',kind,item.id)}
+        ${propertyTextarea('Traits / physiology','traitsText',item.traitsText||'',kind,item.id)}
+        ${propertyTextarea('Culture / society','culture',item.culture||'',kind,item.id)}
+        <div class="property-row"><label>Known members</label>${linkedPills('characters',item.keyMemberIds)}</div>
+        ${propertyTextarea('Notes','notes',item.notes||'',kind,item.id)}
+      </div>`;
+    }
+    return baseRenderProperties(kind,item);
+  };
+
+  function sectionMediaField(slot){ return slot === 'cover' ? 'headerImage' : 'profileImage'; }
+  function sectionMediaDefaultY(slot){ return slot === 'cover' ? 45 : 25; }
+  function sectionMediaStyle(media, slot){
+    const x = Math.max(0, Math.min(100, Number(media?.positionX ?? 50)));
+    const y = Math.max(0, Math.min(100, Number(media?.positionY ?? sectionMediaDefaultY(slot))));
+    const zoom = Math.max(1, Math.min(3, Number(media?.zoom ?? 1)));
+    const fit = media?.fit === 'contain' ? 'contain' : 'cover';
+    return `object-position:${x}% ${y}%;transform:scale(${zoom});transform-origin:${x}% ${y}%;object-fit:${fit};`;
+  }
+  function setSectionMedia(kind, itemId, slot, file){
+    const item = getItem(kind, itemId); if(!item || !file) return;
+    const field = sectionMediaField(slot);
+    const reader = new FileReader();
+    reader.onload = () => {
+      item[field] = { src: reader.result, alt: item.name + ' ' + slot + ' image', positionX:50, positionY:sectionMediaDefaultY(slot), zoom:1, fit:'cover' };
+      item.updatedAt = nowISO();
+      scheduleSave();
+      renderEntity(kind, itemId);
+      toast(`${slot === 'cover' ? 'Cover' : 'Image'} updated.`);
+    };
+    reader.readAsDataURL(file);
+  }
+  function removeSectionMedia(kind, itemId, slot){
+    const item = getItem(kind, itemId); if(!item) return;
+    delete item[sectionMediaField(slot)];
+    item.updatedAt = nowISO();
+    scheduleSave();
+    renderEntity(kind, itemId);
+    toast(`${slot === 'cover' ? 'Cover' : 'Image'} removed.`);
+  }
+  function clearSectionMediaSelection(except){
+    document.querySelectorAll('.section-media-slot.is-media-selected,.section-media-cover-slot.is-media-selected').forEach(node=>{ if(node !== except) node.classList.remove('is-media-selected'); });
+  }
+  function renderSectionCoverImageSlot(kind, item){
+    const copy = MEDIA_COPY[kind] || MEDIA_COPY.locations;
+    const media = item.headerImage || null;
+    const image = media?.src || '';
+    return `<div class="section-media-cover-slot ${image ? 'has-image' : ''}" data-section-media-select="${kind}:cover:${item.id}" ${image ? `tabindex="0" role="button" aria-label="Select the cover image for ${esc(item.name)}"` : ''}>
+      ${image ? `<img src="${esc(image)}" alt="${esc(media?.alt || (item.name + ' cover image'))}" style="${sectionMediaStyle(media,'cover')}"><div class="section-media-cover-overlay"></div>` : ''}
+      ${image ? `<div class="section-media-controls"><button class="button small secondary" type="button" data-section-media-trigger="${kind}:cover:${item.id}">Replace cover</button><button class="button small ghost" type="button" data-section-media-remove="${kind}:cover:${item.id}">Remove</button></div>` : ''}
+      ${!image ? `<div class="section-media-placeholder"><div><span class="title">${esc(copy.coverTitle)}</span><span class="help">${esc(copy.coverHelp)}</span></div></div>` : ''}
+      <input type="file" accept="image/*" hidden data-section-media-input="${kind}:cover:${item.id}">
+    </div>`;
+  }
+  function renderSectionPortraitSlot(kind, item){
+    const copy = MEDIA_COPY[kind] || MEDIA_COPY.locations;
+    const media = item.profileImage || null;
+    const image = media?.src || '';
+    return `<section class="panel section-media-portrait-card"><div class="section-media-portrait-label">${esc(copy.detailLabel)}</div><div class="section-media-slot compact ${image ? 'has-image' : ''}" data-section-media-select="${kind}:profile:${item.id}" ${image ? `tabindex="0" role="button" aria-label="Select the image for ${esc(item.name)}"` : ''}>
+      ${image ? `<img src="${esc(image)}" alt="${esc(media?.alt || (item.name + ' image'))}" style="${sectionMediaStyle(media,'profile')}">` : ''}
+      ${image ? `<div class="section-media-controls"><button class="button small secondary" type="button" data-section-media-trigger="${kind}:profile:${item.id}">Replace image</button><button class="button small ghost" type="button" data-section-media-remove="${kind}:profile:${item.id}">Remove</button></div>` : `<div class="section-media-placeholder-compact"><div><span class="title">${esc(copy.portraitTitle)}</span><span class="help">${esc(copy.portraitHelp)}</span></div></div>`}
+      <input type="file" accept="image/*" hidden data-section-media-input="${kind}:profile:${item.id}">
+    </div>${image ? `<div class="section-image-meta"><span class="section-image-dot"></span><span>Click the image to reveal replace and remove controls.</span></div>` : ''}</section>`;
+  }
+
+  const baseSectionEntityCover = sectionEntityCover;
+  sectionEntityCover = function(kind, item){
+    if(!['locations','species','factions'].includes(kind)) return baseSectionEntityCover(kind, item);
+    let glyph='⌖', detail='';
+    if(kind==='locations'){ glyph = item.type === 'Region' ? '◉' : '⌖'; detail = `${item.type || 'Location'}${childrenOf(item.id).length ? ` · ${childrenOf(item.id).length} inside` : ''}`; }
+    else if(kind==='species'){ glyph = '◈'; detail = `${item.classification || 'Species'}${item.keyMemberIds?.length ? ` · ${item.keyMemberIds.length} known members` : ''}`; }
+    else { glyph = initials(item.name); detail = `${item.power || 'Faction'}${item.keyMemberIds?.length ? ` · ${item.keyMemberIds.length} key members` : ''}`; }
+    return `<div class="section-media-hero">${renderSectionCoverImageSlot(kind, item)}<div class="section-entity-mark section-media-mark"><span class="section-entity-glyph">${esc(glyph)}</span><strong>${esc(sectionTemplateName(kind))}</strong><span>${esc(detail)}</span></div></div>`;
+  };
+
+  const baseRenderEntity = renderEntity;
+  renderEntity = function(kind, itemId){
+    if(kind === 'characters') return baseRenderEntity(kind, itemId);
+    const item = getItem(kind, itemId); if(!item){ navigate(kind); return; }
+    const meta = COLLECTIONS[kind];
+    const breadcrumb = kind === 'locations' ? renderLocationBreadcrumb(item) : '';
+    const entityCover = ['locations','species','factions'].includes(kind) ? sectionEntityCover(kind,item) : sectionEntityCover(kind,item);
+    const templateToolbar = SECTION_TEMPLATE_CONFIG[kind] ? sectionDesignToolbar(kind) : '';
+    const portrait = ['locations','species','factions'].includes(kind) ? renderSectionPortraitSlot(kind,item) : '';
+    const body = `${templateToolbar}${breadcrumb}<section class="entity-hero">${entityCover}<div class="entity-title-row"><textarea class="entity-title-input" rows="1" aria-label="${meta.singular} name" data-title-kind="${kind}" data-title-id="${item.id}">${esc(item.name)}</textarea><button class="favorite-button ${item.favorite?'on':''}" type="button" data-favorite="${kind}:${item.id}" title="Favorite">☆</button></div></section><div class="entity-layout"><div class="editor-surface">${renderBlockEditor(kind,item.id,item.blocks,item.name)}</div><aside class="properties-panel">${portrait}<div class="panel-head" style="padding:0 0 14px"><h2>Properties</h2><button class="button ghost small" type="button" data-delete="${kind}:${item.id}">Delete</button></div>${renderProperties(kind,item)}</aside></div>`;
+    el.main.innerHTML = SECTION_TEMPLATE_CONFIG[kind] ? `<section class="${sectionCssClass(kind)}" style="${sectionThemeStyle(kind)}">${body}</section>` : body;
+    requestAnimationFrame(()=>autoSizeEntityTitle(document.querySelector('.entity-title-input')));
+  };
+
+  document.addEventListener('click', event => {
+    const trigger = event.target.closest('[data-section-media-trigger]');
+    if(trigger){
+      event.preventDefault();
+      const input = document.querySelector(`[data-section-media-input="${CSS.escape(trigger.dataset.sectionMediaTrigger)}"]`);
+      input?.click();
+      return;
+    }
+    const remove = event.target.closest('[data-section-media-remove]');
+    if(remove){
+      event.preventDefault();
+      const [kind, slot, itemId] = remove.dataset.sectionMediaRemove.split(':');
+      removeSectionMedia(kind, itemId, slot);
+      return;
+    }
+    const slot = event.target.closest('.section-media-slot,.section-media-cover-slot');
+    const control = event.target.closest('.section-media-controls');
+    if(slot && slot.classList.contains('has-image')){
+      clearSectionMediaSelection(slot);
+      if(!control){
+        event.preventDefault();
+        slot.classList.toggle('is-media-selected');
+      }
+      return;
+    }
+    if(!event.target.closest('.section-media-slot,.section-media-cover-slot')) clearSectionMediaSelection();
+  }, true);
+
+  document.addEventListener('keydown', event => {
+    const slot = event.target.closest?.('.section-media-slot.has-image,.section-media-cover-slot.has-image');
+    if(slot && (event.key === 'Enter' || event.key === ' ')){
+      event.preventDefault();
+      clearSectionMediaSelection(slot);
+      slot.classList.toggle('is-media-selected');
+    }
+    if(event.key === 'Escape') clearSectionMediaSelection();
+  });
+
+  document.addEventListener('change', event => {
+    const input = event.target.closest?.('[data-section-media-input]');
+    if(!input) return;
+    const file = [...(input.files || [])].find(item => item.type?.startsWith('image/'));
+    if(!file) return;
+    const [kind, slot, itemId] = input.dataset.sectionMediaInput.split(':');
+    setSectionMedia(kind, itemId, slot, file);
+    input.value = '';
+  });
+
+  document.addEventListener('dragover', event => {
+    const slot = event.target.closest?.('.section-media-slot,.section-media-cover-slot');
+    if(!slot) return; event.preventDefault();
+  });
+  document.addEventListener('drop', event => {
+    const slot = event.target.closest?.('[data-section-media-select]');
+    if(!slot) return; event.preventDefault();
+    const file = [...(event.dataTransfer?.files || [])].find(item => item.type?.startsWith('image/'));
+    if(!file) return;
+    const [kind, mediaSlot, itemId] = slot.dataset.sectionMediaSelect.split(':');
+    setSectionMedia(kind, itemId, mediaSlot, file);
+  });
+})();
+
 </script>
 
 <script id="character-media-click-controls">
@@ -12254,6 +13219,199 @@ document.addEventListener('click',event=>{
     if (event.key === 'Escape') clearCharacterMediaSelection();
   });
 })();
+
+
+/* === Section image slots for Locations, Species, and Factions === */
+(function(){
+  const style = document.createElement('style');
+  style.textContent = `
+    .section-media-hero{display:grid;gap:14px;margin-bottom:18px}
+    .section-media-cover-slot{position:relative;min-height:220px;border-radius:22px;overflow:hidden;border:1px solid var(--section-line);background:linear-gradient(135deg,var(--section-paper-2),var(--section-panel));box-shadow:0 20px 40px rgba(0,0,0,.08)}
+    .section-media-cover-slot img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(1.02)}
+    .section-media-cover-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.08),rgba(0,0,0,.38));pointer-events:none}
+    .section-media-mark{position:absolute;left:18px;bottom:18px;z-index:2;max-width:min(520px,92%)}
+    .section-media-slot,.section-media-cover-slot{cursor:pointer}
+    .section-media-placeholder,.section-media-placeholder-compact{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:18px;color:var(--section-ink)}
+    .section-media-placeholder .title,.section-media-placeholder-compact .title{font-size:1rem;font-weight:700;display:block;margin-bottom:6px}
+    .section-media-placeholder .help,.section-media-placeholder-compact .help{font-size:.92rem;color:var(--section-muted)}
+    .section-media-controls{position:absolute;right:12px;top:12px;display:flex;gap:8px;opacity:0;transform:translateY(-6px);transition:opacity .18s ease,transform .18s ease;z-index:3}
+    .section-media-slot.is-media-selected .section-media-controls,.section-media-cover-slot.is-media-selected .section-media-controls,.section-media-slot:hover .section-media-controls,.section-media-cover-slot:hover .section-media-controls{opacity:1;transform:translateY(0)}
+    .section-media-controls .button{backdrop-filter:blur(6px);background:rgba(255,255,255,.82)}
+    .section-media-portrait-card{margin-bottom:14px}
+    .section-media-portrait-label{font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--section-muted);margin-bottom:10px}
+    .section-media-slot{position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--section-line);background:linear-gradient(135deg,var(--section-paper-2),var(--section-panel));min-height:260px;box-shadow:0 14px 28px rgba(0,0,0,.06)}
+    .section-media-slot.compact{min-height:200px}
+    .section-media-slot img{width:100%;height:100%;display:block;object-fit:cover}
+    .section-media-slot .button.small,.section-media-cover-slot .button.small{font-size:.82rem;padding:7px 10px}
+    .section-image-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;color:var(--section-muted);font-size:.88rem}
+    .section-image-dot{width:7px;height:7px;border-radius:999px;background:var(--section-accent);display:inline-block}
+    @media (max-width: 980px){.section-media-cover-slot{min-height:180px}.section-media-slot{min-height:220px}}
+  `;
+  document.head.appendChild(style);
+
+  const MEDIA_COPY = {
+    locations:{coverTitle:'Add location cover',coverHelp:'Header image for the place, landscape, room, or skyline',portraitTitle:'Add location image',portraitHelp:'Portrait, map, landmark, or interior view',detailLabel:'Location image'},
+    species:{coverTitle:'Add species cover',coverHelp:'Header image for the species, lineage, or culture',portraitTitle:'Add species image',portraitHelp:'Representative portrait, symbol, or reference art',detailLabel:'Species image'},
+    factions:{coverTitle:'Add faction cover',coverHelp:'Header image for the faction, hideout, or visual identity',portraitTitle:'Add faction image',portraitHelp:'Crest, emblem, leader image, or group reference',detailLabel:'Faction image'}
+  };
+
+  const baseRenderProperties = renderProperties;
+  renderProperties = function(kind,item){
+    if(kind==='species'){
+      return `<div class="property-list">
+        ${propertyInput('Classification','classification',item.classification||'',kind,item.id)}
+        ${propertyInput('Origin','origin',item.origin||'',kind,item.id)}
+        ${propertyTextarea('Description','description',item.description||'',kind,item.id)}
+        ${propertyTextarea('Traits / physiology','traitsText',item.traitsText||'',kind,item.id)}
+        ${propertyTextarea('Culture / society','culture',item.culture||'',kind,item.id)}
+        <div class="property-row"><label>Known members</label>${linkedPills('characters',item.keyMemberIds)}</div>
+        ${propertyTextarea('Notes','notes',item.notes||'',kind,item.id)}
+      </div>`;
+    }
+    return baseRenderProperties(kind,item);
+  };
+
+  function sectionMediaField(slot){ return slot === 'cover' ? 'headerImage' : 'profileImage'; }
+  function sectionMediaDefaultY(slot){ return slot === 'cover' ? 45 : 25; }
+  function sectionMediaStyle(media, slot){
+    const x = Math.max(0, Math.min(100, Number(media?.positionX ?? 50)));
+    const y = Math.max(0, Math.min(100, Number(media?.positionY ?? sectionMediaDefaultY(slot))));
+    const zoom = Math.max(1, Math.min(3, Number(media?.zoom ?? 1)));
+    const fit = media?.fit === 'contain' ? 'contain' : 'cover';
+    return `object-position:${x}% ${y}%;transform:scale(${zoom});transform-origin:${x}% ${y}%;object-fit:${fit};`;
+  }
+  function setSectionMedia(kind, itemId, slot, file){
+    const item = getItem(kind, itemId); if(!item || !file) return;
+    const field = sectionMediaField(slot);
+    const reader = new FileReader();
+    reader.onload = () => {
+      item[field] = { src: reader.result, alt: item.name + ' ' + slot + ' image', positionX:50, positionY:sectionMediaDefaultY(slot), zoom:1, fit:'cover' };
+      item.updatedAt = nowISO();
+      scheduleSave();
+      renderEntity(kind, itemId);
+      toast(`${slot === 'cover' ? 'Cover' : 'Image'} updated.`);
+    };
+    reader.readAsDataURL(file);
+  }
+  function removeSectionMedia(kind, itemId, slot){
+    const item = getItem(kind, itemId); if(!item) return;
+    delete item[sectionMediaField(slot)];
+    item.updatedAt = nowISO();
+    scheduleSave();
+    renderEntity(kind, itemId);
+    toast(`${slot === 'cover' ? 'Cover' : 'Image'} removed.`);
+  }
+  function clearSectionMediaSelection(except){
+    document.querySelectorAll('.section-media-slot.is-media-selected,.section-media-cover-slot.is-media-selected').forEach(node=>{ if(node !== except) node.classList.remove('is-media-selected'); });
+  }
+  function renderSectionCoverImageSlot(kind, item){
+    const copy = MEDIA_COPY[kind] || MEDIA_COPY.locations;
+    const media = item.headerImage || null;
+    const image = media?.src || '';
+    return `<div class="section-media-cover-slot ${image ? 'has-image' : ''}" data-section-media-select="${kind}:cover:${item.id}" ${image ? `tabindex="0" role="button" aria-label="Select the cover image for ${esc(item.name)}"` : ''}>
+      ${image ? `<img src="${esc(image)}" alt="${esc(media?.alt || (item.name + ' cover image'))}" style="${sectionMediaStyle(media,'cover')}"><div class="section-media-cover-overlay"></div>` : ''}
+      ${image ? `<div class="section-media-controls"><button class="button small secondary" type="button" data-section-media-trigger="${kind}:cover:${item.id}">Replace cover</button><button class="button small ghost" type="button" data-section-media-remove="${kind}:cover:${item.id}">Remove</button></div>` : ''}
+      ${!image ? `<div class="section-media-placeholder"><div><span class="title">${esc(copy.coverTitle)}</span><span class="help">${esc(copy.coverHelp)}</span></div></div>` : ''}
+      <input type="file" accept="image/*" hidden data-section-media-input="${kind}:cover:${item.id}">
+    </div>`;
+  }
+  function renderSectionPortraitSlot(kind, item){
+    const copy = MEDIA_COPY[kind] || MEDIA_COPY.locations;
+    const media = item.profileImage || null;
+    const image = media?.src || '';
+    return `<section class="panel section-media-portrait-card"><div class="section-media-portrait-label">${esc(copy.detailLabel)}</div><div class="section-media-slot compact ${image ? 'has-image' : ''}" data-section-media-select="${kind}:profile:${item.id}" ${image ? `tabindex="0" role="button" aria-label="Select the image for ${esc(item.name)}"` : ''}>
+      ${image ? `<img src="${esc(image)}" alt="${esc(media?.alt || (item.name + ' image'))}" style="${sectionMediaStyle(media,'profile')}">` : ''}
+      ${image ? `<div class="section-media-controls"><button class="button small secondary" type="button" data-section-media-trigger="${kind}:profile:${item.id}">Replace image</button><button class="button small ghost" type="button" data-section-media-remove="${kind}:profile:${item.id}">Remove</button></div>` : `<div class="section-media-placeholder-compact"><div><span class="title">${esc(copy.portraitTitle)}</span><span class="help">${esc(copy.portraitHelp)}</span></div></div>`}
+      <input type="file" accept="image/*" hidden data-section-media-input="${kind}:profile:${item.id}">
+    </div>${image ? `<div class="section-image-meta"><span class="section-image-dot"></span><span>Click the image to reveal replace and remove controls.</span></div>` : ''}</section>`;
+  }
+
+  const baseSectionEntityCover = sectionEntityCover;
+  sectionEntityCover = function(kind, item){
+    if(!['locations','species','factions'].includes(kind)) return baseSectionEntityCover(kind, item);
+    let glyph='⌖', detail='';
+    if(kind==='locations'){ glyph = item.type === 'Region' ? '◉' : '⌖'; detail = `${item.type || 'Location'}${childrenOf(item.id).length ? ` · ${childrenOf(item.id).length} inside` : ''}`; }
+    else if(kind==='species'){ glyph = '◈'; detail = `${item.classification || 'Species'}${item.keyMemberIds?.length ? ` · ${item.keyMemberIds.length} known members` : ''}`; }
+    else { glyph = initials(item.name); detail = `${item.power || 'Faction'}${item.keyMemberIds?.length ? ` · ${item.keyMemberIds.length} key members` : ''}`; }
+    return `<div class="section-media-hero">${renderSectionCoverImageSlot(kind, item)}<div class="section-entity-mark section-media-mark"><span class="section-entity-glyph">${esc(glyph)}</span><strong>${esc(sectionTemplateName(kind))}</strong><span>${esc(detail)}</span></div></div>`;
+  };
+
+  const baseRenderEntity = renderEntity;
+  renderEntity = function(kind, itemId){
+    if(kind === 'characters') return baseRenderEntity(kind, itemId);
+    const item = getItem(kind, itemId); if(!item){ navigate(kind); return; }
+    const meta = COLLECTIONS[kind];
+    const breadcrumb = kind === 'locations' ? renderLocationBreadcrumb(item) : '';
+    const entityCover = ['locations','species','factions'].includes(kind) ? sectionEntityCover(kind,item) : sectionEntityCover(kind,item);
+    const templateToolbar = SECTION_TEMPLATE_CONFIG[kind] ? sectionDesignToolbar(kind) : '';
+    const portrait = ['locations','species','factions'].includes(kind) ? renderSectionPortraitSlot(kind,item) : '';
+    const body = `${templateToolbar}${breadcrumb}<section class="entity-hero">${entityCover}<div class="entity-title-row"><textarea class="entity-title-input" rows="1" aria-label="${meta.singular} name" data-title-kind="${kind}" data-title-id="${item.id}">${esc(item.name)}</textarea><button class="favorite-button ${item.favorite?'on':''}" type="button" data-favorite="${kind}:${item.id}" title="Favorite">☆</button></div></section><div class="entity-layout"><div class="editor-surface">${renderBlockEditor(kind,item.id,item.blocks,item.name)}</div><aside class="properties-panel">${portrait}<div class="panel-head" style="padding:0 0 14px"><h2>Properties</h2><button class="button ghost small" type="button" data-delete="${kind}:${item.id}">Delete</button></div>${renderProperties(kind,item)}</aside></div>`;
+    el.main.innerHTML = SECTION_TEMPLATE_CONFIG[kind] ? `<section class="${sectionCssClass(kind)}" style="${sectionThemeStyle(kind)}">${body}</section>` : body;
+    requestAnimationFrame(()=>autoSizeEntityTitle(document.querySelector('.entity-title-input')));
+  };
+
+  document.addEventListener('click', event => {
+    const trigger = event.target.closest('[data-section-media-trigger]');
+    if(trigger){
+      event.preventDefault();
+      const input = document.querySelector(`[data-section-media-input="${CSS.escape(trigger.dataset.sectionMediaTrigger)}"]`);
+      input?.click();
+      return;
+    }
+    const remove = event.target.closest('[data-section-media-remove]');
+    if(remove){
+      event.preventDefault();
+      const [kind, slot, itemId] = remove.dataset.sectionMediaRemove.split(':');
+      removeSectionMedia(kind, itemId, slot);
+      return;
+    }
+    const slot = event.target.closest('.section-media-slot,.section-media-cover-slot');
+    const control = event.target.closest('.section-media-controls');
+    if(slot && slot.classList.contains('has-image')){
+      clearSectionMediaSelection(slot);
+      if(!control){
+        event.preventDefault();
+        slot.classList.toggle('is-media-selected');
+      }
+      return;
+    }
+    if(!event.target.closest('.section-media-slot,.section-media-cover-slot')) clearSectionMediaSelection();
+  }, true);
+
+  document.addEventListener('keydown', event => {
+    const slot = event.target.closest?.('.section-media-slot.has-image,.section-media-cover-slot.has-image');
+    if(slot && (event.key === 'Enter' || event.key === ' ')){
+      event.preventDefault();
+      clearSectionMediaSelection(slot);
+      slot.classList.toggle('is-media-selected');
+    }
+    if(event.key === 'Escape') clearSectionMediaSelection();
+  });
+
+  document.addEventListener('change', event => {
+    const input = event.target.closest?.('[data-section-media-input]');
+    if(!input) return;
+    const file = [...(input.files || [])].find(item => item.type?.startsWith('image/'));
+    if(!file) return;
+    const [kind, slot, itemId] = input.dataset.sectionMediaInput.split(':');
+    setSectionMedia(kind, itemId, slot, file);
+    input.value = '';
+  });
+
+  document.addEventListener('dragover', event => {
+    const slot = event.target.closest?.('.section-media-slot,.section-media-cover-slot');
+    if(!slot) return; event.preventDefault();
+  });
+  document.addEventListener('drop', event => {
+    const slot = event.target.closest?.('[data-section-media-select]');
+    if(!slot) return; event.preventDefault();
+    const file = [...(event.dataTransfer?.files || [])].find(item => item.type?.startsWith('image/'));
+    if(!file) return;
+    const [kind, mediaSlot, itemId] = slot.dataset.sectionMediaSelect.split(':');
+    setSectionMedia(kind, itemId, mediaSlot, file);
+  });
+})();
+
 </script>
 
 </body>
