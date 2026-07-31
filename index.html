@@ -3376,6 +3376,54 @@ button:disabled { cursor: not-allowed; opacity: .48; }
   .faction-intel-card .tag{grid-column:2;justify-self:start;}
 }
 
+
+
+/* Species database */
+.species-registry-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:15px}
+.species-registry-card,.species-lineage-card,.species-index-row{border:1px solid var(--section-line);background:var(--section-panel);color:var(--section-ink);cursor:pointer;text-align:left}
+.species-registry-card{border-radius:18px;overflow:hidden}
+.species-registry-mark{min-height:108px;display:grid;place-items:center;background:radial-gradient(circle,color-mix(in srgb,var(--section-accent) 24%,transparent),transparent 60%),var(--section-paper-2);border-bottom:1px solid var(--section-line)}
+.species-registry-mark span{width:70px;height:70px;border-radius:50%;display:grid;place-items:center;border:2px solid var(--section-accent);color:var(--section-accent);font-family:Georgia,serif;font-size:25px;background:var(--section-panel)}
+.species-registry-copy{display:grid;gap:8px;padding:15px}
+.species-registry-copy h3,.species-lineage-card h3{font-family:Georgia,serif;font-size:22px;margin:0}
+.species-lineage-list{display:grid;gap:14px}
+.species-lineage-card{display:grid;grid-template-columns:110px minmax(0,1fr);gap:16px;border-radius:17px;padding:15px}
+.species-lineage-glyph{min-height:118px;border-radius:14px;background:var(--section-chip);display:grid;place-items:center;color:var(--section-accent);font:700 36px Georgia,serif}
+.species-index-list{display:grid;gap:8px}
+.species-index-row{display:grid;grid-template-columns:68px minmax(0,1fr) 125px;align-items:center;gap:12px;border-radius:11px;padding:12px}
+.species-index-code{font:900 12px ui-monospace,monospace;color:var(--section-accent)}
+
+/* Personalized faction badges */
+.faction-heraldic-banner{position:relative}
+.faction-badge{--badge-primary:#1d2736;--badge-secondary:#c6a46a;--badge-accent:#f5ead3;position:relative;width:92px;height:104px;display:grid;place-items:center;background:var(--badge-primary);color:var(--badge-accent);border:5px solid var(--badge-secondary);box-shadow:0 9px 22px color-mix(in srgb,var(--section-ink) 18%,transparent);overflow:hidden}
+.faction-badge::before{content:"";position:absolute;inset:7px;border:1px solid color-mix(in srgb,var(--badge-accent) 58%,transparent)}
+.faction-badge.shape-shield{clip-path:polygon(50% 0,94% 16%,87% 74%,50% 100%,13% 74%,6% 16%)}
+.faction-badge.shape-circle{border-radius:50%}
+.faction-badge.shape-diamond{clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+.faction-badge.shape-hexagon{clip-path:polygon(25% 4%,75% 4%,100% 50%,75% 96%,25% 96%,0 50%)}
+.faction-badge.shape-banner{clip-path:polygon(0 0,100% 0,100% 82%,72% 70%,50% 100%,28% 70%,0 82%)}
+.faction-badge.shape-crest{border-radius:48% 48% 18% 18% / 25% 25% 70% 70%}
+.faction-badge-symbol{position:relative;z-index:2;font-size:37px;line-height:1;filter:drop-shadow(0 2px 0 color-mix(in srgb,var(--badge-primary) 65%,transparent))}
+.faction-badge-text{position:absolute;z-index:3;left:7px;right:7px;bottom:11px;text-align:center;font:800 10px Georgia,serif;letter-spacing:.05em;text-transform:uppercase;color:var(--badge-accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.faction-badge.large{width:180px;height:204px;border-width:8px}.faction-badge.large .faction-badge-symbol{font-size:74px}.faction-badge.large .faction-badge-text{font-size:18px;bottom:22px}
+.faction-badge-button{border:0;background:transparent;padding:0;cursor:pointer}
+.badge-designer{display:grid;grid-template-columns:minmax(220px,300px) minmax(0,1fr);gap:20px;align-items:start}
+.badge-preview-stage{min-height:330px;border:1px solid var(--border);border-radius:18px;background:radial-gradient(circle,var(--chip),var(--panel));display:grid;place-items:center;padding:28px;position:sticky;top:0}
+.badge-form{display:grid;gap:13px}.badge-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.badge-color-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.badge-color-grid label{display:grid;gap:5px;font-size:11px;font-weight:800;color:var(--muted)}.badge-color-grid input{width:100%;height:45px;border:1px solid var(--border);border-radius:10px;padding:3px;background:var(--panel)}
+.faction-badge-summary{display:flex;align-items:center;gap:15px;border:1px solid var(--border);border-radius:15px;background:var(--panel);padding:14px}.faction-badge-summary .faction-badge{flex:0 0 auto}
+
+/* Manual timeline ordering */
+.timeline-order-note{display:flex;align-items:center;gap:8px;color:var(--section-muted);font-size:12px;margin:-5px 0 14px}
+.timeline-draggable{position:relative;transition:opacity .16s ease,transform .16s ease,box-shadow .16s ease}
+.timeline-draggable[draggable="true"]{cursor:grab}.timeline-draggable.is-dragging{opacity:.42;transform:scale(.985)}
+.timeline-draggable.drop-before{box-shadow:0 -4px 0 var(--section-accent)}.timeline-draggable.drop-after{box-shadow:0 4px 0 var(--section-accent)}
+.timeline-drag-handle{position:absolute;right:9px;top:8px;z-index:4;width:31px;height:31px;border:1px solid var(--section-line);border-radius:9px;background:color-mix(in srgb,var(--section-panel) 92%,transparent);color:var(--section-accent);display:grid;place-items:center;font-weight:900;cursor:grab}
+.timeline-card.timeline-draggable{padding-right:48px}.timeline-era-card.timeline-draggable,.timeline-archive-row.timeline-draggable{padding-right:48px}
+.timeline-move-actions{display:flex;gap:5px;position:absolute;right:8px;bottom:7px;z-index:4}.timeline-move-actions button{width:27px;height:27px;border:1px solid var(--section-line);border-radius:8px;background:var(--section-panel);color:var(--section-accent);cursor:pointer}
+@media(max-width:760px){.badge-designer{grid-template-columns:1fr}.badge-preview-stage{position:static;min-height:245px}.species-index-row{grid-template-columns:1fr}.species-lineage-card{grid-template-columns:80px minmax(0,1fr)}}
+
+
+.faction-influence-card .faction-badge,.faction-intel-card .faction-badge{width:54px;height:62px;border-width:3px}.faction-influence-card .faction-badge-symbol,.faction-intel-card .faction-badge-symbol{font-size:23px}.faction-influence-card .faction-badge-text,.faction-intel-card .faction-badge-text{display:none}table .faction-badge{width:40px;height:46px;border-width:2px}table .faction-badge-symbol{font-size:19px}table .faction-badge-text{display:none}
 </style>
 
 </head>
@@ -7295,6 +7343,7 @@ window.FIREBASE_CONFIG = {
   const COLLECTIONS = {
     characters: { singular: 'Character', label: 'Characters', icon: 'P' },
     locations: { singular: 'Location', label: 'Locations', icon: 'L' },
+    species: { singular: 'Species', label: 'Species', icon: 'S' },
     factions: { singular: 'Faction', label: 'Factions', icon: 'F' },
     events: { singular: 'Timeline Event', label: 'Timeline', icon: 'T' }
   };
@@ -7355,15 +7404,15 @@ window.FIREBASE_CONFIG = {
   let state = loadState();
   normalizeState();
   let route = parseHash();
-  let collectionView = { characters: 'gallery', locations: 'tree', factions: 'gallery', events: 'timeline' };
-  let collectionFilters = { characters: '', locations: '', factions: '', events: '' };
+  let collectionView = { characters: 'gallery', locations: 'tree', species: 'gallery', factions: 'gallery', events: 'timeline' };
+  let collectionFilters = { characters: '', locations: '', species: '', factions: '', events: '' };
   let graphSettings = {
     graphType: 'story',
     layout: 'story',
     focus: '',
     storyId: 'ashfall-dominion-scene',
-    visibleTypes: { Location: true, Person: true, Faction: true, Event: true },
-    visibleRelations: { story: true, parent: true, related: true, relationship: true, current: true, member: true, event: true, keyPerson: true },
+    visibleTypes: { Location: true, Person: true, Species: true, Faction: true, Event: true },
+    visibleRelations: { story: true, parent: true, related: true, relationship: true, current: true, speciesMember: true, member: true, event: true, keyPerson: true },
     hiddenNodeIds: []
   };
   let graphSelectedNode = '';
@@ -7407,7 +7456,36 @@ window.FIREBASE_CONFIG = {
       if (member.email) state.workspace.access[member.email.toLowerCase()] = member.role;
     }
     state.activity ||= [];
+    // Earlier Codex Canvas builds used the Factions database for species and peoples.
+    // Move that existing data into Species once, then start a separate Factions database.
+    if (!Array.isArray(state.species)) {
+      state.species = Array.isArray(state.factions) ? state.factions : [];
+      state.factions = [];
+    }
     for (const key of Object.keys(COLLECTIONS)) state[key] ||= [];
+    for (const species of state.species) {
+      species.prevalence ||= species.power || 'Unspecified';
+      species.survivalGoal ||= species.goal || '';
+      species.relations ||= species.alliesEnemies || '';
+      species.keyMemberIds ||= [];
+      species.notes ||= '';
+      species.blocks ||= [];
+    }
+    for (const faction of state.factions) {
+      faction.power ||= 'Minor';
+      faction.goal ||= '';
+      faction.alliesEnemies ||= '';
+      faction.keyMemberIds ||= [];
+      faction.notes ||= '';
+      faction.badgeShape ||= 'shield';
+      faction.badgeSymbol ||= 'wolf';
+      faction.badgePrimary ||= '#1d2736';
+      faction.badgeSecondary ||= '#c6a46a';
+      faction.badgeAccent ||= '#f5ead3';
+      faction.badgeText ||= initials(faction.name);
+      faction.badgeMotto ||= '';
+      faction.blocks ||= [];
+    }
     state.storyGraphs ||= deepClone(window.INITIAL_WORLD_DATA.storyGraphs || []);
     if (!state.storyGraphs.length && window.INITIAL_WORLD_DATA.storyGraphs?.length) state.storyGraphs = deepClone(window.INITIAL_WORLD_DATA.storyGraphs);
     state.workspace.graphPositions ||= {};
@@ -7654,6 +7732,7 @@ window.FIREBASE_CONFIG = {
           <div class="nav-label">Databases</div>
           ${navButton('characters','Characters','P',state.characters.length)}
           ${navButton('locations','Locations','L',state.locations.length)}
+          ${navButton('species','Species','S',state.species.length)}
           ${navButton('factions','Factions','F',state.factions.length)}
           ${navButton('timeline','Timeline','T',state.events.length)}
         </div>
@@ -7730,7 +7809,8 @@ window.FIREBASE_CONFIG = {
       <section class="metric-grid" aria-label="World totals">
         ${metric('Characters',state.characters.length,`${active} marked active`)}
         ${metric('Locations',state.locations.length,`${parented} nested under a parent`)}
-        ${metric('Factions',state.factions.length,'Power groups and affiliations')}
+        ${metric('Species',state.species.length,'Peoples, lineages, and constructed beings')}
+        ${metric('Factions',state.factions.length,'Organizations, houses, crews, and alliances')}
         ${metric('Timeline events',state.events.length,'Chronological world history')}
       </section>
       <section class="dashboard-grid">
@@ -7739,6 +7819,8 @@ window.FIREBASE_CONFIG = {
           <div class="panel-body"><div class="quick-grid">
             ${quick('Characters','Manage profiles, relationships, status, and current location.','characters')}
             ${quick('Location hierarchy','Nest regions, districts, buildings, and rooms under true parents.','locations')}
+            ${quick('Species','Track peoples, lineages, traits, and social tensions.','species')}
+            ${quick('Factions','Create groups, alliances, and personalized heraldic badges.','factions')}
             ${quick('Relationship graphs','Explore people, locations, or the entire world as connected nodes.','graph')}
             ${quick('RP story reader','Save multi-character roleplay posts to graph points and read the scene in order.','story')}
             ${quick('Timeline','Keep major events ordered and tied to the characters involved.','events')}
@@ -8327,12 +8409,12 @@ window.FIREBASE_CONFIG = {
     const byId = {
       b69:{label:'Characters',view:'characters',copy:'Profiles, relationships, and current status'},
       b70:{label:'Locations',view:'locations',copy:'Parent locations, children, and connected places'},
-      b71:{label:'Factions',view:'factions',copy:'Groups, goals, alliances, and members'},
+      b71:{label:'Species',view:'species',copy:'Peoples, lineages, traits, and social tensions'},
       b72:{label:'Timeline / Events',view:'events',copy:'The world history and current events'},
       b73:{label:'Open Threads',view:'search',copy:'Search unresolved questions, goals, and mysteries'},
       b74:{label:'Characters',view:'characters',copy:'Open the character database'},
       b75:{label:'Locations',view:'locations',copy:'Open the location database'},
-      b76:{label:'Factions',view:'factions',copy:'Open the faction database'},
+      b76:{label:'Species',view:'species',copy:'Open the species database'},
       b77:{label:'Timeline / Events',view:'events',copy:'Open the timeline'},
       b78:{label:'Open Threads',view:'search',copy:'Search open story threads'}
     };
@@ -8340,7 +8422,7 @@ window.FIREBASE_CONFIG = {
     const text = stripMd(block?.content || '').toLowerCase();
     if (/^characters(?:\s*\(characters\))?$/.test(text)) return {label:'Characters',view:'characters',copy:'Open the character database'};
     if (/^locations(?:\s*\(locations\))?$/.test(text)) return {label:'Locations',view:'locations',copy:'Open the location database'};
-    if (/^factions(?:\s*\(factions\))?$/.test(text)) return {label:'Factions',view:'factions',copy:'Open the faction database'};
+    if (/^factions(?:\s*\(factions\))?$/.test(text)) return {label:'Species',view:'species',copy:'Open the species database'};
     if (/^timeline(?:\s*\/\s*events)?(?:\s*\(timeline\s*\/\s*events\))?$/.test(text)) return {label:'Timeline / Events',view:'events',copy:'Open the timeline'};
     if (/^open threads/.test(text)) return {label:'Open Threads',view:'search',copy:'Search unresolved questions and mysteries'};
     return null;
@@ -8728,7 +8810,7 @@ window.FIREBASE_CONFIG = {
 
   function graphNodeKey() {
     const entries = graphTypeFilters();
-    const colorMap = { Location:'var(--accent)', Person:'var(--success)', Faction:'var(--warning)', Event:'var(--danger)' };
+    const colorMap = { Location:'var(--accent)', Person:'var(--success)', Species:'var(--muted)', Faction:'var(--warning)', Event:'var(--danger)' };
     return entries.map(entry => `<span class="graph-key-row"><span class="graph-key-dot" style="background:${colorMap[entry.key]}"></span><strong>${esc(entry.label)}</strong></span>`).join('');
   }
 
@@ -9008,7 +9090,7 @@ window.FIREBASE_CONFIG = {
     const data = graphData();
     const svg = d3.select(svgEl).attr('viewBox',`0 0 ${width} ${height}`);
     svg.selectAll('*').remove();
-    const colors={Location:'var(--accent)',Person:'var(--success)',Faction:'var(--warning)',Event:'var(--danger)'};
+    const colors={Location:'var(--accent)',Person:'var(--success)',Species:'var(--muted)',Faction:'var(--warning)',Event:'var(--danger)'};
     if (!data.nodes.length) {
       svg.append('text').attr('x',width/2).attr('y',height/2).attr('text-anchor','middle').attr('fill','var(--muted)').attr('font-size',16).text('No items are selected for this graph.');
       document.getElementById('graphLegend').innerHTML='<span class="legend-item">0 items · 0 connections</span>';
@@ -9218,7 +9300,7 @@ window.FIREBASE_CONFIG = {
     const others=data.nodes.filter(n=>n.id!==focus.id);
     const groups=new Map();
     for(const item of others){if(!groups.has(item.type))groups.set(item.type,[]);groups.get(item.type).push(item);}
-    const anchors={Location:[width*.22,height*.43],Person:[width*.78,height*.43],Faction:[width*.34,height*.80],Event:[width*.66,height*.80]};
+    const anchors={Location:[width*.16,height*.40],Person:[width*.84,height*.40],Species:[width*.18,height*.79],Faction:[width*.50,height*.84],Event:[width*.82,height*.79]};
     for(const [type,items] of groups){
       const [ax,ay]=anchors[type]||[width*.5,height*.78];
       const spacing=Math.min(82,Math.max(48,(height*.55)/Math.max(1,items.length)));
@@ -9292,7 +9374,7 @@ window.FIREBASE_CONFIG = {
       const searchable={title:storyPointTitle(story,node),summary:passage.summary,turns:range.turns};
       if(!q || JSON.stringify(searchable).toLowerCase().includes(q)) storyResults.push({story,node,range});
     }
-    el.main.innerHTML = `${pageHead('Workspace search',query?`Results for “${query}”`:'Search everything',query?'Matching pages across characters, locations, factions, events, and the full RP.':'Type in the search box above to search every imported page, property, and story bookmark.')}
+    el.main.innerHTML = `${pageHead('Workspace search',query?`Results for “${query}”`:'Search everything',query?'Matching pages across characters, locations, species, factions, events, and the full RP.':'Type in the search box above to search every imported page, property, and story bookmark.')}
       <div class="search-results">${storyResults.slice(0,30).map(({story,node,range})=>{const passage=ensureStoryPassage(node);return `<div class="search-result" data-story-point="${esc(storyRouteValue(story.id,node.id))}"><div class="search-result-icon">▤</div><div><strong>${esc(storyPointTitle(story,node))}</strong><div class="search-result-meta">RP bookmark · ${esc(storyAnchorDescription(story,node))} · ${range.turns.length} post${range.turns.length===1?'':'s'} · ${esc(shortText(passage.summary||range.turns.map(turn=>turn.text).join(' '),100))}</div></div><span>›</span></div>`;}).join('')}${results.slice(0,80).map(({kind,item})=>`<div class="search-result" data-open="${kind}:${item.id}"><div class="search-result-icon">${COLLECTIONS[kind].icon}</div><div><strong>${esc(item.name)}</strong><div class="search-result-meta">${esc(COLLECTIONS[kind].singular)} · ${esc(shortText(cardMeta(kind,item).copy,100))}</div></div><span>›</span></div>`).join('') || (!storyResults.length?'<div class="panel empty-state">No matches found.</div>':'')}</div>`;
   }
 
@@ -9948,7 +10030,7 @@ window.FIREBASE_CONFIG = {
       const files=Object.values(zip.files).filter(x=>!x.dir);
       const csvFiles=files.filter(x=>x.name.toLowerCase().endsWith('_all.csv'));
       const choose=needle=>csvFiles.find(x=>x.name.toLowerCase().includes(needle))||files.find(x=>x.name.toLowerCase().includes(needle)&&x.name.toLowerCase().endsWith('.csv'));
-      const sources={characters:choose('characters '),locations:choose('locations '),factions:choose('factions '),events:choose('timeline events ')};
+      const sources={characters:choose('characters '),locations:choose('locations '),species:choose('factions '),events:choose('timeline events ')};
       if(!sources.characters&&!sources.locations)throw new Error('No recognizable Notion databases found');
       const rows={};for(const [kind,zf] of Object.entries(sources))rows[kind]=zf?parseCSV(await zf.async('string')):[];
       const makeId=(kind,name)=>`${kind.slice(0,-1)}-${String(name).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}-${Math.random().toString(36).slice(2,6)}`;
@@ -9956,7 +10038,7 @@ window.FIREBASE_CONFIG = {
       const ids=(kind,value)=>notionLinkNames(value).map(name=>maps[kind]?.get(name.toLowerCase())).filter(Boolean);
       if(rows.locations.length)state.locations=rows.locations.map(r=>({id:maps.locations.get((r.Name||'').trim().toLowerCase()),name:(r.Name||'Untitled Location').trim(),type:r.Type||'Location',atmosphere:r.Atmosphere||'',description:r.Description||'',notes:r.Notes||'',controlledBy:r['Controlled By']||'',keyCharacterIds:ids('characters',r['Key Characters']),relatedLocationIds:ids('locations',r['Related Locations']),parentLocationId:'',favorite:false,updatedAt:nowISO(),blocks:[{id:id('block'),type:'text',content:r.Description||r.Notes||''}]}));
       if(rows.characters.length)state.characters=rows.characters.map(r=>({id:maps.characters.get((r.Name||'').trim().toLowerCase()),name:(r.Name||'Untitled Character').trim(),age:r.Age||'',aliases:r.Aliases||'',role:r['Role/Occupation']||'',mood:r['Current Mood']||'',outfit:r['Current Outfit']||'',position:r['Current Position']||'',status:r['Current Status']||'Active',currentLocationIds:ids('locations',r['Current Location']),relationshipIds:ids('characters',r['Key Relationships']),relationshipsText:r['Key Relationships']||'',notes:r.Notes||'',personality:r.Personality||'',backstory:'',strengths:'',weaknesses:'',skillsAbilities:'',speciesRace:'',alignment:'',occupation:r['Role/Occupation']||'',tagline:'',traits:'',reputationCode:'',distinguishingFeatures:'',motivations:'',quote:'',tags:'',pageTemplate:'standard',secrets:r.Secrets||'',favorite:false,updatedAt:nowISO(),blocks:[{id:id('block'),type:'text',content:r.Notes||r.Personality||''}]}));
-      if(rows.factions.length)state.factions=rows.factions.map(r=>({id:maps.factions.get((r.Name||'').trim().toLowerCase()),name:(r.Name||'Untitled Faction').trim(),goal:r.Goal||'',power:r['Power Level']||'',notes:r.Notes||'',keyMemberIds:ids('characters',r['Key Members']),alliesEnemies:r['Allies/Enemies']||'',favorite:false,updatedAt:nowISO(),blocks:[{id:id('block'),type:'text',content:r.Notes||r.Goal||''}]}));
+      if(rows.species.length)state.species=rows.species.map(r=>({id:maps.species.get((r.Name||'').trim().toLowerCase()),name:(r.Name||'Untitled Species').trim(),survivalGoal:r.Goal||'',prevalence:r['Power Level']||'',notes:r.Notes||'',keyMemberIds:ids('characters',r['Key Members']),relations:r['Allies/Enemies']||'',favorite:false,updatedAt:nowISO(),blocks:[{id:id('block'),type:'text',content:r.Notes||r.Goal||''}]}));
       if(rows.events.length)state.events=rows.events.map(r=>({id:maps.events.get((r['Event Name']||'').trim().toLowerCase()),name:(r['Event Name']||'Untitled Event').trim(),date:r['Date/Order']||'',status:r.Status||'',description:r.Description||'',consequences:r.Consequences||'',notes:r.Notes||'',characterIds:ids('characters',r['Involved Characters']),favorite:false,updatedAt:nowISO(),blocks:[{id:id('block'),type:'text',content:r.Description||r.Notes||''}]}));
       logActivity(`Imported Notion ZIP: ${file.name}`);scheduleSave();render();toast('Notion databases imported. Set parent locations from each location page.');
     }catch(error){console.error(error);toast('Could not read that Notion export.','error');}
@@ -11712,12 +11794,20 @@ const SECTION_TEMPLATE_CONFIG = Object.freeze({
       'hierarchy-survey':{name:'Hierarchy Survey',description:'A clean expandable directory focused on parent and child structure.',preview:'preview-tree'}
     }
   },
+  species:{
+    label:'Species design',icon:'◈',defaultTemplate:'species-registry',
+    templates:{
+      'species-registry':{name:'Species Registry',description:'Structured reference cards for peoples, lineages, and constructed beings.',preview:'preview-board'},
+      'lineage-cards':{name:'Lineage Cards',description:'Larger cards emphasizing origin, identity, and social context.',preview:'preview-timeline'},
+      'classification-index':{name:'Classification Index',description:'A compact comparison list for prevalence, goals, and known members.',preview:'preview-tree'}
+    }
+  },
   factions:{
     label:'Faction design',icon:'⚜',defaultTemplate:'heraldic-registry',
     templates:{
-      'heraldic-registry':{name:'Heraldic Registry',description:'Crest-style cards for goals, power, and members.',preview:'preview-board'},
+      'heraldic-registry':{name:'Heraldic Registry',description:'Personalized badges for houses, crews, organizations, and alliances.',preview:'preview-board'},
       'influence-board':{name:'Influence Board',description:'Groups factions into columns by their current power level.',preview:'preview-board'},
-      'intelligence-files':{name:'Intelligence Files',description:'Compact dossiers for quickly comparing groups and agendas.',preview:'preview-tree'}
+      'intelligence-files':{name:'Intelligence Files',description:'Compact dossiers for comparing agendas, allies, and rivals.',preview:'preview-tree'}
     }
   },
   events:{
@@ -11879,6 +11969,184 @@ function renderGraphPage(){
   el.main.innerHTML=`<section class="${sectionCssClass('graph')}" style="${sectionThemeStyle('graph')}">${sectionDesignToolbar('graph')}${pageHead('Connections','Story & Relationship Graphs','Use a story path when order matters, or switch to a general relationship view for broader connections.',`<button class="button secondary" type="button" data-nav="locations">Location tree</button>`)}<div class="graph-toolbar"><div class="property-row"><label>Graph</label><select class="select" id="graphType"><option value="story" ${graphSettings.graphType==='story'?'selected':''}>Story</option><option value="locations" ${graphSettings.graphType==='locations'?'selected':''}>Locations</option><option value="characters" ${graphSettings.graphType==='characters'?'selected':''}>People</option><option value="world" ${graphSettings.graphType==='world'?'selected':''}>Whole world</option></select></div><div class="property-row"><label>Layout</label><select class="select" id="graphLayout">${layouts.map(([value,label])=>`<option value="${value}" ${graphSettings.layout===value?'selected':''}>${label}</option>`).join('')}</select></div>${thirdControl}</div>${storySummaryHtml()}<section class="graph-reading-guide" aria-label="How to read this graph"><div><span class="eyebrow">How to read this view</span><h2>${esc(guide.title)}</h2><p>${esc(guide.copy)}</p></div><div class="graph-reading-key">${graphNodeKey()}<span class="graph-key-row"><span class="graph-key-line"></span><strong>${graphSettings.graphType==='story'?'Story direction':'Direct or structural connection'}</strong></span>${graphSettings.graphType==='story'?'':`<span class="graph-key-row"><span class="graph-key-line dashed"></span><strong>Related or secondary connection</strong></span>`}</div></section><section class="graph-filter-panel" aria-label="Graph filters"><div class="graph-filter-heading"><div><h2>What appears in the graph</h2><p>Uncheck anything you want hidden. Recheck it to add it back.</p></div><div class="graph-filter-actions"><button class="button secondary small" type="button" data-graph-items="all">Select all items</button><button class="button ghost small" type="button" data-graph-items="none">Clear all items</button><button class="button ghost small" type="button" data-reset-graph-layout>Reset positions</button></div></div><div class="graph-filter-grid"><fieldset class="graph-filter-group"><legend>Item types</legend><div class="graph-check-row">${typeOptions.map(option=>graphCheckbox(`type:${option.key}`,option.label,graphSettings.visibleTypes[option.key]!==false,'data-graph-type')).join('')}</div></fieldset><fieldset class="graph-filter-group"><legend>Connections</legend><div class="graph-check-row">${relationOptions.map(option=>graphCheckbox(`relation:${option.key}`,option.label,graphSettings.visibleRelations[option.key]!==false,'data-graph-relation')).join('')}</div></fieldset></div><details class="graph-item-details"><summary>Included ${includedLabel} <span id="graphItemCount">${items.filter(item=>!graphSettings.hiddenNodeIds.includes(item.nodeId)).length} of ${items.length}</span></summary><div class="graph-item-list">${items.map(item=>graphCheckbox(item.nodeId,item.label,!graphSettings.hiddenNodeIds.includes(item.nodeId),'data-graph-node',item.type)).join('')}</div></details></section><div class="graph-visual-grid"><div class="graph-stage" id="graphStage"><svg id="graphSvg" role="img" aria-label="Interactive story and relationship graph"></svg><div class="graph-legend" id="graphLegend"></div></div><aside class="graph-inspector" id="graphInspector" aria-live="polite">${graphSettings.graphType==='story'?'<span class="eyebrow">Story graph</span><h2>Choose a story point</h2><p class="graph-empty-inspector">Tap a circle to preview that part of the RP. Drag a circle to rearrange the story map.</p>':'<span class="eyebrow">Connection details</span><h2>Select a circle</h2><p class="graph-empty-inspector">Select an item to see why it is connected. Double-click a circle to open its full page.</p>'}</aside></div><p class="graph-help">${esc(help)}</p></section>`;
   requestAnimationFrame(()=>{drawGraph();requestAnimationFrame(applyGraphTemplateVisuals);});
 }
+
+
+
+/* === Species, personalized factions, and manually ordered timelines === */
+
+function badgeSymbolGlyph(value){
+  return ({wolf:'🐺',raven:'🐦',lion:'🦁',serpent:'🐍',stag:'🦌',bear:'🐻',fox:'🦊',owl:'🦉',dragon:'🐉',horse:'♞',shield:'◆',star:'✦',moon:'☾',sun:'☀',flame:'♨',crown:'♛',sword:'⚔',leaf:'❧',eye:'◉',mountain:'▲',waves:'≋'})[value] || '✦';
+}
+function factionBadgeStyle(item){
+  return `--badge-primary:${safeDossierColor(item.badgePrimary,'#1d2736')};--badge-secondary:${safeDossierColor(item.badgeSecondary,'#c6a46a')};--badge-accent:${safeDossierColor(item.badgeAccent,'#f5ead3')};`;
+}
+function renderFactionBadge(item,size=''){
+  const shape=['shield','circle','diamond','hexagon','banner','crest'].includes(item.badgeShape)?item.badgeShape:'shield';
+  const words=String(item.badgeText||initials(item.name)||'').slice(0,18);
+  return `<span class="faction-badge shape-${esc(shape)} ${size==='large'?'large':''}" style="${factionBadgeStyle(item)}"><span class="faction-badge-symbol">${esc(badgeSymbolGlyph(item.badgeSymbol))}</span>${words?`<span class="faction-badge-text">${esc(words)}</span>`:''}</span>`;
+}
+function showFactionBadgeDesigner(itemId){
+  const item=getItem('factions',itemId);if(!item)return;
+  const shapeOptions=[['shield','Shield'],['circle','Circle'],['diamond','Diamond'],['hexagon','Hexagon'],['banner','Banner'],['crest','Rounded crest']];
+  const symbolOptions=[['wolf','Wolf'],['raven','Raven'],['lion','Lion'],['serpent','Serpent'],['stag','Stag'],['bear','Bear'],['fox','Fox'],['owl','Owl'],['dragon','Dragon'],['horse','Horse'],['shield','Shield'],['star','Star'],['moon','Moon'],['sun','Sun'],['flame','Flame'],['crown','Crown'],['sword','Crossed swords'],['leaf','Leaf'],['eye','Eye'],['mountain','Mountain'],['waves','Waves']];
+  const body=`<div class="badge-designer"><div class="badge-preview-stage"><div id="factionBadgePreview">${renderFactionBadge(item,'large')}</div></div><div class="badge-form"><div><h3>Build the badge</h3><p class="page-subtitle">Combine a shape, colors, symbol, initials or a short word, and an optional motto.</p></div><div class="badge-form-grid"><label class="property-row"><span>Badge shape</span><select class="select" data-badge-field="badgeShape">${shapeOptions.map(([v,l])=>`<option value="${v}" ${item.badgeShape===v?'selected':''}>${l}</option>`).join('')}</select></label><label class="property-row"><span>Animal or symbol</span><select class="select" data-badge-field="badgeSymbol">${symbolOptions.map(([v,l])=>`<option value="${v}" ${item.badgeSymbol===v?'selected':''}>${l}</option>`).join('')}</select></label></div><label class="property-row"><span>Letters or short word</span><input class="input" maxlength="18" value="${esc(item.badgeText||initials(item.name))}" data-badge-field="badgeText"></label><label class="property-row"><span>Motto or phrase</span><input class="input" value="${esc(item.badgeMotto||'')}" placeholder="Optional words beneath the badge" data-badge-field="badgeMotto"></label><div class="badge-color-grid"><label><span>Main color</span><input type="color" value="${safeDossierColor(item.badgePrimary,'#1d2736')}" data-badge-field="badgePrimary"></label><label><span>Border color</span><input type="color" value="${safeDossierColor(item.badgeSecondary,'#c6a46a')}" data-badge-field="badgeSecondary"></label><label><span>Symbol and words</span><input type="color" value="${safeDossierColor(item.badgeAccent,'#f5ead3')}" data-badge-field="badgeAccent"></label></div></div></div>`;
+  showModal(`Badge designer · ${item.name}`,body,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-save-faction-badge="${esc(item.id)}">Save badge</button>`);
+  const draft={badgeShape:item.badgeShape,badgeSymbol:item.badgeSymbol,badgeText:item.badgeText||initials(item.name),badgeMotto:item.badgeMotto||'',badgePrimary:item.badgePrimary,badgeSecondary:item.badgeSecondary,badgeAccent:item.badgeAccent};
+  el.modal._badgeDraft=draft;
+  const refresh=()=>{const preview=document.getElementById('factionBadgePreview');if(preview)preview.innerHTML=renderFactionBadge({...item,...draft},'large');};
+  el.modal.querySelectorAll('[data-badge-field]').forEach(input=>input.addEventListener('input',()=>{draft[input.dataset.badgeField]=input.value;refresh();}));
+}
+
+function renderSpeciesRegistry(items){
+  return `<div class="species-registry-grid">${items.map(item=>`<button class="species-registry-card" type="button" data-open="species:${item.id}"><span class="species-registry-mark"><span>${esc(initials(item.name))}</span></span><span class="species-registry-copy"><span class="location-atlas-type">${esc(item.prevalence||'Unspecified prevalence')}</span><h3>${esc(item.name)}</h3><p>${esc(shortText(item.notes||item.survivalGoal,180)||'No species description yet.')}</p><span class="tag-row"><span class="tag">${item.keyMemberIds?.length||0} known people</span></span></span></button>`).join('')}</div>`;
+}
+function renderSpeciesLineage(items){
+  return `<div class="species-lineage-list">${items.map(item=>`<button class="species-lineage-card" type="button" data-open="species:${item.id}"><span class="species-lineage-glyph">${esc(initials(item.name))}</span><span><span class="location-atlas-type">${esc(item.prevalence||'Species')}</span><h3>${esc(item.name)}</h3><p>${esc(shortText(item.notes||item.survivalGoal,260)||'Add origins, appearance, culture, and social context.')}</p><span class="tag-row">${item.relations?`<span class="tag">Social context recorded</span>`:''}<span class="tag">${item.keyMemberIds?.length||0} known people</span></span></span></button>`).join('')}</div>`;
+}
+function renderSpeciesIndex(items){
+  return `<div class="species-index-list">${items.map((item,index)=>`<button class="species-index-row" type="button" data-open="species:${item.id}"><span class="species-index-code">SP-${String(index+1).padStart(2,'0')}</span><span><strong>${esc(item.name)}</strong><small class="cell-muted">${esc(shortText(item.survivalGoal||item.notes,135))}</small></span><span class="tag">${esc(item.prevalence||'Unspecified')}</span></button>`).join('')}</div>`;
+}
+
+function renderFactionHeraldic(items){
+  return `<div class="faction-heraldic-grid">${items.map(item=>`<button class="faction-heraldic-card" type="button" data-open="factions:${item.id}"><span class="faction-heraldic-banner">${renderFactionBadge(item)}</span><span class="faction-heraldic-body"><span class="location-atlas-type">${esc(item.power||'Faction')}</span><h3>${esc(item.name)}</h3><p>${esc(shortText(item.goal||item.notes,175)||'No stated goal yet.')}</p>${item.badgeMotto?`<p class="cell-muted"><em>${esc(item.badgeMotto)}</em></p>`:''}<span class="tag-row"><span class="tag">${item.keyMemberIds?.length||0} key members</span></span></span></button>`).join('')}</div>`;
+}
+function renderFactionInfluence(items){
+  const groups=[...new Set(items.map(i=>i.power||'Unspecified'))].sort((a,b)=>factionPowerOrder(a)-factionPowerOrder(b)||a.localeCompare(b));
+  return `<div class="faction-influence-board">${groups.map(group=>{const entries=items.filter(i=>(i.power||'Unspecified')===group);return `<section class="faction-influence-column"><h3><span>${esc(group)}</span><span>${entries.length}</span></h3>${entries.map(item=>`<button class="faction-influence-card" type="button" data-open="factions:${item.id}"><span style="display:flex;align-items:center;gap:10px">${renderFactionBadge({...item,badgeText:''})}<span><strong>${esc(item.name)}</strong><span class="cell-muted">${esc(shortText(item.goal||item.notes,110))}</span></span></span></button>`).join('')}</section>`;}).join('')}</div>`;
+}
+function renderFactionIntel(items){
+  return `<div class="faction-intel-list">${items.map((item,index)=>`<button class="faction-intel-card" type="button" data-open="factions:${item.id}"><span>${renderFactionBadge({...item,badgeText:''})}</span><span><strong>${esc(item.name)}</strong><small class="cell-muted">${esc(shortText(item.goal||item.notes,145))}</small></span><span class="tag">${esc(item.power||'Unspecified')}</span></button>`).join('')}</div>`;
+}
+
+function timelineMoveControls(item,index,total){
+  return `<button class="timeline-drag-handle" type="button" title="Drag to reorder" aria-label="Drag ${esc(item.name)} to reorder">⋮⋮</button><span class="timeline-move-actions"><button type="button" data-timeline-move="${esc(item.id)}:up" ${index===0?'disabled':''} aria-label="Move ${esc(item.name)} earlier">↑</button><button type="button" data-timeline-move="${esc(item.id)}:down" ${index===total-1?'disabled':''} aria-label="Move ${esc(item.name)} later">↓</button></span>`;
+}
+function renderTimeline(items){
+  return `<div class="timeline-order-note"><strong>Manual order:</strong><span>Drag an event or use its arrow buttons. The order saves exactly as arranged.</span></div><div class="timeline">${items.map((event,index)=>`<div class="timeline-item timeline-draggable" draggable="true" data-timeline-item="${event.id}"><div class="timeline-date">${esc(event.date)}</div><div class="timeline-dot-wrap"><span class="timeline-dot"></span></div><div class="timeline-card" data-open="events:${event.id}">${timelineMoveControls(event,index,items.length)}<div class="timeline-title">${esc(event.name)}</div><div class="timeline-copy">${esc(shortText(event.description||event.notes,180))}</div><div class="tag-row"><span class="tag">${esc(event.status||'Unspecified')}</span>${event.characterIds?.length?`<span class="tag">${event.characterIds.length} people</span>`:''}</div></div></div>`).join('')}</div>`;
+}
+function renderTimelineEraCards(items){
+  return `<div class="timeline-order-note"><strong>Manual order:</strong><span>Drag cards to arrange the story or historical sequence.</span></div><div class="timeline-era-grid">${items.map((item,index)=>`<article class="timeline-era-card timeline-draggable" draggable="true" data-timeline-item="${item.id}" data-open="events:${item.id}">${timelineMoveControls(item,index,items.length)}<span class="timeline-era-date">${esc(item.date||'Undated')}</span><h3>${esc(item.name)}</h3><p>${esc(shortText(item.description||item.notes,190)||'No event description yet.')}</p><span class="tag-row"><span class="tag">${esc(item.status||'Unspecified')}</span>${item.characterIds?.length?`<span class="tag">${item.characterIds.length} people</span>`:''}</span></article>`).join('')}</div>`;
+}
+function renderTimelineArchive(items){
+  return `<div class="timeline-order-note"><strong>Manual order:</strong><span>Drag rows to place events in the order that works best for your world.</span></div><div class="timeline-archive-list">${items.map((item,index)=>`<article class="timeline-archive-row timeline-draggable" draggable="true" data-timeline-item="${item.id}" data-open="events:${item.id}">${timelineMoveControls(item,index,items.length)}<span class="timeline-archive-date">${esc(item.date||'Undated')}</span><span><strong>${esc(item.name)}</strong><small class="cell-muted">${esc(shortText(item.description||item.consequences||item.notes,130))}</small></span><span class="tag">${esc(item.status||'Unspecified')}</span></article>`).join('')}</div>`;
+}
+
+const renderPropertiesBeforeSpeciesFactions=renderProperties;
+renderProperties=function(kind,item){
+  if(kind==='species')return `<div class="property-list">${propertyInput('Prevalence / classification','prevalence',item.prevalence,kind,item.id)}${propertyTextarea('Survival goal / place in the world','survivalGoal',item.survivalGoal,kind,item.id)}${propertyTextarea('Relations / social tensions','relations',item.relations,kind,item.id)}<div class="property-row"><label>Known characters</label>${linkedPills('characters',item.keyMemberIds)}</div>${propertyTextarea('Notes','notes',item.notes,kind,item.id)}</div>`;
+  if(kind==='factions')return `<div class="property-list"><div class="property-row"><label>Personalized badge</label><div class="faction-badge-summary"><button class="faction-badge-button" type="button" data-badge-designer="${esc(item.id)}" title="Edit faction badge">${renderFactionBadge(item)}</button><div><strong>${esc(item.badgeText||initials(item.name))}</strong><p class="property-help">${esc(item.badgeMotto||'Choose a shape, animal or symbol, colors, and words.')}</p><button class="button secondary small" type="button" data-badge-designer="${esc(item.id)}">Design badge</button></div></div></div>${propertySelect('Power level','power',item.power,['Minor','Moderate','Major','Dominant','Hidden'],kind,item.id,true)}${propertyTextarea('Goal / purpose','goal',item.goal,kind,item.id)}${propertyTextarea('Allies / enemies','alliesEnemies',item.alliesEnemies,kind,item.id)}<div class="property-row"><label>Key members</label>${linkedPills('characters',item.keyMemberIds)}</div>${propertyTextarea('Notes','notes',item.notes,kind,item.id)}</div>`;
+  return renderPropertiesBeforeSpeciesFactions(kind,item);
+};
+
+const cardMetaBeforeSpeciesFactions=cardMeta;
+cardMeta=function(kind,item){
+  if(kind==='species')return {meta:item.prevalence||'Species',copy:item.notes||item.survivalGoal,tags:[item.prevalence,`${item.keyMemberIds?.length||0} known people`]};
+  if(kind==='factions')return {meta:item.power||'Faction',copy:item.goal||item.notes,tags:[item.power,item.badgeMotto]};
+  return cardMetaBeforeSpeciesFactions(kind,item);
+};
+
+const renderTableBeforeSpeciesFactions=renderTable;
+renderTable=function(kind,items){
+  if(kind==='species'){const headers=['Name','Prevalence','Place in the world','Known people'];return `<div class="table-wrap"><table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${items.map(item=>`<tr data-open="species:${item.id}"><td class="cell-title">${esc(item.name)}</td><td>${esc(item.prevalence)}</td><td class="cell-muted">${esc(shortText(item.survivalGoal||item.notes,100))}</td><td>${item.keyMemberIds?.length||0}</td></tr>`).join('')}</tbody></table></div>`;}
+  if(kind==='factions'){const headers=['Badge','Name','Power','Goal','Key members'];return `<div class="table-wrap"><table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${items.map(item=>`<tr data-open="factions:${item.id}"><td>${renderFactionBadge({...item,badgeText:''})}</td><td class="cell-title">${esc(item.name)}</td><td>${esc(item.power)}</td><td class="cell-muted">${esc(shortText(item.goal,100))}</td><td>${item.keyMemberIds?.length||0}</td></tr>`).join('')}</tbody></table></div>`;}
+  return renderTableBeforeSpeciesFactions(kind,items);
+};
+
+const addItemBeforeSpeciesFactions=addItem;
+addItem=function(kind,parentId=''){
+  if(kind!=='species'&&kind!=='factions')return addItemBeforeSpeciesFactions(kind,parentId);
+  const meta=COLLECTIONS[kind],itemId=id(kind==='species'?'species':'faction');
+  const base={id:itemId,name:`Untitled ${meta.singular}`,favorite:false,updatedAt:nowISO(),blocks:[{id:id('block'),type:'text',content:'Start writing here…'}]};
+  const item=kind==='species'?{...base,prevalence:'Unspecified',survivalGoal:'',relations:'',notes:'',keyMemberIds:[]}:{...base,goal:'',power:'Minor',notes:'',keyMemberIds:[],alliesEnemies:'',badgeShape:'shield',badgeSymbol:'wolf',badgePrimary:'#1d2736',badgeSecondary:'#c6a46a',badgeAccent:'#f5ead3',badgeText:'',badgeMotto:''};
+  state[kind].push(item);logActivity(`Created ${item.name}`);scheduleSave();navigate(kind,itemId);
+};
+
+const deleteItemBeforeSpeciesFactions=deleteItem;
+deleteItem=function(kind,itemId){
+  if(kind!=='species'&&kind!=='factions')return deleteItemBeforeSpeciesFactions(kind,itemId);
+  const item=getItem(kind,itemId);if(!item)return;if(!confirm(`Delete “${item.name}”? This removes it from this workspace.`))return;
+  state[kind]=state[kind].filter(x=>x.id!==itemId);logActivity(`Deleted ${item.name}`);scheduleSave();navigate(kind);
+};
+
+function sectionEntityCover(kind,item){
+  let glyph='⌖',detail='';
+  if(kind==='locations'){glyph=item.type==='Region'?'◉':'⌖';detail=`${item.type||'Location'}${childrenOf(item.id).length?` · ${childrenOf(item.id).length} inside`:''}`;}
+  else if(kind==='species'){glyph=initials(item.name);detail=`${item.prevalence||'Species'}${item.keyMemberIds?.length?` · ${item.keyMemberIds.length} known people`:''}`;}
+  else if(kind==='factions')return `<div class="section-entity-cover"><div class="section-entity-mark">${renderFactionBadge(item,'large')}<strong>${esc(sectionTemplateName(kind))}</strong><span>${esc(`${item.power||'Faction'}${item.keyMemberIds?.length?` · ${item.keyMemberIds.length} key members`:''}`)}</span></div></div>`;
+  else {glyph='⌛';detail=`${item.date||'Undated'}${item.status?` · ${item.status}`:''}`;}
+  return `<div class="section-entity-cover"><div class="section-entity-mark"><span class="section-entity-glyph">${esc(glyph)}</span><strong>${esc(sectionTemplateName(kind))}</strong><span>${esc(detail)}</span></div></div>`;
+}
+
+function renderCollectionView(kind,items,view){
+  const template=sectionTemplateConfig(kind)?sectionDesign(kind).template:'';
+  if(kind==='locations'){if(view==='table')return renderTable(kind,items);if(view==='tree'||template==='hierarchy-survey')return renderLocationTree(items);return template==='travel-journal'?renderLocationJournal(items):renderLocationAtlasCards(items);}
+  if(kind==='species'){if(view==='table')return renderTable(kind,items);if(template==='lineage-cards')return renderSpeciesLineage(items);if(template==='classification-index')return renderSpeciesIndex(items);return renderSpeciesRegistry(items);}
+  if(kind==='factions'){if(view==='table')return renderTable(kind,items);if(template==='influence-board')return renderFactionInfluence(items);if(template==='intelligence-files')return renderFactionIntel(items);return renderFactionHeraldic(items);}
+  if(kind==='events'){if(view==='table'||template==='archive-ledger')return template==='archive-ledger'?renderTimelineArchive(items):renderTable(kind,items);if(template==='era-cards')return renderTimelineEraCards(items);return renderTimeline(items);}
+  if(view==='table')return renderTable(kind,items);return `<div class="card-grid">${items.map(item=>renderEntityCard(kind,item)).join('')}</div>`;
+}
+
+function renderCollection(kind){
+  if(kind==='characters'){
+    const meta=COLLECTIONS[kind],filter=collectionFilters[kind].toLowerCase(),items=state[kind].filter(item=>JSON.stringify(item).toLowerCase().includes(filter)),view=collectionView[kind],viewButtons=[['gallery','Gallery'],['table','Table']];
+    el.main.innerHTML=`${pageHead('Database',meta.label,'People, roles, relationships, moods, locations, and story notes.',`<button class="button" type="button" data-new="${kind}">New ${meta.singular.toLowerCase()}</button>`)}<div class="collection-toolbar"><div class="toolbar-left"><div class="segmented">${viewButtons.map(([v,l])=>`<button type="button" class="${view===v?'active':''}" data-collection-view="${kind}:${v}">${l}</button>`).join('')}</div><button class="button secondary small" type="button" data-graph-kind="characters">Graph view</button></div><div class="toolbar-right"><input class="input toolbar-search" type="search" value="${esc(collectionFilters[kind])}" placeholder="Filter characters" data-filter-kind="${kind}"></div></div>${items.length?renderCollectionView(kind,items,view):'<div class="panel empty-state">No matching items.</div>'}`;return;
+  }
+  const meta=COLLECTIONS[kind],filter=collectionFilters[kind].toLowerCase(),items=state[kind].filter(item=>JSON.stringify(item).toLowerCase().includes(filter)),view=collectionView[kind];
+  const subtitle={locations:'Regions and places with true parent-child structure and related-location links.',species:'Peoples, lineages, biological or constructed forms, traits, and social tensions.',factions:'Organizations, houses, crews, alliances, goals, members, and personalized badges.',events:'World history and current story events tied to the people involved.'}[kind];
+  const viewButtons=kind==='locations'?[['tree','Tree'],['gallery','Gallery'],['table','Table']]:kind==='events'?[['timeline','Timeline'],['table','Table']]:[['gallery','Gallery'],['table','Table']];
+  const graphKind=kind==='events'?'world':kind;
+  el.main.innerHTML=`<section class="${sectionCssClass(kind)}" style="${sectionThemeStyle(kind)}">${sectionDesignToolbar(kind)}${pageHead('Database',meta.label,subtitle,`<button class="button" type="button" data-new="${kind}">New ${meta.singular.toLowerCase()}</button>`)}<div class="collection-toolbar"><div class="toolbar-left"><div class="segmented">${viewButtons.map(([v,l])=>`<button type="button" class="${view===v?'active':''}" data-collection-view="${kind}:${v}">${l}</button>`).join('')}</div><button class="button secondary small" type="button" data-graph-kind="${graphKind}">Graph view</button></div><div class="toolbar-right"><input class="input toolbar-search" type="search" value="${esc(collectionFilters[kind])}" placeholder="Filter ${meta.label.toLowerCase()}" data-filter-kind="${kind}"></div></div>${items.length?renderCollectionView(kind,items,view):'<div class="panel empty-state">No matching items.</div>'}</section>`;
+}
+
+// Extend graph nodes so Species and Factions are separate categories.
+function resolveGraphNode(nodeId){
+  const [prefix,refId]=String(nodeId||'').split(':');
+  const kind=prefix==='location'?'locations':prefix==='character'?'characters':prefix==='species'?'species':prefix==='faction'?'factions':prefix==='event'?'events':'';
+  const item=kind?getItem(kind,refId):null;if(!item)return null;
+  const type=prefix==='location'?'Location':prefix==='character'?'Person':prefix==='species'?'Species':prefix==='faction'?'Faction':'Event';
+  return {id:nodeId,label:item.name,type,refId,kind};
+}
+function graphItemsForCurrentType(){
+  if(graphSettings.graphType==='story'){const story=activeStoryGraph();return (story?.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0)).map(node=>{const resolved=resolveGraphNode(node.id);return resolved?{nodeId:resolved.id,label:resolved.label,type:resolved.type}:null;}).filter(Boolean);}
+  if(graphSettings.graphType==='locations')return state.locations.map(item=>({nodeId:`location:${item.id}`,label:item.name,type:'Location'}));
+  if(graphSettings.graphType==='characters')return state.characters.map(item=>({nodeId:`character:${item.id}`,label:item.name,type:'Person'}));
+  return [...state.locations.map(item=>({nodeId:`location:${item.id}`,label:item.name,type:'Location'})),...state.characters.map(item=>({nodeId:`character:${item.id}`,label:item.name,type:'Person'})),...state.species.map(item=>({nodeId:`species:${item.id}`,label:item.name,type:'Species'})),...state.factions.map(item=>({nodeId:`faction:${item.id}`,label:item.name,type:'Faction'})),...state.events.map(item=>({nodeId:`event:${item.id}`,label:item.name,type:'Event'}))].sort((a,b)=>a.type.localeCompare(b.type)||a.label.localeCompare(b.label));
+}
+function graphTypeFilters(){if(graphSettings.graphType==='story')return[{key:'Location',label:'Locations'},{key:'Person',label:'People'}];if(graphSettings.graphType==='locations')return[{key:'Location',label:'Locations'}];if(graphSettings.graphType==='characters')return[{key:'Person',label:'People'}];return[{key:'Location',label:'Locations'},{key:'Person',label:'People'},{key:'Species',label:'Species'},{key:'Faction',label:'Factions'},{key:'Event',label:'Events'}];}
+function graphRelationFilters(){if(graphSettings.graphType==='story')return[{key:'story',label:'Story connections'}];if(graphSettings.graphType==='locations')return[{key:'parent',label:'Parent and child'},{key:'related',label:'Related locations'}];if(graphSettings.graphType==='characters')return[{key:'relationship',label:'People relationships'}];return[{key:'parent',label:'Parent and child'},{key:'related',label:'Related locations'},{key:'relationship',label:'People relationships'},{key:'current',label:'Current locations'},{key:'speciesMember',label:'Known species members'},{key:'member',label:'Faction members'},{key:'event',label:'Event involvement'},{key:'keyPerson',label:'Key people at locations'}];}
+function graphFocusOptions(){if(graphSettings.graphType==='story')return graphItemsForCurrentType().map(item=>({value:item.nodeId,label:item.label}));if(graphSettings.graphType==='locations')return state.locations.map(x=>({value:`location:${x.id}`,label:x.name}));if(graphSettings.graphType==='characters')return state.characters.map(x=>({value:`character:${x.id}`,label:x.name}));return[...state.locations.map(x=>({value:`location:${x.id}`,label:`Location: ${x.name}`})),...state.characters.map(x=>({value:`character:${x.id}`,label:`Person: ${x.name}`})),...state.species.map(x=>({value:`species:${x.id}`,label:`Species: ${x.name}`})),...state.factions.map(x=>({value:`faction:${x.id}`,label:`Faction: ${x.name}`})),...state.events.map(x=>({value:`event:${x.id}`,label:`Event: ${x.name}`}))];}
+function graphNodeKey(){const entries=graphTypeFilters();const colorMap={Location:'var(--accent)',Person:'var(--success)',Species:'var(--muted)',Faction:'var(--warning)',Event:'var(--danger)'};return entries.map(entry=>`<span class="graph-key-row"><span class="graph-key-dot" style="background:${colorMap[entry.key]}"></span><strong>${esc(entry.label)}</strong></span>`).join('');}
+function graphData(){
+  const nodes=[],links=[],nodeSet=new Set(),linkSet=new Set();
+  const addNode=(id,label,type,refId,kind,extra={})=>{if(!nodeSet.has(id)){nodeSet.add(id);nodes.push({id,label,type,refId,kind,...extra});}};
+  const addLink=(source,target,type,label='',extra={})=>{if(!source||!target||source===target||graphSettings.visibleRelations[type]===false)return;const key=type==='story'?`${source}|${target}|${type}|${label}`:`${[source,target].sort().join('|')}|${type}`;if(!linkSet.has(key)){linkSet.add(key);links.push({source,target,type,label,...extra});}};
+  if(graphSettings.graphType==='story'){const story=activeStoryGraph();for(const storyNode of story?.nodes||[]){const resolved=resolveGraphNode(storyNode.id);if(resolved)addNode(resolved.id,resolved.label,resolved.type,resolved.refId,resolved.kind,{order:storyNode.order,role:storyNode.role||'',passage:ensureStoryPassage(storyNode),storyPointCount:storyPointRange(story,storyNode).turns.length,hasAnchor:Boolean(ensureStoryPassage(storyNode).anchorTurnId),storyX:story.positions?.[storyNode.id]?.x??storyNode.defaultX??.5,storyY:story.positions?.[storyNode.id]?.y??storyNode.defaultY??.5});}for(const storyLink of story?.links||[])addLink(storyLink.source,storyLink.target,'story',storyLink.label||'continues to',{curve:Number(storyLink.curve)||0,mainPath:storyLink.mainPath!==false});}
+  else{
+    if(graphSettings.graphType==='locations'||graphSettings.graphType==='world'){for(const x of state.locations)addNode(`location:${x.id}`,x.name,'Location',x.id,'locations');for(const x of state.locations){if(x.parentLocationId)addLink(`location:${x.parentLocationId}`,`location:${x.id}`,'parent','contains');for(const rel of x.relatedLocationIds||[])addLink(`location:${x.id}`,`location:${rel}`,'related','related');}}
+    if(graphSettings.graphType==='characters'||graphSettings.graphType==='world'){for(const x of state.characters)addNode(`character:${x.id}`,x.name,'Person',x.id,'characters');for(const x of state.characters){for(const rel of x.relationshipIds||[])addLink(`character:${x.id}`,`character:${rel}`,'relationship','relationship');if(graphSettings.graphType==='world')for(const loc of x.currentLocationIds||[])addLink(`character:${x.id}`,`location:${loc}`,'current','currently in');}}
+    if(graphSettings.graphType==='world'){for(const x of state.species)addNode(`species:${x.id}`,x.name,'Species',x.id,'species');for(const x of state.factions)addNode(`faction:${x.id}`,x.name,'Faction',x.id,'factions');for(const x of state.events)addNode(`event:${x.id}`,x.name,'Event',x.id,'events');for(const sp of state.species)for(const person of sp.keyMemberIds||[])addLink(`species:${sp.id}`,`character:${person}`,'speciesMember','known member');for(const f of state.factions)for(const person of f.keyMemberIds||[])addLink(`faction:${f.id}`,`character:${person}`,'member','member');for(const e of state.events)for(const person of e.characterIds||[])addLink(`event:${e.id}`,`character:${person}`,'event','involved');for(const l of state.locations)for(const person of l.keyCharacterIds||[])addLink(`location:${l.id}`,`character:${person}`,'keyPerson','key person');}
+  }
+  const hidden=new Set(graphSettings.hiddenNodeIds||[]),filteredNodes=nodes.filter(node=>graphSettings.visibleTypes[node.type]!==false&&!hidden.has(node.id)),keptIds=new Set(filteredNodes.map(node=>node.id)),filteredLinks=links.filter(link=>keptIds.has(typeof link.source==='string'?link.source:link.source.id)&&keptIds.has(typeof link.target==='string'?link.target:link.target.id));
+  if(graphSettings.layout==='focus'&&graphSettings.focus){const keep=new Set([graphSettings.focus]);for(const link of filteredLinks){const source=typeof link.source==='string'?link.source:link.source.id,target=typeof link.target==='string'?link.target:link.target.id;if(source===graphSettings.focus)keep.add(target);if(target===graphSettings.focus)keep.add(source);}return{nodes:filteredNodes.filter(node=>keep.has(node.id)),links:filteredLinks.filter(link=>keep.has(typeof link.source==='string'?link.source:link.source.id)&&keep.has(typeof link.target==='string'?link.target:link.target.id))};}
+  return{nodes:filteredNodes,links:filteredLinks};
+}
+
+function reorderTimelineEvent(draggedId,targetId,placeAfter=false){
+  if(!draggedId||!targetId||draggedId===targetId)return;const from=state.events.findIndex(item=>item.id===draggedId),target=state.events.findIndex(item=>item.id===targetId);if(from<0||target<0)return;const [moved]=state.events.splice(from,1);let insertAt=state.events.findIndex(item=>item.id===targetId);if(placeAfter)insertAt+=1;state.events.splice(Math.max(0,insertAt),0,moved);moved.updatedAt=nowISO();scheduleSave();const y=window.scrollY;render();requestAnimationFrame(()=>window.scrollTo({top:y,behavior:'instant'}));toast(`Moved ${moved.name}.`);
+}
+function moveTimelineEventByStep(itemId,direction){const index=state.events.findIndex(item=>item.id===itemId),next=direction==='up'?index-1:index+1;if(index<0||next<0||next>=state.events.length)return;const [moved]=state.events.splice(index,1);state.events.splice(next,0,moved);moved.updatedAt=nowISO();scheduleSave();const y=window.scrollY;render();requestAnimationFrame(()=>window.scrollTo({top:y,behavior:'instant'}));}
+let timelineDraggedId='',timelineDragFinishedAt=0;
+document.addEventListener('dragstart',event=>{const item=event.target.closest?.('[data-timeline-item]');if(!item)return;timelineDraggedId=item.dataset.timelineItem;item.classList.add('is-dragging');event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',timelineDraggedId);});
+document.addEventListener('dragover',event=>{const target=event.target.closest?.('[data-timeline-item]');if(!target||!timelineDraggedId||target.dataset.timelineItem===timelineDraggedId)return;event.preventDefault();document.querySelectorAll('[data-timeline-item].drop-before,[data-timeline-item].drop-after').forEach(node=>node.classList.remove('drop-before','drop-after'));const rect=target.getBoundingClientRect(),after=event.clientY>rect.top+rect.height/2;target.classList.add(after?'drop-after':'drop-before');event.dataTransfer.dropEffect='move';});
+document.addEventListener('drop',event=>{const target=event.target.closest?.('[data-timeline-item]');if(!target||!timelineDraggedId)return;event.preventDefault();const rect=target.getBoundingClientRect(),after=event.clientY>rect.top+rect.height/2;const dragged=timelineDraggedId;timelineDraggedId='';timelineDragFinishedAt=Date.now();reorderTimelineEvent(dragged,target.dataset.timelineItem,after);});
+document.addEventListener('dragend',()=>{timelineDraggedId='';timelineDragFinishedAt=Date.now();document.querySelectorAll('[data-timeline-item]').forEach(node=>node.classList.remove('is-dragging','drop-before','drop-after'));});
+
+document.addEventListener('click',event=>{
+  const move=event.target.closest('[data-timeline-move]');if(move){event.preventDefault();event.stopImmediatePropagation();const [itemId,direction]=move.dataset.timelineMove.split(':');moveTimelineEventByStep(itemId,direction);return;}
+  if(Date.now()-timelineDragFinishedAt<350&&event.target.closest('[data-timeline-item]')){event.preventDefault();event.stopImmediatePropagation();return;}
+  const badge=event.target.closest('[data-badge-designer]');if(badge){event.preventDefault();event.stopImmediatePropagation();showFactionBadgeDesigner(badge.dataset.badgeDesigner);return;}
+  const saveBadge=event.target.closest('[data-save-faction-badge]');if(saveBadge){event.preventDefault();event.stopImmediatePropagation();const item=getItem('factions',saveBadge.dataset.saveFactionBadge),draft=el.modal._badgeDraft;if(item&&draft){Object.assign(item,draft,{updatedAt:nowISO()});scheduleSave();closeModal();render();toast('Faction badge saved.');}return;}
+},true);
 
 ensureSectionDesigns();
 
