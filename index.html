@@ -3007,6 +3007,377 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 </style>
 
+
+<style id="practical-dossier-template-styles">
+.character-template-toolbar {
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  margin:0 0 14px; padding:10px 12px; border:1px solid var(--border);
+  border-radius:14px; background:var(--panel); box-shadow:var(--shadow-soft);
+}
+.character-template-label { display:flex; align-items:center; gap:9px; min-width:0; }
+.character-template-label strong { font-family:var(--font-display); font-size:17px; }
+.character-template-label span { color:var(--muted); font-size:12px; }
+.template-gallery { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.template-choice { border:1px solid var(--border); border-radius:16px; background:var(--panel); overflow:hidden; }
+.template-choice.is-active { border-color:color-mix(in srgb,var(--accent) 68%,var(--border)); box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 18%,transparent); }
+.template-choice-preview { height:170px; padding:14px; background:var(--panel-soft); display:grid; gap:8px; }
+.template-choice-preview.standard { grid-template-rows:42px 1fr; }
+.template-choice-preview.dossier { grid-template-columns:.82fr 1.18fr .72fr; grid-template-rows:48px 1fr; }
+.template-choice-preview .mini-cover { border-radius:8px; background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 32%,var(--panel)),var(--panel-strong)); }
+.template-choice-preview.standard .mini-cover { grid-column:1; }
+.template-choice-preview .mini-card { border:1px solid var(--border); border-radius:8px; background:var(--panel-strong); }
+.template-choice-preview.dossier .mini-cover { grid-column:1/-1; }
+.template-choice-preview.dossier .mini-card:nth-of-type(2) { min-height:90px; }
+.template-choice-body { padding:14px; }
+.template-choice-body h3 { margin:0 0 5px; font-family:var(--font-display); }
+.template-choice-body p { margin:0 0 12px; color:var(--muted); font-size:13px; line-height:1.45; }
+
+.practical-dossier-page {
+  --dossier-paper:#f5efe4; --dossier-paper-2:#fffaf2; --dossier-panel:#fff8ed; --dossier-ink:#2d261f;
+  --dossier-muted:#756958; --dossier-line:#d7c6aa; --dossier-gold:#9a7442; --dossier-chip:#efe3d1;
+  color:var(--dossier-ink); border:1px solid var(--dossier-line); border-radius:18px;
+  background:
+    radial-gradient(circle at 15% 10%,rgba(154,116,66,.07),transparent 30%),
+    linear-gradient(180deg,var(--dossier-paper-2),var(--dossier-paper));
+  overflow:hidden; box-shadow:0 18px 45px rgba(27,20,13,.16);
+}
+.practical-dossier-page button,.practical-dossier-page input,.practical-dossier-page textarea { font:inherit; }
+.dossier-topbar { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--dossier-line); background:color-mix(in srgb,var(--dossier-paper-2) 92%,transparent); }
+.dossier-template-name { font-family:var(--font-display); font-size:20px; }
+.dossier-top-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.dossier-cover { position:relative; height:205px; background:linear-gradient(135deg,#33261f,#7e3d2f 55%,#1c2731); overflow:hidden; }
+.dossier-cover .character-cover-slot { height:100%; min-height:0; border:0; border-radius:0; }
+.dossier-cover-placeholder { position:absolute; inset:0; display:grid; place-items:center; color:#fff; text-align:center; background:linear-gradient(135deg,var(--dossier-paper),color-mix(in srgb,var(--dossier-gold) 62%,var(--dossier-paper)) 55%,var(--dossier-paper-2)); }
+.dossier-cover-placeholder strong { font-family:var(--font-display); font-size:22px; }
+.dossier-cover-placeholder span { display:block; margin-top:6px; opacity:.75; font-size:12px; }
+.dossier-identity { display:grid; grid-template-columns:minmax(260px,1.2fr) repeat(4,minmax(130px,.65fr)); gap:10px; align-items:stretch; padding:18px; border-bottom:1px solid var(--dossier-line); }
+.dossier-name-wrap { padding:8px 8px 8px 2px; }
+.dossier-title-input { width:100%; min-height:52px; resize:none; overflow:hidden; border:0; background:transparent; color:var(--dossier-ink); font-family:var(--font-display); font-size:clamp(34px,4vw,54px); font-weight:700; line-height:1.04; }
+.dossier-tagline { color:var(--dossier-muted); font-family:var(--font-display); font-style:italic; font-size:16px; }
+.dossier-stat { appearance:none; color:inherit; cursor:pointer; min-height:88px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:10px; border:1px solid var(--dossier-line); border-radius:12px; background:color-mix(in srgb,var(--dossier-panel) 88%,transparent); }
+.dossier-stat:hover { border-color:var(--dossier-gold); background:var(--dossier-panel); }
+.dossier-stat-label,.dossier-section-label { color:var(--dossier-gold); font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+.dossier-stat-value { margin-top:7px; font-family:var(--font-display); font-size:18px; line-height:1.2; }
+.dossier-body { padding:14px 16px 18px; }
+.dossier-image-grid { display:grid; grid-template-columns:.9fr 1.15fr .8fr; gap:12px; margin-bottom:14px; }
+.dossier-media-card { min-width:0; border:1px solid var(--dossier-line); border-radius:14px; background:color-mix(in srgb,var(--dossier-panel) 88%,transparent); overflow:hidden; }
+.dossier-media-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:9px 11px; border-bottom:1px solid var(--dossier-line); color:var(--dossier-muted); font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+.dossier-media-slot { position:relative; min-height:390px; overflow:hidden; background:rgba(154,116,66,.08); cursor:pointer; }
+.dossier-media-card.center .dossier-media-slot { min-height:390px; }
+.dossier-media-card.side .dossier-media-slot { min-height:188px; }
+.dossier-media-slot img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; will-change:transform,object-position; }
+.dossier-media-placeholder { position:absolute; inset:0; display:grid; place-items:center; padding:16px; text-align:center; color:var(--dossier-muted); border:1px dashed var(--dossier-line); margin:10px; border-radius:10px; background:color-mix(in srgb,var(--dossier-panel) 84%,transparent); }
+.dossier-media-placeholder strong { display:block; color:var(--dossier-ink); margin-bottom:5px; }
+.dossier-media-edit { position:absolute; right:10px; bottom:10px; z-index:4; border:1px solid rgba(255,255,255,.55); border-radius:999px; padding:7px 10px; background:rgba(20,18,16,.78); color:#fff; font-size:11px; font-weight:750; backdrop-filter:blur(7px); }
+.dossier-media-slot.has-image .dossier-media-edit { opacity:0; visibility:hidden; pointer-events:none; transform:translateY(5px); transition:.16s ease; }
+.dossier-media-slot.has-image.is-media-selected .dossier-media-edit,.dossier-media-slot.has-image:focus-within .dossier-media-edit { opacity:1; visibility:visible; pointer-events:auto; transform:none; }
+.dossier-side-stack { display:grid; gap:12px; }
+.dossier-content-grid { display:grid; grid-template-columns:minmax(0,1.65fr) minmax(260px,.8fr); gap:12px; }
+.dossier-main-column,.dossier-side-column { display:grid; gap:12px; align-content:start; }
+.dossier-section { position:relative; border:1px solid var(--dossier-line); border-radius:12px; background:color-mix(in srgb,var(--dossier-panel) 90%,transparent); padding:14px; }
+.dossier-section h3 { margin:0 38px 8px 0; color:var(--dossier-ink); font-family:var(--font-display); font-size:18px; }
+.dossier-section p,.dossier-section li { color:var(--dossier-ink); line-height:1.55; }
+.dossier-section p { margin:0; white-space:pre-wrap; }
+.dossier-section-edit { position:absolute; top:9px; right:9px; width:30px; height:30px; display:grid; place-items:center; border:1px solid var(--dossier-line); border-radius:8px; background:color-mix(in srgb,var(--dossier-panel) 92%,transparent); color:var(--dossier-muted); }
+.dossier-two-column { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.dossier-chip-row { display:flex; flex-wrap:wrap; gap:7px; }
+.dossier-chip { border:1px solid var(--dossier-line); border-radius:999px; padding:6px 10px; background:var(--dossier-chip); color:var(--dossier-ink); font-size:12px; }
+.dossier-empty { color:var(--dossier-muted) !important; font-style:italic; }
+.dossier-footer-grid { display:grid; grid-template-columns:1.1fr .8fr 1fr; gap:12px; margin-top:12px; }
+.dossier-additional { margin-top:14px; border:1px solid var(--dossier-line); border-radius:12px; background:color-mix(in srgb,var(--dossier-panel) 75%,transparent); }
+.dossier-additional summary { cursor:pointer; padding:12px 14px; font-weight:750; color:var(--dossier-ink); }
+.dossier-additional .editor-surface { border-top:1px solid var(--dossier-line); background:transparent; }
+.dossier-field-editor textarea { min-height:220px; }
+.dossier-field-help { color:var(--muted); font-size:12px; margin-top:7px; }
+
+@media(max-width:1050px){
+  .dossier-identity{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .dossier-name-wrap{grid-column:1/-1;}
+  .dossier-image-grid{grid-template-columns:1fr 1fr;}
+  .dossier-media-card:first-child{grid-row:span 2;}
+  .dossier-content-grid{grid-template-columns:1fr;}
+}
+@media(max-width:720px){
+  .character-template-toolbar,.dossier-topbar{align-items:flex-start;flex-direction:column;}
+  .template-gallery{grid-template-columns:1fr;}
+  .dossier-cover{height:150px;}
+  .dossier-identity{grid-template-columns:1fr 1fr;padding:12px;}
+  .dossier-image-grid{grid-template-columns:1fr;}
+  .dossier-media-slot,.dossier-media-card.center .dossier-media-slot{min-height:360px;}
+  .dossier-media-card.side .dossier-media-slot{min-height:250px;}
+  .dossier-two-column,.dossier-footer-grid{grid-template-columns:1fr;}
+  .dossier-body{padding:10px;}
+}
+@media(max-width:460px){.dossier-identity{grid-template-columns:1fr;}.dossier-name-wrap{grid-column:auto;}.dossier-stat{min-height:72px;}}
+
+.practical-dossier-page .button { border-color:var(--dossier-line); }
+.practical-dossier-page .button.secondary { background:var(--dossier-panel); color:var(--dossier-ink); }
+.dossier-template-name { display:flex; align-items:center; gap:6px; }
+.dossier-template-name>span { color:var(--dossier-muted); font-size:13px; font-family:var(--font-body); }
+.dossier-label-button { appearance:none; border:0; padding:0; margin:0; background:transparent; color:inherit; font:inherit; text-align:inherit; cursor:text; border-radius:5px; }
+.dossier-label-button:hover,.dossier-label-button:focus-visible { outline:1px dashed var(--dossier-gold); outline-offset:3px; color:var(--dossier-gold); }
+.dossier-label-button.media-title { color:var(--dossier-ink); font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+.dossier-label-button.media-help { color:var(--dossier-muted); font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+.dossier-label-button.template-title { font-family:var(--font-display); font-size:20px; }
+.dossier-cover-meta { position:absolute; top:10px; left:12px; z-index:6; display:flex; align-items:center; gap:7px; padding:7px 9px; border:1px solid color-mix(in srgb,var(--dossier-line) 76%,transparent); border-radius:9px; background:color-mix(in srgb,var(--dossier-paper) 72%,transparent); color:var(--dossier-ink); backdrop-filter:blur(8px); }
+.dossier-cover-meta .cover-title { font-weight:800; }
+.dossier-cover-meta .cover-help { color:var(--dossier-muted); font-size:11px; }
+.dossier-stat { cursor:default; }
+.dossier-stat-value { appearance:none; border:0; padding:4px 3px; background:transparent; color:inherit; cursor:pointer; border-radius:6px; }
+.dossier-stat-value:hover,.dossier-stat-value:focus-visible { outline:1px dashed var(--dossier-gold); outline-offset:2px; }
+.dossier-stat .dossier-stat-label { cursor:text; }
+.dossier-section h3 .dossier-label-button { font-family:inherit; font-size:inherit; font-weight:inherit; }
+.dossier-summary-rename { float:right; border:1px solid var(--dossier-line); border-radius:7px; padding:4px 7px; background:var(--dossier-panel); color:var(--dossier-muted); font-size:11px; }
+.dossier-label-single { display:grid; gap:8px; }
+.dossier-label-single span,.dossier-label-group label span { font-weight:750; }
+.dossier-label-single small { color:var(--muted); }
+.dossier-label-manager { display:grid; gap:16px; max-height:min(68vh,720px); overflow:auto; padding-right:4px; }
+.dossier-label-group { border:1px solid var(--border); border-radius:14px; padding:13px; background:var(--panel-soft); }
+.dossier-label-group h3 { margin:0 0 10px; }
+.dossier-label-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.dossier-label-grid label { display:grid; gap:5px; }
+.dossier-theme-gallery { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.dossier-theme-card { appearance:none; display:grid; gap:8px; min-height:112px; padding:12px; border:1px solid var(--border); border-radius:14px; background:var(--panel); color:var(--text); text-align:left; cursor:pointer; }
+.dossier-theme-card:hover,.dossier-theme-card.is-active { border-color:var(--accent); box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 16%,transparent); }
+.dossier-theme-card strong { font-family:var(--font-display); font-size:16px; }
+.dossier-theme-card small { color:var(--muted); }
+.dossier-theme-swatches { display:flex; align-items:center; gap:5px; }
+.dossier-theme-swatches i { display:block; width:28px; height:28px; border-radius:50%; border:1px solid rgba(127,127,127,.35); box-shadow:inset 0 0 0 1px rgba(255,255,255,.12); }
+.dossier-custom-theme { margin-top:14px; border:1px solid var(--border); border-radius:14px; padding:14px; background:var(--panel-soft); }
+.dossier-custom-theme.is-active { border-color:var(--accent); }
+.dossier-custom-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.dossier-custom-head h3 { margin:0 0 3px; }
+.dossier-custom-head p { margin:0; color:var(--muted); font-size:12px; }
+.dossier-custom-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-bottom:12px; }
+.dossier-custom-grid label { display:flex; align-items:center; justify-content:space-between; gap:10px; border:1px solid var(--border); border-radius:10px; padding:8px 10px; background:var(--panel); }
+.dossier-custom-grid input[type="color"] { width:50px; height:34px; border:0; background:transparent; padding:0; }
+@media(max-width:620px){.dossier-label-grid,.dossier-theme-gallery,.dossier-custom-grid{grid-template-columns:1fr;}.dossier-cover-meta{right:8px;left:8px;align-items:flex-start;flex-direction:column;}}
+
+
+/* === World section templates and matching color families === */
+.section-themed-shell {
+  --section-paper:#f5efe4;
+  --section-paper-2:#fffaf2;
+  --section-panel:#fff8ed;
+  --section-ink:#2d261f;
+  --section-muted:#756958;
+  --section-line:#d7c6aa;
+  --section-accent:#9a7442;
+  --section-chip:#efe3d1;
+  --bg:var(--section-paper);
+  --panel:var(--section-panel);
+  --panel-strong:var(--section-paper-2);
+  --panel-soft:color-mix(in srgb,var(--section-panel) 86%,var(--section-paper));
+  --text:var(--section-ink);
+  --muted:var(--section-muted);
+  --border:var(--section-line);
+  --line:var(--section-line);
+  --accent:var(--section-accent);
+  --accent-strong:color-mix(in srgb,var(--section-accent) 82%,var(--section-ink));
+  --accent-soft:color-mix(in srgb,var(--section-accent) 15%,var(--section-panel));
+  --accent-text:var(--section-paper-2);
+  --success:color-mix(in srgb,var(--section-accent) 68%,#4e9472);
+  --warning:color-mix(in srgb,var(--section-accent) 68%,#b57a3e);
+  --danger:color-mix(in srgb,var(--section-accent) 52%,#b55353);
+  min-height:calc(100vh - 118px);
+  margin:-4px;
+  border:1px solid var(--section-line);
+  border-radius:22px;
+  background:
+    radial-gradient(circle at 90% 2%,color-mix(in srgb,var(--section-accent) 12%,transparent),transparent 28%),
+    linear-gradient(145deg,var(--section-paper-2),var(--section-paper));
+  color:var(--section-ink);
+  padding:20px;
+  box-shadow:0 18px 50px color-mix(in srgb,var(--section-ink) 7%,transparent);
+}
+.section-themed-shell .page-head { margin-bottom:18px; }
+.section-themed-shell .page-kicker { color:var(--section-accent); }
+.section-themed-shell .page-subtitle { color:var(--section-muted); }
+.section-design-toolbar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:18px;
+  border:1px solid var(--section-line);
+  border-radius:15px;
+  background:color-mix(in srgb,var(--section-panel) 92%,transparent);
+  padding:10px 12px;
+  backdrop-filter:blur(9px);
+}
+.section-design-heading { display:flex; align-items:center; gap:10px; min-width:0; }
+.section-design-icon {
+  width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--section-line);
+  border-radius:12px;background:var(--section-chip);color:var(--section-accent);font-size:19px;
+}
+.section-design-copy { min-width:0; display:grid; gap:1px; }
+.section-design-copy span { color:var(--section-muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:800; }
+.section-design-copy strong { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.section-design-actions { display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end; }
+.section-themed-shell .button { border-color:var(--section-line); }
+.section-themed-shell .button.secondary,
+.section-themed-shell .button.ghost { background:var(--section-panel);color:var(--section-ink); }
+.section-themed-shell .segmented { border-color:var(--section-line);background:var(--section-panel); }
+.section-themed-shell .segmented button { color:var(--section-muted); }
+.section-themed-shell .segmented button.active { background:var(--section-accent);color:var(--section-paper-2); }
+.section-themed-shell .input,.section-themed-shell .select,.section-themed-shell .textarea {
+  border-color:var(--section-line);background:var(--section-panel);color:var(--section-ink);
+}
+.section-themed-shell .panel,.section-themed-shell .table-wrap,.section-themed-shell .properties-panel,
+.section-themed-shell .editor-surface,.section-themed-shell .graph-filter-panel,.section-themed-shell .graph-reading-guide,
+.section-themed-shell .graph-inspector { background:var(--section-panel);border-color:var(--section-line);color:var(--section-ink); }
+.section-themed-shell .tag,.section-themed-shell .link-pill { background:var(--section-chip);border-color:var(--section-line);color:var(--section-ink); }
+.section-themed-shell table th { color:var(--section-muted);background:color-mix(in srgb,var(--section-chip) 78%,var(--section-panel)); }
+.section-themed-shell table td { border-color:var(--section-line); }
+.section-themed-shell table tbody tr:hover { background:color-mix(in srgb,var(--section-accent) 9%,var(--section-panel)); }
+
+.section-template-gallery { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px; }
+.section-template-choice {
+  display:grid;grid-template-rows:150px auto;border:1px solid var(--border);border-radius:15px;
+  overflow:hidden;background:var(--panel);text-align:left;color:var(--text);
+}
+.section-template-choice:hover,.section-template-choice.is-active { border-color:var(--accent);box-shadow:0 8px 24px color-mix(in srgb,var(--accent) 14%,transparent); }
+.section-template-preview { position:relative;overflow:hidden;background:var(--panel-soft);padding:14px; }
+.section-template-preview::before { content:"";position:absolute;inset:0;background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 20%,transparent),transparent 55%); }
+.section-template-preview .preview-line { position:relative;height:10px;border-radius:999px;background:color-mix(in srgb,var(--text) 16%,transparent);margin-bottom:9px; }
+.section-template-preview .preview-card { position:relative;height:38px;border:1px solid var(--border);border-radius:9px;background:var(--panel);margin-top:9px; }
+.section-template-preview.preview-tree .preview-card:nth-child(3) { margin-left:25px;width:82%; }
+.section-template-preview.preview-board { display:grid;grid-template-columns:repeat(3,1fr);gap:7px; }
+.section-template-preview.preview-board .preview-card { height:105px;margin:0; }
+.section-template-preview.preview-timeline::after { content:"";position:absolute;left:38px;top:20px;bottom:20px;width:2px;background:var(--accent); }
+.section-template-preview.preview-timeline .preview-card { margin-left:45px;height:26px; }
+.section-template-preview.preview-graph::after { content:"●  ───  ●\A  ╲       ╱\A    ●──●";white-space:pre;position:absolute;inset:30px;text-align:center;color:var(--accent);font-size:24px;line-height:1.7; }
+.section-template-body { padding:13px; }
+.section-template-body h3 { margin:0 0 5px; }
+.section-template-body p { color:var(--muted);font-size:12px;min-height:47px; }
+
+.section-theme-gallery { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px; }
+.section-theme-card {
+  display:grid;grid-template-columns:110px minmax(0,1fr);align-items:center;gap:12px;width:100%;
+  border:1px solid var(--border);border-radius:13px;background:var(--panel);padding:10px;text-align:left;color:var(--text);
+}
+.section-theme-card:hover,.section-theme-card.is-active { border-color:var(--accent);background:var(--accent-soft); }
+.section-theme-swatches { display:flex;height:43px;overflow:hidden;border:1px solid var(--border);border-radius:9px; }
+.section-theme-swatches i { flex:1; }
+.section-theme-card-copy { display:grid;gap:2px; }
+.section-theme-card-copy small { color:var(--muted); }
+.section-custom-theme { margin-top:16px;border:1px solid var(--border);border-radius:14px;background:var(--panel);padding:15px; }
+.section-custom-grid { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:13px 0; }
+.section-custom-grid label { display:grid;gap:5px;color:var(--muted);font-size:11px;font-weight:800; }
+.section-custom-grid input { width:100%;height:42px;border:1px solid var(--border);border-radius:9px;background:var(--panel);padding:3px; }
+
+/* Location templates */
+.section-kind-locations.template-atlas-registry .entity-card,
+.location-atlas-card {
+  position:relative;overflow:hidden;border-color:var(--section-line);background:
+    linear-gradient(90deg,color-mix(in srgb,var(--section-line) 28%,transparent) 1px,transparent 1px),
+    linear-gradient(color-mix(in srgb,var(--section-line) 28%,transparent) 1px,transparent 1px),
+    var(--section-panel);background-size:24px 24px;
+}
+.location-atlas-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px; }
+.location-atlas-card { border:1px solid var(--section-line);border-radius:15px;padding:16px;color:var(--section-ink);cursor:pointer;text-align:left; }
+.location-atlas-card:hover { border-color:var(--section-accent);transform:translateY(-2px); }
+.location-atlas-header { display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:18px; }
+.location-atlas-symbol { width:46px;height:46px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--section-accent);background:var(--section-chip);color:var(--section-accent);font-size:22px; }
+.location-atlas-card h3 { font-family:Georgia,serif;font-size:22px;margin:0; }
+.location-atlas-type { color:var(--section-muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em; }
+.location-atlas-route { margin-top:13px;border-top:1px dashed var(--section-line);padding-top:10px;color:var(--section-muted);font-size:12px; }
+.location-journal-list { display:grid;gap:15px; }
+.location-journal-card { display:grid;grid-template-columns:96px minmax(0,1fr);gap:16px;border:1px solid var(--section-line);border-radius:18px;background:var(--section-panel);padding:16px;color:var(--section-ink);text-align:left;cursor:pointer; }
+.location-journal-card:hover { border-color:var(--section-accent); }
+.location-journal-number { display:grid;place-items:center;min-height:110px;border-radius:13px;background:var(--section-chip);font-family:Georgia,serif;font-size:38px;color:var(--section-accent); }
+.location-journal-copy h3 { font-family:Georgia,serif;font-size:25px;margin:0 0 7px; }
+.location-journal-copy p { color:var(--section-muted);line-height:1.65; }
+.template-hierarchy-survey .location-tree-main { border-radius:999px;background:var(--section-panel); }
+.template-hierarchy-survey .location-tree-toggle { background:var(--section-accent); }
+
+/* Faction templates */
+.faction-heraldic-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:15px; }
+.faction-heraldic-card { border:1px solid var(--section-line);border-radius:17px;background:var(--section-panel);overflow:hidden;color:var(--section-ink);cursor:pointer;text-align:left; }
+.faction-heraldic-banner { min-height:100px;display:grid;place-items:center;background:
+  radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--section-accent) 22%,transparent),transparent 45%),var(--section-paper-2);border-bottom:1px solid var(--section-line); }
+.faction-crest { width:66px;height:78px;clip-path:polygon(50% 0,92% 17%,86% 73%,50% 100%,14% 73%,8% 17%);display:grid;place-items:center;background:var(--section-accent);color:var(--section-paper-2);font-family:Georgia,serif;font-size:23px; }
+.faction-heraldic-body { padding:15px; }
+.faction-heraldic-body h3 { font-family:Georgia,serif;font-size:22px;margin:0 0 5px; }
+.faction-influence-board { display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:13px;align-items:start; }
+.faction-influence-column { border:1px solid var(--section-line);border-radius:15px;background:color-mix(in srgb,var(--section-panel) 88%,transparent);padding:11px; }
+.faction-influence-column h3 { display:flex;justify-content:space-between;gap:8px;color:var(--section-accent);text-transform:uppercase;font-size:12px;letter-spacing:.07em; }
+.faction-influence-card { width:100%;border:1px solid var(--section-line);border-radius:11px;background:var(--section-panel);padding:12px;margin-top:9px;text-align:left;color:var(--section-ink); }
+.faction-influence-card strong { display:block;margin-bottom:4px; }
+.faction-intel-list { display:grid;gap:11px; }
+.faction-intel-card { display:grid;grid-template-columns:70px minmax(0,1fr) auto;align-items:center;gap:13px;border:1px solid var(--section-line);border-radius:12px;background:var(--section-panel);padding:12px;color:var(--section-ink);text-align:left;cursor:pointer; }
+.faction-intel-code { font-family:ui-monospace,monospace;color:var(--section-accent);font-weight:900; }
+
+/* Timeline templates */
+.section-kind-events.template-chronicle-scroll .timeline::before { width:3px;background:linear-gradient(var(--section-accent),var(--section-line)); }
+.section-kind-events.template-chronicle-scroll .timeline-card { border-radius:3px 15px 15px 3px;box-shadow:inset 5px 0 0 var(--section-accent); }
+.timeline-era-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px; }
+.timeline-era-card { border:1px solid var(--section-line);border-radius:16px;background:var(--section-panel);padding:15px;color:var(--section-ink);cursor:pointer;text-align:left; }
+.timeline-era-card:hover { border-color:var(--section-accent); }
+.timeline-era-date { display:inline-flex;border-radius:999px;background:var(--section-chip);padding:5px 9px;color:var(--section-accent);font-size:11px;font-weight:850; }
+.timeline-era-card h3 { font-family:Georgia,serif;font-size:21px;margin:11px 0 7px; }
+.timeline-archive-list { display:grid;gap:8px; }
+.timeline-archive-row { display:grid;grid-template-columns:115px minmax(0,1fr) 110px;gap:12px;align-items:center;border:1px solid var(--section-line);border-radius:10px;background:var(--section-panel);padding:11px;color:var(--section-ink);cursor:pointer;text-align:left; }
+.timeline-archive-row:hover { border-color:var(--section-accent); }
+.timeline-archive-date { font-family:ui-monospace,monospace;color:var(--section-accent);font-weight:800; }
+
+/* Entity covers for themed sections */
+.section-entity-cover { min-height:176px;display:grid;place-items:center;border-bottom:1px solid var(--section-line);background:
+  radial-gradient(circle at 70% 22%,color-mix(in srgb,var(--section-accent) 18%,transparent),transparent 38%),
+  linear-gradient(135deg,var(--section-paper-2),var(--section-chip));position:relative;overflow:hidden; }
+.section-entity-cover::before,.section-entity-cover::after { content:"";position:absolute;border:1px solid color-mix(in srgb,var(--section-accent) 36%,transparent);border-radius:50%; }
+.section-entity-cover::before { width:210px;height:210px;left:-70px;top:-85px; }
+.section-entity-cover::after { width:150px;height:150px;right:-42px;bottom:-70px; }
+.section-entity-mark { position:relative;z-index:1;display:grid;place-items:center;text-align:center;gap:7px; }
+.section-entity-glyph { width:72px;height:72px;display:grid;place-items:center;border:1px solid var(--section-accent);border-radius:20px;background:var(--section-panel);color:var(--section-accent);font-size:31px;box-shadow:0 10px 25px color-mix(in srgb,var(--section-ink) 10%,transparent); }
+.section-entity-mark strong { font-family:Georgia,serif;font-size:21px; }
+.section-entity-mark span { color:var(--section-muted);font-size:12px; }
+.template-travel-journal .section-entity-cover { background:linear-gradient(115deg,var(--section-paper-2),var(--section-chip)); }
+.template-heraldic-registry .section-entity-glyph { clip-path:polygon(50% 0,92% 17%,86% 73%,50% 100%,14% 73%,8% 17%);border-radius:0;background:var(--section-accent);color:var(--section-paper-2); }
+.template-chronicle-scroll .section-entity-glyph { border-radius:50%; }
+
+/* Graph templates */
+.section-kind-graph .graph-stage { border-color:var(--section-line);background-color:var(--section-panel); }
+.section-kind-graph.template-constellation-map .graph-stage {
+  background:
+    radial-gradient(circle at 13% 18%,var(--section-accent) 0 1px,transparent 2px),
+    radial-gradient(circle at 73% 34%,var(--section-accent) 0 1px,transparent 2px),
+    radial-gradient(circle at 42% 72%,var(--section-accent) 0 1px,transparent 2px),
+    radial-gradient(circle at 88% 81%,var(--section-accent) 0 1px,transparent 2px),
+    linear-gradient(155deg,var(--section-paper),var(--section-paper-2));
+  background-size:190px 170px,230px 210px,280px 250px,330px 300px,auto;
+}
+.section-kind-graph.template-constellation-map .graph-node,.section-kind-graph.template-constellation-map .story-node-circle { filter:drop-shadow(0 0 8px color-mix(in srgb,var(--section-accent) 42%,transparent));stroke:var(--section-paper-2);stroke-width:2.5px; }
+.section-kind-graph.template-tactical-blueprint .graph-stage {
+  background:
+    linear-gradient(color-mix(in srgb,var(--section-accent) 14%,transparent) 1px,transparent 1px),
+    linear-gradient(90deg,color-mix(in srgb,var(--section-accent) 14%,transparent) 1px,transparent 1px),
+    var(--section-paper-2);background-size:28px 28px;
+}
+.section-kind-graph.template-tactical-blueprint .graph-node,.section-kind-graph.template-tactical-blueprint .story-node-circle { stroke:var(--section-accent);stroke-width:4px;fill:var(--section-panel)!important; }
+.section-kind-graph.template-tactical-blueprint .graph-node-glyph,.section-kind-graph.template-tactical-blueprint .story-step-number { fill:var(--section-accent); }
+.section-kind-graph.template-story-threads .graph-stage { background:linear-gradient(135deg,var(--section-paper-2),var(--section-chip)); }
+.section-kind-graph.template-story-threads .graph-link,.section-kind-graph.template-story-threads .story-link { stroke-width:3px; }
+.section-kind-graph.template-story-threads .graph-node,.section-kind-graph.template-story-threads .story-node-circle { stroke:var(--section-paper-2);stroke-width:4px;filter:drop-shadow(0 5px 8px color-mix(in srgb,var(--section-ink) 18%,transparent)); }
+.section-kind-graph .graph-edge-label,.section-kind-graph .graph-node-label,.section-kind-graph .graph-group-label,.section-kind-graph .story-role-label { fill:var(--section-ink); }
+.section-kind-graph .graph-node-glyph,.section-kind-graph .story-step-number { fill:var(--section-paper-2); }
+.section-kind-graph .graph-link,.section-kind-graph .story-link { stroke:var(--section-accent); }
+.section-kind-graph .graph-key-line { border-color:var(--section-accent); }
+
+@media(max-width:760px){
+  .section-themed-shell{margin:-12px;padding:13px;border-radius:16px;}
+  .section-design-toolbar{align-items:flex-start;flex-direction:column;}
+  .section-design-actions{width:100%;justify-content:flex-start;}
+  .section-template-gallery,.section-theme-gallery,.section-custom-grid{grid-template-columns:1fr;}
+  .location-journal-card{grid-template-columns:62px minmax(0,1fr);}
+  .location-journal-number{min-height:82px;font-size:27px;}
+  .timeline-archive-row{grid-template-columns:1fr;gap:5px;}
+  .faction-intel-card{grid-template-columns:55px minmax(0,1fr);}
+  .faction-intel-card .tag{grid-column:2;justify-self:start;}
+}
+
+</style>
+
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -7047,11 +7418,29 @@ window.FIREBASE_CONFIG = {
       if (typeof character.profileImage === 'string') character.profileImage = { src: character.profileImage };
       character.headerImage ||= null;
       character.profileImage ||= null;
-      for (const mediaKey of ['headerImage','profileImage']) {
+      character.dossierMainImage ||= null;
+      character.dossierProfileImage ||= null;
+      character.dossierDetailImage ||= null;
+      character.pageTemplate ||= 'standard';
+      character.speciesRace ||= '';
+      character.alignment ||= '';
+      character.occupation ||= character.role || '';
+      character.tagline ||= '';
+      character.backstory ||= '';
+      character.strengths ||= '';
+      character.weaknesses ||= '';
+      character.skillsAbilities ||= '';
+      character.traits ||= '';
+      character.reputationCode ||= '';
+      character.distinguishingFeatures ||= '';
+      character.motivations ||= '';
+      character.quote ||= '';
+      character.tags ||= '';
+      for (const mediaKey of ['headerImage','profileImage','dossierMainImage','dossierProfileImage','dossierDetailImage']) {
         const media = character[mediaKey];
         if (!media) continue;
         media.positionX = Math.max(0, Math.min(100, Number(media.positionX ?? 50)));
-        media.positionY = Math.max(0, Math.min(100, Number(media.positionY ?? (mediaKey === 'profileImage' ? 24 : 50))));
+        media.positionY = Math.max(0, Math.min(100, Number(media.positionY ?? (['profileImage','dossierMainImage','dossierProfileImage','dossierDetailImage'].includes(mediaKey) ? 24 : 50))));
         media.zoom = Math.max(1, Math.min(3, Number(media.zoom ?? 1)));
         media.fit = media.fit === 'contain' ? 'contain' : 'cover';
       }
@@ -7474,7 +7863,7 @@ window.FIREBASE_CONFIG = {
 
   function characterMediaStyle(media, slot) {
     const x = Math.max(0, Math.min(100, Number(media?.positionX ?? 50)));
-    const y = Math.max(0, Math.min(100, Number(media?.positionY ?? (slot === 'profile' ? 24 : 50))));
+    const y = Math.max(0, Math.min(100, Number(media?.positionY ?? characterMediaDefaultY(slot))));
     const zoom = Math.max(1, Math.min(3, Number(media?.zoom ?? 1)));
     const fit = media?.fit === 'contain' ? 'contain' : 'cover';
     return `object-position:${x}% ${y}%;transform:scale(${zoom});transform-origin:${x}% ${y}%;object-fit:${fit};`;
@@ -7500,14 +7889,268 @@ window.FIREBASE_CONFIG = {
     </div>`;
   }
 
+
+  const DOSSIER_LABEL_DEFAULTS = Object.freeze({
+    templateName:'Practical Dossier', coverTitle:'Cover image', coverHelp:'Wide setting, location, emblem, or atmosphere image',
+    age:'Age', speciesRace:'Species / Race', alignment:'Alignment', occupation:'Occupation',
+    mainPortrait:'Main portrait', mainPortraitHelp:'Tall', profileView:'Profile view', profileViewHelp:'Square',
+    detailView:'Detail view', detailViewHelp:'Flexible', currentPortrait:'Current portrait', currentPortraitHelp:'Compact',
+    personality:'Personality', backstory:'Backstory', strengths:'Strengths', weaknesses:'Weaknesses',
+    skillsAbilities:'Skills / Abilities', relationships:'Relationships', traits:'Traits', reputationCode:'Reputation / Code',
+    distinguishingFeatures:'Distinguishing Features', motivations:'Motivations / Principles', notes:'Notes',
+    quote:'Quote', tags:'Tags', currentDetails:'Current Details', additionalWriting:'Additional writing and freeform page elements'
+  });
+
+  const DOSSIER_LABEL_GROUPS = Object.freeze([
+    {title:'Template and cover', keys:['templateName','coverTitle','coverHelp']},
+    {title:'Quick facts', keys:['age','speciesRace','alignment','occupation']},
+    {title:'Image slots', keys:['mainPortrait','mainPortraitHelp','profileView','profileViewHelp','detailView','detailViewHelp','currentPortrait','currentPortraitHelp']},
+    {title:'Profile sections', keys:['personality','backstory','strengths','weaknesses','skillsAbilities','relationships','traits','reputationCode','distinguishingFeatures','motivations','notes','quote','tags','currentDetails','additionalWriting']}
+  ]);
+
+  const DOSSIER_THEMES = Object.freeze({
+    'classic-parchment':{name:'Classic Parchment',paper:'#f5efe4',paper2:'#fffaf2',panel:'#fff8ed',ink:'#2d261f',muted:'#756958',line:'#d7c6aa',accent:'#9a7442',chip:'#efe3d1'},
+    'gold-black':{name:'Gold & Black',paper:'#11100f',paper2:'#1b1916',panel:'#24211b',ink:'#f8edd5',muted:'#c3b18c',line:'#66502e',accent:'#d6aa52',chip:'#332a1c'},
+    'red-gold':{name:'Red & Gold',paper:'#2a0f12',paper2:'#401417',panel:'#4a1b1e',ink:'#fff3dc',muted:'#d8bca6',line:'#9b5e35',accent:'#e0b55c',chip:'#632428'},
+    'navy-ivory':{name:'Navy & Ivory',paper:'#e9e3d7',paper2:'#fffaf2',panel:'#f8f2e8',ink:'#19293d',muted:'#607084',line:'#b7a789',accent:'#b68b45',chip:'#e6ddcd'},
+    'emerald-bronze':{name:'Emerald & Bronze',paper:'#0f221d',paper2:'#18332a',panel:'#203d33',ink:'#f1e9d4',muted:'#b4c6ba',line:'#6e6b4d',accent:'#c1904b',chip:'#2b493d'},
+    'plum-silver':{name:'Plum & Silver',paper:'#201722',paper2:'#332336',panel:'#3d2d41',ink:'#f2edf3',muted:'#c9b9ca',line:'#746276',accent:'#b9b7c7',chip:'#4b3850'},
+    'teal-copper':{name:'Teal & Copper',paper:'#0f2628',paper2:'#17393b',panel:'#204548',ink:'#eef6f4',muted:'#b5cac9',line:'#667f7d',accent:'#c98655',chip:'#2a5153'},
+    'rose-charcoal':{name:'Rose & Charcoal',paper:'#242124',paper2:'#342c31',panel:'#40363c',ink:'#fff4f6',muted:'#d6bec6',line:'#785c66',accent:'#d89bab',chip:'#513f48'},
+    'sapphire-pearl':{name:'Sapphire & Pearl',paper:'#162238',paper2:'#213454',panel:'#2a4165',ink:'#f6f4ed',muted:'#c0c9d8',line:'#60718d',accent:'#d8c99b',chip:'#344d74'},
+    'forest-stone':{name:'Forest & Stone',paper:'#17221a',paper2:'#253027',panel:'#303b31',ink:'#f0eee5',muted:'#bec4b8',line:'#66725f',accent:'#b59a67',chip:'#3b473b'}
+  });
+
+  function characterTemplateName(value) {
+    return value === 'practical-dossier' ? 'Practical Dossier' : 'Standard Profile';
+  }
+
+  function dossierLabels(item) {
+    return {...DOSSIER_LABEL_DEFAULTS,...(item?.dossierLabels||{})};
+  }
+  function dossierLabel(item,key) {
+    return dossierLabels(item)[key] || DOSSIER_LABEL_DEFAULTS[key] || key;
+  }
+  function dossierThemeName(item) {
+    return item?.dossierTheme === 'custom' ? 'Custom' : (DOSSIER_THEMES[item?.dossierTheme||'classic-parchment']?.name || 'Classic Parchment');
+  }
+  function safeDossierColor(value,fallback) {
+    return /^#[0-9a-f]{6}$/i.test(String(value||'')) ? String(value) : fallback;
+  }
+  function dossierThemePalette(item,requestedTheme) {
+    const themeId=requestedTheme || item?.dossierTheme || 'classic-parchment';
+    const base=DOSSIER_THEMES[themeId] || DOSSIER_THEMES['classic-parchment'];
+    if(themeId!=='custom') return {...base};
+    const custom=item?.dossierCustomTheme||{};
+    const fallback=DOSSIER_THEMES['classic-parchment'];
+    return {
+      name:'Custom',
+      paper:safeDossierColor(custom.paper,fallback.paper), paper2:safeDossierColor(custom.paper2,fallback.paper2),
+      panel:safeDossierColor(custom.panel,fallback.panel), ink:safeDossierColor(custom.ink,fallback.ink),
+      muted:safeDossierColor(custom.muted,fallback.muted), line:safeDossierColor(custom.line,fallback.line),
+      accent:safeDossierColor(custom.accent,fallback.accent), chip:safeDossierColor(custom.chip,fallback.chip)
+    };
+  }
+  function dossierThemeStyle(item) {
+    const theme=dossierThemePalette(item);
+    return `--dossier-paper:${theme.paper};--dossier-paper-2:${theme.paper2};--dossier-panel:${theme.panel};--dossier-ink:${theme.ink};--dossier-muted:${theme.muted};--dossier-line:${theme.line};--dossier-gold:${theme.accent};--dossier-chip:${theme.chip};`;
+  }
+
+  function renderCharacterTemplateToolbar(item) {
+    return `<div class="character-template-toolbar">
+      <div class="character-template-label"><span>Character template</span><strong>${esc(characterTemplateName(item.pageTemplate))}</strong></div>
+      <button class="button secondary small" type="button" data-character-template-picker="${item.id}">Change template</button>
+    </div>`;
+  }
+
+  function showCharacterTemplatePicker(characterId) {
+    const item = getItem('characters', characterId);
+    if (!item) return;
+    const active = item.pageTemplate || 'standard';
+    showModal('Choose a character template', `<div class="template-gallery">
+      <article class="template-choice ${active === 'standard' ? 'is-active' : ''}">
+        <div class="template-choice-preview standard"><div class="mini-cover"></div><div class="mini-card"></div></div>
+        <div class="template-choice-body"><h3>Standard Profile</h3><p>The flexible page you already use, with a cover, compact portrait, properties, and the freeform writing canvas.</p><button class="button ${active === 'standard' ? 'secondary' : ''}" type="button" data-character-template-apply="standard:${characterId}">${active === 'standard' ? 'Currently applied' : 'Use Standard Profile'}</button></div>
+      </article>
+      <article class="template-choice ${active === 'practical-dossier' ? 'is-active' : ''}">
+        <div class="template-choice-preview dossier"><div class="mini-cover"></div><div class="mini-card"></div><div class="mini-card"></div><div class="mini-card"></div></div>
+        <div class="template-choice-body"><h3>Practical Dossier</h3><p>A wide reference sheet with a cover, four image slots, editable labels, practical stat cards, structured profile sections, and multiple color variations.</p><button class="button ${active === 'practical-dossier' ? 'secondary' : ''}" type="button" data-character-template-apply="practical-dossier:${characterId}">${active === 'practical-dossier' ? 'Currently applied' : 'Use Practical Dossier'}</button></div>
+      </article>
+    </div>`, `<button class="button secondary" type="button" data-close-modal>Cancel</button>`);
+  }
+
+  function applyCharacterTemplate(characterId, template) {
+    const item = getItem('characters', characterId);
+    if (!item) return;
+    item.pageTemplate = template === 'practical-dossier' ? 'practical-dossier' : 'standard';
+    if (item.pageTemplate === 'practical-dossier') {
+      item.occupation ||= item.role || '';
+      item.tagline ||= item.mood || shortText(item.personality, 80);
+      item.backstory ||= '';
+      item.tags ||= [item.status, item.role].filter(Boolean).join(', ');
+      item.dossierTheme ||= 'classic-parchment';
+      item.dossierLabels ||= {};
+      if (!item.dossierProfileImage && item.profileImage) item.dossierProfileImage = deepClone(item.profileImage);
+    }
+    item.updatedAt = nowISO();
+    logActivity(`Changed ${item.name} to the ${characterTemplateName(item.pageTemplate)} template`);
+    scheduleSave();
+    closeModal();
+    renderEntity('characters', characterId);
+    toast(`${characterTemplateName(item.pageTemplate)} applied.`);
+  }
+
+  function dossierList(value) {
+    return String(value || '').split(/\n|•|;/).map(part => part.trim().replace(/^[-–—]\s*/, '')).filter(Boolean);
+  }
+  function dossierChips(value) {
+    return String(value || '').split(/,|\n|•/).map(part => part.trim()).filter(Boolean);
+  }
+  function dossierText(value, fallback='Not added yet.') {
+    return value ? `<p>${esc(cleanNotionRefs(value))}</p>` : `<p class="dossier-empty">${esc(fallback)}</p>`;
+  }
+  function dossierBullets(value, fallback='Add details') {
+    const items = dossierList(value);
+    return items.length ? `<ul>${items.map(entry => `<li>${esc(entry)}</li>`).join('')}</ul>` : `<p class="dossier-empty">${esc(fallback)}</p>`;
+  }
+  function dossierChipMarkup(value, fallback='Add tags') {
+    const items = dossierChips(value);
+    return items.length ? `<div class="dossier-chip-row">${items.map(entry => `<span class="dossier-chip">${esc(entry)}</span>`).join('')}</div>` : `<p class="dossier-empty">${esc(fallback)}</p>`;
+  }
+  function dossierEditButton(item, field, label) {
+    return `<button class="dossier-section-edit" type="button" title="Edit ${esc(label)} content" aria-label="Edit ${esc(label)} content" data-dossier-edit="${item.id}:${field}:${encodeURIComponent(label)}">✎</button>`;
+  }
+  function dossierLabelButton(item,key,className='') {
+    return `<button class="dossier-label-button ${esc(className)}" type="button" title="Rename ${esc(dossierLabel(item,key))}" data-dossier-label-edit="${item.id}:${key}">${esc(dossierLabel(item,key))}</button>`;
+  }
+  function renderDossierSection(item, field, labelKey, content, extraClass='') {
+    const label=dossierLabel(item,labelKey);
+    return `<section class="dossier-section ${extraClass}"><h3>${dossierLabelButton(item,labelKey)}</h3>${dossierEditButton(item,field,label)}${content}</section>`;
+  }
+
+  function characterMediaKey(slot) {
+    return ({header:'headerImage',profile:'profileImage',dossierMain:'dossierMainImage',dossierProfile:'dossierProfileImage',dossierDetail:'dossierDetailImage'})[slot] || 'profileImage';
+  }
+  function characterMediaLabel(slot) {
+    return ({header:'cover image',profile:'portrait',dossierMain:'main portrait',dossierProfile:'profile view',dossierDetail:'detail view'})[slot] || 'image';
+  }
+  function characterMediaDefaultY(slot) { return slot === 'header' ? 50 : 24; }
+
+  function renderDossierMediaSlot(item, slot, titleKey, helpKey, className='') {
+    const media = item[characterMediaKey(slot)] || null;
+    const image = media?.src || '';
+    const ref = `${slot}:${item.id}`;
+    const title=dossierLabel(item,titleKey), help=dossierLabel(item,helpKey);
+    return `<article class="dossier-media-card ${esc(className)}">
+      <div class="dossier-media-head"><span>${dossierLabelButton(item,titleKey,'media-title')}</span><span>${dossierLabelButton(item,helpKey,'media-help')}</span></div>
+      <div class="dossier-media-slot ${image ? 'has-image' : ''}" data-character-media-select="${esc(ref)}" data-character-media-drop="${esc(ref)}" ${image ? `tabindex="0" role="button" aria-label="Select ${esc(title)}"` : ''}>
+        ${image ? `<img src="${esc(image)}" alt="${esc(media?.alt || `${item.name} ${title}`)}" style="${characterMediaStyle(media,slot)}">` : `<button class="dossier-media-placeholder" type="button" data-character-media-trigger="${esc(ref)}"><span><strong>Add ${esc(title)}</strong>Click or drop an image here</span></button>`}
+        ${image ? `<button class="dossier-media-edit" type="button" data-character-media-edit="${esc(ref)}">Edit image</button>` : ''}
+        <input type="file" accept="image/*" hidden data-character-media-input="${esc(ref)}">
+      </div>
+    </article>`;
+  }
+
+  function renderPracticalDossier(item) {
+    const locationText = locationNames(item.currentLocationIds).join(', ');
+    const occupation = item.occupation || item.role || '';
+    const coverMedia = item.headerImage;
+    return `<section class="practical-dossier-page" data-dossier-character="${item.id}" data-dossier-theme="${esc(item.dossierTheme||'classic-parchment')}" style="${dossierThemeStyle(item)}">
+      <div class="dossier-topbar"><div class="dossier-template-name"><span>Template:</span>${dossierLabelButton(item,'templateName','template-title')}</div><div class="dossier-top-actions"><button class="button secondary small" type="button" data-dossier-theme-picker="${item.id}">Colors: ${esc(dossierThemeName(item))}</button><button class="button secondary small" type="button" data-dossier-labels="${item.id}">Rename labels</button><button class="button secondary small" type="button" data-character-template-picker="${item.id}">Change template</button><button class="button small" type="button" data-dossier-edit="${item.id}:tagline:${encodeURIComponent('Subtitle / tagline')}">Edit subtitle</button></div></div>
+      <div class="dossier-cover">
+        <div class="dossier-cover-meta">${dossierLabelButton(item,'coverTitle','cover-title')}<span>${dossierLabelButton(item,'coverHelp','cover-help')}</span></div>
+        ${coverMedia?.src ? `<div class="character-cover-slot has-image" data-character-media-select="header:${item.id}" data-character-media-drop="header:${item.id}" tabindex="0" role="button" aria-label="Select the cover image for ${esc(item.name)}"><img src="${esc(coverMedia.src)}" alt="${esc(coverMedia.alt || `${item.name} cover image`)}" style="${characterMediaStyle(coverMedia,'header')}"><button class="dossier-media-edit" type="button" data-character-media-edit="header:${item.id}">Edit cover</button><input type="file" accept="image/*" hidden data-character-media-input="header:${item.id}"></div>` : `<div class="dossier-cover-placeholder"><button class="character-cover-upload" type="button" data-character-media-trigger="header:${item.id}"><span><strong>Add ${esc(dossierLabel(item,'coverTitle'))}</strong><span>${esc(dossierLabel(item,'coverHelp'))}</span></span></button><input type="file" accept="image/*" hidden data-character-media-input="header:${item.id}"></div>`}
+      </div>
+      <div class="dossier-identity">
+        <div class="dossier-name-wrap"><textarea class="dossier-title-input entity-title-input" rows="1" aria-label="Character name" data-title-kind="characters" data-title-id="${item.id}">${esc(item.name)}</textarea><div class="dossier-tagline">${esc(item.tagline || item.mood || 'Add a short character description')}</div></div>
+        <div class="dossier-stat">${dossierLabelButton(item,'age','dossier-stat-label')}<button class="dossier-stat-value" type="button" data-dossier-edit="${item.id}:age:${encodeURIComponent(dossierLabel(item,'age'))}">${esc(item.age || 'Not set')}</button></div>
+        <div class="dossier-stat">${dossierLabelButton(item,'speciesRace','dossier-stat-label')}<button class="dossier-stat-value" type="button" data-dossier-edit="${item.id}:speciesRace:${encodeURIComponent(dossierLabel(item,'speciesRace'))}">${esc(item.speciesRace || 'Not set')}</button></div>
+        <div class="dossier-stat">${dossierLabelButton(item,'alignment','dossier-stat-label')}<button class="dossier-stat-value" type="button" data-dossier-edit="${item.id}:alignment:${encodeURIComponent(dossierLabel(item,'alignment'))}">${esc(item.alignment || 'Not set')}</button></div>
+        <div class="dossier-stat">${dossierLabelButton(item,'occupation','dossier-stat-label')}<button class="dossier-stat-value" type="button" data-dossier-edit="${item.id}:occupation:${encodeURIComponent(dossierLabel(item,'occupation'))}">${esc(occupation || 'Not set')}</button></div>
+      </div>
+      <div class="dossier-body">
+        <div class="dossier-image-grid">
+          ${renderDossierMediaSlot(item,'dossierMain','mainPortrait','mainPortraitHelp','main')}
+          ${renderDossierMediaSlot(item,'dossierProfile','profileView','profileViewHelp','center')}
+          <div class="dossier-side-stack">${renderDossierMediaSlot(item,'dossierDetail','detailView','detailViewHelp','side')}${renderDossierMediaSlot(item,'profile','currentPortrait','currentPortraitHelp','side')}</div>
+        </div>
+        <div class="dossier-content-grid">
+          <div class="dossier-main-column">
+            ${renderDossierSection(item,'personality','personality',dossierText(item.personality,'Add the character’s temperament, habits, and emotional style.'))}
+            ${renderDossierSection(item,'backstory','backstory',dossierText(item.backstory || item.notes,'Add the character’s history and the experiences that shaped them.'))}
+            <div class="dossier-two-column">${renderDossierSection(item,'strengths','strengths',dossierBullets(item.strengths,'Add strengths'))}${renderDossierSection(item,'weaknesses','weaknesses',dossierBullets(item.weaknesses,'Add weaknesses'))}</div>
+            ${renderDossierSection(item,'skillsAbilities','skillsAbilities',dossierBullets(item.skillsAbilities,'Add skills, abilities, training, or practical expertise.'))}
+            ${renderDossierSection(item,'relationshipsText','relationships',dossierText(item.relationshipsText,'Add allies, family, rivals, clients, mentors, or other important connections.'))}
+          </div>
+          <div class="dossier-side-column">
+            ${renderDossierSection(item,'traits','traits',dossierChipMarkup(item.traits,'Add traits'))}
+            ${renderDossierSection(item,'reputationCode','reputationCode',dossierChipMarkup(item.reputationCode,'Add principles, rules, or reputation notes.'))}
+            ${renderDossierSection(item,'distinguishingFeatures','distinguishingFeatures',dossierText(item.distinguishingFeatures,'Add scars, tusks, clothing, markings, mannerisms, or other identifying details.'))}
+            ${renderDossierSection(item,'motivations','motivations',dossierChipMarkup(item.motivations,'Add motivations or principles.'))}
+            ${renderDossierSection(item,'notes','notes',dossierBullets(item.notes,'Add useful character notes.'))}
+          </div>
+        </div>
+        <div class="dossier-footer-grid">${renderDossierSection(item,'quote','quote',dossierText(item.quote,'Add a line that sounds like this character.'))}${renderDossierSection(item,'tags','tags',dossierChipMarkup(item.tags,'Add tags'))}<section class="dossier-section"><h3>${dossierLabelButton(item,'currentDetails')}</h3><p>${esc([item.status, item.mood, item.outfit, locationText].filter(Boolean).join(' · ') || 'No current details set.')}</p></section></div>
+        <details class="dossier-additional"><summary><span>${esc(dossierLabel(item,'additionalWriting'))}</span><button class="dossier-summary-rename" type="button" data-dossier-label-edit="${item.id}:additionalWriting" title="Rename this section">Rename</button></summary><div class="editor-surface character-editor-surface">${renderBlockEditor('characters',item.id,item.blocks,item.name)}</div></details>
+      </div>
+    </section>`;
+  }
+
+  function showDossierFieldEditor(characterId, field, label) {
+    const item = getItem('characters', characterId);
+    if (!item) return;
+    const listField = ['strengths','weaknesses','skillsAbilities','notes'].includes(field);
+    const chipField = ['traits','reputationCode','motivations','tags'].includes(field);
+    const help = listField ? 'Put each item on its own line.' : chipField ? 'Separate items with commas.' : 'Write the text exactly as you want it shown in the dossier.';
+    showModal(`Edit ${label}`, `<div class="dossier-field-editor"><textarea class="textarea" rows="12" data-dossier-field-input="${esc(characterId)}:${esc(field)}">${esc(item[field] || '')}</textarea><div class="dossier-field-help">${esc(help)}</div></div>`, `<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-dossier-save="${esc(characterId)}:${esc(field)}">Save</button>`);
+    requestAnimationFrame(()=>el.modal.querySelector('[data-dossier-field-input]')?.focus());
+  }
+
+  function showDossierLabelEditor(characterId,key) {
+    const item=getItem('characters',characterId); if(!item) return;
+    const current=dossierLabel(item,key), fallback=DOSSIER_LABEL_DEFAULTS[key]||key;
+    showModal('Rename dossier label', `<label class="dossier-label-single"><span>Label</span><input class="input" type="text" value="${esc(current)}" data-dossier-label-input="${esc(characterId)}:${esc(key)}"><small>Default: ${esc(fallback)}</small></label>`, `<button class="button secondary" type="button" data-dossier-label-reset="${esc(characterId)}:${esc(key)}">Use default</button><button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-dossier-label-save="${esc(characterId)}:${esc(key)}">Save label</button>`);
+    requestAnimationFrame(()=>{const input=el.modal.querySelector('[data-dossier-label-input]');input?.focus();input?.select();});
+  }
+
+  function showDossierLabelsEditor(characterId) {
+    const item=getItem('characters',characterId); if(!item) return;
+    const labels=dossierLabels(item);
+    const body=DOSSIER_LABEL_GROUPS.map(group=>`<section class="dossier-label-group"><h3>${esc(group.title)}</h3><div class="dossier-label-grid">${group.keys.map(key=>`<label><span>${esc(DOSSIER_LABEL_DEFAULTS[key]||key)}</span><input class="input" type="text" value="${esc(labels[key]||'')}" data-dossier-label-bulk="${esc(key)}"></label>`).join('')}</div></section>`).join('');
+    showModal('Rename Practical Dossier labels', `<div class="dossier-label-manager">${body}</div>`, `<button class="button secondary" type="button" data-dossier-labels-reset="${esc(characterId)}">Reset all</button><button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-dossier-labels-save="${esc(characterId)}">Save labels</button>`);
+  }
+
+  function dossierThemeCard(characterId,id,theme,active) {
+    const colors=[theme.paper,theme.paper2,theme.panel,theme.ink,theme.accent];
+    return `<button class="dossier-theme-card ${active===id?'is-active':''}" type="button" data-dossier-theme-apply="${esc(characterId)}:${esc(id)}"><span class="dossier-theme-swatches">${colors.map(color=>`<i style="background:${color}"></i>`).join('')}</span><strong>${esc(theme.name)}</strong><small>${active===id?'Currently applied':'Apply colors'}</small></button>`;
+  }
+
+  function showDossierThemePicker(characterId) {
+    const item=getItem('characters',characterId); if(!item) return;
+    const active=item.dossierTheme||'classic-parchment';
+    const custom=dossierThemePalette(item,'custom');
+    const cards=Object.entries(DOSSIER_THEMES).map(([id,theme])=>dossierThemeCard(characterId,id,theme,active)).join('');
+    const customFields=[['paper','Page background'],['paper2','Top surface'],['panel','Cards and panels'],['ink','Main text'],['muted','Muted text'],['line','Borders and dividers'],['accent','Accent color'],['chip','Tags and chips']];
+    showModal('Practical Dossier colors', `<div class="dossier-theme-gallery">${cards}</div><section class="dossier-custom-theme ${active==='custom'?'is-active':''}"><div class="dossier-custom-head"><div><h3>Fully custom</h3><p>Choose every main color used by this character’s dossier.</p></div><span class="dossier-theme-swatches">${[custom.paper,custom.paper2,custom.panel,custom.ink,custom.accent].map(color=>`<i style="background:${color}"></i>`).join('')}</span></div><div class="dossier-custom-grid">${customFields.map(([key,label])=>`<label><span>${esc(label)}</span><input type="color" value="${safeDossierColor(custom[key],'#000000')}" data-dossier-custom-color="${esc(key)}"></label>`).join('')}</div><button class="button" type="button" data-dossier-custom-save="${esc(characterId)}">Save and use custom colors</button></section>`, `<button class="button secondary" type="button" data-close-modal>Done</button>`);
+  }
+
   function renderEntity(kind, itemId) {
     const item = getItem(kind,itemId);
     if (!item) { navigate(kind); return; }
     const meta = COLLECTIONS[kind];
+    if (kind === 'characters' && item.pageTemplate === 'practical-dossier') {
+      el.main.innerHTML = renderPracticalDossier(item);
+      requestAnimationFrame(() => {
+        autoSizeEntityTitle(document.querySelector('.entity-title-input'));
+        installCharacterImageInteractions();
+      });
+      return;
+    }
     const breadcrumb = kind === 'locations' ? renderLocationBreadcrumb(item) : '';
     const snapshot = kind === 'characters' ? renderCharacterSnapshot(item) : '';
     const entityCover = kind === 'characters' ? renderCharacterCover(item) : '<div class="entity-cover"></div>';
-    el.main.innerHTML = `${breadcrumb}<section class="entity-hero">${entityCover}<div class="entity-title-row"><textarea class="entity-title-input" rows="1" aria-label="${meta.singular} name" data-title-kind="${kind}" data-title-id="${item.id}">${esc(item.name)}</textarea><button class="favorite-button ${item.favorite?'on':''}" type="button" data-favorite="${kind}:${item.id}" title="Favorite">☆</button></div></section>
+    const templateToolbar = kind === 'characters' ? renderCharacterTemplateToolbar(item) : '';
+    el.main.innerHTML = `${templateToolbar}${breadcrumb}<section class="entity-hero">${entityCover}<div class="entity-title-row"><textarea class="entity-title-input" rows="1" aria-label="${meta.singular} name" data-title-kind="${kind}" data-title-id="${item.id}">${esc(item.name)}</textarea><button class="favorite-button ${item.favorite?'on':''}" type="button" data-favorite="${kind}:${item.id}" title="Favorite">☆</button></div></section>
       <div class="entity-layout"><div class="editor-surface ${kind === 'characters' ? 'character-editor-surface' : ''}">${snapshot}${renderBlockEditor(kind,item.id,item.blocks,item.name)}</div><aside class="properties-panel"><div class="panel-head" style="padding:0 0 14px"><h2>Properties</h2><button class="button ghost small" type="button" data-delete="${kind}:${item.id}">Delete</button></div>${renderProperties(kind,item)}</aside></div>`;
     requestAnimationFrame(() => {
       autoSizeEntityTitle(document.querySelector('.entity-title-input'));
@@ -7567,7 +8210,11 @@ window.FIREBASE_CONFIG = {
     if (kind === 'characters') {
       return `<div class="property-list">
         ${propertyInput('Age','age',item.age,kind,item.id)}
+        ${propertyInput('Species / race','speciesRace',item.speciesRace,kind,item.id)}
+        ${propertyInput('Alignment','alignment',item.alignment,kind,item.id)}
         ${propertyInput('Role / occupation','role',item.role,kind,item.id)}
+        ${propertyInput('Dossier occupation','occupation',item.occupation,kind,item.id)}
+        ${propertyInput('Subtitle / tagline','tagline',item.tagline,kind,item.id)}
         ${propertyInput('Aliases','aliases',item.aliases,kind,item.id)}
         ${propertySelect('Status','status',item.status,['Active','Off-screen','Missing','Inactive','Deceased','Unknown'],kind,item.id,true)}
         ${propertyInput('Current mood','mood',item.mood,kind,item.id)}
@@ -7575,9 +8222,19 @@ window.FIREBASE_CONFIG = {
         ${propertyTextarea('Current position','position',item.position,kind,item.id)}
         <div class="property-row"><label>Current location</label><select class="select" data-character-location="${item.id}"><option value="">No location</option>${state.locations.map(x=>`<option value="${x.id}" ${item.currentLocationIds?.[0]===x.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
         ${propertyTextarea('Personality','personality',item.personality,kind,item.id)}
+        ${propertyTextarea('Backstory','backstory',item.backstory,kind,item.id)}
+        ${propertyTextarea('Strengths','strengths',item.strengths,kind,item.id)}
+        ${propertyTextarea('Weaknesses','weaknesses',item.weaknesses,kind,item.id)}
+        ${propertyTextarea('Skills / abilities','skillsAbilities',item.skillsAbilities,kind,item.id)}
+        ${propertyInput('Traits (comma separated)','traits',item.traits,kind,item.id)}
+        ${propertyInput('Reputation / code','reputationCode',item.reputationCode,kind,item.id)}
+        ${propertyTextarea('Distinguishing features','distinguishingFeatures',item.distinguishingFeatures,kind,item.id)}
+        ${propertyInput('Motivations / principles','motivations',item.motivations,kind,item.id)}
         ${propertyTextarea('Relationships','relationshipsText',item.relationshipsText,kind,item.id)}
         <div class="property-row"><label>Linked people</label>${linkedPills('characters',item.relationshipIds)}</div>
         ${propertyTextarea('Secrets','secrets',item.secrets,kind,item.id)}
+        ${propertyTextarea('Quote','quote',item.quote,kind,item.id)}
+        ${propertyInput('Tags (comma separated)','tags',item.tags,kind,item.id)}
         ${propertyTextarea('Notes','notes',item.notes,kind,item.id)}
       </div>`;
     }
@@ -8701,20 +9358,20 @@ window.FIREBASE_CONFIG = {
     try {
       el.saveStatus.textContent = 'Preparing image…';
       const prepared = await imageFileToBlock(file, character);
-      const key = slot === 'header' ? 'headerImage' : 'profileImage';
+      const key = characterMediaKey(slot);
       character[key] = {
         src: prepared.src,
-        alt: slot === 'header' ? `${character.name} cover image` : `${character.name} portrait`,
+        alt: `${character.name} ${characterMediaLabel(slot)}`,
         positionX: 50,
-        positionY: slot === 'header' ? 50 : 24,
+        positionY: characterMediaDefaultY(slot),
         zoom: 1,
         fit: 'cover'
       };
       character.updatedAt = nowISO();
-      logActivity(`Updated the ${slot === 'header' ? 'cover image' : 'portrait'} for ${character.name}`);
+      logActivity(`Updated the ${characterMediaLabel(slot)} for ${character.name}`);
       scheduleSave('Saving image…');
       renderEntity('characters', characterId);
-      toast(slot === 'header' ? 'Cover image added.' : 'Portrait added.');
+      toast(`${characterMediaLabel(slot).replace(/^./, ch => ch.toUpperCase())} added.`);
     } catch (error) {
       console.error(error);
       toast(error.message || 'The image could not be added.', 'error');
@@ -8725,7 +9382,7 @@ window.FIREBASE_CONFIG = {
   function removeCharacterPageImage(characterId, slot) {
     const character = getItem('characters', characterId);
     if (!character) return;
-    const key = slot === 'header' ? 'headerImage' : 'profileImage';
+    const key = characterMediaKey(slot);
     character[key] = null;
     character.updatedAt = nowISO();
     scheduleSave();
@@ -8736,7 +9393,7 @@ window.FIREBASE_CONFIG = {
   function characterMediaRecord(characterId, slot) {
     const character = getItem('characters', characterId);
     if (!character) return { character: null, media: null, key: '' };
-    const key = slot === 'header' ? 'headerImage' : 'profileImage';
+    const key = characterMediaKey(slot);
     return { character, media: character[key], key };
   }
 
@@ -8757,11 +9414,11 @@ window.FIREBASE_CONFIG = {
     const { character, media } = characterMediaRecord(characterId, slot);
     if (!character || !media?.src) return;
     media.positionX = Math.max(0, Math.min(100, Number(media.positionX ?? 50)));
-    media.positionY = Math.max(0, Math.min(100, Number(media.positionY ?? (slot === 'profile' ? 24 : 50))));
+    media.positionY = Math.max(0, Math.min(100, Number(media.positionY ?? characterMediaDefaultY(slot))));
     media.zoom = Math.max(1, Math.min(3, Number(media.zoom ?? 1)));
     media.fit = media.fit === 'contain' ? 'contain' : 'cover';
     const ref = `${slot}:${characterId}`;
-    const label = slot === 'header' ? 'cover' : 'portrait';
+    const label = characterMediaLabel(slot);
     showModal(`Edit ${label}`, `<div class="character-crop-editor" data-character-crop-editor="${esc(ref)}">
       <div class="character-crop-stage ${slot === 'header' ? 'is-cover' : 'is-portrait'}" data-character-crop-stage="${esc(ref)}" aria-label="Drag the image to choose which part is visible">
         <img src="${esc(media.src)}" alt="${esc(media.alt || `${character.name} ${label}`)}" data-character-crop-preview="${esc(ref)}" style="${characterMediaStyle(media,slot)}">
@@ -8791,7 +9448,7 @@ window.FIREBASE_CONFIG = {
     const startClientX = event.clientX;
     const startClientY = event.clientY;
     const startX = Number(media.positionX ?? 50);
-    const startY = Number(media.positionY ?? (slot === 'profile' ? 24 : 50));
+    const startY = Number(media.positionY ?? characterMediaDefaultY(slot));
     stage.classList.add('is-dragging');
     try { stage.setPointerCapture(event.pointerId); } catch (error) {}
     const move = moveEvent => {
@@ -9298,7 +9955,7 @@ window.FIREBASE_CONFIG = {
       const maps={};for(const kind of Object.keys(rows)){maps[kind]=new Map(rows[kind].map(r=>{const name=(r.Name||r['Event Name']||'Untitled').trim();return[name.toLowerCase(),makeId(kind,name)];}));}
       const ids=(kind,value)=>notionLinkNames(value).map(name=>maps[kind]?.get(name.toLowerCase())).filter(Boolean);
       if(rows.locations.length)state.locations=rows.locations.map(r=>({id:maps.locations.get((r.Name||'').trim().toLowerCase()),name:(r.Name||'Untitled Location').trim(),type:r.Type||'Location',atmosphere:r.Atmosphere||'',description:r.Description||'',notes:r.Notes||'',controlledBy:r['Controlled By']||'',keyCharacterIds:ids('characters',r['Key Characters']),relatedLocationIds:ids('locations',r['Related Locations']),parentLocationId:'',favorite:false,updatedAt:nowISO(),blocks:[{id:id('block'),type:'text',content:r.Description||r.Notes||''}]}));
-      if(rows.characters.length)state.characters=rows.characters.map(r=>({id:maps.characters.get((r.Name||'').trim().toLowerCase()),name:(r.Name||'Untitled Character').trim(),age:r.Age||'',aliases:r.Aliases||'',role:r['Role/Occupation']||'',mood:r['Current Mood']||'',outfit:r['Current Outfit']||'',position:r['Current Position']||'',status:r['Current Status']||'Active',currentLocationIds:ids('locations',r['Current Location']),relationshipIds:ids('characters',r['Key Relationships']),relationshipsText:r['Key Relationships']||'',notes:r.Notes||'',personality:r.Personality||'',secrets:r.Secrets||'',favorite:false,updatedAt:nowISO(),blocks:[{id:id('block'),type:'text',content:r.Notes||r.Personality||''}]}));
+      if(rows.characters.length)state.characters=rows.characters.map(r=>({id:maps.characters.get((r.Name||'').trim().toLowerCase()),name:(r.Name||'Untitled Character').trim(),age:r.Age||'',aliases:r.Aliases||'',role:r['Role/Occupation']||'',mood:r['Current Mood']||'',outfit:r['Current Outfit']||'',position:r['Current Position']||'',status:r['Current Status']||'Active',currentLocationIds:ids('locations',r['Current Location']),relationshipIds:ids('characters',r['Key Relationships']),relationshipsText:r['Key Relationships']||'',notes:r.Notes||'',personality:r.Personality||'',backstory:'',strengths:'',weaknesses:'',skillsAbilities:'',speciesRace:'',alignment:'',occupation:r['Role/Occupation']||'',tagline:'',traits:'',reputationCode:'',distinguishingFeatures:'',motivations:'',quote:'',tags:'',pageTemplate:'standard',secrets:r.Secrets||'',favorite:false,updatedAt:nowISO(),blocks:[{id:id('block'),type:'text',content:r.Notes||r.Personality||''}]}));
       if(rows.factions.length)state.factions=rows.factions.map(r=>({id:maps.factions.get((r.Name||'').trim().toLowerCase()),name:(r.Name||'Untitled Faction').trim(),goal:r.Goal||'',power:r['Power Level']||'',notes:r.Notes||'',keyMemberIds:ids('characters',r['Key Members']),alliesEnemies:r['Allies/Enemies']||'',favorite:false,updatedAt:nowISO(),blocks:[{id:id('block'),type:'text',content:r.Notes||r.Goal||''}]}));
       if(rows.events.length)state.events=rows.events.map(r=>({id:maps.events.get((r['Event Name']||'').trim().toLowerCase()),name:(r['Event Name']||'Untitled Event').trim(),date:r['Date/Order']||'',status:r.Status||'',description:r.Description||'',consequences:r.Consequences||'',notes:r.Notes||'',characterIds:ids('characters',r['Involved Characters']),favorite:false,updatedAt:nowISO(),blocks:[{id:id('block'),type:'text',content:r.Description||r.Notes||''}]}));
       logActivity(`Imported Notion ZIP: ${file.name}`);scheduleSave();render();toast('Notion databases imported. Set parent locations from each location page.');
@@ -9367,10 +10024,23 @@ window.FIREBASE_CONFIG = {
     const turnUp=event.target.closest('[data-story-turn-up]');if(turnUp){const context=currentStoryPassage();const index=context.turns?.findIndex(turn=>turn.id===turnUp.dataset.storyTurnUp)??-1;if(index>0){[context.turns[index-1],context.turns[index]]=[context.turns[index],context.turns[index-1]];scheduleSave();renderStoryReader();}return;}
     const turnDown=event.target.closest('[data-story-turn-down]');if(turnDown){const context=currentStoryPassage();const index=context.turns?.findIndex(turn=>turn.id===turnDown.dataset.storyTurnDown)??-1;if(index>=0&&index<context.turns.length-1){[context.turns[index+1],context.turns[index]]=[context.turns[index],context.turns[index+1]];scheduleSave();renderStoryReader();}return;}
     const characterMediaEdit=event.target.closest('[data-character-media-edit]');if(characterMediaEdit){const [slot,characterId]=characterMediaEdit.dataset.characterMediaEdit.split(':');showCharacterMediaEditor(characterId,slot);return;}
-    const characterCropReset=event.target.closest('[data-character-crop-reset]');if(characterCropReset){const [slot,characterId]=characterCropReset.dataset.characterCropReset.split(':');const {character,media}=characterMediaRecord(characterId,slot);if(media){media.positionX=50;media.positionY=slot==='header'?50:24;media.zoom=1;media.fit='cover';character.updatedAt=nowISO();syncCharacterCropPreview(characterId,slot);const zoom=el.modal.querySelector('[data-character-crop-zoom]');if(zoom)zoom.value='100';const fit=el.modal.querySelector('[data-character-crop-fit]');if(fit)fit.value='cover';scheduleSave();}return;}
-    const characterCropRemove=event.target.closest('[data-character-crop-remove]');if(characterCropRemove){const [slot,characterId]=characterCropRemove.dataset.characterCropRemove.split(':');const label=slot==='header'?'cover image':'portrait';if(confirm(`Remove this ${label}?`)){closeModal();removeCharacterPageImage(characterId,slot);}return;}
+    const characterCropReset=event.target.closest('[data-character-crop-reset]');if(characterCropReset){const [slot,characterId]=characterCropReset.dataset.characterCropReset.split(':');const {character,media}=characterMediaRecord(characterId,slot);if(media){media.positionX=50;media.positionY=characterMediaDefaultY(slot);media.zoom=1;media.fit='cover';character.updatedAt=nowISO();syncCharacterCropPreview(characterId,slot);const zoom=el.modal.querySelector('[data-character-crop-zoom]');if(zoom)zoom.value='100';const fit=el.modal.querySelector('[data-character-crop-fit]');if(fit)fit.value='cover';scheduleSave();}return;}
+    const characterCropRemove=event.target.closest('[data-character-crop-remove]');if(characterCropRemove){const [slot,characterId]=characterCropRemove.dataset.characterCropRemove.split(':');const label=characterMediaLabel(slot);if(confirm(`Remove this ${label}?`)){closeModal();removeCharacterPageImage(characterId,slot);}return;}
     const characterMediaTrigger=event.target.closest('[data-character-media-trigger]');if(characterMediaTrigger){const ref=characterMediaTrigger.dataset.characterMediaTrigger;const input=document.querySelector(`[data-character-media-input="${CSS.escape(ref)}"]`);if(input){input.value='';input.click();}return;}
-    const characterMediaRemove=event.target.closest('[data-character-media-remove]');if(characterMediaRemove){const [slot,characterId]=characterMediaRemove.dataset.characterMediaRemove.split(':');const label=slot==='header'?'cover image':'portrait';if(confirm(`Remove this ${label}?`))removeCharacterPageImage(characterId,slot);return;}
+    const characterMediaRemove=event.target.closest('[data-character-media-remove]');if(characterMediaRemove){const [slot,characterId]=characterMediaRemove.dataset.characterMediaRemove.split(':');const label=characterMediaLabel(slot);if(confirm(`Remove this ${label}?`))removeCharacterPageImage(characterId,slot);return;}
+    const templatePicker=event.target.closest('[data-character-template-picker]');if(templatePicker){showCharacterTemplatePicker(templatePicker.dataset.characterTemplatePicker);return;}
+    const templateApply=event.target.closest('[data-character-template-apply]');if(templateApply){const [template,characterId]=templateApply.dataset.characterTemplateApply.split(':');applyCharacterTemplate(characterId,template);return;}
+    const dossierLabelEdit=event.target.closest('[data-dossier-label-edit]');if(dossierLabelEdit){const [characterId,key]=dossierLabelEdit.dataset.dossierLabelEdit.split(':');showDossierLabelEditor(characterId,key);return;}
+    const dossierLabelsButton=event.target.closest('[data-dossier-labels]');if(dossierLabelsButton){showDossierLabelsEditor(dossierLabelsButton.dataset.dossierLabels);return;}
+    const dossierLabelSave=event.target.closest('[data-dossier-label-save]');if(dossierLabelSave){const [characterId,key]=dossierLabelSave.dataset.dossierLabelSave.split(':');const item=getItem('characters',characterId);const input=el.modal.querySelector(`[data-dossier-label-input="${CSS.escape(characterId)}:${CSS.escape(key)}"]`);if(item&&input){item.dossierLabels||={};const value=input.value.trim();if(value&&value!==DOSSIER_LABEL_DEFAULTS[key])item.dossierLabels[key]=value;else delete item.dossierLabels[key];item.updatedAt=nowISO();scheduleSave();closeModal();renderEntity('characters',characterId);}return;}
+    const dossierLabelReset=event.target.closest('[data-dossier-label-reset]');if(dossierLabelReset){const [characterId,key]=dossierLabelReset.dataset.dossierLabelReset.split(':');const item=getItem('characters',characterId);if(item){item.dossierLabels||={};delete item.dossierLabels[key];item.updatedAt=nowISO();scheduleSave();closeModal();renderEntity('characters',characterId);}return;}
+    const dossierLabelsSave=event.target.closest('[data-dossier-labels-save]');if(dossierLabelsSave){const characterId=dossierLabelsSave.dataset.dossierLabelsSave;const item=getItem('characters',characterId);if(item){item.dossierLabels||={};el.modal.querySelectorAll('[data-dossier-label-bulk]').forEach(input=>{const key=input.dataset.dossierLabelBulk,value=input.value.trim();if(value&&value!==DOSSIER_LABEL_DEFAULTS[key])item.dossierLabels[key]=value;else delete item.dossierLabels[key];});item.updatedAt=nowISO();scheduleSave();closeModal();renderEntity('characters',characterId);}return;}
+    const dossierLabelsReset=event.target.closest('[data-dossier-labels-reset]');if(dossierLabelsReset){const characterId=dossierLabelsReset.dataset.dossierLabelsReset;const item=getItem('characters',characterId);if(item&&confirm('Reset every Practical Dossier label to its default wording?')){item.dossierLabels={};item.updatedAt=nowISO();scheduleSave();closeModal();renderEntity('characters',characterId);}return;}
+    const dossierThemePicker=event.target.closest('[data-dossier-theme-picker]');if(dossierThemePicker){showDossierThemePicker(dossierThemePicker.dataset.dossierThemePicker);return;}
+    const dossierThemeApply=event.target.closest('[data-dossier-theme-apply]');if(dossierThemeApply){const [characterId,themeId]=dossierThemeApply.dataset.dossierThemeApply.split(':');const item=getItem('characters',characterId);if(item&&DOSSIER_THEMES[themeId]){item.dossierTheme=themeId;item.updatedAt=nowISO();scheduleSave();closeModal();renderEntity('characters',characterId);toast(`${DOSSIER_THEMES[themeId].name} applied.`);}return;}
+    const dossierCustomSave=event.target.closest('[data-dossier-custom-save]');if(dossierCustomSave){const characterId=dossierCustomSave.dataset.dossierCustomSave;const item=getItem('characters',characterId);if(item){const fallback=DOSSIER_THEMES['classic-parchment'];item.dossierCustomTheme={};el.modal.querySelectorAll('[data-dossier-custom-color]').forEach(input=>{const key=input.dataset.dossierCustomColor;item.dossierCustomTheme[key]=safeDossierColor(input.value,fallback[key]);});item.dossierTheme='custom';item.updatedAt=nowISO();scheduleSave();closeModal();renderEntity('characters',characterId);toast('Custom dossier colors saved.');}return;}
+    const dossierEdit=event.target.closest('[data-dossier-edit]');if(dossierEdit){const [characterId,field,labelRaw]=dossierEdit.dataset.dossierEdit.split(':');showDossierFieldEditor(characterId,field,decodeURIComponent(labelRaw||field));return;}
+    const dossierSave=event.target.closest('[data-dossier-save]');if(dossierSave){const [characterId,field]=dossierSave.dataset.dossierSave.split(':');const item=getItem('characters',characterId);const input=el.modal.querySelector(`[data-dossier-field-input="${CSS.escape(characterId)}:${CSS.escape(field)}"]`);if(item&&input){item[field]=input.value;item.updatedAt=nowISO();scheduleSave();closeModal();renderEntity('characters',characterId);}return;}
     const newButton=event.target.closest('[data-new]');if(newButton){addItem(newButton.dataset.new);return;}
     const newChild=event.target.closest('[data-new-child]');if(newChild){addItem('locations',newChild.dataset.newChild);return;}
     const del=event.target.closest('[data-delete]');if(del){const [kind,itemId]=del.dataset.delete.split(':');deleteItem(kind,itemId);return;}
@@ -11030,6 +11700,196 @@ window.FIREBASE_CONFIG = {
 
   render();
   initFirebase();
+
+
+/* === World section templates and shared color families === */
+const SECTION_TEMPLATE_CONFIG = Object.freeze({
+  locations:{
+    label:'Location design',icon:'⌖',defaultTemplate:'atlas-registry',
+    templates:{
+      'atlas-registry':{name:'Atlas Registry',description:'Map-inspired cards and structured location records.',preview:'preview-tree'},
+      'travel-journal':{name:'Traveler Journal',description:'Larger descriptive entries with atmosphere and story context.',preview:'preview-timeline'},
+      'hierarchy-survey':{name:'Hierarchy Survey',description:'A clean expandable directory focused on parent and child structure.',preview:'preview-tree'}
+    }
+  },
+  factions:{
+    label:'Faction design',icon:'⚜',defaultTemplate:'heraldic-registry',
+    templates:{
+      'heraldic-registry':{name:'Heraldic Registry',description:'Crest-style cards for goals, power, and members.',preview:'preview-board'},
+      'influence-board':{name:'Influence Board',description:'Groups factions into columns by their current power level.',preview:'preview-board'},
+      'intelligence-files':{name:'Intelligence Files',description:'Compact dossiers for quickly comparing groups and agendas.',preview:'preview-tree'}
+    }
+  },
+  events:{
+    label:'Timeline design',icon:'⌛',defaultTemplate:'chronicle-scroll',
+    templates:{
+      'chronicle-scroll':{name:'Chronicle Scroll',description:'A traditional vertical historical chronology.',preview:'preview-timeline'},
+      'era-cards':{name:'Era Cards',description:'Event cards suited to chapters, eras, and story arcs.',preview:'preview-board'},
+      'archive-ledger':{name:'Archive Ledger',description:'A compact reference list for dates, status, and consequences.',preview:'preview-tree'}
+    }
+  },
+  graph:{
+    label:'Graph design',icon:'✦',defaultTemplate:'constellation-map',
+    templates:{
+      'constellation-map':{name:'Constellation Map',description:'A luminous lore web with star-like nodes and connections.',preview:'preview-graph'},
+      'tactical-blueprint':{name:'Tactical Blueprint',description:'A precise grid for structural, political, and location analysis.',preview:'preview-graph'},
+      'story-threads':{name:'Story Threads',description:'Softer, heavier connections designed to emphasize narrative flow.',preview:'preview-graph'}
+    }
+  }
+});
+
+function ensureSectionDesigns(){
+  state.workspace ||= {};
+  state.workspace.sectionDesigns ||= {};
+  for(const [kind,config] of Object.entries(SECTION_TEMPLATE_CONFIG)){
+    const current=state.workspace.sectionDesigns[kind] ||= {};
+    current.template ||= config.defaultTemplate;
+    current.theme ||= 'classic-parchment';
+    current.customTheme ||= {};
+  }
+  return state.workspace.sectionDesigns;
+}
+function sectionDesign(kind){ ensureSectionDesigns(); return state.workspace.sectionDesigns[kind]; }
+function sectionTemplateConfig(kind){ return SECTION_TEMPLATE_CONFIG[kind] || SECTION_TEMPLATE_CONFIG.locations; }
+function sectionTemplateName(kind){ const config=sectionTemplateConfig(kind);return config.templates[sectionDesign(kind).template]?.name || config.templates[config.defaultTemplate].name; }
+function sectionThemeName(kind){ const theme=sectionDesign(kind).theme;return theme==='custom'?'Fully Custom':(DOSSIER_THEMES[theme]?.name||'Classic Parchment'); }
+function sectionThemePalette(kind,requested){
+  const design=sectionDesign(kind);const themeId=requested||design.theme||'classic-parchment';
+  if(themeId!=='custom')return {...(DOSSIER_THEMES[themeId]||DOSSIER_THEMES['classic-parchment'])};
+  const base=DOSSIER_THEMES['classic-parchment'];const custom=design.customTheme||{};
+  return {name:'Custom',paper:safeDossierColor(custom.paper,base.paper),paper2:safeDossierColor(custom.paper2,base.paper2),panel:safeDossierColor(custom.panel,base.panel),ink:safeDossierColor(custom.ink,base.ink),muted:safeDossierColor(custom.muted,base.muted),line:safeDossierColor(custom.line,base.line),accent:safeDossierColor(custom.accent,base.accent),chip:safeDossierColor(custom.chip,base.chip)};
+}
+function sectionThemeStyle(kind){
+  const t=sectionThemePalette(kind);
+  return `--section-paper:${t.paper};--section-paper-2:${t.paper2};--section-panel:${t.panel};--section-ink:${t.ink};--section-muted:${t.muted};--section-line:${t.line};--section-accent:${t.accent};--section-chip:${t.chip};`;
+}
+function sectionCssClass(kind){ return `section-themed-shell section-kind-${kind} template-${sectionDesign(kind).template}`; }
+function sectionDesignToolbar(kind){
+  const config=sectionTemplateConfig(kind);
+  return `<div class="section-design-toolbar"><div class="section-design-heading"><span class="section-design-icon">${config.icon}</span><span class="section-design-copy"><span>${esc(config.label)}</span><strong>${esc(sectionTemplateName(kind))}</strong></span></div><div class="section-design-actions"><button class="button secondary small" type="button" data-section-template-picker="${esc(kind)}">Change layout</button><button class="button secondary small" type="button" data-section-theme-picker="${esc(kind)}">Colors: ${esc(sectionThemeName(kind))}</button></div></div>`;
+}
+function showSectionTemplatePicker(kind){
+  const config=sectionTemplateConfig(kind);const active=sectionDesign(kind).template;
+  const cards=Object.entries(config.templates).map(([id,item])=>`<article class="section-template-choice ${active===id?'is-active':''}"><div class="section-template-preview ${esc(item.preview)}"><div class="preview-line" style="width:58%"></div><div class="preview-line" style="width:82%"></div><div class="preview-card"></div><div class="preview-card"></div><div class="preview-card"></div></div><div class="section-template-body"><h3>${esc(item.name)}</h3><p>${esc(item.description)}</p><button class="button ${active===id?'secondary':''}" type="button" data-section-template-apply="${esc(kind)}:${esc(id)}">${active===id?'Currently applied':'Use this layout'}</button></div></article>`).join('');
+  showModal(`Choose a ${config.label.toLowerCase()}`,`<div class="section-template-gallery">${cards}</div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button>`);
+}
+function sectionThemeCard(kind,id,theme,active){
+  const colors=[theme.paper,theme.paper2,theme.panel,theme.accent,theme.chip];
+  return `<button class="section-theme-card ${active===id?'is-active':''}" type="button" data-section-theme-apply="${esc(kind)}:${esc(id)}"><span class="section-theme-swatches">${colors.map(c=>`<i style="background:${c}"></i>`).join('')}</span><span class="section-theme-card-copy"><strong>${esc(theme.name)}</strong><small>${active===id?'Currently applied':'Apply to this section'}</small></span></button>`;
+}
+function showSectionThemePicker(kind){
+  const design=sectionDesign(kind);const active=design.theme||'classic-parchment';
+  const cards=Object.entries(DOSSIER_THEMES).map(([id,t])=>sectionThemeCard(kind,id,t,active)).join('');
+  const custom=sectionThemePalette(kind,'custom');
+  const fields=[['paper','Page background'],['paper2','Top surface'],['panel','Cards and panels'],['ink','Main text'],['muted','Secondary text'],['line','Borders and connectors'],['accent','Accent'],['chip','Tags and highlights']];
+  showModal(`${sectionTemplateConfig(kind).label} colors`,`<div class="section-theme-gallery">${cards}</div><section class="section-custom-theme"><h3>Fully customizable</h3><p class="page-subtitle">Choose a custom palette for this section without changing the other databases.</p><div class="section-custom-grid">${fields.map(([key,label])=>`<label><span>${esc(label)}</span><input type="color" value="${safeDossierColor(custom[key],'#000000')}" data-section-custom-color="${esc(key)}"></label>`).join('')}</div><button class="button" type="button" data-section-custom-save="${esc(kind)}">Save custom colors</button></section>`,`<button class="button secondary" type="button" data-close-modal>Done</button>`);
+}
+function sectionEntityCover(kind,item){
+  const design=sectionDesign(kind);let glyph='⌖',detail='';
+  if(kind==='locations'){glyph=item.type==='Region'?'◉':'⌖';detail=`${item.type||'Location'}${childrenOf(item.id).length?` · ${childrenOf(item.id).length} inside`:''}`;}
+  else if(kind==='factions'){glyph=initials(item.name);detail=`${item.power||'Faction'}${item.keyMemberIds?.length?` · ${item.keyMemberIds.length} key members`:''}`;}
+  else {glyph='⌛';detail=`${item.date||'Undated'}${item.status?` · ${item.status}`:''}`;}
+  return `<div class="section-entity-cover"><div class="section-entity-mark"><span class="section-entity-glyph">${esc(glyph)}</span><strong>${esc(sectionTemplateName(kind))}</strong><span>${esc(detail)}</span></div></div>`;
+}
+
+function renderLocationAtlasCards(items){
+  return `<div class="location-atlas-grid">${items.map((item,index)=>`<button class="location-atlas-card" type="button" data-open="locations:${item.id}"><span class="location-atlas-header"><span><span class="location-atlas-type">${esc(item.type||'Location')}</span><h3>${esc(item.name)}</h3></span><span class="location-atlas-symbol">${item.type==='Region'?'◉':'⌖'}</span></span><p>${esc(shortText(item.description||item.atmosphere,190)||'No description yet.')}</p><span class="tag-row">${[parentName(item),item.controlledBy,childrenOf(item.id).length?`${childrenOf(item.id).length} inside`:null].filter(Boolean).map(x=>`<span class="tag">${esc(x)}</span>`).join('')}</span><span class="location-atlas-route">Atlas entry ${String(index+1).padStart(2,'0')} · ${parentName(item)?`Inside ${esc(parentName(item))}`:'Top-level location'}</span></button>`).join('')}</div>`;
+}
+function renderLocationJournal(items){
+  return `<div class="location-journal-list">${items.map((item,index)=>`<button class="location-journal-card" type="button" data-open="locations:${item.id}"><span class="location-journal-number">${String(index+1).padStart(2,'0')}</span><span class="location-journal-copy"><span class="location-atlas-type">${esc(item.type||'Location')}</span><h3>${esc(item.name)}</h3><p>${esc(shortText(item.atmosphere||item.description,260)||'Add the feeling, sights, and story of this place.')}</p><span class="tag-row">${[parentName(item),item.controlledBy].filter(Boolean).map(x=>`<span class="tag">${esc(x)}</span>`).join('')}</span></span></button>`).join('')}</div>`;
+}
+function renderFactionHeraldic(items){
+  return `<div class="faction-heraldic-grid">${items.map(item=>`<button class="faction-heraldic-card" type="button" data-open="factions:${item.id}"><span class="faction-heraldic-banner"><span class="faction-crest">${esc(initials(item.name))}</span></span><span class="faction-heraldic-body"><span class="location-atlas-type">${esc(item.power||'Faction')}</span><h3>${esc(item.name)}</h3><p>${esc(shortText(item.goal||item.notes,175)||'No stated goal yet.')}</p><span class="tag-row"><span class="tag">${item.keyMemberIds?.length||0} key members</span></span></span></button>`).join('')}</div>`;
+}
+function factionPowerOrder(value){ return ({Dominant:0,Major:1,Moderate:2,Minor:3,Hidden:4})[value]??5; }
+function renderFactionInfluence(items){
+  const groups=[...new Set(items.map(i=>i.power||'Unspecified'))].sort((a,b)=>factionPowerOrder(a)-factionPowerOrder(b)||a.localeCompare(b));
+  return `<div class="faction-influence-board">${groups.map(group=>{const entries=items.filter(i=>(i.power||'Unspecified')===group);return `<section class="faction-influence-column"><h3><span>${esc(group)}</span><span>${entries.length}</span></h3>${entries.map(item=>`<button class="faction-influence-card" type="button" data-open="factions:${item.id}"><strong>${esc(item.name)}</strong><span class="cell-muted">${esc(shortText(item.goal||item.notes,110))}</span></button>`).join('')}</section>`;}).join('')}</div>`;
+}
+function renderFactionIntel(items){
+  return `<div class="faction-intel-list">${items.map((item,index)=>`<button class="faction-intel-card" type="button" data-open="factions:${item.id}"><span class="faction-intel-code">F-${String(index+1).padStart(2,'0')}</span><span><strong>${esc(item.name)}</strong><small class="cell-muted">${esc(shortText(item.goal||item.notes,145))}</small></span><span class="tag">${esc(item.power||'Unspecified')}</span></button>`).join('')}</div>`;
+}
+function renderTimelineEraCards(items){
+  return `<div class="timeline-era-grid">${items.map(item=>`<button class="timeline-era-card" type="button" data-open="events:${item.id}"><span class="timeline-era-date">${esc(item.date||'Undated')}</span><h3>${esc(item.name)}</h3><p>${esc(shortText(item.description||item.notes,190)||'No event description yet.')}</p><span class="tag-row"><span class="tag">${esc(item.status||'Unspecified')}</span>${item.characterIds?.length?`<span class="tag">${item.characterIds.length} people</span>`:''}</span></button>`).join('')}</div>`;
+}
+function renderTimelineArchive(items){
+  return `<div class="timeline-archive-list">${items.map(item=>`<button class="timeline-archive-row" type="button" data-open="events:${item.id}"><span class="timeline-archive-date">${esc(item.date||'Undated')}</span><span><strong>${esc(item.name)}</strong><small class="cell-muted">${esc(shortText(item.description||item.consequences||item.notes,130))}</small></span><span class="tag">${esc(item.status||'Unspecified')}</span></button>`).join('')}</div>`;
+}
+
+function renderCollectionView(kind,items,view){
+  const template=SECTION_TEMPLATE_CONFIG[kind]?sectionDesign(kind).template:'';
+  if(kind==='locations'){
+    if(view==='table')return renderTable(kind,items);
+    if(view==='tree'||template==='hierarchy-survey')return renderLocationTree(items);
+    return template==='travel-journal'?renderLocationJournal(items):renderLocationAtlasCards(items);
+  }
+  if(kind==='factions'){
+    if(view==='table')return renderTable(kind,items);
+    if(template==='influence-board')return renderFactionInfluence(items);
+    if(template==='intelligence-files')return renderFactionIntel(items);
+    return renderFactionHeraldic(items);
+  }
+  if(kind==='events'){
+    if(view==='table'||template==='archive-ledger')return template==='archive-ledger'?renderTimelineArchive(items):renderTable(kind,items);
+    if(template==='era-cards')return renderTimelineEraCards(items);
+    return renderTimeline(items);
+  }
+  if(view==='table')return renderTable(kind,items);
+  return `<div class="card-grid">${items.map(item=>renderEntityCard(kind,item)).join('')}</div>`;
+}
+
+function renderCollection(kind){
+  if(kind==='characters'){
+    const meta=COLLECTIONS[kind],filter=collectionFilters[kind].toLowerCase(),items=state[kind].filter(item=>JSON.stringify(item).toLowerCase().includes(filter)),view=collectionView[kind];
+    const viewButtons=[['gallery','Gallery'],['table','Table']];
+    el.main.innerHTML=`${pageHead('Database',meta.label,'People, roles, relationships, moods, locations, and story notes.',`<button class="button" type="button" data-new="${kind}">New ${meta.singular.toLowerCase()}</button>`)}<div class="collection-toolbar"><div class="toolbar-left"><div class="segmented">${viewButtons.map(([v,l])=>`<button type="button" class="${view===v?'active':''}" data-collection-view="${kind}:${v}">${l}</button>`).join('')}</div><button class="button secondary small" type="button" data-graph-kind="characters">Graph view</button></div><div class="toolbar-right"><input class="input toolbar-search" type="search" value="${esc(collectionFilters[kind])}" placeholder="Filter characters" data-filter-kind="${kind}"></div></div>${items.length?renderCollectionView(kind,items,view):'<div class="panel empty-state">No matching items.</div>'}`;
+    return;
+  }
+  const meta=COLLECTIONS[kind],filter=collectionFilters[kind].toLowerCase(),items=state[kind].filter(item=>JSON.stringify(item).toLowerCase().includes(filter)),view=collectionView[kind];
+  const subtitle={locations:'Regions and places with true parent-child structure and related-location links.',factions:'Organizations, species groups, power levels, goals, and alliances.',events:'World history and current story events tied to the people involved.'}[kind];
+  const viewButtons=kind==='locations'?[['tree','Tree'],['gallery','Gallery'],['table','Table']]:kind==='events'?[['timeline','Timeline'],['table','Table']]:[['gallery','Gallery'],['table','Table']];
+  el.main.innerHTML=`<section class="${sectionCssClass(kind)}" style="${sectionThemeStyle(kind)}">${sectionDesignToolbar(kind)}${pageHead('Database',meta.label,subtitle,`<button class="button" type="button" data-new="${kind}">New ${meta.singular.toLowerCase()}</button>`)}<div class="collection-toolbar"><div class="toolbar-left"><div class="segmented">${viewButtons.map(([v,l])=>`<button type="button" class="${view===v?'active':''}" data-collection-view="${kind}:${v}">${l}</button>`).join('')}</div><button class="button secondary small" type="button" data-graph-kind="${kind==='events'?'world':kind}">Graph view</button></div><div class="toolbar-right"><input class="input toolbar-search" type="search" value="${esc(collectionFilters[kind])}" placeholder="Filter ${meta.label.toLowerCase()}" data-filter-kind="${kind}"></div></div>${items.length?renderCollectionView(kind,items,view):'<div class="panel empty-state">No matching items.</div>'}</section>`;
+}
+
+function renderEntity(kind,itemId){
+  const item=getItem(kind,itemId);if(!item){navigate(kind);return;}const meta=COLLECTIONS[kind];
+  if(kind==='characters'&&item.pageTemplate==='practical-dossier'){el.main.innerHTML=renderPracticalDossier(item);requestAnimationFrame(()=>{autoSizeEntityTitle(document.querySelector('.entity-title-input'));installCharacterImageInteractions();});return;}
+  const breadcrumb=kind==='locations'?renderLocationBreadcrumb(item):'';
+  const snapshot=kind==='characters'?renderCharacterSnapshot(item):'';
+  const entityCover=kind==='characters'?renderCharacterCover(item):sectionEntityCover(kind,item);
+  const templateToolbar=kind==='characters'?renderCharacterTemplateToolbar(item):sectionDesignToolbar(kind);
+  const body=`${templateToolbar}${breadcrumb}<section class="entity-hero">${entityCover}<div class="entity-title-row"><textarea class="entity-title-input" rows="1" aria-label="${meta.singular} name" data-title-kind="${kind}" data-title-id="${item.id}">${esc(item.name)}</textarea><button class="favorite-button ${item.favorite?'on':''}" type="button" data-favorite="${kind}:${item.id}" title="Favorite">☆</button></div></section><div class="entity-layout"><div class="editor-surface ${kind==='characters'?'character-editor-surface':''}">${snapshot}${renderBlockEditor(kind,item.id,item.blocks,item.name)}</div><aside class="properties-panel"><div class="panel-head" style="padding:0 0 14px"><h2>Properties</h2><button class="button ghost small" type="button" data-delete="${kind}:${item.id}">Delete</button></div>${renderProperties(kind,item)}</aside></div>`;
+  el.main.innerHTML=kind==='characters'?body:`<section class="${sectionCssClass(kind)}" style="${sectionThemeStyle(kind)}">${body}</section>`;
+  requestAnimationFrame(()=>{autoSizeEntityTitle(document.querySelector('.entity-title-input'));if(kind==='characters')installCharacterImageInteractions();});
+}
+
+function applyGraphTemplateVisuals(){
+  const design=sectionDesign('graph');const svg=document.getElementById('graphSvg');if(!svg)return;
+  const nodeRadius=design.template==='story-threads'?16:design.template==='tactical-blueprint'?12:13;
+  svg.querySelectorAll('.graph-node').forEach(node=>node.setAttribute('r',nodeRadius));
+  svg.querySelectorAll('.story-node-circle').forEach(node=>node.setAttribute('r',design.template==='story-threads'?22:19));
+}
+
+function renderGraphPage(){
+  const focusOptions=graphFocusOptions();if(graphSettings.graphType==='story'&&!activeStoryGraph())graphSettings.storyId=state.storyGraphs?.[0]?.id||'';if(graphSettings.layout==='focus'&&!graphSettings.focus)graphSettings.focus=graphDefaultFocus();
+  const items=graphItemsForCurrentType(),typeOptions=graphTypeFilters(),relationOptions=graphRelationFilters(),guide=graphGuideCopy(),layouts=graphLayoutOptions(),stories=state.storyGraphs||[];
+  const thirdControl=graphSettings.graphType==='story'?`<div class="property-row"><label>Story</label><select class="select" id="graphStory">${stories.map(story=>`<option value="${esc(story.id)}" ${graphSettings.storyId===story.id?'selected':''}>${esc(story.name)}</option>`).join('')}</select></div>`:`<div class="property-row"><label>${graphSettings.layout==='focus'?'Centered item':'Preview item'}</label><select class="select" id="graphFocus"><option value="">Choose an item</option>${focusOptions.map(x=>`<option value="${x.value}" ${graphSettings.focus===x.value?'selected':''}>${esc(x.label)}</option>`).join('')}</select></div>`;
+  const includedLabel=graphSettings.graphType==='story'?'story items':graphSettings.graphType==='characters'?'people':graphSettings.graphType==='locations'?'locations':'world items';
+  const help=graphSettings.graphType==='story'&&graphSettings.layout==='story'?'Drag any circle to rearrange the story. Click a circle to preview its saved RP section.':'Click once to explain a node. Double-click to open its page. Drag circles to rearrange them. Use the mouse wheel or trackpad to zoom.';
+  el.main.innerHTML=`<section class="${sectionCssClass('graph')}" style="${sectionThemeStyle('graph')}">${sectionDesignToolbar('graph')}${pageHead('Connections','Story & Relationship Graphs','Use a story path when order matters, or switch to a general relationship view for broader connections.',`<button class="button secondary" type="button" data-nav="locations">Location tree</button>`)}<div class="graph-toolbar"><div class="property-row"><label>Graph</label><select class="select" id="graphType"><option value="story" ${graphSettings.graphType==='story'?'selected':''}>Story</option><option value="locations" ${graphSettings.graphType==='locations'?'selected':''}>Locations</option><option value="characters" ${graphSettings.graphType==='characters'?'selected':''}>People</option><option value="world" ${graphSettings.graphType==='world'?'selected':''}>Whole world</option></select></div><div class="property-row"><label>Layout</label><select class="select" id="graphLayout">${layouts.map(([value,label])=>`<option value="${value}" ${graphSettings.layout===value?'selected':''}>${label}</option>`).join('')}</select></div>${thirdControl}</div>${storySummaryHtml()}<section class="graph-reading-guide" aria-label="How to read this graph"><div><span class="eyebrow">How to read this view</span><h2>${esc(guide.title)}</h2><p>${esc(guide.copy)}</p></div><div class="graph-reading-key">${graphNodeKey()}<span class="graph-key-row"><span class="graph-key-line"></span><strong>${graphSettings.graphType==='story'?'Story direction':'Direct or structural connection'}</strong></span>${graphSettings.graphType==='story'?'':`<span class="graph-key-row"><span class="graph-key-line dashed"></span><strong>Related or secondary connection</strong></span>`}</div></section><section class="graph-filter-panel" aria-label="Graph filters"><div class="graph-filter-heading"><div><h2>What appears in the graph</h2><p>Uncheck anything you want hidden. Recheck it to add it back.</p></div><div class="graph-filter-actions"><button class="button secondary small" type="button" data-graph-items="all">Select all items</button><button class="button ghost small" type="button" data-graph-items="none">Clear all items</button><button class="button ghost small" type="button" data-reset-graph-layout>Reset positions</button></div></div><div class="graph-filter-grid"><fieldset class="graph-filter-group"><legend>Item types</legend><div class="graph-check-row">${typeOptions.map(option=>graphCheckbox(`type:${option.key}`,option.label,graphSettings.visibleTypes[option.key]!==false,'data-graph-type')).join('')}</div></fieldset><fieldset class="graph-filter-group"><legend>Connections</legend><div class="graph-check-row">${relationOptions.map(option=>graphCheckbox(`relation:${option.key}`,option.label,graphSettings.visibleRelations[option.key]!==false,'data-graph-relation')).join('')}</div></fieldset></div><details class="graph-item-details"><summary>Included ${includedLabel} <span id="graphItemCount">${items.filter(item=>!graphSettings.hiddenNodeIds.includes(item.nodeId)).length} of ${items.length}</span></summary><div class="graph-item-list">${items.map(item=>graphCheckbox(item.nodeId,item.label,!graphSettings.hiddenNodeIds.includes(item.nodeId),'data-graph-node',item.type)).join('')}</div></details></section><div class="graph-visual-grid"><div class="graph-stage" id="graphStage"><svg id="graphSvg" role="img" aria-label="Interactive story and relationship graph"></svg><div class="graph-legend" id="graphLegend"></div></div><aside class="graph-inspector" id="graphInspector" aria-live="polite">${graphSettings.graphType==='story'?'<span class="eyebrow">Story graph</span><h2>Choose a story point</h2><p class="graph-empty-inspector">Tap a circle to preview that part of the RP. Drag a circle to rearrange the story map.</p>':'<span class="eyebrow">Connection details</span><h2>Select a circle</h2><p class="graph-empty-inspector">Select an item to see why it is connected. Double-click a circle to open its full page.</p>'}</aside></div><p class="graph-help">${esc(help)}</p></section>`;
+  requestAnimationFrame(()=>{drawGraph();requestAnimationFrame(applyGraphTemplateVisuals);});
+}
+
+ensureSectionDesigns();
+
+document.addEventListener('click',event=>{
+  const templatePicker=event.target.closest('[data-section-template-picker]');if(templatePicker){showSectionTemplatePicker(templatePicker.dataset.sectionTemplatePicker);return;}
+  const templateApply=event.target.closest('[data-section-template-apply]');if(templateApply){const [kind,template]=templateApply.dataset.sectionTemplateApply.split(':');const config=sectionTemplateConfig(kind);if(config.templates[template]){sectionDesign(kind).template=template;scheduleSave();closeModal();render();toast(`${config.templates[template].name} applied.`);}return;}
+  const themePicker=event.target.closest('[data-section-theme-picker]');if(themePicker){showSectionThemePicker(themePicker.dataset.sectionThemePicker);return;}
+  const themeApply=event.target.closest('[data-section-theme-apply]');if(themeApply){const [kind,theme]=themeApply.dataset.sectionThemeApply.split(':');if(DOSSIER_THEMES[theme]){sectionDesign(kind).theme=theme;scheduleSave();closeModal();render();toast(`${DOSSIER_THEMES[theme].name} applied to ${sectionTemplateConfig(kind).label.toLowerCase()}.`);}return;}
+  const customSave=event.target.closest('[data-section-custom-save]');if(customSave){const kind=customSave.dataset.sectionCustomSave;const design=sectionDesign(kind),base=DOSSIER_THEMES['classic-parchment'];design.customTheme={};el.modal.querySelectorAll('[data-section-custom-color]').forEach(input=>design.customTheme[input.dataset.sectionCustomColor]=safeDossierColor(input.value,base[input.dataset.sectionCustomColor]));design.theme='custom';scheduleSave();closeModal();render();toast('Custom section colors saved.');return;}
+});
+
 })();
 
 </script>
@@ -11055,7 +11915,7 @@ window.FIREBASE_CONFIG = {
       return;
     }
 
-    if (!event.target.closest('.character-cover-slot,.character-portrait-slot')) {
+    if (!event.target.closest('.character-cover-slot,.character-portrait-slot,.dossier-media-slot')) {
       clearCharacterMediaSelection();
     }
   }, true);
