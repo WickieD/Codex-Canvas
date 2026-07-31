@@ -2635,6 +2635,153 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 </style>
 
+
+<style id="character-header-profile-images">
+/* Dedicated character cover and portrait image slots. */
+.entity-cover.character-cover-slot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 150px;
+  height: 150px;
+  overflow: hidden;
+  background:
+    linear-gradient(120deg, color-mix(in srgb, var(--accent-soft) 78%, transparent), var(--panel-soft) 58%, color-mix(in srgb, var(--accent) 20%, var(--panel)));
+}
+.character-cover-slot img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.character-cover-upload,
+.character-portrait-upload {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--panel-strong) 80%, transparent);
+  color: var(--text);
+  cursor: pointer;
+  text-align: center;
+}
+.character-cover-upload {
+  min-width: min(290px, calc(100% - 80px));
+  min-height: 82px;
+  padding: 16px 24px;
+  border-radius: 16px;
+  backdrop-filter: blur(7px);
+}
+.character-cover-upload.has-image {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  min-width: 0;
+  min-height: 0;
+  padding: 8px 12px;
+  border-style: solid;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 750;
+}
+.character-media-placeholder-title { font-weight: 780; }
+.character-media-placeholder-help { color: var(--muted); font-size: 11px; }
+.character-media-remove {
+  position: absolute;
+  z-index: 3;
+  left: 14px;
+  bottom: 14px;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-strong) 84%, transparent);
+  color: var(--danger);
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 750;
+  backdrop-filter: blur(7px);
+}
+.character-media-remove:hover { filter: brightness(.96); }
+.character-cover-slot.is-dragover,
+.character-portrait-slot.is-dragover {
+  outline: 3px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: -4px;
+}
+.character-snapshot-layout {
+  display: grid;
+  grid-template-columns: minmax(112px, 142px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
+}
+.character-snapshot-details { min-width: 0; }
+.character-portrait-slot {
+  position: relative;
+  min-height: 172px;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border: 1px dashed color-mix(in srgb, var(--accent) 48%, var(--border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel-strong) 72%, var(--panel-soft));
+}
+.character-portrait-slot img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.character-portrait-upload {
+  width: 100%;
+  height: 100%;
+  min-height: 172px;
+  padding: 12px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+}
+.character-portrait-upload.has-image {
+  position: absolute;
+  inset: auto 8px 8px 8px;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-strong) 84%, transparent);
+  font-size: 11px;
+  font-weight: 750;
+  backdrop-filter: blur(7px);
+}
+.character-portrait-remove {
+  position: absolute;
+  z-index: 3;
+  top: 7px;
+  right: 7px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-strong) 86%, transparent);
+  color: var(--danger);
+  font-size: 16px;
+  line-height: 1;
+  backdrop-filter: blur(7px);
+}
+@media (max-width: 560px) {
+  .character-snapshot-layout { grid-template-columns: 1fr; }
+  .character-portrait-slot { width: min(190px, 100%); justify-self: center; }
+  .character-cover-upload { min-width: calc(100% - 36px); }
+  .character-cover-upload.has-image { min-width: 0; }
+}
+</style>
+
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -6671,6 +6818,10 @@ window.FIREBASE_CONFIG = {
     state.workspace.locationTreeExpanded ||= [];
     state.workspace.locationTreeInitialized ||= false;
     for (const character of state.characters) {
+      if (typeof character.headerImage === 'string') character.headerImage = { src: character.headerImage };
+      if (typeof character.profileImage === 'string') character.profileImage = { src: character.profileImage };
+      character.headerImage ||= null;
+      character.profileImage ||= null;
       character.blocks ||= [];
       for (const block of character.blocks) {
         if (block.type !== 'image') continue;
@@ -7088,13 +7239,40 @@ window.FIREBASE_CONFIG = {
     return `<div class="timeline">${items.map(event=>`<div class="timeline-item"><div class="timeline-date">${esc(event.date)}</div><div class="timeline-dot-wrap"><span class="timeline-dot"></span></div><div class="timeline-card" data-open="events:${event.id}"><div class="timeline-title">${esc(event.name)}</div><div class="timeline-copy">${esc(shortText(event.description || event.notes,180))}</div><div class="tag-row"><span class="tag">${esc(event.status || 'Unspecified')}</span>${event.characterIds?.length ? `<span class="tag">${event.characterIds.length} people</span>`:''}</div></div></div>`).join('')}</div>`;
   }
 
+  function renderCharacterCover(item) {
+    const image = item.headerImage?.src || '';
+    return `<div class="entity-cover character-cover-slot" data-character-media-drop="header:${item.id}">
+      ${image ? `<img src="${esc(image)}" alt="${esc(item.headerImage?.alt || `${item.name} cover image`)}">` : ''}
+      <button class="character-cover-upload ${image ? 'has-image' : ''}" type="button" data-character-media-trigger="header:${item.id}">
+        <span class="character-media-placeholder-title">${image ? 'Change cover image' : 'Add a cover image'}</span>
+        ${image ? '' : '<span class="character-media-placeholder-help">Use a wide image for the top of this character page</span>'}
+      </button>
+      ${image ? `<button class="character-media-remove" type="button" data-character-media-remove="header:${item.id}">Remove cover</button>` : ''}
+      <input type="file" accept="image/*" hidden data-character-media-input="header:${item.id}">
+    </div>`;
+  }
+
+  function renderCharacterPortrait(item) {
+    const image = item.profileImage?.src || '';
+    return `<div class="character-portrait-slot" data-character-media-drop="profile:${item.id}">
+      ${image ? `<img src="${esc(image)}" alt="${esc(item.profileImage?.alt || `${item.name} portrait`)}">` : ''}
+      <button class="character-portrait-upload ${image ? 'has-image' : ''}" type="button" data-character-media-trigger="profile:${item.id}">
+        <span class="character-media-placeholder-title">${image ? 'Change portrait' : 'Add portrait'}</span>
+        ${image ? '' : '<span class="character-media-placeholder-help">Character image</span>'}
+      </button>
+      ${image ? `<button class="character-portrait-remove" type="button" data-character-media-remove="profile:${item.id}" aria-label="Remove portrait">×</button>` : ''}
+      <input type="file" accept="image/*" hidden data-character-media-input="profile:${item.id}">
+    </div>`;
+  }
+
   function renderEntity(kind, itemId) {
     const item = getItem(kind,itemId);
     if (!item) { navigate(kind); return; }
     const meta = COLLECTIONS[kind];
     const breadcrumb = kind === 'locations' ? renderLocationBreadcrumb(item) : '';
     const snapshot = kind === 'characters' ? renderCharacterSnapshot(item) : '';
-    el.main.innerHTML = `${breadcrumb}<section class="entity-hero"><div class="entity-cover"></div><div class="entity-title-row"><textarea class="entity-title-input" rows="1" aria-label="${meta.singular} name" data-title-kind="${kind}" data-title-id="${item.id}">${esc(item.name)}</textarea><button class="favorite-button ${item.favorite?'on':''}" type="button" data-favorite="${kind}:${item.id}" title="Favorite">☆</button></div></section>
+    const entityCover = kind === 'characters' ? renderCharacterCover(item) : '<div class="entity-cover"></div>';
+    el.main.innerHTML = `${breadcrumb}<section class="entity-hero">${entityCover}<div class="entity-title-row"><textarea class="entity-title-input" rows="1" aria-label="${meta.singular} name" data-title-kind="${kind}" data-title-id="${item.id}">${esc(item.name)}</textarea><button class="favorite-button ${item.favorite?'on':''}" type="button" data-favorite="${kind}:${item.id}" title="Favorite">☆</button></div></section>
       <div class="entity-layout"><div class="editor-surface ${kind === 'characters' ? 'character-editor-surface' : ''}">${snapshot}${renderBlockEditor(kind,item.id,item.blocks,item.name)}</div><aside class="properties-panel"><div class="panel-head" style="padding:0 0 14px"><h2>Properties</h2><button class="button ghost small" type="button" data-delete="${kind}:${item.id}">Delete</button></div>${renderProperties(kind,item)}</aside></div>`;
     requestAnimationFrame(() => {
       autoSizeEntityTitle(document.querySelector('.entity-title-input'));
@@ -7106,15 +7284,20 @@ window.FIREBASE_CONFIG = {
     const locations = (item.currentLocationIds || []).map(locationId => getItem('locations', locationId)).filter(Boolean);
     const field = (label, fieldName, value) => value ? `<div class="snapshot-field"><span class="snapshot-label">${esc(label)}</span><span class="snapshot-value" data-snapshot-value="${esc(fieldName)}">${esc(cleanNotionRefs(value))}</span></div>` : '';
     return `<section class="character-snapshot" aria-label="Current character details">
-      <div class="snapshot-grid">
-        ${field('Age', 'age', item.age)}
-        <div class="snapshot-field"><span class="snapshot-label">Current location</span><div class="property-links">${locations.map(location => `<button class="link-pill" type="button" data-open="locations:${location.id}">${esc(location.name)}</button>`).join('') || '<span class="snapshot-value">Not set</span>'}</div></div>
-        ${field('Current mood', 'mood', item.mood)}
-        ${field('Current outfit', 'outfit', item.outfit)}
-        ${field('Current position', 'position', item.position)}
-        ${field('Current status', 'status', item.status)}
+      <div class="character-snapshot-layout">
+        ${renderCharacterPortrait(item)}
+        <div class="character-snapshot-details">
+          <div class="snapshot-grid">
+            ${field('Age', 'age', item.age)}
+            <div class="snapshot-field"><span class="snapshot-label">Current location</span><div class="property-links">${locations.map(location => `<button class="link-pill" type="button" data-open="locations:${location.id}">${esc(location.name)}</button>`).join('') || '<span class="snapshot-value">Not set</span>'}</div></div>
+            ${field('Current mood', 'mood', item.mood)}
+            ${field('Current outfit', 'outfit', item.outfit)}
+            ${field('Current position', 'position', item.position)}
+            ${field('Current status', 'status', item.status)}
+          </div>
+          ${item.relationshipsText ? `<div class="snapshot-relationships"><span class="snapshot-label">Key relationships</span><p data-snapshot-value="relationshipsText">${esc(cleanNotionRefs(item.relationshipsText))}</p></div>` : ''}
+        </div>
       </div>
-      ${item.relationshipsText ? `<div class="snapshot-relationships"><span class="snapshot-label">Key relationships</span><p data-snapshot-value="relationshipsText">${esc(cleanNotionRefs(item.relationshipsText))}</p></div>` : ''}
     </section>`;
   }
 
@@ -8277,6 +8460,39 @@ window.FIREBASE_CONFIG = {
     return {id:id('image'),type:'image',content:'',src:data,alt:`${character?.name || 'Character'} image`,layout:'front',wrapSide:'left',width:Math.min(360,width),padding:18,xPct:8,y:24,opacity:1,ratio:width/height};
   }
 
+  async function setCharacterPageImage(characterId, slot, file) {
+    const character = getItem('characters', characterId);
+    if (!character) return;
+    try {
+      el.saveStatus.textContent = 'Preparing image…';
+      const prepared = await imageFileToBlock(file, character);
+      const key = slot === 'header' ? 'headerImage' : 'profileImage';
+      character[key] = {
+        src: prepared.src,
+        alt: slot === 'header' ? `${character.name} cover image` : `${character.name} portrait`
+      };
+      character.updatedAt = nowISO();
+      logActivity(`Updated the ${slot === 'header' ? 'cover image' : 'portrait'} for ${character.name}`);
+      scheduleSave('Saving image…');
+      renderEntity('characters', characterId);
+      toast(slot === 'header' ? 'Cover image added.' : 'Portrait added.');
+    } catch (error) {
+      console.error(error);
+      toast(error.message || 'The image could not be added.', 'error');
+      el.saveStatus.textContent = 'Save failed';
+    }
+  }
+
+  function removeCharacterPageImage(characterId, slot) {
+    const character = getItem('characters', characterId);
+    if (!character) return;
+    const key = slot === 'header' ? 'headerImage' : 'profileImage';
+    character[key] = null;
+    character.updatedAt = nowISO();
+    scheduleSave();
+    renderEntity('characters', characterId);
+  }
+
   async function addCharacterImage(characterId,file,insertIndex=null) {
     const character=getItem('characters',characterId);if(!character)return;
     try{
@@ -8829,6 +9045,8 @@ window.FIREBASE_CONFIG = {
     const turnDelete=event.target.closest('[data-story-turn-delete]');if(turnDelete){const context=currentStoryPassage();if(context.story){const turnId=turnDelete.dataset.storyTurnDelete;const index=context.turns.findIndex(turn=>turn.id===turnId);if(index>=0){const replacement=context.turns[index+1]?.id||'';for(const point of context.story.nodes||[]){const pointPassage=ensureStoryPassage(point);if(pointPassage.anchorTurnId===turnId)pointPassage.anchorTurnId=replacement;}context.turns.splice(index,1);scheduleSave();renderStoryReader();}}return;}
     const turnUp=event.target.closest('[data-story-turn-up]');if(turnUp){const context=currentStoryPassage();const index=context.turns?.findIndex(turn=>turn.id===turnUp.dataset.storyTurnUp)??-1;if(index>0){[context.turns[index-1],context.turns[index]]=[context.turns[index],context.turns[index-1]];scheduleSave();renderStoryReader();}return;}
     const turnDown=event.target.closest('[data-story-turn-down]');if(turnDown){const context=currentStoryPassage();const index=context.turns?.findIndex(turn=>turn.id===turnDown.dataset.storyTurnDown)??-1;if(index>=0&&index<context.turns.length-1){[context.turns[index+1],context.turns[index]]=[context.turns[index],context.turns[index+1]];scheduleSave();renderStoryReader();}return;}
+    const characterMediaTrigger=event.target.closest('[data-character-media-trigger]');if(characterMediaTrigger){const ref=characterMediaTrigger.dataset.characterMediaTrigger;document.querySelector(`[data-character-media-input="${CSS.escape(ref)}"]`)?.click();return;}
+    const characterMediaRemove=event.target.closest('[data-character-media-remove]');if(characterMediaRemove){const [slot,characterId]=characterMediaRemove.dataset.characterMediaRemove.split(':');const label=slot==='header'?'cover image':'portrait';if(confirm(`Remove this ${label}?`))removeCharacterPageImage(characterId,slot);return;}
     const newButton=event.target.closest('[data-new]');if(newButton){addItem(newButton.dataset.new);return;}
     const newChild=event.target.closest('[data-new-child]');if(newChild){addItem('locations',newChild.dataset.newChild);return;}
     const del=event.target.closest('[data-delete]');if(del){const [kind,itemId]=del.dataset.delete.split(':');deleteItem(kind,itemId);return;}
@@ -8885,6 +9103,7 @@ window.FIREBASE_CONFIG = {
   });
 
   document.addEventListener('change',event=>{
+    if(event.target.matches('[data-character-media-input]')){const file=event.target.files?.[0];if(file){const [slot,characterId]=event.target.dataset.characterMediaInput.split(':');setCharacterPageImage(characterId,slot,file);}event.target.value='';return;}
     if(event.target.matches('[data-character-image-input]')){const file=event.target.files?.[0];if(file)addCharacterImage(event.target.dataset.characterImageInput,file);event.target.value='';return;}
     if(event.target.matches('[data-image-replace]')){const file=event.target.files?.[0];if(file)replaceCharacterImage(event.target.dataset.imageReplace,file);event.target.value='';return;}
     if(event.target.matches('[data-image-editor-layout]')){const ref=event.target.dataset.imageEditorLayout;const info=blockFromRef(ref);if(info.block){info.block.layout=event.target.value;if(info.block.layout==='wrap')info.block.wrapSide=info.block.wrapSide==='right'?'right':'left';if(info.block.layout==='behind'&&(Number(info.block.opacity)||1)>.85)info.block.opacity=.4;info.target.updatedAt=nowISO();const modal=event.target.closest('.image-editor-modal');const cushion=modal?.querySelector('[data-image-editor-cushion-row]');if(cushion)cushion.hidden=info.block.layout!=='wrap';const help=modal?.querySelector('[data-image-editor-help]');if(help)help.textContent=info.block.layout==='wrap'?'Close this panel, then drag the image anywhere, including the middle. The writing will split between words and flow on both sides of it.':'Close this panel, then drag the image itself anywhere on the page. The writing will stay exactly where it is.';syncImageFigure(ref);layoutCharacterFlow();scheduleSave();}return;}
@@ -10460,6 +10679,27 @@ window.FIREBASE_CONFIG = {
 
     reflow();
   };
+
+  document.addEventListener('dragover', event => {
+    const slot = event.target.closest?.('[data-character-media-drop]');
+    if (!slot) return;
+    event.preventDefault();
+    slot.classList.add('is-dragover');
+  });
+  document.addEventListener('dragleave', event => {
+    const slot = event.target.closest?.('[data-character-media-drop]');
+    if (slot && !slot.contains(event.relatedTarget)) slot.classList.remove('is-dragover');
+  });
+  document.addEventListener('drop', event => {
+    const slot = event.target.closest?.('[data-character-media-drop]');
+    if (!slot) return;
+    event.preventDefault();
+    slot.classList.remove('is-dragover');
+    const file = [...(event.dataTransfer?.files || [])].find(item => item.type?.startsWith('image/'));
+    if (!file) return;
+    const [mediaSlot, characterId] = slot.dataset.characterMediaDrop.split(':');
+    setCharacterPageImage(characterId, mediaSlot, file);
+  });
 
   render();
   initFirebase();
