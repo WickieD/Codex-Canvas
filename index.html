@@ -10386,6 +10386,81 @@ window.FIREBASE_CONFIG = {
     }
   },true);
 
+
+  /* Reliable character image wrapping.
+     The image can finish decoding after the page first renders. Previously the
+     flow engine measured a nearly zero-height image, then left the original
+     writing underneath it. Estimate the image box immediately and reflow again
+     whenever the actual image dimensions become available. */
+  let characterWrapFrame = 0;
+  const observedCharacterWrapLists = new WeakSet();
+
+  function requestCharacterWrap(list) {
+    if (!list || !list.isConnected) return;
+    cancelAnimationFrame(characterWrapFrame);
+    characterWrapFrame = requestAnimationFrame(() => {
+      characterWrapFrame = 0;
+      if (list.isConnected) layoutCharacterFlow(list);
+    });
+  }
+
+  const layoutCharacterFlowBeforeImageDecodeFix = layoutCharacterFlow;
+  layoutCharacterFlow = function(list = document.querySelector('.character-block-list')) {
+    if (!list || !list.dataset.characterDropZone) return;
+
+    for (const figure of list.querySelectorAll('.character-image-block.image-layout-wrap[data-image-block]')) {
+      const img = figure.querySelector('img');
+      const info = blockFromRef(figure.dataset.imageBlock);
+      const width = Math.max(1, figure.getBoundingClientRect().width || figure.offsetWidth || Number(info.block?.width) || 300);
+      const storedRatio = Math.max(.1, Number(info.block?.ratio) || 1);
+      const decoded = Boolean(img?.complete && img.naturalWidth > 0 && img.naturalHeight > 0);
+
+      if (!decoded) {
+        // ratio is stored as width / height.
+        figure.style.height = `${Math.max(80, width / storedRatio)}px`;
+      } else {
+        figure.style.removeProperty('height');
+        if (info.block && (!Number(info.block.ratio) || Math.abs(Number(info.block.ratio) - (img.naturalWidth / img.naturalHeight)) > .01)) {
+          info.block.ratio = img.naturalWidth / img.naturalHeight;
+        }
+      }
+    }
+
+    layoutCharacterFlowBeforeImageDecodeFix(list);
+  };
+
+  const installCharacterImageInteractionsBeforeDecodeFix = installCharacterImageInteractions;
+  installCharacterImageInteractions = function() {
+    installCharacterImageInteractionsBeforeDecodeFix();
+    const list = document.querySelector('.character-block-list');
+    if (!list || observedCharacterWrapLists.has(list)) return;
+    observedCharacterWrapLists.add(list);
+
+    const reflow = () => requestCharacterWrap(list);
+    list.addEventListener('load', event => {
+      if (event.target.matches?.('.character-image-block img')) reflow();
+    }, true);
+    list.addEventListener('error', event => {
+      if (event.target.matches?.('.character-image-block img')) reflow();
+    }, true);
+
+    for (const img of list.querySelectorAll('.character-image-block img')) {
+      if (img.complete && img.naturalWidth > 0) {
+        reflow();
+      } else if (typeof img.decode === 'function') {
+        img.decode().then(reflow).catch(() => {});
+      }
+    }
+
+    if ('ResizeObserver' in window) {
+      const observer = new ResizeObserver(reflow);
+      list.querySelectorAll('.character-image-block,.character-image-block img').forEach(node => observer.observe(node));
+      list._codexWrapResizeObserver = observer;
+    }
+
+    reflow();
+  };
+
   render();
   initFirebase();
 })();
