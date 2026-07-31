@@ -3456,6 +3456,13 @@ button:disabled { cursor: not-allowed; opacity: .48; }
   @media(max-width:720px){.auth-card{padding:26px 22px;border-radius:22px}.section-media-cover-slot{min-height:165px}.section-media-slot{min-height:180px}}
 </style>
 
+
+<style id="shared-member-access-styles">
+  .member-access-note{margin:-7px 0 14px;color:var(--muted);font-size:.86rem;line-height:1.5}
+  .share-callout.compact{margin-top:14px}
+  .member-row select:disabled,.member-row button:disabled{opacity:.55;cursor:not-allowed}
+  .auth-create{color:#fff0cd;font-weight:700}
+</style>
 </head>
 <body>
 
@@ -3466,6 +3473,7 @@ button:disabled { cursor: not-allowed; opacity: .48; }
         <label class="auth-field"><span>Email address</span><input id="authEmail" type="email" autocomplete="email" required></label>
         <label class="auth-field"><span>Password</span><input id="authPassword" type="password" autocomplete="current-password" required></label>
         <button id="authSubmit" class="auth-submit" type="submit">Sign in</button>
+        <button id="authCreate" class="auth-secondary auth-create" type="button">Create an account</button>
         <button id="authReset" class="auth-secondary" type="button">Forgot your password?</button>
       </form>
       <div id="authMessage" class="auth-message">Checking your account…</div>
@@ -8417,46 +8425,161 @@ document.addEventListener('click',event=>{
 });
 
 
-/* === Private login, per-user Firestore sync, and section image slots === */
+/* === Shared workspace login, membership, and Firestore sync === */
 const SYNC_COLLECTIONS = ['characters','locations','species','factions','events'];
-Object.assign(firebase,{enabled:true,connected:false,user:null,api:null,unsubscribes:[],applyingRemote:false,remoteCache:{meta:'',collections:{}},worldId:window.FIREBASE_WORLD_ID||'main',remoteRenderTimer:null});
+Object.assign(firebase,{
+  enabled:true,connected:false,user:null,api:null,unsubscribes:[],applyingRemote:false,
+  remoteCache:{meta:'',collections:{}},worldId:window.FIREBASE_WORLD_ID||'main',remoteRenderTimer:null,
+  currentMember:null,currentRole:'',pendingAuthMessage:null
+});
 for(const kind of SYNC_COLLECTIONS) firebase.remoteCache.collections[kind]=new Map();
 Object.assign(el,{
-  app:document.getElementById('app'),authGate:document.getElementById('authGate'),authForm:document.getElementById('authForm'),authEmail:document.getElementById('authEmail'),authPassword:document.getElementById('authPassword'),authSubmit:document.getElementById('authSubmit'),authReset:document.getElementById('authReset'),authMessage:document.getElementById('authMessage')
+  app:document.getElementById('app'),authGate:document.getElementById('authGate'),authForm:document.getElementById('authForm'),
+  authEmail:document.getElementById('authEmail'),authPassword:document.getElementById('authPassword'),
+  authSubmit:document.getElementById('authSubmit'),authCreate:document.getElementById('authCreate'),
+  authReset:document.getElementById('authReset'),authMessage:document.getElementById('authMessage')
 });
 
-function setAuthMessage(message,type=''){
-  el.authMessage.textContent=message||'';el.authMessage.className=`auth-message${type?` ${type}`:''}`;
-}
+function normalizeMemberEmail(value){return String(value||'').trim().toLowerCase();}
+function setAuthMessage(message,type=''){el.authMessage.textContent=message||'';el.authMessage.className=`auth-message${type?` ${type}`:''}`;}
 function showAuthGate(message='',type=''){
-  el.app.hidden=true;el.authGate.hidden=false;el.authGate.classList.remove('auth-loading');setAuthMessage(message,type);requestAnimationFrame(()=>el.authEmail?.focus());
+  el.app.hidden=true;el.authGate.hidden=false;el.authGate.classList.remove('auth-loading');setAuthMessage(message,type);
+  requestAnimationFrame(()=>el.authEmail?.focus());
 }
 function showAuthenticatedApp(){el.authGate.hidden=true;el.app.hidden=false;}
-function firebaseWorkspaceRef(){return firebase.api.doc(firebase.api.db,'users',firebase.user.uid,'workspaces',firebase.worldId);}
+function firebaseWorkspaceRef(){return firebase.api.doc(firebase.api.db,'workspaces',firebase.worldId);}
+function firebaseLegacyWorkspaceRef(){return firebase.api.doc(firebase.api.db,'users',firebase.user.uid,'workspaces',firebase.worldId);}
+function firebaseMembersCollection(){return firebase.api.collection(firebaseWorkspaceRef(),'members');}
+function firebaseMemberRef(email){return firebase.api.doc(firebaseMembersCollection(),normalizeMemberEmail(email));}
 function cleanFirestoreValue(value){return JSON.parse(JSON.stringify(value));}
-function stateMetaPayload(){return cleanFirestoreValue({schemaVersion:state.schemaVersion,workspace:state.workspace,world:state.world,storyGraphs:state.storyGraphs,activity:state.activity});}
+function workspaceWithoutMembership(){
+  const workspace=cleanFirestoreValue(state.workspace||{});
+  delete workspace.members;delete workspace.access;delete workspace.ownerUid;delete workspace.currentRole;
+  return workspace;
+}
+function stateMetaPayload(){
+  const payload={
+    schemaVersion:state.schemaVersion,workspace:workspaceWithoutMembership(),world:state.world,
+    storyGraphs:state.storyGraphs,activity:state.activity
+  };
+  if(state.createdAt)payload.createdAt=state.createdAt;
+  if(state.createdByUid)payload.createdByUid=state.createdByUid;
+  if(state.createdByEmail)payload.createdByEmail=state.createdByEmail;
+  return cleanFirestoreValue(payload);
+}
 function entityPayload(item,index){return cleanFirestoreValue({...item,__order:index});}
 function meaningfulLocalState(){return SYNC_COLLECTIONS.some(kind=>(state[kind]||[]).length)||(state.world?.blocks||[]).length>0;}
 function localStateSnapshot(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}catch(error){console.warn(error);}}
-function queueRemoteRender(){clearTimeout(firebase.remoteRenderTimer);firebase.remoteRenderTimer=setTimeout(()=>{firebase.applyingRemote=true;normalizeState();localStateSnapshot();firebase.applyingRemote=false;render();},90);}
+function queueRemoteRender(){
+  clearTimeout(firebase.remoteRenderTimer);
+  firebase.remoteRenderTimer=setTimeout(()=>{
+    firebase.applyingRemote=true;normalizeState();localStateSnapshot();firebase.applyingRemote=false;render();
+  },90);
+}
+function currentWorkspaceRole(){return firebase.currentRole||firebase.currentMember?.role||'';}
+function isWorkspaceOwner(){return currentWorkspaceRole()==='Owner';}
+function canEditSharedWorld(){return ['Owner','Admin','Editor'].includes(currentWorkspaceRole());}
+function ownerMembers(){return (state.workspace.members||[]).filter(member=>member.role==='Owner');}
+function memberById(memberId){return (state.workspace.members||[]).find(member=>member.id===memberId||member.email===memberId);}
+function applyMemberIdentity(){
+  if(!firebase.user)return;
+  const email=firebase.user.email||'Signed-in account',role=currentWorkspaceRole()||'Member';
+  if(el.account){el.account.textContent=initials(email);el.account.title=`${email} · ${role}`;}
+  document.body.dataset.workspaceRole=role.toLowerCase();
+  document.querySelectorAll('.sidebar-user .user-name').forEach(node=>node.textContent=email);
+  document.querySelectorAll('.sidebar-user .avatar').forEach(node=>node.textContent=initials(email));
+  document.querySelectorAll('.sidebar-user .user-mode').forEach(node=>node.textContent=`${role} · Shared mode`);
+}
+const renderBeforeSharedMembership=render;
+render=function(){renderBeforeSharedMembership();applyMemberIdentity();};
 
-async function loadRemoteWorkspace(){
-  const api=firebase.api,workspaceRef=firebaseWorkspaceRef();
-  const [metaSnap,...collectionSnaps]=await Promise.all([api.getDoc(workspaceRef),...SYNC_COLLECTIONS.map(kind=>api.getDocs(api.collection(workspaceRef,kind)))]);
+function applyRemoteMeta(data){
+  const members=state.workspace?.members||[],access=state.workspace?.access||{};
+  firebase.applyingRemote=true;
+  Object.assign(state,data);
+  state.workspace={...(state.workspace||{}),members,access};
+  firebase.applyingRemote=false;
+}
+
+async function readWorkspaceFromRef(workspaceRef){
+  const api=firebase.api;
+  const [metaSnap,...collectionSnaps]=await Promise.all([
+    api.getDoc(workspaceRef),...SYNC_COLLECTIONS.map(kind=>api.getDocs(api.collection(workspaceRef,kind)))
+  ]);
   const hasRemote=metaSnap.exists()||collectionSnaps.some(snap=>!snap.empty);
-  if(!hasRemote){
-    await syncStateToFirestore(true);
-    return;
-  }
+  if(!hasRemote)return false;
   const next=deepClone(window.INITIAL_WORLD_DATA);
   if(metaSnap.exists())Object.assign(next,metaSnap.data());
   SYNC_COLLECTIONS.forEach((kind,i)=>{
-    const docs=collectionSnaps[i].docs.map(docSnap=>{const value=docSnap.data();const order=Number(value.__order)||0;delete value.__order;return {value,order};}).sort((a,b)=>a.order-b.order).map(entry=>entry.value);
+    next[kind]=collectionSnaps[i].docs.map(docSnap=>{
+      const value=docSnap.data(),order=Number(value.__order)||0;delete value.__order;return {value,order};
+    }).sort((a,b)=>a.order-b.order).map(entry=>entry.value);
+  });
+  firebase.applyingRemote=true;state=next;normalizeState();firebase.applyingRemote=false;
+  return true;
+}
+
+async function bootstrapSharedWorkspace(){
+  const api=firebase.api,workspaceRef=firebaseWorkspaceRef(),email=normalizeMemberEmail(firebase.user.email);
+  const memberRef=firebaseMemberRef(email);
+  const memberSnap=await api.getDoc(memberRef);
+  if(memberSnap.exists()){
+    const workspaceSnap=await api.getDoc(workspaceRef);
+    if(!workspaceSnap.exists()){
+      const error=new Error('The shared world record is missing. Ask an owner to restore the workspace backup.');
+      error.code='codex/workspace-missing';throw error;
+    }
+    firebase.currentMember={id:memberSnap.id,...memberSnap.data()};firebase.currentRole=firebase.currentMember.role||'Viewer';
+    await api.setDoc(memberRef,{uid:firebase.user.uid,lastSeenAt:nowISO()},{merge:true});
+    return;
+  }
+  try{
+    const workspaceSnap=await api.getDoc(workspaceRef);
+    if(workspaceSnap.exists()){
+      const error=new Error('This account has not been granted access to this world. Please contact the admin team.');
+      error.code='codex/access-denied';throw error;
+    }
+  }catch(error){
+    if(error.code==='permission-denied'){
+      const denied=new Error('This account has not been granted access to this world. Please contact the admin team.');
+      denied.code='codex/access-denied';throw denied;
+    }
+    throw error;
+  }
+
+  // First authenticated account creates the shared world. Prefer its previous private Firestore copy.
+  await readWorkspaceFromRef(firebaseLegacyWorkspaceRef());
+  normalizeState();
+  state.workspace.members=[];state.workspace.access={};
+  const createdAt=nowISO();
+  state.createdAt=createdAt;state.createdByUid=firebase.user.uid;state.createdByEmail=email;
+  const ownerRecord={email,role:'Owner',status:'Access granted',uid:firebase.user.uid,addedAt:createdAt,addedBy:email,lastSeenAt:createdAt};
+  const meta={...stateMetaPayload(),createdAt,createdByUid:firebase.user.uid,createdByEmail:email};
+  const batch=api.writeBatch(api.db);
+  batch.set(workspaceRef,meta,{merge:false});
+  batch.set(memberRef,ownerRecord,{merge:false});
+  await batch.commit();
+  firebase.currentMember={id:email,...ownerRecord};firebase.currentRole='Owner';
+  await syncStateToFirestore(true);
+}
+
+async function loadRemoteWorkspace(){
+  const api=firebase.api,workspaceRef=firebaseWorkspaceRef();
+  const [metaSnap,...collectionSnaps]=await Promise.all([
+    api.getDoc(workspaceRef),...SYNC_COLLECTIONS.map(kind=>api.getDocs(api.collection(workspaceRef,kind)))
+  ]);
+  const next=deepClone(window.INITIAL_WORLD_DATA);
+  if(metaSnap.exists())Object.assign(next,metaSnap.data());
+  SYNC_COLLECTIONS.forEach((kind,i)=>{
+    const docs=collectionSnaps[i].docs.map(docSnap=>{
+      const value=docSnap.data(),order=Number(value.__order)||0;delete value.__order;return {value,order};
+    }).sort((a,b)=>a.order-b.order).map(entry=>entry.value);
     next[kind]=docs;
     firebase.remoteCache.collections[kind]=new Map(collectionSnaps[i].docs.map(docSnap=>[docSnap.id,JSON.stringify(docSnap.data())]));
   });
   firebase.remoteCache.meta=metaSnap.exists()?JSON.stringify(metaSnap.data()):'';
-  firebase.applyingRemote=true;state=next;normalizeState();localStateSnapshot();firebase.applyingRemote=false;
+  const members=state.workspace?.members||[],access=state.workspace?.access||{};
+  firebase.applyingRemote=true;state=next;normalizeState();state.workspace.members=members;state.workspace.access=access;localStateSnapshot();firebase.applyingRemote=false;
 }
 
 async function commitFirestoreOperations(operations){
@@ -8471,7 +8594,7 @@ async function commitFirestoreOperations(operations){
 }
 
 async function syncStateToFirestore(force=false){
-  if(!firebase.connected||!firebase.user||firebase.applyingRemote)return;
+  if(!firebase.connected||!firebase.user||firebase.applyingRemote||!canEditSharedWorld())return;
   const api=firebase.api,workspaceRef=firebaseWorkspaceRef(),operations=[];
   const meta=stateMetaPayload(),metaJson=JSON.stringify(meta);
   if(force||metaJson!==firebase.remoteCache.meta){operations.push({type:'set',ref:workspaceRef,data:meta});firebase.remoteCache.meta=metaJson;}
@@ -8482,7 +8605,9 @@ async function syncStateToFirestore(force=false){
       const data=entityPayload(item,index),json=JSON.stringify(data);
       if(force||cache.get(docId)!==json){operations.push({type:'set',ref:api.doc(api.collection(workspaceRef,kind),docId),data});cache.set(docId,json);}
     });
-    for(const oldId of [...cache.keys()])if(!nextIds.has(oldId)){operations.push({type:'delete',ref:api.doc(api.collection(workspaceRef,kind),oldId)});cache.delete(oldId);}
+    for(const oldId of [...cache.keys()])if(!nextIds.has(oldId)){
+      operations.push({type:'delete',ref:api.doc(api.collection(workspaceRef,kind),oldId)});cache.delete(oldId);
+    }
     firebase.remoteCache.collections[kind]=cache;
   }
   if(operations.length)await commitFirestoreOperations(operations);
@@ -8491,15 +8616,27 @@ async function syncStateToFirestore(force=false){
 function detachFirestoreListeners(){for(const stop of firebase.unsubscribes||[])try{stop();}catch(error){}firebase.unsubscribes=[];}
 function attachFirestoreListeners(){
   detachFirestoreListeners();const api=firebase.api,workspaceRef=firebaseWorkspaceRef();
+  firebase.unsubscribes.push(api.onSnapshot(firebaseMembersCollection(),{includeMetadataChanges:true},snap=>{
+    if(snap.metadata.hasPendingWrites)return;
+    const members=snap.docs.map(docSnap=>({id:docSnap.id,...docSnap.data()})).sort((a,b)=>{
+      const order={Owner:0,Admin:1,Editor:2,Commenter:3,Viewer:4};return (order[a.role]??9)-(order[b.role]??9)||a.email.localeCompare(b.email);
+    });
+    state.workspace.members=members;state.workspace.access=Object.fromEntries(members.map(member=>[normalizeMemberEmail(member.email),member.role]));
+    firebase.currentMember=members.find(member=>normalizeMemberEmail(member.email)===normalizeMemberEmail(firebase.user?.email))||null;
+    firebase.currentRole=firebase.currentMember?.role||'';
+    localStateSnapshot();render();
+  },error=>{console.error(error);toast('Member access updates stopped. Check the Firestore rules.','error');}));
   firebase.unsubscribes.push(api.onSnapshot(workspaceRef,{includeMetadataChanges:true},snap=>{
     if(!snap.exists()||snap.metadata.hasPendingWrites)return;const data=snap.data(),json=JSON.stringify(data);firebase.remoteCache.meta=json;
-    const current=JSON.stringify(stateMetaPayload());if(json===current)return;
-    firebase.applyingRemote=true;Object.assign(state,data);firebase.applyingRemote=false;queueRemoteRender();
+    if(json===JSON.stringify(stateMetaPayload()))return;applyRemoteMeta(data);queueRemoteRender();
   },error=>{console.error(error);toast('Live workspace updates stopped. Check the Firestore rules.','error');}));
   for(const kind of SYNC_COLLECTIONS){
     firebase.unsubscribes.push(api.onSnapshot(api.collection(workspaceRef,kind),{includeMetadataChanges:true},snap=>{
       if(snap.metadata.hasPendingWrites)return;
-      const entries=snap.docs.map(docSnap=>{const raw=docSnap.data(),json=JSON.stringify(raw),order=Number(raw.__order)||0;firebase.remoteCache.collections[kind].set(docSnap.id,json);delete raw.__order;return {value:raw,order};}).sort((a,b)=>a.order-b.order);
+      const entries=snap.docs.map(docSnap=>{
+        const raw=docSnap.data(),json=JSON.stringify(raw),order=Number(raw.__order)||0;
+        firebase.remoteCache.collections[kind].set(docSnap.id,json);delete raw.__order;return {value:raw,order};
+      }).sort((a,b)=>a.order-b.order);
       const incoming=entries.map(x=>x.value);if(JSON.stringify(incoming)===JSON.stringify(state[kind]||[]))return;
       firebase.applyingRemote=true;state[kind]=incoming;firebase.applyingRemote=false;queueRemoteRender();
     },error=>{console.error(error);toast(`Live ${kind} updates stopped.`,'error');}));
@@ -8507,13 +8644,69 @@ function attachFirestoreListeners(){
 }
 
 saveState=async function(){
+  if(firebase.connected&&firebase.user&&!firebase.applyingRemote&&!canEditSharedWorld()){
+    el.saveStatus.textContent='Read only';
+    try{await loadRemoteWorkspace();render();}catch(error){console.error(error);}
+    toast('Your current role is read-only. Ask an owner to change your access.','error');return;
+  }
   try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));el.saveStatus.textContent=firebase.connected?'Syncing…':'Saved locally';}
   catch(error){el.saveStatus.textContent='Save failed';toast('This browser could not save the workspace. Download a backup.','error');console.error(error);}
   if(firebase.connected&&firebase.user&&!firebase.applyingRemote){
     try{await syncStateToFirestore();el.saveStatus.textContent='Synced';}
-    catch(error){el.saveStatus.textContent='Sync failed';console.error(error);toast(error.code==='permission-denied'?'Firestore blocked the save. Publish the included rules.':'The workspace could not sync.','error');}
+    catch(error){el.saveStatus.textContent='Sync failed';console.error(error);toast(error.code==='permission-denied'?'Your role does not allow this change, or the Firestore rules need updating.':'The workspace could not sync.','error');}
   }
 };
+
+renderShare=function(){
+  const members=state.workspace.members||[],ownerCount=members.filter(member=>member.role==='Owner').length,canManage=isWorkspaceOwner();
+  const rows=members.map(member=>{
+    const isLastOwner=member.role==='Owner'&&ownerCount<=1;
+    const disabled=!canManage;
+    const removeDisabled=disabled||isLastOwner;
+    return `<div class="member-row" data-member-row="${esc(member.id)}"><div class="member-person"><span class="avatar">${initials(member.email)}</span><span><strong>${esc(member.email)}</strong><div class="member-email">${member.uid?'Account connected':'Access granted · awaiting first sign-in'}</div></span></div><select class="select" data-shared-member-role="${esc(member.id)}" ${disabled?'disabled':''}>${['Owner','Admin','Editor','Commenter','Viewer'].map(role=>`<option value="${role}" ${member.role===role?'selected':''}>${role}</option>`).join('')}</select><button class="button ghost small" type="button" data-shared-remove-member="${esc(member.id)}" ${removeDisabled?'disabled':''} title="${isLastOwner?'Add or promote another owner before removing the last owner.':''}">Remove</button></div>`;
+  }).join('');
+  el.main.innerHTML=`${pageHead('Collaboration','Members & Access','Everyone listed here opens the same shared world. Owners can grant access, change roles, and remove members or other owners.',`<button class="button secondary" type="button" data-copy-share>Copy share link</button>`)}
+    <div class="share-callout"><strong>Shared world is connected.</strong><div class="property-help">Changes are syncing through Cloud Firestore. You are signed in as ${esc(firebase.user?.email||'your account')} with the ${esc(currentWorkspaceRole()||'Member')} role.</div></div>
+    ${canManage?`<div class="invite-form"><input id="inviteEmail" class="input" type="email" placeholder="name@example.com" aria-label="Member email"><select id="inviteRole" class="select" aria-label="Member role"><option>Editor</option><option>Viewer</option><option>Commenter</option><option>Admin</option><option>Owner</option></select><button class="button" type="button" data-shared-invite>Grant access</button></div><p class="member-access-note">Enter the same email the person will use to create or sign in to their Firebase account.</p>`:`<div class="share-callout compact"><strong>Only owners can manage access.</strong><div class="property-help">An owner can change your role or remove your access.</div></div>`}
+    <div class="member-list">${rows||'<div class="panel empty-state">No members found.</div>'}</div>`;
+  applyMemberIdentity();
+};
+
+async function grantSharedAccess(){
+  if(!isWorkspaceOwner()){toast('Only owners can grant access.','error');return;}
+  const email=normalizeMemberEmail(document.getElementById('inviteEmail')?.value),role=document.getElementById('inviteRole')?.value||'Editor';
+  if(!email||!/^\S+@\S+\.\S+$/.test(email)){toast('Enter a valid email address.','error');return;}
+  const existing=memberById(email),record={email,role,status:'Access granted',addedBy:normalizeMemberEmail(firebase.user.email),addedAt:existing?.addedAt||nowISO()};
+  if(existing?.uid)record.uid=existing.uid;if(existing?.lastSeenAt)record.lastSeenAt=existing.lastSeenAt;
+  await firebase.api.setDoc(firebaseMemberRef(email),record,{merge:true});
+  logActivity(`${existing?'Changed access for':'Granted access to'} ${email} as ${role}`);scheduleSave();toast(`${email} can now open this shared world.`);
+}
+async function changeSharedMemberRole(memberId,role){
+  if(!isWorkspaceOwner()){toast('Only owners can change roles.','error');renderShare();return;}
+  const member=memberById(memberId);if(!member)return;
+  if(member.role==='Owner'&&role!=='Owner'&&ownerMembers().length<=1){toast('Promote another owner before changing the last owner.','error');renderShare();return;}
+  await firebase.api.setDoc(firebaseMemberRef(member.email),{role,updatedAt:nowISO(),updatedBy:normalizeMemberEmail(firebase.user.email)},{merge:true});
+  logActivity(`Changed ${member.email} from ${member.role} to ${role}`);scheduleSave();
+}
+async function removeSharedMember(memberId){
+  if(!isWorkspaceOwner()){toast('Only owners can remove members.','error');return;}
+  const member=memberById(memberId);if(!member)return;
+  if(member.role==='Owner'&&ownerMembers().length<=1){toast('The last owner cannot be removed. Add or promote another owner first.','error');return;}
+  const removingSelf=normalizeMemberEmail(member.email)===normalizeMemberEmail(firebase.user.email);
+  await firebase.api.deleteDoc(firebaseMemberRef(member.email));
+  logActivity(`Removed access for ${member.email}`);scheduleSave();
+  if(removingSelf){firebase.pendingAuthMessage={message:'Your access to this shared world was removed.',type:'error'};await firebase.api.signOut(firebase.api.auth);}
+  else toast(`Removed ${member.email}.`);
+}
+
+document.addEventListener('click',event=>{
+  const invite=event.target.closest('[data-shared-invite]');if(invite){event.preventDefault();event.stopImmediatePropagation();grantSharedAccess().catch(error=>{console.error(error);toast('Access could not be updated. Check the Firestore rules.','error');});return;}
+  const remove=event.target.closest('[data-shared-remove-member]');if(remove){event.preventDefault();event.stopImmediatePropagation();removeSharedMember(remove.dataset.sharedRemoveMember).catch(error=>{console.error(error);toast('The member could not be removed.','error');});return;}
+},true);
+document.addEventListener('change',event=>{
+  const control=event.target.closest?.('[data-shared-member-role]');if(!control)return;
+  event.stopImmediatePropagation();changeSharedMemberRole(control.dataset.sharedMemberRole,control.value).catch(error=>{console.error(error);toast('The role could not be changed.','error');renderShare();});
+},true);
 
 initFirebase=async function(){
   el.authGate.classList.add('auth-loading');setAuthMessage('Checking your account…');
@@ -8522,37 +8715,53 @@ initFirebase=async function(){
     const authMod=await import('https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js');
     const fsMod=await import('https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js');
     const app=appMod.initializeApp(window.FIREBASE_CONFIG),auth=authMod.getAuth(app),db=fsMod.getFirestore(app);
-    await authMod.setPersistence(auth,authMod.browserLocalPersistence);
-    firebase.api={...authMod,...fsMod,auth,db};
+    await authMod.setPersistence(auth,authMod.browserLocalPersistence);firebase.api={...authMod,...fsMod,auth,db};
     authMod.onAuthStateChanged(auth,async user=>{
-      firebase.user=user;firebase.connected=Boolean(user);detachFirestoreListeners();
-      if(!user){showAuthGate();return;}
-      el.authGate.hidden=false;el.app.hidden=true;el.authGate.classList.add('auth-loading');setAuthMessage('Opening your workspace…');
+      firebase.user=user;firebase.connected=Boolean(user);firebase.currentMember=null;firebase.currentRole='';detachFirestoreListeners();
+      if(!user){
+        const pending=firebase.pendingAuthMessage;firebase.pendingAuthMessage=null;showAuthGate(pending?.message||'',pending?.type||'');return;
+      }
+      el.authGate.hidden=false;el.app.hidden=true;el.authGate.classList.add('auth-loading');setAuthMessage('Opening the shared world…');
       try{
-        state.workspace.ownerUid ||= user.uid;if(user.email&&!state.workspace.access?.[user.email.toLowerCase()]){state.workspace.access||={};state.workspace.access[user.email.toLowerCase()]='Owner';}
-        await loadRemoteWorkspace();attachFirestoreListeners();showAuthenticatedApp();render();el.saveStatus.textContent='Synced';
-      }catch(error){console.error(error);showAuthGate(error.code==='permission-denied'?'Your login worked, but Firestore denied access. Publish the included security rules.':'The workspace could not open. '+(error.message||''),'error');}
+        await bootstrapSharedWorkspace();await loadRemoteWorkspace();attachFirestoreListeners();showAuthenticatedApp();render();el.saveStatus.textContent='Synced';
+      }catch(error){
+        console.error(error);
+        if(error.code==='codex/access-denied'){
+          firebase.pendingAuthMessage={message:error.message,type:'error'};await authMod.signOut(auth);return;
+        }
+        showAuthGate(error.code==='permission-denied'?'Your login worked, but Firestore denied access. Publish the shared-workspace security rules.':'The shared world could not open. '+(error.message||''),'error');
+      }
     });
   }catch(error){console.error(error);showAuthGate('Firebase could not start. Check the internet connection and configuration.','error');}
 };
 
 accountAction=async function(){
   if(!firebase.user){showAuthGate();return;}
-  showModal('Account',`<div class="member-person"><span class="avatar">${initials(firebase.user.email||'Account')}</span><span><strong>${esc(firebase.user.email||'Signed-in account')}</strong><div class="member-email">Firebase account</div></span></div><div style="margin-top:18px"><span class="sync-pill"><i></i> Firestore syncing is active</span></div>`,`<button class="button secondary" type="button" data-sign-out>Sign out</button>`);
+  showModal('Account',`<div class="member-person"><span class="avatar">${initials(firebase.user.email||'Account')}</span><span><strong>${esc(firebase.user.email||'Signed-in account')}</strong><div class="member-email">${esc(currentWorkspaceRole()||'Member')} · Shared Firebase account</div></span></div><div style="margin-top:18px"><span class="sync-pill"><i></i> Shared-world syncing is active</span></div>`,`<button class="button secondary" type="button" data-sign-out>Sign out</button>`);
 };
 
 el.authForm.addEventListener('submit',async event=>{
-  event.preventDefault();if(!firebase.api)return;const email=el.authEmail.value.trim(),password=el.authPassword.value;
-  el.authSubmit.disabled=true;setAuthMessage('Signing in…');
+  event.preventDefault();if(!firebase.api)return;const email=normalizeMemberEmail(el.authEmail.value),password=el.authPassword.value;
+  el.authSubmit.disabled=true;if(el.authCreate)el.authCreate.disabled=true;setAuthMessage('Signing in…');
   try{await firebase.api.signInWithEmailAndPassword(firebase.api.auth,email,password);el.authPassword.value='';}
   catch(error){const copy=({'auth/invalid-credential':'The email or password is not correct.','auth/user-disabled':'This account has been disabled.','auth/too-many-requests':'Too many attempts. Wait a little and try again.'})[error.code]||'Sign-in did not complete.';setAuthMessage(copy,'error');}
-  finally{el.authSubmit.disabled=false;}
+  finally{el.authSubmit.disabled=false;if(el.authCreate)el.authCreate.disabled=false;}
+});
+el.authCreate?.addEventListener('click',async()=>{
+  if(!firebase.api)return;const email=normalizeMemberEmail(el.authEmail.value),password=el.authPassword.value;
+  if(!email||!password){setAuthMessage('Enter an email address and password first.','error');return;}
+  if(password.length<6){setAuthMessage('Use a password with at least six characters.','error');return;}
+  el.authSubmit.disabled=true;el.authCreate.disabled=true;setAuthMessage('Creating your account…');
+  try{await firebase.api.createUserWithEmailAndPassword(firebase.api.auth,email,password);el.authPassword.value='';}
+  catch(error){const copy=({'auth/email-already-in-use':'An account already exists for that email. Sign in instead.','auth/weak-password':'Use a stronger password.','auth/invalid-email':'Enter a valid email address.'})[error.code]||'The account could not be created.';setAuthMessage(copy,'error');}
+  finally{el.authSubmit.disabled=false;el.authCreate.disabled=false;}
 });
 el.authReset.addEventListener('click',async()=>{
-  if(!firebase.api)return;const email=el.authEmail.value.trim();if(!email){setAuthMessage('Enter your email address first.','error');el.authEmail.focus();return;}
+  if(!firebase.api)return;const email=normalizeMemberEmail(el.authEmail.value);if(!email){setAuthMessage('Enter your email address first.','error');el.authEmail.focus();return;}
   try{await firebase.api.sendPasswordResetEmail(firebase.api.auth,email);setAuthMessage('Password-reset instructions were sent to that email address.','success');}
   catch(error){setAuthMessage('The reset email could not be sent. Check the address and try again.','error');}
 });
+
 
 /* Images for location, species, and faction pages. */
 const SECTION_MEDIA_COPY={
