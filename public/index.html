@@ -3578,6 +3578,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
+window.CODEX_BUILD = "shared-world-login-repair-2026-07-31";
 </script>
   <script>
 (() => {
@@ -8464,8 +8465,7 @@ for(const kind of SYNC_COLLECTIONS) firebase.remoteCache.collections[kind]=new M
 Object.assign(el,{
   app:document.getElementById('app'),authGate:document.getElementById('authGate'),authForm:document.getElementById('authForm'),
   authEmail:document.getElementById('authEmail'),authPassword:document.getElementById('authPassword'),
-  authSubmit:document.getElementById('authSubmit'),authCreate:document.getElementById('authCreate'),
-  authReset:document.getElementById('authReset'),authMessage:document.getElementById('authMessage')
+  authSubmit:document.getElementById('authSubmit'),authMessage:document.getElementById('authMessage')
 });
 
 function normalizeMemberEmail(value){return String(value||'').trim().toLowerCase();}
@@ -8552,30 +8552,15 @@ async function bootstrapSharedWorkspace(){
   const memberRef=firebaseMemberRef(email);
   const memberSnap=await api.getDoc(memberRef);
   if(memberSnap.exists()){
-    const workspaceSnap=await api.getDoc(workspaceRef);
-    if(!workspaceSnap.exists()){
-      const error=new Error('The shared world record is missing. Ask an owner to restore the workspace backup.');
-      error.code='codex/workspace-missing';throw error;
-    }
-    firebase.currentMember={id:memberSnap.id,...memberSnap.data()};firebase.currentRole=firebase.currentMember.role||'Viewer';
+    firebase.currentMember={id:memberSnap.id,...memberSnap.data()};
+    firebase.currentRole=firebase.currentMember.role||'Viewer';
     await api.setDoc(memberRef,{uid:firebase.user.uid,lastSeenAt:nowISO()},{merge:true});
     return;
   }
-  try{
-    const workspaceSnap=await api.getDoc(workspaceRef);
-    if(workspaceSnap.exists()){
-      const error=new Error('This account has not been granted access to this world. Please contact the admin team.');
-      error.code='codex/access-denied';throw error;
-    }
-  }catch(error){
-    if(error.code==='permission-denied'){
-      const denied=new Error('This account has not been granted access to this world. Please contact the admin team.');
-      denied.code='codex/access-denied';throw denied;
-    }
-    throw error;
-  }
 
-  // First authenticated account creates the shared world. Prefer its previous private Firestore copy.
+  // No membership exists for this email. Attempt the one-time shared-world
+  // initialization as a single atomic batch. If another owner already created
+  // the world, Firestore rejects this batch and the account remains uninvited.
   await readWorkspaceFromRef(firebaseLegacyWorkspaceRef());
   normalizeState();
   state.workspace.members=[];state.workspace.access={};
@@ -8586,7 +8571,15 @@ async function bootstrapSharedWorkspace(){
   const batch=api.writeBatch(api.db);
   batch.set(workspaceRef,meta,{merge:false});
   batch.set(memberRef,ownerRecord,{merge:false});
-  await batch.commit();
+  try{
+    await batch.commit();
+  }catch(error){
+    if(error.code==='permission-denied'||error.code==='already-exists'||error.code==='failed-precondition'){
+      const denied=new Error('This account has not been granted access to this shared world. Please contact the admin team.');
+      denied.code='codex/access-denied';throw denied;
+    }
+    throw error;
+  }
   firebase.currentMember={id:email,...ownerRecord};firebase.currentRole='Owner';
   await syncStateToFirestore(true);
 }
@@ -8782,7 +8775,7 @@ initFirebase=async function(){
         if(error.code==='codex/access-denied'){
           firebase.pendingAuthMessage={message:error.message,type:'error'};await authMod.signOut(auth);return;
         }
-        showAuthGate(error.code==='permission-denied'?'Your login worked, but Firestore denied access. Publish the shared-workspace security rules.':'The shared world could not open. '+(error.message||''),'error');
+        showAuthGate(error.code==='permission-denied'?'Your login worked, but Firestore denied access. Publish the firestore.rules file included with this exact build, then refresh.':'The shared world could not open. '+(error.message||''),'error');
       }
     });
   }catch(error){console.error(error);showAuthGate('Firebase could not start. Check the internet connection and configuration.','error');}
@@ -8795,24 +8788,10 @@ accountAction=async function(){
 
 el.authForm.addEventListener('submit',async event=>{
   event.preventDefault();if(!firebase.api)return;const email=normalizeMemberEmail(el.authEmail.value),password=el.authPassword.value;
-  el.authSubmit.disabled=true;if(el.authCreate)el.authCreate.disabled=true;setAuthMessage('Signing in…');
+  el.authSubmit.disabled=true;setAuthMessage('Signing in…');
   try{await firebase.api.signInWithEmailAndPassword(firebase.api.auth,email,password);el.authPassword.value='';}
   catch(error){const copy=({'auth/invalid-credential':'The email or password is not correct.','auth/user-disabled':'This account has been disabled.','auth/too-many-requests':'Too many attempts. Wait a little and try again.'})[error.code]||'Sign-in did not complete.';setAuthMessage(copy,'error');}
-  finally{el.authSubmit.disabled=false;if(el.authCreate)el.authCreate.disabled=false;}
-});
-el.authCreate?.addEventListener('click',async()=>{
-  if(!firebase.api)return;const email=normalizeMemberEmail(el.authEmail.value),password=el.authPassword.value;
-  if(!email||!password){setAuthMessage('Enter an email address and password first.','error');return;}
-  if(password.length<6){setAuthMessage('Use a password with at least six characters.','error');return;}
-  el.authSubmit.disabled=true;el.authCreate.disabled=true;setAuthMessage('Creating your account…');
-  try{await firebase.api.createUserWithEmailAndPassword(firebase.api.auth,email,password);el.authPassword.value='';}
-  catch(error){const copy=({'auth/email-already-in-use':'An account already exists for that email. Sign in instead.','auth/weak-password':'Use a stronger password.','auth/invalid-email':'Enter a valid email address.'})[error.code]||'The account could not be created.';setAuthMessage(copy,'error');}
-  finally{el.authSubmit.disabled=false;el.authCreate.disabled=false;}
-});
-el.authReset?.addEventListener('click',async()=>{
-  if(!firebase.api)return;const email=normalizeMemberEmail(el.authEmail.value);if(!email){setAuthMessage('Enter your email address first.','error');el.authEmail.focus();return;}
-  try{await firebase.api.sendPasswordResetEmail(firebase.api.auth,email);setAuthMessage('Password-reset instructions were sent to that email address.','success');}
-  catch(error){setAuthMessage('The reset email could not be sent. Check the address and try again.','error');}
+  finally{el.authSubmit.disabled=false;}
 });
 
 
@@ -9061,8 +9040,6 @@ renderShare=function(){
   el.main.innerHTML=`${pageHead('Collaboration','Members & Access','Everyone listed here opens the same shared world. Owners can grant access, change roles, remove members, and send password-reset emails.',`<button class="button secondary" type="button" data-copy-share>Copy share link</button>`)}<div class="share-callout"><strong>Shared world is connected.</strong><div class="property-help">Changes are syncing through Cloud Firestore. You are signed in as ${esc(firebase.user?.email||'your account')} with the ${esc(currentWorkspaceRole()||'Member')} role.</div></div>${canManage?`<div class="invite-form"><input id="inviteEmail" class="input" type="email" placeholder="name@example.com" aria-label="Member email"><select id="inviteRole" class="select" aria-label="Member role"><option>Editor</option><option>Viewer</option><option>Commenter</option><option>Admin</option><option>Owner</option></select><button class="button" type="button" data-shared-invite>Grant access</button></div><p class="member-access-note">Granting access adds the email to this world. The email must also have a Firebase Authentication account before it can sign in. Public account creation is not available.</p>`:`<div class="share-callout compact"><strong>Only owners can manage access.</strong><div class="property-help">An owner can change your role, remove your access, or send a password-reset email.</div></div>`}<div class="member-list">${rows||'<div class="panel empty-state">No members found.</div>'}</div>`;applyMemberIdentity();
 };
 
-// Remove legacy public account actions even if an older browser cached the markup.
-el.authCreate?.remove();el.authReset?.remove();
 
 document.addEventListener('click',event=>{
   const newStory=event.target.closest('[data-new-story]');if(newStory){event.preventDefault();showNewStoryModal();return;}
