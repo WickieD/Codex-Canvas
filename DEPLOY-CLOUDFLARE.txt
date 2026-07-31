@@ -1,0 +1,18 @@
+CODEX CANVAS: CLOUDFLARE PAGES DEPLOYMENT
+
+Upload this package to the ROOT of a GitHub repository. Keep the public folder intact.
+
+Cloudflare Pages settings:
+- Production branch: main
+- Framework preset: None
+- Build command: exit 0
+- Build output directory: public
+- Root directory: leave blank
+
+Then select Save and Deploy. The live address will be:
+https://YOUR-PROJECT-NAME.pages.dev
+
+IMPORTANT
+- Hosting makes the app reachable online.
+- Until Firebase is configured, saved changes remain only in the browser/device where they were made.
+- The current HTML includes imported world data, so a public deployment exposes that content to anyone with the URL.

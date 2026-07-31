@@ -2,7 +2,7 @@
 
 Codex Canvas is a worldbuilding workspace I started making because I wanted something more flexible than a basic document or database.
 
-It is meant for keeping characters, locations, factions, timelines, relationships, and roleplay writing connected in one place. Instead of organizing everything as separate pages that never really interact, Codex Canvas lets the different parts of a world link together.
+It is meant for keeping characters, locations, species, factions, timelines, relationships, and roleplay writing connected in one place. Instead of organizing everything as separate pages that never really interact, Codex Canvas lets the different parts of a world link together.
 
 A character can be connected to a location, another character, a faction, an event, or a specific point in an RP. Locations can also be organized into expandable parent and child branches.
 
@@ -11,8 +11,9 @@ A character can be connected to a location, another character, a faction, an eve
 - Character profiles
 - Location pages and expandable location trees
 - Parent and child locations
-- Factions
-- Timeline events
+- Species and lineage records
+- Factions with customizable badges, colors, words, animals, and symbols
+- Timeline events with manual drag-and-drop ordering
 - Relationship and story graphs
 - A continuous RP reader with story-point bookmarks
 - Movable and resizable images
