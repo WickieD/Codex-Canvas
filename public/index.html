@@ -3469,7 +3469,7 @@ button:disabled { cursor: not-allowed; opacity: .48; }
         <button id="authReset" class="auth-secondary" type="button">Forgot your password?</button>
       </form>
       <div id="authMessage" class="auth-message">Checking your account…</div>
-      <p class="auth-privacy">Only accounts created in your Firebase project can enter. Your workspace is stored under the signed-in account.</p>
+      <p class="auth-privacy">If you'd like to join, please reach out to the admin team.</p>
     </div>
   </section>
   <div id="app" class="app-shell" hidden>
@@ -8428,7 +8428,7 @@ Object.assign(el,{
 function setAuthMessage(message,type=''){
   el.authMessage.textContent=message||'';el.authMessage.className=`auth-message${type?` ${type}`:''}`;
 }
-function showAuthGate(message='Sign in to open your workspace.',type=''){
+function showAuthGate(message='',type=''){
   el.app.hidden=true;el.authGate.hidden=false;el.authGate.classList.remove('auth-loading');setAuthMessage(message,type);requestAnimationFrame(()=>el.authEmail?.focus());
 }
 function showAuthenticatedApp(){el.authGate.hidden=true;el.app.hidden=false;}
