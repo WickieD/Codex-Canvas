@@ -3463,6 +3463,36 @@ button:disabled { cursor: not-allowed; opacity: .48; }
   .member-row select:disabled,.member-row button:disabled{opacity:.55;cursor:not-allowed}
   .auth-create{color:#fff0cd;font-weight:700}
 </style>
+
+<style id="codex-story-graph-password-controls-styles">
+  .entity-delete-top{margin-left:auto;border-color:color-mix(in srgb,var(--danger) 48%,var(--border));color:var(--danger)}
+  .member-row{grid-template-columns:minmax(0,1fr) auto auto;align-items:center}
+  .member-admin-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+  .member-admin-actions .select{min-width:125px}
+  .password-note{margin:10px 0 0;color:var(--muted);font-size:.86rem;line-height:1.5}
+  .password-form{display:grid;gap:13px}.password-form label{display:grid;gap:6px}.password-form label span{font-size:.82rem;font-weight:800;color:var(--muted)}
+  .story-library-toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
+  .story-library-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(285px,1fr));gap:16px}
+  .story-library-card{border:1px solid var(--border);border-radius:18px;background:var(--panel);padding:18px;display:grid;gap:13px;box-shadow:0 12px 28px rgba(0,0,0,.04)}
+  .story-library-card h3{margin:0;font:700 24px Georgia,serif}.story-library-card p{margin:0;color:var(--muted);line-height:1.55}
+  .story-card-stats{display:flex;gap:8px;flex-wrap:wrap}.story-card-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:3px}
+  .story-intersection-list{display:grid;gap:10px}.story-intersection-card{border:1px solid var(--border);border-radius:14px;background:var(--panel);padding:13px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center}
+  .story-intersection-card strong{display:block}.story-intersection-card small{display:block;color:var(--muted);margin-top:4px;line-height:1.45}
+  .story-manager{display:grid;gap:18px}.story-manager-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.story-manager-section{border:1px solid var(--border);border-radius:16px;padding:15px;background:var(--panel)}
+  .story-manager-section h3{margin:0 0 11px;font-size:18px}.story-point-manager-list,.graph-connection-manager-list{display:grid;gap:8px;margin-top:12px}
+  .story-point-manager-row,.graph-connection-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:center;border:1px solid var(--border);border-radius:12px;padding:10px;background:var(--surface)}
+  .story-point-manager-row small,.graph-connection-row small{display:block;color:var(--muted);margin-top:3px}
+  .story-manager-add,.graph-connection-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.story-manager-add .button,.graph-connection-form .button{align-self:end}
+  .graph-connection-panel{margin:16px 0;border:1px solid var(--section-line,var(--border));border-radius:18px;background:var(--section-panel,var(--panel));padding:16px;color:var(--section-ink,var(--text))}
+  .graph-connection-panel summary{cursor:pointer;font-weight:800;list-style:none}.graph-connection-panel summary::-webkit-details-marker{display:none}.graph-connection-panel summary::after{content:'+';float:right;color:var(--section-accent,var(--accent))}.graph-connection-panel[open] summary::after{content:'−'}
+  .graph-connection-panel-body{display:grid;gap:15px;margin-top:15px}.graph-connection-row{grid-template-columns:minmax(0,1fr) minmax(150px,.7fr) auto;background:var(--section-paper-2,var(--surface));border-color:var(--section-line,var(--border))}
+  .graph-connection-row input{width:100%}.graph-connection-description{grid-column:1 / -1;color:var(--section-muted,var(--muted));font-size:.86rem}
+  .intersection-board{margin-top:24px}.intersection-board h2{margin-bottom:8px}
+  .empty-story-workspace{border:1px dashed var(--border);border-radius:20px;padding:34px;text-align:center;background:var(--panel)}
+  .empty-story-workspace h2{font:700 28px Georgia,serif;margin:0 0 10px}.empty-story-workspace p{max-width:680px;margin:0 auto 18px;color:var(--muted);line-height:1.55}
+  @media(max-width:780px){.member-row{grid-template-columns:1fr}.member-admin-actions{justify-content:flex-start}.story-manager-grid,.story-manager-add,.graph-connection-form{grid-template-columns:1fr}.graph-connection-row{grid-template-columns:1fr}.story-intersection-card{grid-template-columns:1fr}}
+</style>
+
 </head>
 <body>
 
@@ -3473,8 +3503,6 @@ button:disabled { cursor: not-allowed; opacity: .48; }
         <label class="auth-field"><span>Email address</span><input id="authEmail" type="email" autocomplete="email" required></label>
         <label class="auth-field"><span>Password</span><input id="authPassword" type="password" autocomplete="current-password" required></label>
         <button id="authSubmit" class="auth-submit" type="submit">Sign in</button>
-        <button id="authCreate" class="auth-secondary auth-create" type="button">Create an account</button>
-        <button id="authReset" class="auth-secondary" type="button">Forgot your password?</button>
       </form>
       <div id="authMessage" class="auth-message">Checking your account…</div>
       <p class="auth-privacy">If you'd like to join, please reach out to the admin team.</p>
@@ -8657,6 +8685,31 @@ saveState=async function(){
   }
 };
 
+
+function generatedTemporaryPassword(){
+  const bytes=new Uint8Array(30);crypto.getRandomValues(bytes);const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*';return [...bytes].map(value=>alphabet[value%alphabet.length]).join('');
+}
+async function provisionFirebasePasswordAccount(email){
+  const response=await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${encodeURIComponent(window.FIREBASE_CONFIG.apiKey)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:generatedTemporaryPassword(),returnSecureToken:false})});
+  const payload=await response.json().catch(()=>({}));
+  if(response.ok)return {created:true,uid:payload.localId||''};
+  const code=String(payload?.error?.message||'');if(code.startsWith('EMAIL_EXISTS'))return {created:false,exists:true};
+  throw new Error(code||'Firebase account creation failed.');
+}
+grantSharedAccess=async function(){
+  if(!isWorkspaceOwner()){toast('Only owners can grant access.','error');return;}
+  const email=normalizeMemberEmail(document.getElementById('inviteEmail')?.value),role=document.getElementById('inviteRole')?.value||'Editor';
+  if(!email||!/^\S+@\S+\.\S+$/.test(email)){toast('Enter a valid email address.','error');return;}
+  const existing=memberById(email),record={email,role,status:'Access granted',addedBy:normalizeMemberEmail(firebase.user.email),addedAt:existing?.addedAt||nowISO()};if(existing?.uid)record.uid=existing.uid;if(existing?.lastSeenAt)record.lastSeenAt=existing.lastSeenAt;
+  await firebase.api.setDoc(firebaseMemberRef(email),record,{merge:true});
+  let provisioned=null;
+  try{provisioned=await provisionFirebasePasswordAccount(email);if(provisioned.uid)await firebase.api.setDoc(firebaseMemberRef(email),{provisionedUid:provisioned.uid,accountProvisionedAt:nowISO()},{merge:true});}
+  catch(error){console.error(error);toast(`${email} was granted workspace access, but its Firebase login could not be created automatically.`,'error');logActivity(`${existing?'Changed access for':'Granted access to'} ${email} as ${role}`);scheduleSave();renderShare();return;}
+  try{if(provisioned.created)await firebase.api.sendPasswordResetEmail(firebase.api.auth,email,{url:'https://codex-canvas.pages.dev'});}catch(error){console.error(error);}
+  logActivity(`${existing?'Changed access for':'Granted access to'} ${email} as ${role}`);scheduleSave();renderShare();
+  toast(provisioned.created?`${email} was added. Firebase sent an email so they can choose their own password.`:`${email} was added. The existing Firebase account can sign in.`);
+};
+
 renderShare=function(){
   const members=state.workspace.members||[],ownerCount=members.filter(member=>member.role==='Owner').length,canManage=isWorkspaceOwner();
   const rows=members.map(member=>{
@@ -8756,7 +8809,7 @@ el.authCreate?.addEventListener('click',async()=>{
   catch(error){const copy=({'auth/email-already-in-use':'An account already exists for that email. Sign in instead.','auth/weak-password':'Use a stronger password.','auth/invalid-email':'Enter a valid email address.'})[error.code]||'The account could not be created.';setAuthMessage(copy,'error');}
   finally{el.authSubmit.disabled=false;el.authCreate.disabled=false;}
 });
-el.authReset.addEventListener('click',async()=>{
+el.authReset?.addEventListener('click',async()=>{
   if(!firebase.api)return;const email=normalizeMemberEmail(el.authEmail.value);if(!email){setAuthMessage('Enter your email address first.','error');el.authEmail.focus();return;}
   try{await firebase.api.sendPasswordResetEmail(firebase.api.auth,email);setAuthMessage('Password-reset instructions were sent to that email address.','success');}
   catch(error){setAuthMessage('The reset email could not be sent. Check the address and try again.','error');}
@@ -8809,6 +8862,237 @@ document.addEventListener('click',event=>{
 document.addEventListener('change',event=>{const input=event.target.closest?.('[data-section-media-input]');if(!input)return;const file=input.files?.[0];if(file){const [kind,slot,itemId]=input.dataset.sectionMediaInput.split(':');setSectionMedia(kind,itemId,slot,file);}input.value='';});
 document.addEventListener('dragover',event=>{if(event.target.closest?.('[data-section-media-select]'))event.preventDefault();});
 document.addEventListener('drop',event=>{const slot=event.target.closest?.('[data-section-media-select]');if(!slot)return;event.preventDefault();const file=[...(event.dataTransfer?.files||[])].find(x=>x.type?.startsWith('image/'));if(file){const [kind,mediaSlot,itemId]=slot.dataset.sectionMediaSelect.split(':');setSectionMedia(kind,itemId,mediaSlot,file);}});
+
+
+/* === Story library, editable graph branches, delete controls, and private password management === */
+const normalizeStateBeforeStoryTools = normalizeState;
+normalizeState = function(){
+  normalizeStateBeforeStoryTools();
+  state.storyGraphs ||= [];
+  state.storyIntersections ||= [];
+  state.graphConnections ||= [];
+  for(const story of state.storyGraphs){
+    story.id ||= id('story'); story.name ||= 'Untitled Story'; story.description ||= '';
+    story.nodes ||= []; story.links ||= []; story.positions ||= {}; story.rpTurns ||= [];
+    story.links.forEach(link=>{link.id ||= id('story-link');link.label ||= 'Continues to';link.description ||= '';});
+  }
+  state.storyIntersections = state.storyIntersections.filter(Boolean).map(item=>({id:item.id||id('intersection'),label:item.label||'Story intersection',description:item.description||'',...item}));
+  state.graphConnections = state.graphConnections.filter(Boolean).map(item=>({id:item.id||id('connection'),label:item.label||'Connected',description:item.description||'',...item}));
+};
+normalizeState();
+
+const stateMetaPayloadBeforeStoryTools = stateMetaPayload;
+stateMetaPayload = function(){
+  const payload = stateMetaPayloadBeforeStoryTools();
+  payload.storyIntersections = cleanFirestoreValue(state.storyIntersections || []);
+  payload.graphConnections = cleanFirestoreValue(state.graphConnections || []);
+  return payload;
+};
+
+function graphNodePrefixForKind(kind){return ({characters:'character',locations:'location',species:'species',factions:'faction',events:'event'})[kind]||kind;}
+const deleteItemBeforeStoryTools = deleteItem;
+deleteItem = function(kind,itemId){
+  const existing=getItem(kind,itemId); if(!existing)return;
+  const nodeId=`${graphNodePrefixForKind(kind)}:${itemId}`;
+  deleteItemBeforeStoryTools(kind,itemId);
+  if(getItem(kind,itemId))return;
+  for(const story of state.storyGraphs||[]){
+    story.nodes=(story.nodes||[]).filter(node=>node.id!==nodeId);
+    story.links=(story.links||[]).filter(link=>link.source!==nodeId&&link.target!==nodeId);
+    delete story.positions?.[nodeId];
+  }
+  state.storyIntersections=(state.storyIntersections||[]).filter(item=>item.nodeAId!==nodeId&&item.nodeBId!==nodeId);
+  state.graphConnections=(state.graphConnections||[]).filter(item=>item.source!==nodeId&&item.target!==nodeId);
+  if(kind==='species')state.characters.forEach(person=>{if(person.speciesId===itemId)person.speciesId='';});
+  scheduleSave();
+};
+
+function ensureProminentDeleteControl(){
+  const kind=collectionForView(route.view); if(!kind||!route.id||!getItem(kind,route.id))return;
+  const row=document.querySelector('.entity-title-row'); if(!row||row.querySelector('.entity-delete-top'))return;
+  const button=document.createElement('button');button.type='button';button.className='button ghost small entity-delete-top';button.dataset.delete=`${kind}:${route.id}`;button.textContent=`Delete ${COLLECTIONS[kind]?.singular||'item'}`;row.append(button);
+}
+const renderBeforeStoryTools = render;
+render = function(){renderBeforeStoryTools();requestAnimationFrame(ensureProminentDeleteControl);};
+
+function storyById(storyId){return (state.storyGraphs||[]).find(story=>story.id===storyId)||null;}
+function storyFirstRoute(story){const first=(story?.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0))[0];return first?storyRouteValue(story.id,first.id):story.id;}
+function storyIntersectionCount(storyId){return (state.storyIntersections||[]).filter(item=>item.storyAId===storyId||item.storyBId===storyId).length;}
+function allGraphPointOptions(){
+  return [
+    ...state.characters.map(x=>({value:`character:${x.id}`,label:`Person · ${x.name}`})),
+    ...state.locations.map(x=>({value:`location:${x.id}`,label:`Location · ${x.name}`})),
+    ...state.species.map(x=>({value:`species:${x.id}`,label:`Species · ${x.name}`})),
+    ...state.factions.map(x=>({value:`faction:${x.id}`,label:`Faction · ${x.name}`})),
+    ...state.events.map(x=>({value:`event:${x.id}`,label:`Event · ${x.name}`}))
+  ];
+}
+function storyPointOptions(story){return (story?.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0)).map(node=>({value:node.id,label:`${node.order||''} · ${storyNodeName(node.id)}`}));}
+function renderStoryLibrary(){
+  const stories=state.storyGraphs||[];
+  const cards=stories.map(story=>{
+    const points=(story.nodes||[]).length,posts=(story.rpTurns||[]).length,intersections=storyIntersectionCount(story.id);
+    return `<article class="story-library-card"><div><span class="eyebrow">Story workspace</span><h3>${esc(story.name)}</h3></div><p>${esc(story.description||'Add the purpose, arc, or time period covered by this story.')}</p><div class="story-card-stats"><span class="tag">${points} point${points===1?'':'s'}</span><span class="tag">${posts} RP post${posts===1?'':'s'}</span><span class="tag">${intersections} intersection${intersections===1?'':'s'}</span></div><div class="story-card-actions"><button class="button" type="button" data-open-story="${esc(story.id)}">${points?'Open story':'Set up story'}</button><button class="button secondary" type="button" data-manage-story="${esc(story.id)}">Manage</button><button class="button ghost" type="button" data-story-graph="${esc(story.id)}">Open graph</button><button class="button ghost" type="button" data-delete-story="${esc(story.id)}">Delete</button></div></article>`;
+  }).join('');
+  const intersectionCards=(state.storyIntersections||[]).map(item=>{
+    const a=storyById(item.storyAId),b=storyById(item.storyBId);if(!a||!b)return '';
+    return `<article class="story-intersection-card"><div><strong>${esc(item.label||'Story intersection')}</strong><small>${esc(a.name)} at ${esc(storyNodeName(item.nodeAId))} ↔ ${esc(b.name)} at ${esc(storyNodeName(item.nodeBId))}${item.description?` · ${esc(item.description)}`:''}</small></div><button class="button ghost small" type="button" data-delete-intersection="${esc(item.id)}">Remove</button></article>`;
+  }).join('');
+  el.main.innerHTML=`${pageHead('Roleplay writing','Story Library','Create as many independent or interconnected stories as your world needs.',`<button class="button" type="button" data-new-story>New story</button><button class="button secondary" type="button" data-nav="graph">Open graphs</button>`)}<div class="story-library-toolbar"><p class="page-subtitle">Each story keeps its own RP sheet and graph points. Intersections record where two stories meet without forcing every story into one path.</p></div>${cards?`<div class="story-library-grid">${cards}</div>`:'<div class="empty-story-workspace"><h2>No stories yet</h2><p>Create the first story, then add people, places, factions, species, or events as story points.</p><button class="button" type="button" data-new-story>Create the first story</button></div>'}<section class="intersection-board"><h2>Story intersections</h2><p class="page-subtitle">Intersections are shared moments where two otherwise separate stories cross.</p><div class="story-intersection-list">${intersectionCards||'<div class="panel empty-state">No story intersections have been added yet.</div>'}</div></section>`;
+}
+function showNewStoryModal(){
+  showModal('Create a story',`<div class="story-manager"><label><span>Story name</span><input id="newStoryName" class="input" type="text" placeholder="Story name"></label><label><span>Description</span><textarea id="newStoryDescription" class="textarea" rows="4" placeholder="What arc, RP, or time period does this story cover?"></textarea></label></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-create-story>Create story</button>`);
+  requestAnimationFrame(()=>document.getElementById('newStoryName')?.focus());
+}
+function createStoryFromModal(){
+  const name=document.getElementById('newStoryName')?.value.trim();if(!name){toast('Enter a story name.','error');return;}
+  const story={id:id('story'),name,description:document.getElementById('newStoryDescription')?.value.trim()||'',nodes:[],links:[],positions:{},rpTurns:[]};
+  state.storyGraphs.push(story);graphSettings.storyId=story.id;logActivity(`Created story ${name}`);scheduleSave();closeModal();showStoryManager(story.id);
+}
+function showStoryManager(storyId){
+  const story=storyById(storyId);if(!story)return;
+  const points=storyPointOptions(story),allPoints=allGraphPointOptions().filter(option=>!(story.nodes||[]).some(node=>node.id===option.value));
+  const otherStories=(state.storyGraphs||[]).filter(item=>item.id!==story.id);
+  const pointRows=(story.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0)).map(node=>`<div class="story-point-manager-row"><span><strong>${esc(storyNodeName(node.id))}</strong><small>${esc(node.role||'Story point')} · Point ${esc(node.order||'')}</small></span><button class="button ghost small" type="button" data-remove-story-point="${esc(story.id)}|${esc(node.id)}">Remove</button></div>`).join('');
+  const intersections=(state.storyIntersections||[]).filter(item=>item.storyAId===story.id||item.storyBId===story.id).map(item=>{const other=storyById(item.storyAId===story.id?item.storyBId:item.storyAId);return `<div class="story-point-manager-row"><span><strong>${esc(item.label)}</strong><small>${esc(other?.name||'Other story')} · ${esc(item.description||'Shared story point')}</small></span><button class="button ghost small" type="button" data-delete-intersection="${esc(item.id)}">Remove</button></div>`;}).join('');
+  showModal(`Manage ${story.name}`,`<div class="story-manager"><div class="story-manager-grid"><label><span>Story name</span><input class="input" value="${esc(story.name)}" data-story-name="${esc(story.id)}"></label><label><span>Description</span><textarea class="textarea" rows="3" data-story-description="${esc(story.id)}">${esc(story.description||'')}</textarea></label></div><section class="story-manager-section"><h3>Story points</h3><div class="story-manager-add"><label><span>Add a person, place, group, species, or event</span><select id="storyPointToAdd" class="select"><option value="">Choose a point</option>${allPoints.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('')}</select></label><label><span>Point role</span><input id="storyPointRole" class="input" placeholder="Story turn, setting, branch…"></label><button class="button" type="button" data-add-story-point="${esc(story.id)}">Add point</button></div><div class="story-point-manager-list">${pointRows||'<p class="page-subtitle">No points yet.</p>'}</div></section><section class="story-manager-section"><h3>Connect this story to another story</h3>${otherStories.length&&points.length?`<div class="story-manager-add"><label><span>Other story</span><select id="intersectionOtherStory" class="select"><option value="">Choose a story</option>${otherStories.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}</select></label><label><span>This story point</span><select id="intersectionThisPoint" class="select">${points.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('')}</select></label><label><span>Other story point</span><select id="intersectionOtherPoint" class="select"><option value="">Choose the other story first</option></select></label><label><span>Intersection name</span><input id="intersectionLabel" class="input" placeholder="Paths cross, shared aftermath…"></label><label style="grid-column:1/-1"><span>Description</span><input id="intersectionDescription" class="input" placeholder="What connects these stories here?"></label><button class="button" type="button" data-add-intersection="${esc(story.id)}">Add intersection</button></div>`:'<p class="page-subtitle">Add points to this story and create at least one other story before adding an intersection.</p>'}<div class="story-point-manager-list">${intersections||''}</div></section></div>`,`<button class="button secondary" type="button" data-close-modal>Done</button><button class="button" type="button" data-open-story="${esc(story.id)}">Open story</button>`);
+}
+function addStoryPoint(storyId){
+  const story=storyById(storyId),nodeId=document.getElementById('storyPointToAdd')?.value;if(!story||!nodeId)return;
+  const role=document.getElementById('storyPointRole')?.value.trim()||'Story point';const ordered=(story.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0));const previous=ordered.at(-1);
+  const node={id:nodeId,order:ordered.length+1,role,passage:{title:'',summary:'',anchorTurnId:'',turns:[]}};story.nodes.push(node);
+  if(previous)story.links.push({id:id('story-link'),source:previous.id,target:nodeId,label:'Continues to',description:'',mainPath:true,curve:0});
+  scheduleSave();showStoryManager(storyId);
+}
+function removeStoryPoint(storyId,nodeId){
+  const story=storyById(storyId);if(!story)return;story.nodes=(story.nodes||[]).filter(node=>node.id!==nodeId);story.links=(story.links||[]).filter(link=>link.source!==nodeId&&link.target!==nodeId);delete story.positions?.[nodeId];story.nodes.sort((a,b)=>(a.order||0)-(b.order||0)).forEach((node,index)=>node.order=index+1);state.storyIntersections=(state.storyIntersections||[]).filter(item=>!(item.storyAId===storyId&&item.nodeAId===nodeId)&&!(item.storyBId===storyId&&item.nodeBId===nodeId));scheduleSave();showStoryManager(storyId);
+}
+function addStoryIntersection(storyId){
+  const otherStoryId=document.getElementById('intersectionOtherStory')?.value,nodeAId=document.getElementById('intersectionThisPoint')?.value,nodeBId=document.getElementById('intersectionOtherPoint')?.value,label=document.getElementById('intersectionLabel')?.value.trim()||'Story intersection',description=document.getElementById('intersectionDescription')?.value.trim()||'';
+  if(!otherStoryId||!nodeAId||!nodeBId){toast('Choose both stories and both story points.','error');return;}
+  state.storyIntersections.push({id:id('intersection'),storyAId:storyId,nodeAId,storyBId:otherStoryId,nodeBId,label,description});scheduleSave();showStoryManager(storyId);
+}
+function deleteStory(storyId){const story=storyById(storyId);if(!story||!confirm(`Delete “${story.name}” and its RP sheet?`))return;state.storyGraphs=state.storyGraphs.filter(x=>x.id!==storyId);state.storyIntersections=(state.storyIntersections||[]).filter(x=>x.storyAId!==storyId&&x.storyBId!==storyId);if(graphSettings.storyId===storyId)graphSettings.storyId=state.storyGraphs[0]?.id||'';scheduleSave();renderStoryLibrary();}
+
+const renderStoryReaderBeforeLibrary = renderStoryReader;
+renderStoryReader = function(){
+  if(!route.id||route.id==='library'){renderStoryLibrary();return;}
+  const parsed=parseStoryRouteValue(route.id),story=storyById(parsed.storyId);
+  if(story&&!story.nodes?.length){el.main.innerHTML=`${pageHead('Roleplay story',story.name,story.description||'This story is ready for its first story point.',`<button class="button secondary" type="button" data-nav="story">Story library</button><button class="button" type="button" data-manage-story="${esc(story.id)}">Set up story</button>`)}<div class="empty-story-workspace"><h2>Add the first story point</h2><p>A story point can be a person, place, faction, species, or event. Points can be connected and given custom branch labels in the Graph page.</p><button class="button" type="button" data-manage-story="${esc(story.id)}">Add story points</button></div>`;return;}
+  renderStoryReaderBeforeLibrary();
+};
+
+const graphRelationFiltersBeforeCustom = graphRelationFilters;
+graphRelationFilters = function(){const values=graphRelationFiltersBeforeCustom();if(graphSettings.graphType!=='story'&&!values.some(x=>x.key==='custom'))values.push({key:'custom',label:'Custom branches'});return values;};
+const graphRelationLabelBeforeCustom = graphRelationLabel;
+graphRelationLabel = function(type){return type==='custom'?'custom branch':graphRelationLabelBeforeCustom(type);};
+const graphConnectionSentenceBeforeCustom = graphConnectionSentence;
+graphConnectionSentence = function(nodeId,link,byId){
+  if(link.type==='custom'){
+    const sourceId=typeof link.source==='string'?link.source:link.source.id,targetId=typeof link.target==='string'?link.target:link.target.id,other=byId.get(sourceId===nodeId?targetId:sourceId);
+    return `${link.label||'Connected'}${other?` · ${other.label}`:''}${link.description?` — ${link.description}`:''}`;
+  }
+  const base=graphConnectionSentenceBeforeCustom(nodeId,link,byId);return link.description?`${base} — ${link.description}`:base;
+};
+const graphDataBeforeCustom = graphData;
+graphData = function(){
+  const data=graphDataBeforeCustom();
+  if(graphSettings.graphType==='story'){
+    const story=activeStoryGraph();for(const link of data.links){const source=typeof link.source==='string'?link.source:link.source.id,target=typeof link.target==='string'?link.target:link.target.id;const saved=(story?.links||[]).find(x=>x.source===source&&x.target===target&&x.label===link.label);if(saved){link.id=saved.id;link.description=saved.description||'';}}
+    return data;
+  }
+  if(graphSettings.visibleRelations.custom===false)return data;
+  const nodeIds=new Set(data.nodes.map(node=>node.id)),existing=new Set(data.links.map(link=>{const s=typeof link.source==='string'?link.source:link.source.id,t=typeof link.target==='string'?link.target:link.target.id;return `${s}|${t}|${link.type}|${link.label||''}`;}));
+  for(const branch of state.graphConnections||[]){
+    if(!nodeIds.has(branch.source)||!nodeIds.has(branch.target))continue;const key=`${branch.source}|${branch.target}|custom|${branch.label||''}`;if(existing.has(key))continue;data.links.push({id:branch.id,source:branch.source,target:branch.target,type:'custom',label:branch.label||'Connected',description:branch.description||''});
+  }
+  return data;
+};
+
+function graphConnectionNodeOptions(){
+  if(graphSettings.graphType==='story')return storyPointOptions(activeStoryGraph());
+  if(graphSettings.graphType==='characters')return state.characters.map(x=>({value:`character:${x.id}`,label:x.name}));
+  if(graphSettings.graphType==='locations')return state.locations.map(x=>({value:`location:${x.id}`,label:x.name}));
+  return allGraphPointOptions();
+}
+function graphConnectionManagerHtml(){
+  const options=graphConnectionNodeOptions();
+  if(graphSettings.graphType==='story'){
+    const story=activeStoryGraph();if(!story)return '';
+    const rows=(story.links||[]).map(link=>`<div class="graph-connection-row"><span><strong>${esc(storyNodeName(link.source))} → ${esc(storyNodeName(link.target))}</strong><small>${link.mainPath===false?'Branch path':'Main path'}</small></span><input class="input" value="${esc(link.label||'')}" data-story-link-label="${esc(story.id)}|${esc(link.id)}" aria-label="Connection label"><button class="button ghost small" type="button" data-delete-story-link="${esc(story.id)}|${esc(link.id)}">Delete</button><input class="input graph-connection-description" value="${esc(link.description||'')}" data-story-link-description="${esc(story.id)}|${esc(link.id)}" placeholder="Optional explanation of this branch"></div>`).join('');
+    return `<details class="graph-connection-panel" open><summary>Edit story branches</summary><div class="graph-connection-panel-body"><p class="page-subtitle">Name each line exactly as it should read, such as “Bond established,” “Leaves the main path,” or “Reunites here.”</p><div class="graph-connection-form"><label><span>From</span><select id="graphConnectionFrom" class="select"><option value="">Choose a point</option>${options.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('')}</select></label><label><span>To</span><select id="graphConnectionTo" class="select"><option value="">Choose a point</option>${options.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('')}</select></label><label><span>Branch name</span><input id="graphConnectionLabel" class="input" placeholder="Bond established"></label><label><span>Path type</span><select id="graphConnectionPathType" class="select"><option value="main">Main path</option><option value="branch">Branch path</option></select></label><label style="grid-column:1/-1"><span>Description</span><input id="graphConnectionDescription" class="input" placeholder="Optional explanation"></label><button class="button" type="button" data-add-graph-connection>Add branch</button></div><div class="graph-connection-manager-list">${rows||'<p class="page-subtitle">No branches yet.</p>'}</div></div></details>`;
+  }
+  const rows=(state.graphConnections||[]).filter(branch=>options.some(x=>x.value===branch.source)&&options.some(x=>x.value===branch.target)).map(branch=>`<div class="graph-connection-row"><span><strong>${esc(resolveGraphNode(branch.source)?.label||branch.source)} ↔ ${esc(resolveGraphNode(branch.target)?.label||branch.target)}</strong><small>Custom graph branch</small></span><input class="input" value="${esc(branch.label||'')}" data-custom-link-label="${esc(branch.id)}"><button class="button ghost small" type="button" data-delete-custom-link="${esc(branch.id)}">Delete</button><input class="input graph-connection-description" value="${esc(branch.description||'')}" data-custom-link-description="${esc(branch.id)}" placeholder="Optional explanation of this connection"></div>`).join('');
+  return `<details class="graph-connection-panel"><summary>Add or rename custom branches</summary><div class="graph-connection-panel-body"><div class="graph-connection-form"><label><span>First point</span><select id="graphConnectionFrom" class="select"><option value="">Choose a point</option>${options.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('')}</select></label><label><span>Second point</span><select id="graphConnectionTo" class="select"><option value="">Choose a point</option>${options.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('')}</select></label><label><span>Branch name</span><input id="graphConnectionLabel" class="input" placeholder="Bond established"></label><label><span>Description</span><input id="graphConnectionDescription" class="input" placeholder="Optional explanation"></label><button class="button" type="button" data-add-graph-connection>Add branch</button></div><div class="graph-connection-manager-list">${rows||'<p class="page-subtitle">No custom branches in this view.</p>'}</div></div></details>`;
+}
+const renderGraphPageBeforeConnections = renderGraphPage;
+renderGraphPage = function(){renderGraphPageBeforeConnections();const guide=document.querySelector('.graph-reading-guide');guide?.insertAdjacentHTML('beforebegin',`<div class="page-actions" style="margin:0 0 12px"><button class="button secondary small" type="button" data-nav="story">Story library</button></div>${graphConnectionManagerHtml()}`);};
+function addGraphConnection(){
+  const source=document.getElementById('graphConnectionFrom')?.value,target=document.getElementById('graphConnectionTo')?.value,label=document.getElementById('graphConnectionLabel')?.value.trim()||'Connected',description=document.getElementById('graphConnectionDescription')?.value.trim()||'';if(!source||!target||source===target){toast('Choose two different points.','error');return;}
+  if(graphSettings.graphType==='story'){const story=activeStoryGraph();if(!story)return;story.links.push({id:id('story-link'),source,target,label,description,mainPath:document.getElementById('graphConnectionPathType')?.value!=='branch',curve:0});}
+  else state.graphConnections.push({id:id('connection'),source,target,label,description});
+  scheduleSave();renderGraphPage();
+}
+
+function showChangePasswordModal(){
+  showModal('Change password',`<div class="password-form"><p class="page-subtitle">This changes only your own Firebase password. No owner or member can view it.</p><label><span>Current password</span><input id="currentAccountPassword" class="input" type="password" autocomplete="current-password"></label><label><span>New password</span><input id="newAccountPassword" class="input" type="password" autocomplete="new-password"></label><label><span>Confirm new password</span><input id="confirmAccountPassword" class="input" type="password" autocomplete="new-password"></label></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-save-new-password>Change password</button>`);
+}
+async function changeOwnPassword(){
+  const current=document.getElementById('currentAccountPassword')?.value||'',next=document.getElementById('newAccountPassword')?.value||'',confirmNext=document.getElementById('confirmAccountPassword')?.value||'';
+  if(!current||!next){toast('Enter your current and new password.','error');return;}if(next.length<6){toast('Use a password with at least six characters.','error');return;}if(next!==confirmNext){toast('The new passwords do not match.','error');return;}
+  try{const credential=firebase.api.EmailAuthProvider.credential(firebase.user.email,current);await firebase.api.reauthenticateWithCredential(firebase.user,credential);await firebase.api.updatePassword(firebase.user,next);closeModal();toast('Your password was changed.');}
+  catch(error){console.error(error);toast(error.code==='auth/invalid-credential'?'The current password is not correct.':'The password could not be changed.','error');}
+}
+async function ownerSendPasswordReset(memberId){
+  if(!isWorkspaceOwner()){toast('Only owners can send password resets.','error');return;}const member=memberById(memberId);if(!member)return;
+  if(!confirm(`Send a password-reset email to ${member.email}?`))return;
+  try{await firebase.api.sendPasswordResetEmail(firebase.api.auth,member.email,{url:'https://codex-canvas.pages.dev'});toast(`Password-reset email sent to ${member.email}.`);}
+  catch(error){console.error(error);toast('The reset email could not be sent. Confirm that this email already has a Firebase Authentication account.','error');}
+}
+
+accountAction=async function(){
+  if(!firebase.user){showAuthGate();return;}
+  showModal('Account',`<div class="member-person"><span class="avatar">${initials(firebase.user.email||'Account')}</span><span><strong>${esc(firebase.user.email||'Signed-in account')}</strong><div class="member-email">${esc(currentWorkspaceRole()||'Member')} · Shared Firebase account</div></span></div><div style="margin-top:18px"><span class="sync-pill"><i></i> Shared-world syncing is active</span><p class="password-note">Passwords are managed by Firebase and are never visible to workspace owners.</p></div>`,`<button class="button ghost" type="button" data-change-own-password>Change password</button><button class="button secondary" type="button" data-sign-out>Sign out</button>`);
+};
+
+renderShare=function(){
+  const members=state.workspace.members||[],ownerCount=members.filter(member=>member.role==='Owner').length,canManage=isWorkspaceOwner();
+  const rows=members.map(member=>{const isLastOwner=member.role==='Owner'&&ownerCount<=1,disabled=!canManage,removeDisabled=disabled||isLastOwner;return `<div class="member-row" data-member-row="${esc(member.id)}"><div class="member-person"><span class="avatar">${initials(member.email)}</span><span><strong>${esc(member.email)}</strong><div class="member-email">${member.uid?'Account connected':'Access granted · Firebase login may still need to be created'}</div></span></div><div class="member-admin-actions"><select class="select" data-shared-member-role="${esc(member.id)}" ${disabled?'disabled':''}>${['Owner','Admin','Editor','Commenter','Viewer'].map(role=>`<option value="${role}" ${member.role===role?'selected':''}>${role}</option>`).join('')}</select>${canManage?`<button class="button secondary small" type="button" data-owner-reset-password="${esc(member.id)}">Send password reset</button>`:''}<button class="button ghost small" type="button" data-shared-remove-member="${esc(member.id)}" ${removeDisabled?'disabled':''} title="${isLastOwner?'Add or promote another owner before removing the last owner.':''}">Remove</button></div></div>`;}).join('');
+  el.main.innerHTML=`${pageHead('Collaboration','Members & Access','Everyone listed here opens the same shared world. Owners can grant access, change roles, remove members, and send password-reset emails.',`<button class="button secondary" type="button" data-copy-share>Copy share link</button>`)}<div class="share-callout"><strong>Shared world is connected.</strong><div class="property-help">Changes are syncing through Cloud Firestore. You are signed in as ${esc(firebase.user?.email||'your account')} with the ${esc(currentWorkspaceRole()||'Member')} role.</div></div>${canManage?`<div class="invite-form"><input id="inviteEmail" class="input" type="email" placeholder="name@example.com" aria-label="Member email"><select id="inviteRole" class="select" aria-label="Member role"><option>Editor</option><option>Viewer</option><option>Commenter</option><option>Admin</option><option>Owner</option></select><button class="button" type="button" data-shared-invite>Grant access</button></div><p class="member-access-note">Granting access adds the email to this world. The email must also have a Firebase Authentication account before it can sign in. Public account creation is not available.</p>`:`<div class="share-callout compact"><strong>Only owners can manage access.</strong><div class="property-help">An owner can change your role, remove your access, or send a password-reset email.</div></div>`}<div class="member-list">${rows||'<div class="panel empty-state">No members found.</div>'}</div>`;applyMemberIdentity();
+};
+
+// Remove legacy public account actions even if an older browser cached the markup.
+el.authCreate?.remove();el.authReset?.remove();
+
+document.addEventListener('click',event=>{
+  const newStory=event.target.closest('[data-new-story]');if(newStory){event.preventDefault();showNewStoryModal();return;}
+  const createStory=event.target.closest('[data-create-story]');if(createStory){event.preventDefault();createStoryFromModal();return;}
+  const manageStory=event.target.closest('[data-manage-story]');if(manageStory){event.preventDefault();closeModal();showStoryManager(manageStory.dataset.manageStory);return;}
+  const openStory=event.target.closest('[data-open-story]');if(openStory){event.preventDefault();closeModal();const story=storyById(openStory.dataset.openStory);if(story)navigate('story',storyFirstRoute(story));return;}
+  const storyGraph=event.target.closest('[data-story-graph]');if(storyGraph){event.preventDefault();graphSettings.graphType='story';graphSettings.storyId=storyGraph.dataset.storyGraph;graphSettings.layout='story';navigate('graph');return;}
+  const deleteStoryButton=event.target.closest('[data-delete-story]');if(deleteStoryButton){event.preventDefault();deleteStory(deleteStoryButton.dataset.deleteStory);return;}
+  const addPoint=event.target.closest('[data-add-story-point]');if(addPoint){event.preventDefault();addStoryPoint(addPoint.dataset.addStoryPoint);return;}
+  const removePoint=event.target.closest('[data-remove-story-point]');if(removePoint){event.preventDefault();const [storyId,nodeId]=removePoint.dataset.removeStoryPoint.split('|');removeStoryPoint(storyId,nodeId);return;}
+  const addIntersection=event.target.closest('[data-add-intersection]');if(addIntersection){event.preventDefault();addStoryIntersection(addIntersection.dataset.addIntersection);return;}
+  const deleteIntersection=event.target.closest('[data-delete-intersection]');if(deleteIntersection){event.preventDefault();state.storyIntersections=(state.storyIntersections||[]).filter(item=>item.id!==deleteIntersection.dataset.deleteIntersection);scheduleSave();if(document.getElementById('modal')&&!document.getElementById('modal').hidden){const storyId=document.querySelector('[data-story-name]')?.dataset.storyName;if(storyId)showStoryManager(storyId);else renderStoryLibrary();}else renderStoryLibrary();return;}
+  const addConnection=event.target.closest('[data-add-graph-connection]');if(addConnection){event.preventDefault();addGraphConnection();return;}
+  const deleteStoryLink=event.target.closest('[data-delete-story-link]');if(deleteStoryLink){event.preventDefault();const [storyId,linkId]=deleteStoryLink.dataset.deleteStoryLink.split('|'),story=storyById(storyId);if(story){story.links=(story.links||[]).filter(link=>link.id!==linkId);scheduleSave();renderGraphPage();}return;}
+  const deleteCustomLink=event.target.closest('[data-delete-custom-link]');if(deleteCustomLink){event.preventDefault();state.graphConnections=(state.graphConnections||[]).filter(link=>link.id!==deleteCustomLink.dataset.deleteCustomLink);scheduleSave();renderGraphPage();return;}
+  const changePassword=event.target.closest('[data-change-own-password]');if(changePassword){event.preventDefault();showChangePasswordModal();return;}
+  const savePassword=event.target.closest('[data-save-new-password]');if(savePassword){event.preventDefault();changeOwnPassword();return;}
+  const ownerReset=event.target.closest('[data-owner-reset-password]');if(ownerReset){event.preventDefault();ownerSendPasswordReset(ownerReset.dataset.ownerResetPassword);return;}
+},true);
+
+document.addEventListener('change',event=>{
+  const otherStory=event.target.closest?.('#intersectionOtherStory');if(otherStory){const story=storyById(otherStory.value),select=document.getElementById('intersectionOtherPoint');if(select)select.innerHTML=story?storyPointOptions(story).map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join(''):'<option value="">Choose a story first</option>';return;}
+  const storyName=event.target.closest?.('[data-story-name]');if(storyName){const story=storyById(storyName.dataset.storyName);if(story){story.name=storyName.value.trim()||'Untitled Story';scheduleSave();}return;}
+  const storyDescription=event.target.closest?.('[data-story-description]');if(storyDescription){const story=storyById(storyDescription.dataset.storyDescription);if(story){story.description=storyDescription.value;scheduleSave();}return;}
+  const storyLabel=event.target.closest?.('[data-story-link-label]');if(storyLabel){const [storyId,linkId]=storyLabel.dataset.storyLinkLabel.split('|'),story=storyById(storyId),link=story?.links.find(x=>x.id===linkId);if(link){link.label=storyLabel.value.trim()||'Connected';scheduleSave();drawGraph();}return;}
+  const storyDescriptionInput=event.target.closest?.('[data-story-link-description]');if(storyDescriptionInput){const [storyId,linkId]=storyDescriptionInput.dataset.storyLinkDescription.split('|'),story=storyById(storyId),link=story?.links.find(x=>x.id===linkId);if(link){link.description=storyDescriptionInput.value;scheduleSave();}return;}
+  const customLabel=event.target.closest?.('[data-custom-link-label]');if(customLabel){const link=state.graphConnections.find(x=>x.id===customLabel.dataset.customLinkLabel);if(link){link.label=customLabel.value.trim()||'Connected';scheduleSave();drawGraph();}return;}
+  const customDescription=event.target.closest?.('[data-custom-link-description]');if(customDescription){const link=state.graphConnections.find(x=>x.id===customDescription.dataset.customLinkDescription);if(link){link.description=customDescription.value;scheduleSave();}return;}
+},true);
+
 
 initFirebase();
 
