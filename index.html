@@ -2782,6 +2782,128 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 </style>
 
+
+<style id="character-media-polish">
+/* Compact character portrait and click-to-reveal image controls. */
+.character-snapshot-layout {
+  grid-template-columns: 132px minmax(0, 1fr) !important;
+  gap: 18px !important;
+  align-items: start !important;
+}
+.character-portrait-slot {
+  box-sizing: border-box;
+  width: 132px !important;
+  height: 168px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 132px !important;
+  aspect-ratio: auto !important;
+  align-self: start;
+  justify-self: start;
+  border-radius: 14px;
+}
+.character-portrait-slot img {
+  object-fit: cover;
+  object-position: center 24%;
+}
+.character-portrait-upload {
+  min-height: 0 !important;
+}
+
+/* Existing-image controls stay invisible until the user selects that image. */
+.character-cover-slot.has-image .character-cover-upload,
+.character-cover-slot.has-image .character-media-remove,
+.character-portrait-slot.has-image .character-portrait-upload,
+.character-portrait-slot.has-image .character-portrait-remove {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(5px);
+  transition: opacity .16s ease, transform .16s ease, visibility .16s ease;
+}
+.character-cover-slot.has-image.is-media-selected .character-cover-upload,
+.character-cover-slot.has-image.is-media-selected .character-media-remove,
+.character-portrait-slot.has-image.is-media-selected .character-portrait-upload,
+.character-portrait-slot.has-image.is-media-selected .character-portrait-remove,
+.character-cover-slot.has-image:focus-within .character-cover-upload,
+.character-cover-slot.has-image:focus-within .character-media-remove,
+.character-portrait-slot.has-image:focus-within .character-portrait-upload,
+.character-portrait-slot.has-image:focus-within .character-portrait-remove {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.character-cover-slot.has-image,
+.character-portrait-slot.has-image {
+  cursor: pointer;
+}
+.character-cover-slot.has-image.is-media-selected::after,
+.character-portrait-slot.has-image.is-media-selected::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  border: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--panel-strong) 52%, transparent);
+}
+.character-cover-slot.has-image.is-media-selected::before,
+.character-portrait-slot.has-image.is-media-selected::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(to top, color-mix(in srgb, var(--panel-strong) 30%, transparent), transparent 48%);
+}
+.character-cover-slot .character-cover-upload,
+.character-cover-slot .character-media-remove,
+.character-portrait-slot .character-portrait-upload,
+.character-portrait-slot .character-portrait-remove {
+  z-index: 4;
+}
+.character-portrait-upload.has-image {
+  inset: auto 8px 8px 8px;
+  white-space: nowrap;
+}
+.character-portrait-remove {
+  width: auto;
+  min-width: 28px;
+  padding: 0 8px;
+}
+.character-cover-slot.has-image:focus-visible,
+.character-portrait-slot.has-image:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 62%, transparent);
+  outline-offset: 3px;
+}
+@media (max-width: 720px) {
+  .character-snapshot-layout {
+    grid-template-columns: 104px minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+  .character-portrait-slot {
+    width: 104px !important;
+    height: 132px !important;
+    max-width: 104px !important;
+    justify-self: start !important;
+  }
+}
+@media (max-width: 430px) {
+  .character-snapshot-layout {
+    grid-template-columns: 82px minmax(0, 1fr) !important;
+    gap: 10px !important;
+  }
+  .character-portrait-slot {
+    width: 82px !important;
+    height: 104px !important;
+    max-width: 82px !important;
+  }
+  .snapshot-grid { grid-template-columns: 1fr !important; }
+}
+</style>
+
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -7241,10 +7363,10 @@ window.FIREBASE_CONFIG = {
 
   function renderCharacterCover(item) {
     const image = item.headerImage?.src || '';
-    return `<div class="entity-cover character-cover-slot" data-character-media-drop="header:${item.id}">
+    return `<div class="entity-cover character-cover-slot ${image ? 'has-image' : ''}" data-character-media-select="header:${item.id}" data-character-media-drop="header:${item.id}" ${image ? `tabindex="0" role="button" aria-label="Select the cover image for ${esc(item.name)}"` : ''}>
       ${image ? `<img src="${esc(image)}" alt="${esc(item.headerImage?.alt || `${item.name} cover image`)}">` : ''}
       <button class="character-cover-upload ${image ? 'has-image' : ''}" type="button" data-character-media-trigger="header:${item.id}">
-        <span class="character-media-placeholder-title">${image ? 'Change cover image' : 'Add a cover image'}</span>
+        <span class="character-media-placeholder-title">${image ? 'Replace cover' : 'Add a cover image'}</span>
         ${image ? '' : '<span class="character-media-placeholder-help">Use a wide image for the top of this character page</span>'}
       </button>
       ${image ? `<button class="character-media-remove" type="button" data-character-media-remove="header:${item.id}">Remove cover</button>` : ''}
@@ -7254,10 +7376,10 @@ window.FIREBASE_CONFIG = {
 
   function renderCharacterPortrait(item) {
     const image = item.profileImage?.src || '';
-    return `<div class="character-portrait-slot" data-character-media-drop="profile:${item.id}">
+    return `<div class="character-portrait-slot ${image ? 'has-image' : ''}" data-character-media-select="profile:${item.id}" data-character-media-drop="profile:${item.id}" ${image ? `tabindex="0" role="button" aria-label="Select the portrait for ${esc(item.name)}"` : ''}>
       ${image ? `<img src="${esc(image)}" alt="${esc(item.profileImage?.alt || `${item.name} portrait`)}">` : ''}
       <button class="character-portrait-upload ${image ? 'has-image' : ''}" type="button" data-character-media-trigger="profile:${item.id}">
-        <span class="character-media-placeholder-title">${image ? 'Change portrait' : 'Add portrait'}</span>
+        <span class="character-media-placeholder-title">${image ? 'Replace portrait' : 'Add portrait'}</span>
         ${image ? '' : '<span class="character-media-placeholder-help">Character image</span>'}
       </button>
       ${image ? `<button class="character-portrait-remove" type="button" data-character-media-remove="profile:${item.id}" aria-label="Remove portrait">×</button>` : ''}
@@ -10706,5 +10828,44 @@ window.FIREBASE_CONFIG = {
 })();
 
 </script>
+
+<script id="character-media-click-controls">
+(() => {
+  function clearCharacterMediaSelection(except = null) {
+    document.querySelectorAll('.is-media-selected[data-character-media-select]').forEach(slot => {
+      if (slot !== except) slot.classList.remove('is-media-selected');
+    });
+  }
+
+  document.addEventListener('click', event => {
+    const control = event.target.closest('[data-character-media-trigger],[data-character-media-remove]');
+    const slot = event.target.closest('[data-character-media-select]');
+
+    if (slot && slot.classList.contains('has-image')) {
+      clearCharacterMediaSelection(slot);
+      if (!control) {
+        event.preventDefault();
+        slot.classList.toggle('is-media-selected');
+      }
+      return;
+    }
+
+    if (!event.target.closest('.character-cover-slot,.character-portrait-slot')) {
+      clearCharacterMediaSelection();
+    }
+  }, true);
+
+  document.addEventListener('keydown', event => {
+    const slot = event.target.closest?.('[data-character-media-select].has-image');
+    if (slot && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault();
+      clearCharacterMediaSelection(slot);
+      slot.classList.toggle('is-media-selected');
+    }
+    if (event.key === 'Escape') clearCharacterMediaSelection();
+  });
+})();
+</script>
+
 </body>
 </html>
