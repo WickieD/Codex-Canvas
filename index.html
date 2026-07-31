@@ -2904,6 +2904,109 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 </style>
 
+
+<style id="character-crop-editor-polish">
+/* Portrait details now return to full width beneath the compact portrait. */
+.character-snapshot-layout { align-items: start !important; }
+.character-snapshot-wide {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin-top: 0 !important;
+}
+.character-snapshot-wide p { margin-bottom: 0; }
+
+/* Crop-aware media stays inside its frame while the visible focal area changes. */
+.character-cover-slot img,
+.character-portrait-slot img {
+  will-change: transform, object-position;
+  transition: object-position .08s linear, transform .08s linear;
+}
+.character-cover-slot.has-image .character-cover-upload,
+.character-portrait-slot.has-image .character-portrait-upload {
+  pointer-events: none;
+}
+.character-cover-slot.has-image.is-media-selected .character-cover-upload,
+.character-portrait-slot.has-image.is-media-selected .character-portrait-upload,
+.character-cover-slot.has-image:focus-within .character-cover-upload,
+.character-portrait-slot.has-image:focus-within .character-portrait-upload {
+  pointer-events: auto;
+}
+
+.character-crop-modal { width: min(760px, 100%); }
+.character-crop-editor { display: grid; gap: 18px; }
+.character-crop-stage {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background:
+    linear-gradient(45deg, color-mix(in srgb, var(--panel-soft) 70%, transparent) 25%, transparent 25%, transparent 75%, color-mix(in srgb, var(--panel-soft) 70%, transparent) 75%),
+    linear-gradient(45deg, color-mix(in srgb, var(--panel-soft) 70%, transparent) 25%, transparent 25%, transparent 75%, color-mix(in srgb, var(--panel-soft) 70%, transparent) 75%);
+  background-size: 24px 24px;
+  background-position: 0 0, 12px 12px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.character-crop-stage.is-cover { aspect-ratio: 5 / 1.35; min-height: 180px; }
+.character-crop-stage.is-portrait { width: min(350px, 100%); aspect-ratio: 4 / 5; justify-self: center; }
+.character-crop-stage.is-dragging { cursor: grabbing; }
+.character-crop-stage img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+.character-crop-guide {
+  position: absolute;
+  inset: 10%;
+  border: 1px solid color-mix(in srgb, white 66%, transparent);
+  border-radius: 10px;
+  box-shadow: 0 0 0 999px rgba(0,0,0,.08);
+  pointer-events: none;
+}
+.character-crop-guide::before,
+.character-crop-guide::after {
+  content: '';
+  position: absolute;
+  background: color-mix(in srgb, white 58%, transparent);
+}
+.character-crop-guide::before { top: 33.333%; bottom: 33.333%; left: -11%; right: -11%; border-top: 1px solid currentColor; border-bottom: 1px solid currentColor; background: transparent; }
+.character-crop-guide::after { left: 33.333%; right: 33.333%; top: -11%; bottom: -11%; border-left: 1px solid currentColor; border-right: 1px solid currentColor; background: transparent; }
+.character-crop-tip {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-strong) 82%, transparent);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 750;
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.character-crop-controls { display: grid; gap: 15px; }
+.character-crop-controls .property-row { margin: 0; }
+.character-crop-controls .property-row > span { display: flex; justify-content: space-between; gap: 12px; font-weight: 750; }
+.character-crop-controls input[type="range"] { width: 100%; }
+.character-crop-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+.character-crop-file-label { cursor: pointer; }
+.character-crop-modal .modal-foot { justify-content: space-between; }
+
+@media (max-width: 560px) {
+  .character-crop-stage.is-cover { min-height: 130px; aspect-ratio: 3 / 1.25; }
+  .character-crop-modal .modal-foot { flex-wrap: wrap; }
+  .character-crop-modal .modal-foot .button { flex: 1 1 140px; }
+}
+</style>
+
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -6944,6 +7047,14 @@ window.FIREBASE_CONFIG = {
       if (typeof character.profileImage === 'string') character.profileImage = { src: character.profileImage };
       character.headerImage ||= null;
       character.profileImage ||= null;
+      for (const mediaKey of ['headerImage','profileImage']) {
+        const media = character[mediaKey];
+        if (!media) continue;
+        media.positionX = Math.max(0, Math.min(100, Number(media.positionX ?? 50)));
+        media.positionY = Math.max(0, Math.min(100, Number(media.positionY ?? (mediaKey === 'profileImage' ? 24 : 50))));
+        media.zoom = Math.max(1, Math.min(3, Number(media.zoom ?? 1)));
+        media.fit = media.fit === 'contain' ? 'contain' : 'cover';
+      }
       character.blocks ||= [];
       for (const block of character.blocks) {
         if (block.type !== 'image') continue;
@@ -7361,28 +7472,30 @@ window.FIREBASE_CONFIG = {
     return `<div class="timeline">${items.map(event=>`<div class="timeline-item"><div class="timeline-date">${esc(event.date)}</div><div class="timeline-dot-wrap"><span class="timeline-dot"></span></div><div class="timeline-card" data-open="events:${event.id}"><div class="timeline-title">${esc(event.name)}</div><div class="timeline-copy">${esc(shortText(event.description || event.notes,180))}</div><div class="tag-row"><span class="tag">${esc(event.status || 'Unspecified')}</span>${event.characterIds?.length ? `<span class="tag">${event.characterIds.length} people</span>`:''}</div></div></div>`).join('')}</div>`;
   }
 
+  function characterMediaStyle(media, slot) {
+    const x = Math.max(0, Math.min(100, Number(media?.positionX ?? 50)));
+    const y = Math.max(0, Math.min(100, Number(media?.positionY ?? (slot === 'profile' ? 24 : 50))));
+    const zoom = Math.max(1, Math.min(3, Number(media?.zoom ?? 1)));
+    const fit = media?.fit === 'contain' ? 'contain' : 'cover';
+    return `object-position:${x}% ${y}%;transform:scale(${zoom});transform-origin:${x}% ${y}%;object-fit:${fit};`;
+  }
+
   function renderCharacterCover(item) {
-    const image = item.headerImage?.src || '';
+    const media = item.headerImage || null;
+    const image = media?.src || '';
     return `<div class="entity-cover character-cover-slot ${image ? 'has-image' : ''}" data-character-media-select="header:${item.id}" data-character-media-drop="header:${item.id}" ${image ? `tabindex="0" role="button" aria-label="Select the cover image for ${esc(item.name)}"` : ''}>
-      ${image ? `<img src="${esc(image)}" alt="${esc(item.headerImage?.alt || `${item.name} cover image`)}">` : ''}
-      <button class="character-cover-upload ${image ? 'has-image' : ''}" type="button" data-character-media-trigger="header:${item.id}">
-        <span class="character-media-placeholder-title">${image ? 'Replace cover' : 'Add a cover image'}</span>
-        ${image ? '' : '<span class="character-media-placeholder-help">Use a wide image for the top of this character page</span>'}
-      </button>
-      ${image ? `<button class="character-media-remove" type="button" data-character-media-remove="header:${item.id}">Remove cover</button>` : ''}
+      ${image ? `<img src="${esc(image)}" alt="${esc(media?.alt || `${item.name} cover image`)}" style="${characterMediaStyle(media,'header')}">` : ''}
+      ${image ? `<button class="character-cover-upload has-image" type="button" data-character-media-edit="header:${item.id}"><span class="character-media-placeholder-title">Edit cover</span></button>` : `<button class="character-cover-upload" type="button" data-character-media-trigger="header:${item.id}"><span class="character-media-placeholder-title">Add a cover image</span><span class="character-media-placeholder-help">Use a wide image for the top of this character page</span></button>`}
       <input type="file" accept="image/*" hidden data-character-media-input="header:${item.id}">
     </div>`;
   }
 
   function renderCharacterPortrait(item) {
-    const image = item.profileImage?.src || '';
+    const media = item.profileImage || null;
+    const image = media?.src || '';
     return `<div class="character-portrait-slot ${image ? 'has-image' : ''}" data-character-media-select="profile:${item.id}" data-character-media-drop="profile:${item.id}" ${image ? `tabindex="0" role="button" aria-label="Select the portrait for ${esc(item.name)}"` : ''}>
-      ${image ? `<img src="${esc(image)}" alt="${esc(item.profileImage?.alt || `${item.name} portrait`)}">` : ''}
-      <button class="character-portrait-upload ${image ? 'has-image' : ''}" type="button" data-character-media-trigger="profile:${item.id}">
-        <span class="character-media-placeholder-title">${image ? 'Replace portrait' : 'Add portrait'}</span>
-        ${image ? '' : '<span class="character-media-placeholder-help">Character image</span>'}
-      </button>
-      ${image ? `<button class="character-portrait-remove" type="button" data-character-media-remove="profile:${item.id}" aria-label="Remove portrait">×</button>` : ''}
+      ${image ? `<img src="${esc(image)}" alt="${esc(media?.alt || `${item.name} portrait`)}" style="${characterMediaStyle(media,'profile')}">` : ''}
+      ${image ? `<button class="character-portrait-upload has-image" type="button" data-character-media-edit="profile:${item.id}"><span class="character-media-placeholder-title">Edit portrait</span></button>` : `<button class="character-portrait-upload" type="button" data-character-media-trigger="profile:${item.id}"><span class="character-media-placeholder-title">Add portrait</span><span class="character-media-placeholder-help">Character image</span></button>`}
       <input type="file" accept="image/*" hidden data-character-media-input="profile:${item.id}">
     </div>`;
   }
@@ -7417,8 +7530,8 @@ window.FIREBASE_CONFIG = {
             ${field('Current position', 'position', item.position)}
             ${field('Current status', 'status', item.status)}
           </div>
-          ${item.relationshipsText ? `<div class="snapshot-relationships"><span class="snapshot-label">Key relationships</span><p data-snapshot-value="relationshipsText">${esc(cleanNotionRefs(item.relationshipsText))}</p></div>` : ''}
         </div>
+        ${item.relationshipsText ? `<div class="snapshot-relationships character-snapshot-wide"><span class="snapshot-label">Key relationships</span><p data-snapshot-value="relationshipsText">${esc(cleanNotionRefs(item.relationshipsText))}</p></div>` : ''}
       </div>
     </section>`;
   }
@@ -8591,7 +8704,11 @@ window.FIREBASE_CONFIG = {
       const key = slot === 'header' ? 'headerImage' : 'profileImage';
       character[key] = {
         src: prepared.src,
-        alt: slot === 'header' ? `${character.name} cover image` : `${character.name} portrait`
+        alt: slot === 'header' ? `${character.name} cover image` : `${character.name} portrait`,
+        positionX: 50,
+        positionY: slot === 'header' ? 50 : 24,
+        zoom: 1,
+        fit: 'cover'
       };
       character.updatedAt = nowISO();
       logActivity(`Updated the ${slot === 'header' ? 'cover image' : 'portrait'} for ${character.name}`);
@@ -8613,6 +8730,87 @@ window.FIREBASE_CONFIG = {
     character.updatedAt = nowISO();
     scheduleSave();
     renderEntity('characters', characterId);
+  }
+
+
+  function characterMediaRecord(characterId, slot) {
+    const character = getItem('characters', characterId);
+    if (!character) return { character: null, media: null, key: '' };
+    const key = slot === 'header' ? 'headerImage' : 'profileImage';
+    return { character, media: character[key], key };
+  }
+
+  function syncCharacterCropPreview(characterId, slot) {
+    const { media } = characterMediaRecord(characterId, slot);
+    if (!media) return;
+    const ref = `${slot}:${characterId}`;
+    const style = characterMediaStyle(media, slot);
+    const preview = el.modal.querySelector(`[data-character-crop-preview="${CSS.escape(ref)}"]`);
+    if (preview) preview.style.cssText = style;
+    const pageImage = document.querySelector(`[data-character-media-select="${CSS.escape(ref)}"] img`);
+    if (pageImage) pageImage.style.cssText = style;
+    const zoomOutput = el.modal.querySelector('[data-character-crop-zoom-output]');
+    if (zoomOutput) zoomOutput.textContent = `${Math.round(Number(media.zoom || 1) * 100)}%`;
+  }
+
+  function showCharacterMediaEditor(characterId, slot) {
+    const { character, media } = characterMediaRecord(characterId, slot);
+    if (!character || !media?.src) return;
+    media.positionX = Math.max(0, Math.min(100, Number(media.positionX ?? 50)));
+    media.positionY = Math.max(0, Math.min(100, Number(media.positionY ?? (slot === 'profile' ? 24 : 50))));
+    media.zoom = Math.max(1, Math.min(3, Number(media.zoom ?? 1)));
+    media.fit = media.fit === 'contain' ? 'contain' : 'cover';
+    const ref = `${slot}:${characterId}`;
+    const label = slot === 'header' ? 'cover' : 'portrait';
+    showModal(`Edit ${label}`, `<div class="character-crop-editor" data-character-crop-editor="${esc(ref)}">
+      <div class="character-crop-stage ${slot === 'header' ? 'is-cover' : 'is-portrait'}" data-character-crop-stage="${esc(ref)}" aria-label="Drag the image to choose which part is visible">
+        <img src="${esc(media.src)}" alt="${esc(media.alt || `${character.name} ${label}`)}" data-character-crop-preview="${esc(ref)}" style="${characterMediaStyle(media,slot)}">
+        <div class="character-crop-guide" aria-hidden="true"></div>
+        <span class="character-crop-tip">Drag image to reposition</span>
+      </div>
+      <div class="character-crop-controls">
+        <label class="property-row"><span>Image size <output data-character-crop-zoom-output>${Math.round(media.zoom * 100)}%</output></span><input type="range" min="100" max="300" step="1" value="${Math.round(media.zoom * 100)}" data-character-crop-zoom="${esc(ref)}"></label>
+        <label class="property-row"><span>How it fills the frame</span><select class="select" data-character-crop-fit="${esc(ref)}"><option value="cover" ${media.fit === 'cover' ? 'selected' : ''}>Fill the frame</option><option value="contain" ${media.fit === 'contain' ? 'selected' : ''}>Show the whole image</option></select></label>
+        <div class="character-crop-actions">
+          <button class="button ghost small" type="button" data-character-crop-reset="${esc(ref)}">Reset position</button>
+          <label class="button secondary small character-crop-file-label">Replace image<input type="file" accept="image/*" hidden data-character-crop-file="${esc(ref)}"></label>
+        </div>
+        <p class="property-help">Move the image inside the frame, then use Image size to zoom in or out. The frame itself stays aligned with the character details.</p>
+      </div>
+    </div>`, `<button class="button danger" type="button" data-character-crop-remove="${esc(ref)}">Remove ${label}</button><button class="button primary" type="button" data-close-modal>Done</button>`);
+    el.modal.querySelector('.modal')?.classList.add('character-crop-modal');
+  }
+
+  function beginCharacterCropDrag(event, ref) {
+    if (event.button !== undefined && event.button !== 0) return;
+    const [slot, characterId] = String(ref || '').split(':');
+    const { character, media } = characterMediaRecord(characterId, slot);
+    const stage = event.target.closest('[data-character-crop-stage]');
+    if (!character || !media || !stage) return;
+    event.preventDefault();
+    const startClientX = event.clientX;
+    const startClientY = event.clientY;
+    const startX = Number(media.positionX ?? 50);
+    const startY = Number(media.positionY ?? (slot === 'profile' ? 24 : 50));
+    stage.classList.add('is-dragging');
+    try { stage.setPointerCapture(event.pointerId); } catch (error) {}
+    const move = moveEvent => {
+      const rect = stage.getBoundingClientRect();
+      const dx = moveEvent.clientX - startClientX;
+      const dy = moveEvent.clientY - startClientY;
+      media.positionX = Math.max(0, Math.min(100, startX - (dx / Math.max(1, rect.width)) * 100));
+      media.positionY = Math.max(0, Math.min(100, startY - (dy / Math.max(1, rect.height)) * 100));
+      syncCharacterCropPreview(characterId, slot);
+    };
+    const up = () => {
+      stage.classList.remove('is-dragging');
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', up);
+      character.updatedAt = nowISO();
+      scheduleSave('Saving image position…');
+    };
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', up, { once: true });
   }
 
   async function addCharacterImage(characterId,file,insertIndex=null) {
@@ -9140,6 +9338,7 @@ window.FIREBASE_CONFIG = {
   }
 
   document.addEventListener('pointerdown',event=>{
+    const characterCropStage=event.target.closest('[data-character-crop-stage]');if(characterCropStage){beginCharacterCropDrag(event,characterCropStage.dataset.characterCropStage);return;}
     const imageResize=event.target.closest('[data-image-resize]');if(imageResize){beginImageResize(event,imageResize.dataset.imageResize);return;}
     const imageSurface=event.target.closest('[data-image-select]');if(imageSurface){beginImageMove(event,imageSurface.dataset.imageSelect);return;}
   });
@@ -9167,7 +9366,10 @@ window.FIREBASE_CONFIG = {
     const turnDelete=event.target.closest('[data-story-turn-delete]');if(turnDelete){const context=currentStoryPassage();if(context.story){const turnId=turnDelete.dataset.storyTurnDelete;const index=context.turns.findIndex(turn=>turn.id===turnId);if(index>=0){const replacement=context.turns[index+1]?.id||'';for(const point of context.story.nodes||[]){const pointPassage=ensureStoryPassage(point);if(pointPassage.anchorTurnId===turnId)pointPassage.anchorTurnId=replacement;}context.turns.splice(index,1);scheduleSave();renderStoryReader();}}return;}
     const turnUp=event.target.closest('[data-story-turn-up]');if(turnUp){const context=currentStoryPassage();const index=context.turns?.findIndex(turn=>turn.id===turnUp.dataset.storyTurnUp)??-1;if(index>0){[context.turns[index-1],context.turns[index]]=[context.turns[index],context.turns[index-1]];scheduleSave();renderStoryReader();}return;}
     const turnDown=event.target.closest('[data-story-turn-down]');if(turnDown){const context=currentStoryPassage();const index=context.turns?.findIndex(turn=>turn.id===turnDown.dataset.storyTurnDown)??-1;if(index>=0&&index<context.turns.length-1){[context.turns[index+1],context.turns[index]]=[context.turns[index],context.turns[index+1]];scheduleSave();renderStoryReader();}return;}
-    const characterMediaTrigger=event.target.closest('[data-character-media-trigger]');if(characterMediaTrigger){const ref=characterMediaTrigger.dataset.characterMediaTrigger;document.querySelector(`[data-character-media-input="${CSS.escape(ref)}"]`)?.click();return;}
+    const characterMediaEdit=event.target.closest('[data-character-media-edit]');if(characterMediaEdit){const [slot,characterId]=characterMediaEdit.dataset.characterMediaEdit.split(':');showCharacterMediaEditor(characterId,slot);return;}
+    const characterCropReset=event.target.closest('[data-character-crop-reset]');if(characterCropReset){const [slot,characterId]=characterCropReset.dataset.characterCropReset.split(':');const {character,media}=characterMediaRecord(characterId,slot);if(media){media.positionX=50;media.positionY=slot==='header'?50:24;media.zoom=1;media.fit='cover';character.updatedAt=nowISO();syncCharacterCropPreview(characterId,slot);const zoom=el.modal.querySelector('[data-character-crop-zoom]');if(zoom)zoom.value='100';const fit=el.modal.querySelector('[data-character-crop-fit]');if(fit)fit.value='cover';scheduleSave();}return;}
+    const characterCropRemove=event.target.closest('[data-character-crop-remove]');if(characterCropRemove){const [slot,characterId]=characterCropRemove.dataset.characterCropRemove.split(':');const label=slot==='header'?'cover image':'portrait';if(confirm(`Remove this ${label}?`)){closeModal();removeCharacterPageImage(characterId,slot);}return;}
+    const characterMediaTrigger=event.target.closest('[data-character-media-trigger]');if(characterMediaTrigger){const ref=characterMediaTrigger.dataset.characterMediaTrigger;const input=document.querySelector(`[data-character-media-input="${CSS.escape(ref)}"]`);if(input){input.value='';input.click();}return;}
     const characterMediaRemove=event.target.closest('[data-character-media-remove]');if(characterMediaRemove){const [slot,characterId]=characterMediaRemove.dataset.characterMediaRemove.split(':');const label=slot==='header'?'cover image':'portrait';if(confirm(`Remove this ${label}?`))removeCharacterPageImage(characterId,slot);return;}
     const newButton=event.target.closest('[data-new]');if(newButton){addItem(newButton.dataset.new);return;}
     const newChild=event.target.closest('[data-new-child]');if(newChild){addItem('locations',newChild.dataset.newChild);return;}
@@ -9221,10 +9423,13 @@ window.FIREBASE_CONFIG = {
     if(event.target.matches('[data-image-editor-opacity]')){const info=blockFromRef(event.target.dataset.imageEditorOpacity);if(info.block){info.block.opacity=Number(event.target.value)/100;event.target.closest('.image-editor-modal')?.querySelector('[data-image-editor-opacity-output]')?.replaceChildren(`${event.target.value}%`);syncImageFigure(event.target.dataset.imageEditorOpacity);scheduleSave();}return;}
     if(event.target.matches('[data-image-editor-alt]')){const info=blockFromRef(event.target.dataset.imageEditorAlt);if(info.block){info.block.alt=event.target.value;syncImageFigure(event.target.dataset.imageEditorAlt);scheduleSave();}return;}
     if(event.target.matches('[data-image-panel-opacity]')){const panel=event.target.closest('.image-settings-floating');if(panel){panel.style.setProperty('--image-settings-alpha',`${event.target.value}%`);event.target.closest('.image-editor-modal')?.querySelector('[data-image-panel-opacity-output]')?.replaceChildren(`${event.target.value}%`);}return;}
+    if(event.target.matches('[data-character-crop-zoom]')){const [slot,characterId]=event.target.dataset.characterCropZoom.split(':');const {character,media}=characterMediaRecord(characterId,slot);if(media){media.zoom=Math.max(1,Math.min(3,Number(event.target.value)/100));character.updatedAt=nowISO();syncCharacterCropPreview(characterId,slot);scheduleSave();}return;}
     if(event.target.matches('[data-accent]')){state.workspace.accent=event.target.value;applyTheme();scheduleSave();return;}
   });
 
   document.addEventListener('change',event=>{
+    if(event.target.matches('[data-character-crop-file]')){const file=event.target.files?.[0];const ref=event.target.dataset.characterCropFile;event.target.value='';if(file){const [slot,characterId]=ref.split(':');setCharacterPageImage(characterId,slot,file).then(()=>showCharacterMediaEditor(characterId,slot));}return;}
+    if(event.target.matches('[data-character-crop-fit]')){const [slot,characterId]=event.target.dataset.characterCropFit.split(':');const {character,media}=characterMediaRecord(characterId,slot);if(media){media.fit=event.target.value==='contain'?'contain':'cover';character.updatedAt=nowISO();syncCharacterCropPreview(characterId,slot);scheduleSave();}return;}
     if(event.target.matches('[data-character-media-input]')){const file=event.target.files?.[0];if(file){const [slot,characterId]=event.target.dataset.characterMediaInput.split(':');setCharacterPageImage(characterId,slot,file);}event.target.value='';return;}
     if(event.target.matches('[data-character-image-input]')){const file=event.target.files?.[0];if(file)addCharacterImage(event.target.dataset.characterImageInput,file);event.target.value='';return;}
     if(event.target.matches('[data-image-replace]')){const file=event.target.files?.[0];if(file)replaceCharacterImage(event.target.dataset.imageReplace,file);event.target.value='';return;}
@@ -10838,7 +11043,7 @@ window.FIREBASE_CONFIG = {
   }
 
   document.addEventListener('click', event => {
-    const control = event.target.closest('[data-character-media-trigger],[data-character-media-remove]');
+    const control = event.target.closest('[data-character-media-trigger],[data-character-media-edit],[data-character-media-remove]');
     const slot = event.target.closest('[data-character-media-select]');
 
     if (slot && slot.classList.contains('has-image')) {
