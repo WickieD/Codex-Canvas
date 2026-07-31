@@ -2399,6 +2399,242 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .text-image-layer-picker-choice small { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
 
+<style id="codex-grid-layer-tree-fix">
+/* Grid/free-flow canvas controls */
+.canvas-placement-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+}
+.canvas-placement-controls button {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  padding: 7px 11px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.canvas-placement-controls button.is-active {
+  background: var(--accent);
+  color: var(--accent-ink, #fff);
+}
+.canvas-grid-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.canvas-grid-size select {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--text);
+  padding: 6px 25px 6px 9px;
+  font: inherit;
+}
+.character-block-list.canvas-placement-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--accent) 13%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--accent) 13%, transparent) 1px, transparent 1px);
+  background-size: var(--canvas-grid-size, 20px) var(--canvas-grid-size, 20px);
+  background-position: 0 0;
+}
+.character-block-list.canvas-placement-grid::after {
+  content: "Snap to grid";
+  position: absolute;
+  right: 12px;
+  top: 10px;
+  z-index: 30;
+  pointer-events: none;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 82%, transparent);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+.text-action-popover [data-text-action-image] {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 34px minmax(0,1fr);
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  padding: 12px;
+  cursor: pointer;
+}
+.text-action-popover [data-text-action-image]:hover { background: var(--accent-soft); }
+.text-action-popover [data-text-action-image] > span:first-child {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 900;
+}
+.text-action-popover [data-text-action-image] strong,
+.text-action-popover [data-text-action-image] small { display: block; }
+.text-action-popover [data-text-action-image] small { color: var(--muted); margin-top: 2px; }
+
+/* Pill-style expandable location tree */
+.codex-tree-root,
+.codex-tree-children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.codex-tree-root { display: grid; gap: 14px; }
+.codex-tree-node { position: relative; min-width: 0; }
+.codex-tree-pill {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 42px minmax(0,1fr);
+  align-items: stretch;
+  min-height: 54px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 88% 25%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 36%),
+    color-mix(in srgb, var(--accent-soft) 72%, var(--panel));
+  overflow: hidden;
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--text) 5%, transparent);
+}
+.codex-tree-toggle,
+.codex-tree-leaf-dot {
+  width: 38px;
+  height: 38px;
+  align-self: center;
+  justify-self: center;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--text) 8%, transparent);
+}
+.codex-tree-toggle {
+  cursor: pointer;
+  font: inherit;
+  font-weight: 900;
+  transition: transform .22s ease, background .22s ease, border-color .22s ease;
+}
+.codex-tree-toggle:hover { background: var(--accent-soft); border-color: var(--accent); }
+.codex-tree-toggle .codex-tree-chevron {
+  display: block;
+  font-size: 20px;
+  line-height: 1;
+  transform: rotate(-90deg);
+  transition: transform .28s cubic-bezier(.2,.8,.2,1);
+}
+.codex-tree-node.is-open > .codex-tree-pill .codex-tree-chevron { transform: rotate(0deg); }
+.codex-tree-leaf-dot { width: 14px; height: 14px; margin-left: 12px; background: color-mix(in srgb, var(--accent) 62%, var(--panel)); box-shadow: none; }
+.codex-tree-open {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  padding: 8px 16px 8px 5px;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.codex-tree-open:hover .codex-tree-name { color: var(--accent); }
+.codex-tree-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 850; }
+.codex-tree-meta { color: var(--muted); font-size: 11px; }
+.codex-tree-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transform: translateY(-7px);
+  transition: grid-template-rows .34s cubic-bezier(.2,.8,.2,1), opacity .24s ease, transform .34s cubic-bezier(.2,.8,.2,1);
+}
+.codex-tree-node.is-open > .codex-tree-collapse {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: translateY(0);
+}
+.codex-tree-collapse-inner { min-height: 0; overflow: hidden; }
+.codex-tree-children {
+  position: relative;
+  display: grid;
+  gap: 11px;
+  margin: 9px 0 1px 20px;
+  padding: 3px 0 1px 27px;
+}
+.codex-tree-children::before {
+  content: "";
+  position: absolute;
+  left: 9px;
+  top: -8px;
+  bottom: 28px;
+  width: 1px;
+  background: color-mix(in srgb, var(--accent) 52%, var(--line));
+}
+.codex-tree-children > .codex-tree-node::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  left: -18px;
+  top: 27px;
+  width: 18px;
+  height: 13px;
+  border-left: 1px solid color-mix(in srgb, var(--accent) 52%, var(--line));
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 52%, var(--line));
+  border-bottom-left-radius: 10px;
+}
+.codex-tree-children > .codex-tree-node:last-child::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  left: -18px;
+  top: 40px;
+  bottom: -14px;
+  width: 3px;
+  background: var(--panel);
+}
+.codex-tree-actions { display: flex; gap: 8px; justify-content: flex-end; margin-bottom: 14px; }
+.location-mini-tree .codex-tree-root { gap: 9px; }
+.location-mini-tree .codex-tree-pill { min-height: 44px; grid-template-columns: 34px minmax(0,1fr); box-shadow: none; }
+.location-mini-tree .codex-tree-toggle { width: 30px; height: 30px; }
+.location-mini-tree .codex-tree-toggle .codex-tree-chevron { font-size: 17px; }
+.location-mini-tree .codex-tree-leaf-dot { width: 10px; height: 10px; margin-left: 10px; }
+.location-mini-tree .codex-tree-open { padding: 6px 10px 6px 3px; }
+.location-mini-tree .codex-tree-name { font-size: 12px; }
+.location-mini-tree .codex-tree-meta { font-size: 9px; }
+.location-mini-tree .codex-tree-children { margin-left: 14px; padding-left: 20px; gap: 8px; }
+.location-mini-tree .codex-tree-children::before { left: 7px; bottom: 23px; }
+.location-mini-tree .codex-tree-children > .codex-tree-node::before { left: -13px; width: 13px; top: 22px; height: 10px; }
+.location-mini-tree .codex-tree-children > .codex-tree-node:last-child::after { left: -13px; top: 32px; }
+@media (max-width: 720px) {
+  .canvas-placement-controls { order: 10; }
+  .canvas-grid-size { order: 11; }
+  .codex-tree-pill { min-height: 50px; grid-template-columns: 39px minmax(0,1fr); }
+  .codex-tree-toggle { width: 35px; height: 35px; }
+  .codex-tree-children { margin-left: 14px; padding-left: 22px; }
+}
+</style>
+
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -9902,6 +10138,253 @@ window.FIREBASE_CONFIG = {
     }
   }, true);
 
+
+  /* Grid/free-flow canvas, reliable hidden-layer selection, and animated pill trees. */
+  function canvasPlacementMode() {
+    return state.workspace.canvasPlacementMode === 'grid' ? 'grid' : 'free';
+  }
+  function canvasGridSize() {
+    const size = Number(state.workspace.canvasGridSize) || 20;
+    return [12,16,20,24,32].includes(size) ? size : 20;
+  }
+
+  const renderBlockEditorBeforeCanvasGrid = renderBlockEditor;
+  renderBlockEditor = function(kind,itemId,blocks=[],pageTitle='') {
+    let html = renderBlockEditorBeforeCanvasGrid(kind,itemId,blocks,pageTitle);
+    if (kind !== 'characters') return html;
+    const mode = canvasPlacementMode();
+    const size = canvasGridSize();
+    const toolbarStart = `<div class="block-toolbar" data-editor="${kind}:${itemId}">`;
+    const controls = `<div class="canvas-placement-controls" role="group" aria-label="Canvas placement">
+      <button type="button" class="${mode==='free'?'is-active':''}" data-canvas-placement-mode="free">Free flow</button>
+      <button type="button" class="${mode==='grid'?'is-active':''}" data-canvas-placement-mode="grid">Snap to grid</button>
+    </div><label class="canvas-grid-size" ${mode==='grid'?'':'hidden'}>Grid <select data-canvas-grid-size aria-label="Grid size"><option value="12" ${size===12?'selected':''}>12 px</option><option value="16" ${size===16?'selected':''}>16 px</option><option value="20" ${size===20?'selected':''}>20 px</option><option value="24" ${size===24?'selected':''}>24 px</option><option value="32" ${size===32?'selected':''}>32 px</option></select></label>`;
+    html = html.replace(toolbarStart, toolbarStart + controls);
+    html = html.replace('class="block-list character-block-list"', `class="block-list character-block-list canvas-placement-${mode}" data-canvas-placement="${mode}"`);
+    html = html.replace('style="min-height:', `style="--canvas-grid-size:${size}px;min-height:`);
+    return html;
+  };
+
+  function renderCurrentCharacterWithoutJump() {
+    if (route.view !== 'characters' || !route.id) return;
+    const y = window.scrollY;
+    renderEntity('characters',route.id);
+    requestAnimationFrame(()=>window.scrollTo({top:y,left:0,behavior:'instant'}));
+  }
+
+  document.addEventListener('click',event=>{
+    const modeButton = event.target.closest('[data-canvas-placement-mode]');
+    if (modeButton) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      state.workspace.canvasPlacementMode = modeButton.dataset.canvasPlacementMode === 'grid' ? 'grid' : 'free';
+      scheduleSave('Saving canvas placement…');
+      renderCurrentCharacterWithoutJump();
+    }
+  },true);
+  document.addEventListener('change',event=>{
+    const gridSelect = event.target.closest('[data-canvas-grid-size]');
+    if (!gridSelect) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    state.workspace.canvasGridSize = Number(gridSelect.value) || 20;
+    scheduleSave('Saving grid size…');
+    document.querySelectorAll('.character-block-list').forEach(list=>list.style.setProperty('--canvas-grid-size',`${canvasGridSize()}px`));
+  },true);
+
+  function modelImageRect(figure,list) {
+    const ref = figure.dataset.imageBlock;
+    const info = blockFromRef(ref);
+    const block = info.block || {};
+    const listRect = list.getBoundingClientRect();
+    const width = Math.max(1, figure.offsetWidth || Number(block.width) || 300);
+    const img = figure.querySelector('img');
+    const ratio = Number(block.ratio) || (img?.naturalWidth && img?.naturalHeight ? img.naturalWidth/img.naturalHeight : 1.25);
+    const height = Math.max(1, figure.offsetHeight || img?.offsetHeight || width/ratio);
+    let left = Number.isFinite(figure.offsetLeft) ? figure.offsetLeft : 0;
+    let top = Number.isFinite(figure.offsetTop) ? figure.offsetTop : (Number(block.y)||0);
+    if (!figure.offsetParent) {
+      const maxLeft = Math.max(0,list.clientWidth-width);
+      left = maxLeft * (Math.max(0,Math.min(100,Number(block.xPct)||0))/100);
+      top = Math.max(0,Number(block.y)||0);
+    }
+    return {left:listRect.left+left,top:listRect.top+top,right:listRect.left+left+width,bottom:listRect.top+top+height,width,height};
+  }
+
+  const imageLayersAtPointBeforeModelFix = imageLayersAtPoint;
+  imageLayersAtPoint = function(list,x,y) {
+    const choices = imageLayersAtPointBeforeModelFix(list,x,y) || [];
+    const seen = new Set(choices.map(choice=>choice.ref));
+    for (const figure of list.querySelectorAll('.character-image-block[data-image-block]')) {
+      const ref = figure.dataset.imageBlock;
+      if (seen.has(ref)) continue;
+      const rect = modelImageRect(figure,list);
+      if (!pointInsideRect(x,y,rect)) continue;
+      const info = blockFromRef(ref);
+      choices.push({type:'image',ref,label:shortText(info.block?.alt||'Character image',48),layout:info.block?.layout||'wrap'});
+      seen.add(ref);
+    }
+    return choices.sort((a,b)=>{
+      const nodeA=document.querySelector(`[data-image-block="${CSS.escape(a.ref)}"]`);
+      const nodeB=document.querySelector(`[data-image-block="${CSS.escape(b.ref)}"]`);
+      return (Number(getComputedStyle(nodeB).zIndex)||0)-(Number(getComputedStyle(nodeA).zIndex)||0);
+    });
+  };
+
+  const openTextActionChooserBeforeImageLayers = openTextActionChooser;
+  openTextActionChooser = function(event,ref) {
+    openTextActionChooserBeforeImageLayers(event,ref);
+    const list = event?.target?.closest?.('.character-block-list');
+    if (!list || !textActionPopover) return;
+    const images = imageLayersAtPoint(list,event.clientX,event.clientY);
+    if (!images.length) return;
+    const shapeButton = textActionPopover.querySelector('[data-text-action="shape"]');
+    for (const choice of images) {
+      const label = imageChoiceLabel(choice);
+      const button = document.createElement('button');
+      button.type='button';
+      button.dataset.textActionImage=choice.ref;
+      button.innerHTML=`<span>▧</span><span><strong>Edit ${esc(label.name)}</strong><small>${esc(label.behavior)}</small></span>`;
+      shapeButton?.insertAdjacentElement('afterend',button);
+    }
+    const rect=textActionPopover.getBoundingClientRect();
+    textActionPopover.style.left=`${Math.max(8,Math.min(window.innerWidth-rect.width-8,(event.clientX||window.innerWidth/2)+10))}px`;
+    textActionPopover.style.top=`${Math.max(8,Math.min(window.innerHeight-rect.height-8,(event.clientY||window.innerHeight/2)+10))}px`;
+  };
+
+  document.addEventListener('click',event=>{
+    const imageButton=event.target.closest('[data-text-action-image]');
+    if (!imageButton) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const ref=imageButton.dataset.textActionImage;
+    closeTextActionPopover();
+    finishInPlaceTextEdit(true);
+    selectImage(ref);
+  },true);
+
+  let canvasGridInteractionRef='';
+  document.addEventListener('pointerdown',event=>{
+    const target=event.target.closest('[data-image-select],[data-image-resize],[data-text-move],[data-text-resize],[data-text-handle],[data-text-select],[data-flow-move],[data-flow-resize]');
+    if (!target) return;
+    canvasGridInteractionRef = target.dataset.imageSelect || target.dataset.imageResize || target.dataset.textMove || target.dataset.textResize || target.dataset.textHandle || target.dataset.textSelect || target.dataset.flowMove || target.dataset.flowResize || '';
+  },true);
+
+  function snapCanvasBlock(ref) {
+    if (!ref || canvasPlacementMode()!=='grid') return;
+    const info=blockFromRef(ref);
+    if (!info.block) return;
+    const grid=canvasGridSize();
+    const list=document.querySelector(`[data-block-list="${CSS.escape(info.kind+':'+info.itemId)}"]`) || document.querySelector('.character-block-list');
+    if (!list) return;
+    const node=info.block.type==='image' ? document.querySelector(`[data-image-block="${CSS.escape(ref)}"]`) : document.querySelector(`[data-text-block="${CSS.escape(ref)}"]`);
+    if (!node || (info.block.type!=='image' && textElementLayout(info.block)==='inline')) return;
+    const minimumWidth=info.block.type==='image'?120:90;
+    const snappedWidth=Math.max(minimumWidth,Math.round(node.offsetWidth/grid)*grid);
+    const snappedHeight=Math.max(info.block.type==='divider'?28:40,Math.round(node.offsetHeight/grid)*grid);
+    const left=Math.max(0,Math.round(node.offsetLeft/grid)*grid);
+    const top=Math.max(0,Math.round(node.offsetTop/grid)*grid);
+    info.block.width=snappedWidth;
+    if (info.block.type!=='image') info.block.height=snappedHeight;
+    const maxLeft=Math.max(0,list.clientWidth-snappedWidth);
+    const boundedLeft=Math.min(maxLeft,left);
+    info.block.xPct=maxLeft?boundedLeft/maxLeft*100:0;
+    info.block.y=top;
+    info.target.updatedAt=nowISO();
+    if (info.block.type==='image') syncImageFigure(ref);
+    else {
+      node.style.setProperty('--text-width',`${snappedWidth}px`);
+      node.style.setProperty('--text-height',`${snappedHeight}px`);
+      node.style.left=`${boundedLeft}px`;
+      node.style.top=`${top}px`;
+      node.classList.add('has-manual-height');
+    }
+    layoutCharacterFlow(list);
+    scheduleSave('Snapped to grid…');
+  }
+  document.addEventListener('pointerup',()=>{
+    const ref=canvasGridInteractionRef;
+    canvasGridInteractionRef='';
+    if (ref) requestAnimationFrame(()=>snapCanvasBlock(ref));
+  },true);
+  document.addEventListener('pointercancel',()=>{canvasGridInteractionRef='';},true);
+
+  function codexLocationSubtreeVisible(item,allowed,seen=new Set()) {
+    if (seen.has(item.id)) return false;
+    const next=new Set(seen);next.add(item.id);
+    return allowed.has(item.id) || childrenOf(item.id).some(child=>codexLocationSubtreeVisible(child,allowed,next));
+  }
+  function renderCodexLocationNodes(items=state.locations,surface='collection') {
+    const allowed=new Set(items.map(item=>item.id));
+    const filtering=surface==='collection' && Boolean((collectionFilters.locations||'').trim());
+    const expanded=new Set(state.workspace.locationTreeExpanded||[]);
+    const roots=state.locations.filter(item=>!item.parentLocationId||!getItem('locations',item.parentLocationId));
+    const renderNode=(item,seen=new Set())=>{
+      if (seen.has(item.id)||!codexLocationSubtreeVisible(item,allowed,seen)) return '';
+      const next=new Set(seen);next.add(item.id);
+      const children=childrenOf(item.id).filter(child=>codexLocationSubtreeVisible(child,allowed,next));
+      const open=Boolean(children.length&&(expanded.has(item.id)||filtering));
+      return `<li class="codex-tree-node${open?' is-open':''}" data-codex-tree-node="${esc(item.id)}">
+        <div class="codex-tree-pill">
+          ${children.length?`<button class="codex-tree-toggle" type="button" data-codex-tree-toggle="${esc(item.id)}" aria-expanded="${open}" aria-label="${open?'Collapse':'Expand'} locations inside ${esc(item.name)}"><span class="codex-tree-chevron" aria-hidden="true">⌄</span></button>`:`<span class="codex-tree-leaf-dot" aria-hidden="true"></span>`}
+          <button class="codex-tree-open" type="button" data-open="locations:${esc(item.id)}"><span class="codex-tree-name">${esc(item.name)}</span><span class="codex-tree-meta">${esc(item.type||'Location')}${children.length?` · ${children.length} inside`:''}</span></button>
+        </div>
+        ${children.length?`<div class="codex-tree-collapse"><div class="codex-tree-collapse-inner"><ul class="codex-tree-children">${children.map(child=>renderNode(child,next)).join('')}</ul></div></div>`:''}
+      </li>`;
+    };
+    return `<ul class="codex-tree-root" data-codex-tree-surface="${surface}">${roots.map(root=>renderNode(root)).join('')||'<li class="empty-state">No location hierarchy yet.</li>'}</ul>`;
+  }
+
+  renderLocationTree = function(filteredItems=state.locations) {
+    return `<div class="panel panel-body"><div class="codex-tree-actions"><button class="button ghost small" type="button" data-codex-tree-action="expand">Expand all</button><button class="button ghost small" type="button" data-codex-tree-action="collapse">Collapse all</button></div>${renderCodexLocationNodes(filteredItems,'collection')}</div>`;
+  };
+
+  const renderSidebarBeforePillTree=renderSidebar;
+  renderSidebar=function() {
+    const previousScroll=el.sidebar.querySelector('.sidebar-nav')?.scrollTop||0;
+    renderSidebarBeforePillTree();
+    const host=el.sidebar.querySelector('.location-mini-tree');
+    if (host) host.innerHTML=renderCodexLocationNodes(state.locations,'sidebar');
+    requestAnimationFrame(()=>{const nav=el.sidebar.querySelector('.sidebar-nav');if(nav)nav.scrollTop=previousScroll;});
+  };
+
+  function updateCodexTreeNode(locationId,open) {
+    document.querySelectorAll(`[data-codex-tree-node="${CSS.escape(locationId)}"]`).forEach(node=>{
+      node.classList.toggle('is-open',open);
+      const toggle=node.querySelector(':scope > .codex-tree-pill [data-codex-tree-toggle]');
+      if (toggle) {
+        toggle.setAttribute('aria-expanded',String(open));
+        const location=getItem('locations',locationId);
+        toggle.setAttribute('aria-label',`${open?'Collapse':'Expand'} locations inside ${location?.name||'this location'}`);
+      }
+    });
+  }
+
+  document.addEventListener('click',event=>{
+    const toggle=event.target.closest('[data-codex-tree-toggle]');
+    if (toggle) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const locationId=toggle.dataset.codexTreeToggle;
+      const expanded=new Set(state.workspace.locationTreeExpanded||[]);
+      const open=!expanded.has(locationId);
+      if (open) expanded.add(locationId); else expanded.delete(locationId);
+      state.workspace.locationTreeExpanded=[...expanded];
+      updateCodexTreeNode(locationId,open);
+      scheduleSave('Saving location tree…');
+      return;
+    }
+    const action=event.target.closest('[data-codex-tree-action]');
+    if (action) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const open=action.dataset.codexTreeAction==='expand';
+      const parentIds=state.locations.filter(location=>childrenOf(location.id).length).map(location=>location.id);
+      state.workspace.locationTreeExpanded=open?parentIds:[];
+      parentIds.forEach(id=>updateCodexTreeNode(id,open));
+      scheduleSave('Saving location tree…');
+    }
+  },true);
 
   render();
   initFirebase();
