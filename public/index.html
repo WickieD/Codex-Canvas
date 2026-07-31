@@ -3875,7 +3875,7 @@ window.FIREBASE_WORLD_ID = "main";
   }
 
   function logActivity(text) {
-    state.activity.unshift({ id: id('activity'), text, at: nowISO(), by: firebase.user?.displayName || 'Demo Owner' });
+    state.activity.unshift({ id: id('activity'), text, at: nowISO(), by: firebase.user?.email || 'Signed-in account' });
     state.activity = state.activity.slice(0, 30);
   }
 
@@ -3974,7 +3974,7 @@ window.FIREBASE_WORLD_ID = "main";
         </div>
       </div>
       <div class="sidebar-foot">
-        <div class="sidebar-user"><span class="avatar">${initials(firebase.user?.displayName || 'Demo Owner')}</span><span class="user-copy"><span class="user-name">${esc(firebase.user?.displayName || 'Demo Owner')}</span><span class="user-mode">${firebase.connected ? 'Shared mode' : 'Local demo mode'}</span></span></div>
+        <div class="sidebar-user"><span class="avatar">${initials(firebase.user?.email || 'Signed-in account')}</span><span class="user-copy"><span class="user-name">${esc(firebase.user?.email || 'Signed-in account')}</span><span class="user-mode">${firebase.connected ? 'Shared mode' : 'Local demo mode'}</span></span></div>
       </div>`;
   }
 
@@ -4056,7 +4056,7 @@ window.FIREBASE_WORLD_ID = "main";
         <div class="panel">
           <div class="panel-head"><h2>Recent activity</h2></div>
           <div class="panel-body"><div class="activity-list">
-            ${state.activity.slice(0,7).map(a => `<div class="activity-item"><span class="activity-dot"></span><div><div class="activity-text">${esc(a.text)}</div><div class="activity-meta">${esc(a.by)} · ${esc(fmtTime(a.at))}</div></div></div>`).join('') || '<p class="page-subtitle">No activity yet.</p>'}
+            ${state.activity.slice(0,7).map(a => `<div class="activity-item"><span class="activity-dot"></span><div><div class="activity-text">${esc(a.text)}</div><div class="activity-meta">${esc(a.by === 'Demo Owner' ? (firebase.user?.email || a.by) : a.by)} · ${esc(fmtTime(a.at))}</div></div></div>`).join('') || '<p class="page-subtitle">No activity yet.</p>'}
           </div></div>
         </div>
       </section>`;
@@ -5582,7 +5582,7 @@ window.FIREBASE_WORLD_ID = "main";
     el.main.innerHTML = `${pageHead('Workspace','Settings','Manage appearance, backups, imports, and the connection used for shared accounts.')}
       <div class="settings-grid">
         <section class="settings-card"><h2>Appearance</h2><p class="page-subtitle">Choose a complete workspace theme. You can also set a custom accent.</p><div class="theme-options">${themes.map(([name,bg,accent])=>`<button class="theme-option ${state.workspace.theme===name?'active':''}" type="button" data-theme="${name}"><div class="theme-swatch" style="background:${bg};box-shadow:inset 0 -10px 0 ${accent}"></div><span>${name[0].toUpperCase()+name.slice(1)}</span></button>`).join('')}</div><div class="property-row" style="margin-top:14px"><label>Custom accent</label><input type="color" value="${esc(state.workspace.accent || '#80694f')}" data-accent></div></section>
-        <section class="settings-card"><h2>Shared mode</h2><div class="status-line"><span class="status-dot ${firebase.connected?'online':''}"></span><strong>${firebase.connected?'Connected to Firebase':'Local demo mode'}</strong></div><p class="page-subtitle" style="margin-top:10px">${firebase.connected?'Signed-in members receive live updates.':'Open the Firebase configuration section near the top of index.html, paste your web configuration, then deploy the project.'}</p><button class="button secondary" type="button" data-account-action>${firebase.connected && firebase.user ? 'Account details' : 'Shared-mode instructions'}</button></section>
+        <section class="settings-card"><h2>Shared mode</h2><div class="status-line"><span class="status-dot ${firebase.connected?'online':''}"></span><strong>${firebase.connected?'Connected to Firebase':'Local demo mode'}</strong></div><p class="page-subtitle" style="margin-top:10px">${firebase.connected?`Signed in as ${esc(firebase.user?.email || 'your Firebase account')}. Changes on this account receive live updates.`:'Open the Firebase configuration section near the top of index.html, paste your web configuration, then deploy the project.'}</p><button class="button secondary" type="button" data-account-action>${firebase.connected && firebase.user ? 'Account details' : 'Shared-mode instructions'}</button></section>
         <section class="settings-card"><h2>Backup and restore</h2><p class="page-subtitle">Download the whole workspace as one JSON backup, including parent locations, graph relationships, members, and blocks.</p><div class="page-actions" style="margin-top:14px"><button class="button" type="button" data-export>Download backup</button><label class="button secondary" for="restoreInput">Restore backup</label><input id="restoreInput" type="file" accept="application/json,.json" hidden></div></section>
         <section class="settings-card"><h2>Notion import</h2><p class="page-subtitle">The uploaded World Codex is already imported into this build. You can also replace the current collections with another Notion Markdown and CSV export.</p><div class="page-actions" style="margin-top:14px"><label class="button" for="notionInput">Import Notion ZIP</label><input id="notionInput" type="file" accept=".zip,application/zip" hidden><button class="button secondary" type="button" data-reset>Reset to bundled export</button></div></section>
       </div>`;
@@ -6300,7 +6300,7 @@ window.FIREBASE_WORLD_ID = "main";
   async function accountAction() {
     if(!firebase.enabled){showModal('Shared mode setup',`<p>This project already contains the shared-mode code. To activate it:</p><ol><li>Create a Firebase web app.</li><li>Enable Google Authentication and Cloud Firestore.</li><li>Paste your web configuration into <code>firebase-config.js</code>.</li><li>Deploy the included <code>firestore.rules</code>.</li></ol><p>Your local data remains available until you connect it.</p>`);return;}
     if(!firebase.user){try{await firebase.api.signInWithPopup(firebase.api.auth,new firebase.api.GoogleAuthProvider());}catch(error){console.error(error);toast('Sign-in did not complete.','error');}return;}
-    showModal('Account',`<div class="member-person"><span class="avatar">${initials(firebase.user.displayName||firebase.user.email)}</span><span><strong>${esc(firebase.user.displayName||'Signed-in user')}</strong><div class="member-email">${esc(firebase.user.email)}</div></span></div>`,`<button class="button secondary" type="button" data-sign-out>Sign out</button>`);
+    showModal('Account',`<div class="member-person"><span class="avatar">${initials(firebase.user.email||'Account')}</span><span><strong>${esc(firebase.user.email||'Signed-in account')}</strong><div class="member-email">Firebase account</div></span></div>`,`<button class="button secondary" type="button" data-sign-out>Sign out</button>`);
   }
 
   document.addEventListener('pointerdown',event=>{
@@ -8538,7 +8538,7 @@ initFirebase=async function(){
 
 accountAction=async function(){
   if(!firebase.user){showAuthGate();return;}
-  showModal('Account',`<div class="member-person"><span class="avatar">${initials(firebase.user.displayName||firebase.user.email)}</span><span><strong>${esc(firebase.user.displayName||'Codex Canvas member')}</strong><div class="member-email">${esc(firebase.user.email||'')}</div></span></div><div style="margin-top:18px"><span class="sync-pill"><i></i> Firestore syncing is active</span></div>`,`<button class="button secondary" type="button" data-sign-out>Sign out</button>`);
+  showModal('Account',`<div class="member-person"><span class="avatar">${initials(firebase.user.email||'Account')}</span><span><strong>${esc(firebase.user.email||'Signed-in account')}</strong><div class="member-email">Firebase account</div></span></div><div style="margin-top:18px"><span class="sync-pill"><i></i> Firestore syncing is active</span></div>`,`<button class="button secondary" type="button" data-sign-out>Sign out</button>`);
 };
 
 el.authForm.addEventListener('submit',async event=>{
