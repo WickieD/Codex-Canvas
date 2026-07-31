@@ -9285,9 +9285,58 @@ attachFirestoreListeners=function(){
   }
 };
 
-const saveStateBeforeImageAssets=saveState;
+function browserSafeWorkspaceSnapshot(){
+  // Images live in the shared Firestore assets collection. Keep only their
+  // asset IDs in the browser cache so localStorage never fills with data URLs.
+  return assetSafeClone(state);
+}
+function writeBrowserWorkspaceSnapshot(){
+  const payload=JSON.stringify(browserSafeWorkspaceSnapshot());
+  try{
+    localStorage.setItem(STORAGE_KEY,payload);
+    return true;
+  }catch(error){
+    // A legacy build may already have filled the quota with embedded images.
+    // Remove that oversized copy and retry with the image-free snapshot.
+    try{
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.setItem(STORAGE_KEY,payload);
+      return true;
+    }catch(retryError){
+      console.warn('Local workspace cache is unavailable. Firestore sync will continue.',retryError);
+      return false;
+    }
+  }
+}
+localStateSnapshot=function(){
+  writeBrowserWorkspaceSnapshot();
+};
+
 saveState=async function(){
-  await saveStateBeforeImageAssets();
+  if(firebase.connected&&firebase.user&&!firebase.applyingRemote&&!canEditSharedWorld()){
+    el.saveStatus.textContent='Read only';
+    try{await loadRemoteWorkspace();render();}catch(error){console.error(error);}
+    toast('Your current role is read-only. Ask an owner to change your access.','error');
+    return;
+  }
+
+  const localSaved=writeBrowserWorkspaceSnapshot();
+  el.saveStatus.textContent=firebase.connected?'Syncing…':(localSaved?'Saved locally':'Local cache unavailable');
+
+  if(firebase.connected&&firebase.user&&!firebase.applyingRemote){
+    try{
+      await syncStateToFirestore();
+      el.saveStatus.textContent='Synced';
+    }catch(error){
+      el.saveStatus.textContent='Sync failed';
+      console.error(error);
+      toast(error.code==='permission-denied'
+        ? 'Your role does not allow this change, or the Firestore rules need updating.'
+        : 'The workspace could not sync.','error');
+    }
+  }else if(!localSaved){
+    toast('This browser could not keep an offline cache. Sign in to save changes online.','error');
+  }
 };
 
 
