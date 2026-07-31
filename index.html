@@ -155,8 +155,11 @@ a { color: inherit; }
 }
 .nav-item:hover { color: var(--text); background: var(--panel-soft); }
 .nav-item.active { color: var(--text); background: var(--accent-soft); font-weight: 650; }
-.nav-icon { width: 19px; text-align: center; color: var(--accent); font-size: 16px; }
-.nav-count { margin-left: auto; font-size: 12px; color: var(--muted); }
+.nav-icon { width: 20px; height: 20px; display: grid; place-items: center; color: var(--accent); flex: 0 0 20px; }
+.nav-icon svg,.search-result-icon svg { width: 18px; height: 18px; display: block; fill: currentColor; stroke: currentColor; stroke-width: 0; }
+.nav-item > span:not(.nav-count),.nav-item .nav-icon * { pointer-events: none; }
+.nav-item { position: relative; z-index: 1; cursor: pointer; }
+.nav-count { margin-left: auto; font-size: 12px; color: var(--muted); pointer-events: none; }
 .location-mini-tree { padding-left: 12px; }
 .tree-row { display: flex; align-items: center; gap: 6px; }
 .tree-indent { width: 12px; border-left: 1px solid var(--border); align-self: stretch; }
@@ -3403,9 +3406,11 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .faction-badge.shape-hexagon{clip-path:polygon(25% 4%,75% 4%,100% 50%,75% 96%,25% 96%,0 50%)}
 .faction-badge.shape-banner{clip-path:polygon(0 0,100% 0,100% 82%,72% 70%,50% 100%,28% 70%,0 82%)}
 .faction-badge.shape-crest{border-radius:48% 48% 18% 18% / 25% 25% 70% 70%}
-.faction-badge-symbol{position:relative;z-index:2;font-size:37px;line-height:1;filter:drop-shadow(0 2px 0 color-mix(in srgb,var(--badge-primary) 65%,transparent))}
+.faction-badge-symbol{position:relative;z-index:2;width:42%;aspect-ratio:1;display:grid;place-items:center;color:var(--badge-accent);filter:drop-shadow(0 2px 0 color-mix(in srgb,var(--badge-primary) 65%,transparent))}
+.faction-badge-symbol svg{width:100%;height:100%;display:block;overflow:visible;fill:currentColor;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.faction-badge.large .faction-badge-symbol{width:45%}
 .faction-badge-text{position:absolute;z-index:3;left:7px;right:7px;bottom:11px;text-align:center;font:800 10px Georgia,serif;letter-spacing:.05em;text-transform:uppercase;color:var(--badge-accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.faction-badge.large{width:180px;height:204px;border-width:8px}.faction-badge.large .faction-badge-symbol{font-size:74px}.faction-badge.large .faction-badge-text{font-size:18px;bottom:22px}
+.faction-badge.large{width:180px;height:204px;border-width:8px}.faction-badge.large .faction-badge-text{font-size:18px;bottom:22px}
 .faction-badge-button{border:0;background:transparent;padding:0;cursor:pointer}
 .badge-designer{display:grid;grid-template-columns:minmax(220px,300px) minmax(0,1fr);gap:20px;align-items:start}
 .badge-preview-stage{min-height:330px;border:1px solid var(--border);border-radius:18px;background:radial-gradient(circle,var(--chip),var(--panel));display:grid;place-items:center;padding:28px;position:sticky;top:0}
@@ -3423,7 +3428,7 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 @media(max-width:760px){.badge-designer{grid-template-columns:1fr}.badge-preview-stage{position:static;min-height:245px}.species-index-row{grid-template-columns:1fr}.species-lineage-card{grid-template-columns:80px minmax(0,1fr)}}
 
 
-.faction-influence-card .faction-badge,.faction-intel-card .faction-badge{width:54px;height:62px;border-width:3px}.faction-influence-card .faction-badge-symbol,.faction-intel-card .faction-badge-symbol{font-size:23px}.faction-influence-card .faction-badge-text,.faction-intel-card .faction-badge-text{display:none}table .faction-badge{width:40px;height:46px;border-width:2px}table .faction-badge-symbol{font-size:19px}table .faction-badge-text{display:none}
+.faction-influence-card .faction-badge,.faction-intel-card .faction-badge{width:54px;height:62px;border-width:3px}.faction-influence-card .faction-badge-symbol,.faction-intel-card .faction-badge-symbol{width:44%}.faction-influence-card .faction-badge-text,.faction-intel-card .faction-badge-text{display:none}table .faction-badge{width:40px;height:46px;border-width:2px}table .faction-badge-symbol{width:46%}table .faction-badge-text{display:none}
 </style>
 
 </head>
@@ -7341,11 +7346,11 @@ window.FIREBASE_CONFIG = {
   const STORAGE_KEY = 'riftbound-codex-v1';
   const VERSION = 1;
   const COLLECTIONS = {
-    characters: { singular: 'Character', label: 'Characters', icon: 'P' },
-    locations: { singular: 'Location', label: 'Locations', icon: 'L' },
-    species: { singular: 'Species', label: 'Species', icon: 'S' },
-    factions: { singular: 'Faction', label: 'Factions', icon: 'F' },
-    events: { singular: 'Timeline Event', label: 'Timeline', icon: 'T' }
+    characters: { singular: 'Character', label: 'Characters', icon: 'person' },
+    locations: { singular: 'Location', label: 'Locations', icon: 'location' },
+    species: { singular: 'Species', label: 'Species', icon: 'species' },
+    factions: { singular: 'Faction', label: 'Factions', icon: 'shield' },
+    events: { singular: 'Timeline Event', label: 'Timeline', icon: 'timeline' }
   };
 
   const deepClone = value => JSON.parse(JSON.stringify(value));
@@ -7389,6 +7394,24 @@ window.FIREBASE_CONFIG = {
   };
   const id = prefix => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   const initials = name => String(name || '?').split(/\s+/).filter(Boolean).slice(0,2).map(x => x[0]).join('').toUpperCase();
+  const uiIcon = (name, className = '') => {
+    const paths = {
+      home: '<path d="M3 10.6 12 3l9 7.6v9.1a1.3 1.3 0 0 1-1.3 1.3h-5.2v-6.2h-5V21H4.3A1.3 1.3 0 0 1 3 19.7z"/>',
+      world: '<path d="M4 3.3c2.8-.5 5.2.1 8 1.8v15.6c-2.8-1.7-5.2-2.3-8-1.8zM20 3.3c-2.8-.5-5.2.1-8 1.8v15.6c2.8-1.7 5.2-2.3 8-1.8z"/>',
+      graph: '<circle cx="5" cy="12" r="3"/><circle cx="18" cy="5" r="3"/><circle cx="19" cy="18" r="3"/><path d="m7.7 10.6 7.5-4M7.9 13.4l8.2 3.2M18.4 8l.4 7" fill="none" stroke="currentColor" stroke-width="2.2"/>',
+      story: '<path d="M5 2.7h10.5L20 7.2v14.1H5z"/><path d="M15.5 2.7v4.5H20M8 11h9M8 15h9M8 19h6" fill="none" stroke="var(--panel)" stroke-width="1.6"/>',
+      search: '<path d="M10.5 3a7.5 7.5 0 1 0 4.7 13.3L21 22l1-1-5.7-5.8A7.5 7.5 0 0 0 10.5 3m0 2a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11"/>',
+      person: '<circle cx="12" cy="7.3" r="4.5"/><path d="M3.6 22c.5-5.1 3.4-8 8.4-8s7.9 2.9 8.4 8z"/>',
+      location: '<path d="M12 2.2a7.4 7.4 0 0 0-7.4 7.4C4.6 15 12 22 12 22s7.4-7 7.4-12.4A7.4 7.4 0 0 0 12 2.2m0 10.5a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4"/>',
+      species: '<circle cx="8" cy="7" r="3.2"/><circle cx="16.5" cy="8.2" r="2.8"/><path d="M1.8 21c.4-4.7 2.6-7.2 6.4-7.2s6 2.5 6.4 7.2zM13 20.8c.2-3.8 1.8-5.9 4.5-5.9 2.8 0 4.3 2.1 4.7 5.9z"/>',
+      shield: '<path d="M12 2 21 5.5v6.2c0 5.7-3.7 9.3-9 10.8-5.3-1.5-9-5.1-9-10.8V5.5z"/>',
+      timeline: '<path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2m1.2 5v4.3l3.5 2.1-1.2 1.9-4.7-2.9V7z"/>',
+      members: '<circle cx="8" cy="8" r="3.5"/><circle cx="17" cy="9" r="3"/><path d="M1.5 21c.4-4.6 2.6-7 6.5-7s6.1 2.4 6.5 7zM13.2 20.8c.3-3.6 1.8-5.5 4.4-5.5 2.7 0 4.2 1.9 4.6 5.5z"/>',
+      settings: '<path d="m9.8 2 .6 2.4a8 8 0 0 1 3.2 0L14.2 2l3.1 1.3-1.2 2.2a8 8 0 0 1 2.3 2.3l2.2-1.2L22 9.8l-2.4.6a8 8 0 0 1 0 3.2l2.4.6-1.3 3.1-2.2-1.2a8 8 0 0 1-2.3 2.3l1.2 2.2-3.2 1.4-.6-2.4a8 8 0 0 1-3.2 0L9.8 22l-3.1-1.3 1.2-2.2a8 8 0 0 1-2.3-2.3l-2.2 1.2L2 14.2l2.4-.6a8 8 0 0 1 0-3.2L2 9.8l1.3-3.1 2.2 1.2a8 8 0 0 1 2.3-2.3L6.6 3.4zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8"/>',
+      star: '<path d="m12 1.8 3 6.2 6.8 1-4.9 4.7 1.2 6.7-6.1-3.2-6.1 3.2 1.2-6.7L2.2 9l6.8-1z"/>'
+    };
+    return `<svg class="${esc(className)}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${paths[name] || paths.star}</svg>`;
+  };
   const nowISO = () => new Date().toISOString();
   const fmtDate = value => {
     if (!value) return '';
@@ -7689,8 +7712,8 @@ window.FIREBASE_CONFIG = {
 
   function navButton(view, label, icon, count = '') {
     const active = route.view === view || (view === 'events' && route.view === 'timeline');
-    return `<button class="nav-item ${active ? 'active' : ''}" type="button" data-nav="${esc(view)}">
-      <span class="nav-icon">${esc(icon)}</span><span>${esc(label)}</span>${count !== '' ? `<span class="nav-count">${count}</span>` : ''}
+    return `<button class="nav-item ${active ? 'active' : ''}" type="button" data-nav="${esc(view)}" aria-label="Open ${esc(label)}">
+      <span class="nav-icon">${uiIcon(icon)}</span><span>${esc(label)}</span>${count !== '' ? `<span class="nav-count">${count}</span>` : ''}
     </button>`;
   }
 
@@ -7722,19 +7745,19 @@ window.FIREBASE_CONFIG = {
       </div>
       <div class="sidebar-nav">
         <div class="nav-group">
-          ${navButton('dashboard','Home','⌂')}
-          ${navButton('world','World Overview','◫')}
-          ${navButton('graph','Graphs','⌘')}
-          ${navButton('story','Story Reader','▤',state.storyGraphs.length)}
-          ${navButton('search','All Search','⌕')}
+          ${navButton('dashboard','Home','home')}
+          ${navButton('world','World Overview','world')}
+          ${navButton('graph','Graphs','graph')}
+          ${navButton('story','Story Reader','story',state.storyGraphs.length)}
+          ${navButton('search','All Search','search')}
         </div>
         <div class="nav-group">
           <div class="nav-label">Databases</div>
-          ${navButton('characters','Characters','P',state.characters.length)}
-          ${navButton('locations','Locations','L',state.locations.length)}
-          ${navButton('species','Species','S',state.species.length)}
-          ${navButton('factions','Factions','F',state.factions.length)}
-          ${navButton('timeline','Timeline','T',state.events.length)}
+          ${navButton('characters','Characters','person',state.characters.length)}
+          ${navButton('locations','Locations','location',state.locations.length)}
+          ${navButton('species','Species','species',state.species.length)}
+          ${navButton('factions','Factions','shield',state.factions.length)}
+          ${navButton('timeline','Timeline','timeline',state.events.length)}
         </div>
         <div class="nav-group">
           <div class="nav-label">Location tree</div>
@@ -7742,8 +7765,8 @@ window.FIREBASE_CONFIG = {
         </div>
         <div class="nav-group">
           <div class="nav-label">Workspace</div>
-          ${navButton('share','Members','◎',state.workspace.members.length)}
-          ${navButton('settings','Settings','⚙')}
+          ${navButton('share','Members','members',state.workspace.members.length)}
+          ${navButton('settings','Settings','settings')}
         </div>
       </div>
       <div class="sidebar-foot">
@@ -9375,7 +9398,7 @@ window.FIREBASE_CONFIG = {
       if(!q || JSON.stringify(searchable).toLowerCase().includes(q)) storyResults.push({story,node,range});
     }
     el.main.innerHTML = `${pageHead('Workspace search',query?`Results for “${query}”`:'Search everything',query?'Matching pages across characters, locations, species, factions, events, and the full RP.':'Type in the search box above to search every imported page, property, and story bookmark.')}
-      <div class="search-results">${storyResults.slice(0,30).map(({story,node,range})=>{const passage=ensureStoryPassage(node);return `<div class="search-result" data-story-point="${esc(storyRouteValue(story.id,node.id))}"><div class="search-result-icon">▤</div><div><strong>${esc(storyPointTitle(story,node))}</strong><div class="search-result-meta">RP bookmark · ${esc(storyAnchorDescription(story,node))} · ${range.turns.length} post${range.turns.length===1?'':'s'} · ${esc(shortText(passage.summary||range.turns.map(turn=>turn.text).join(' '),100))}</div></div><span>›</span></div>`;}).join('')}${results.slice(0,80).map(({kind,item})=>`<div class="search-result" data-open="${kind}:${item.id}"><div class="search-result-icon">${COLLECTIONS[kind].icon}</div><div><strong>${esc(item.name)}</strong><div class="search-result-meta">${esc(COLLECTIONS[kind].singular)} · ${esc(shortText(cardMeta(kind,item).copy,100))}</div></div><span>›</span></div>`).join('') || (!storyResults.length?'<div class="panel empty-state">No matches found.</div>':'')}</div>`;
+      <div class="search-results">${storyResults.slice(0,30).map(({story,node,range})=>{const passage=ensureStoryPassage(node);return `<div class="search-result" data-story-point="${esc(storyRouteValue(story.id,node.id))}"><div class="search-result-icon">▤</div><div><strong>${esc(storyPointTitle(story,node))}</strong><div class="search-result-meta">RP bookmark · ${esc(storyAnchorDescription(story,node))} · ${range.turns.length} post${range.turns.length===1?'':'s'} · ${esc(shortText(passage.summary||range.turns.map(turn=>turn.text).join(' '),100))}</div></div><span>›</span></div>`;}).join('')}${results.slice(0,80).map(({kind,item})=>`<div class="search-result" data-open="${kind}:${item.id}"><div class="search-result-icon">${uiIcon(COLLECTIONS[kind].icon)}</div><div><strong>${esc(item.name)}</strong><div class="search-result-meta">${esc(COLLECTIONS[kind].singular)} · ${esc(shortText(cardMeta(kind,item).copy,100))}</div></div><span>›</span></div>`).join('') || (!storyResults.length?'<div class="panel empty-state">No matches found.</div>':'')}</div>`;
   }
 
   function addItem(kind,parentId='') {
@@ -10219,6 +10242,15 @@ window.FIREBASE_CONFIG = {
   el.mobileMenu.addEventListener('click',()=>document.body.classList.add('sidebar-open'));
   el.backdrop.addEventListener('click',()=>document.body.classList.remove('sidebar-open'));
   el.account.addEventListener('click',accountAction);
+  // Keep primary sidebar navigation responsive even when page editors install
+  // their own click and pointer handlers.
+  el.sidebar.addEventListener('click', event => {
+    const nav = event.target.closest('button[data-nav]');
+    if (!nav || !el.sidebar.contains(nav)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    navigate(nav.dataset.nav);
+  }, true);
   window.addEventListener('hashchange',()=>{route=parseHash();render();});
   window.addEventListener('resize',()=>{closeLayerPicker();if(route.view==='graph')requestAnimationFrame(drawGraph);if(route.view==='characters'&&route.id)requestAnimationFrame(()=>layoutCharacterFlow());});
   document.addEventListener('scroll',closeLayerPicker,true);
@@ -11975,7 +12007,31 @@ function renderGraphPage(){
 /* === Species, personalized factions, and manually ordered timelines === */
 
 function badgeSymbolGlyph(value){
-  return ({wolf:'🐺',raven:'🐦',lion:'🦁',serpent:'🐍',stag:'🦌',bear:'🐻',fox:'🦊',owl:'🦉',dragon:'🐉',horse:'♞',shield:'◆',star:'✦',moon:'☾',sun:'☀',flame:'♨',crown:'♛',sword:'⚔',leaf:'❧',eye:'◉',mountain:'▲',waves:'≋'})[value] || '✦';
+  const svg=(body)=>`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${body}</svg>`;
+  const icons={
+    wolf:'<path d="M3 4.2 8.2 7l3.8-3.7L15.8 7 21 4.2l-1.4 8.2c-.8 4.8-3.5 8.1-7.6 9.6-4.1-1.5-6.8-4.8-7.6-9.6zM8.2 12.2l2.1 1.4L12 12l1.7 1.6 2.1-1.4-1 4-2.8 2-2.8-2z"/>',
+    raven:'<path d="M3 15.2c3.2-6.6 7.9-9.7 14.2-9.1l3.8-2-1.7 4.2c1.1 2.6.8 5.2-1 7.7-3.3 3.3-7.5 4.5-12.6 3.6l-3.9 1.6 2.5-3.5z"/>',
+    lion:'<path d="M12 1.8 15 4l3.7-.2.5 3.5 2.4 2.8-2.4 2.8-.5 3.5-3.7-.2-3 2.2-3-2.2-3.7.2-.5-3.5-2.4-2.8 2.4-2.8.5-3.5L9 4zM8.4 8.5h7.2v6.1L12 18l-3.6-3.4z"/>',
+    serpent:'<path d="M18.8 3.3c-5.4-.8-9.1.3-11 3.3-2.7 3-2 5.5 2.2 7.4 3.7 1.7 4.8 3.1 3.2 4.3-1.8 1.4-4.8.9-9-1.4l-1.6 3c6.8 3.5 11.7 3 14.8-1.5 2.4-3.6.4-6.6-6-9.1-1.6-.6-1.9-1.3-.9-2 1.5-1.1 4.1-1.2 7.8-.3z"/>',
+    stag:'<path d="M10 22v-7.1L6.8 12 4 8.4l2.4-1.2L3.5 3.5 5.8 2l3.4 4.4L12 8.8l2.8-2.4L18.2 2l2.3 1.5-2.9 3.7L20 8.4 17.2 12 14 14.9V22z"/>',
+    bear:'<path d="M5.2 6.2A3.1 3.1 0 1 1 9 3.3a9.2 9.2 0 0 1 6 0 3.1 3.1 0 1 1 3.8 2.9A8.4 8.4 0 0 1 21 12c0 5-4 9-9 9s-9-4-9-9c0-2.2.8-4.2 2.2-5.8M8 11h8v6H8z"/>',
+    fox:'<path d="M2.7 3.5 9 6.8 12 4l3 2.8 6.3-3.3-1.5 9c-.6 4.2-3.2 7.3-7.8 9-4.6-1.7-7.2-4.8-7.8-9zM7.2 12l4.8 4.8 4.8-4.8-1.2 5.1L12 20l-3.6-2.9z"/>',
+    owl:'<path d="M4 3.5 9 6l3-3 3 3 5-2.5v9.2C20 18 16.5 22 12 22s-8-4-8-9.3zM7 9a3 3 0 1 0 6 0 3 3 0 0 0-6 0m4 0a3 3 0 1 0 6 0 3 3 0 0 0-6 0"/>',
+    dragon:'<path d="M3 19c1.6-6.1 5.1-10.4 10.6-13L12 2c5.8 1 9 4.1 9.7 9.2l-4-1.2 2.1 4.7-4.7-1.8-1.4 5.6-3.2-3.8L8 22z"/>',
+    horse:'<path d="M7 22V9.5L12.2 2l7 2.7-2.5 3.1 3.1 4.2-4.1 3.2-3.5-2.1V22z"/>',
+    shield:'<path d="M12 2 21 5.5v6.2c0 5.7-3.7 9.3-9 10.8-5.3-1.5-9-5.1-9-10.8V5.5z"/>',
+    star:'<path d="m12 1.8 3 6.2 6.8 1-4.9 4.7 1.2 6.7-6.1-3.2-6.1 3.2 1.2-6.7L2.2 9l6.8-1z"/>',
+    moon:'<path d="M18.8 16.8A8.3 8.3 0 0 1 8.1 5.2 9.3 9.3 0 1 0 18.8 16.8"/>',
+    sun:'<circle cx="12" cy="12" r="5"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4M4.2 4.2 7 7M17 17l2.8 2.8M19.8 4.2 17 7M7 17l-2.8 2.8" fill="none" stroke="currentColor" stroke-width="2.3"/>',
+    flame:'<path d="M13.5 1.5c.8 4-2.8 5.5-1.1 8.4 1.2-1.7 3.2-2.2 4.7-4.1 3.2 3.8 4.6 7.5 2.4 11.4A8.5 8.5 0 0 1 4 15.3c-.8-3.8 1.2-7 5.8-10.1-.4 3.7 1 4.9 2.2 6.3 2.1-3.2 1.2-6.4 1.5-10z"/>',
+    crown:'<path d="m2 6 5 4 5-7 5 7 5-4-2.2 12H4.2zM4 20h16v2H4z"/>',
+    sword:'<path d="m3 2 7 7-2.2 2.2L.8 4.2zM21 2l-7 7 2.2 2.2 7-7zM9.2 12.8l2 2L5 21H1v-4zM14.8 12.8l-2 2L19 21h4v-4z"/>',
+    leaf:'<path d="M21.5 2.5C11 2.7 4.7 7.1 3.2 15.7c-.4 2.2.5 4.4 2.3 5.8 8.9-1.4 14.4-7.8 16-19zM5 20c3.2-6.2 7.6-10.8 13.4-13.9"/>',
+    eye:'<path d="M1.5 12C4.2 6.8 7.7 4.2 12 4.2S19.8 6.8 22.5 12C19.8 17.2 16.3 19.8 12 19.8S4.2 17.2 1.5 12m6.5 0a4 4 0 1 0 8 0 4 4 0 0 0-8 0"/>',
+    mountain:'<path d="m1 21 7.2-13 3.1 4.8L15.7 5 23 21z"/>',
+    waves:'<path d="M1 7c2.4-2 4.8-2 7.2 0s4.8 2 7.2 0 4.8-2 7.2 0v3c-2.4-2-4.8-2-7.2 0s-4.8 2-7.2 0S3.4 8 1 10zm0 7c2.4-2 4.8-2 7.2 0s4.8 2 7.2 0 4.8-2 7.2 0v3c-2.4-2-4.8-2-7.2 0s-4.8 2-7.2 0S3.4 15 1 17z"/>'
+  };
+  return svg(icons[value] || icons.star);
 }
 function factionBadgeStyle(item){
   return `--badge-primary:${safeDossierColor(item.badgePrimary,'#1d2736')};--badge-secondary:${safeDossierColor(item.badgeSecondary,'#c6a46a')};--badge-accent:${safeDossierColor(item.badgeAccent,'#f5ead3')};`;
@@ -11983,7 +12039,7 @@ function factionBadgeStyle(item){
 function renderFactionBadge(item,size=''){
   const shape=['shield','circle','diamond','hexagon','banner','crest'].includes(item.badgeShape)?item.badgeShape:'shield';
   const words=String(item.badgeText||initials(item.name)||'').slice(0,18);
-  return `<span class="faction-badge shape-${esc(shape)} ${size==='large'?'large':''}" style="${factionBadgeStyle(item)}"><span class="faction-badge-symbol">${esc(badgeSymbolGlyph(item.badgeSymbol))}</span>${words?`<span class="faction-badge-text">${esc(words)}</span>`:''}</span>`;
+  return `<span class="faction-badge shape-${esc(shape)} ${size==='large'?'large':''}" style="${factionBadgeStyle(item)}"><span class="faction-badge-symbol">${badgeSymbolGlyph(item.badgeSymbol)}</span>${words?`<span class="faction-badge-text">${esc(words)}</span>`:''}</span>`;
 }
 function showFactionBadgeDesigner(itemId){
   const item=getItem('factions',itemId);if(!item)return;
@@ -12078,7 +12134,7 @@ function sectionEntityCover(kind,item){
 }
 
 function renderCollectionView(kind,items,view){
-  const template=sectionTemplateConfig(kind)?sectionDesign(kind).template:'';
+  const template=SECTION_TEMPLATE_CONFIG[kind]?sectionDesign(kind).template:'';
   if(kind==='locations'){if(view==='table')return renderTable(kind,items);if(view==='tree'||template==='hierarchy-survey')return renderLocationTree(items);return template==='travel-journal'?renderLocationJournal(items):renderLocationAtlasCards(items);}
   if(kind==='species'){if(view==='table')return renderTable(kind,items);if(template==='lineage-cards')return renderSpeciesLineage(items);if(template==='classification-index')return renderSpeciesIndex(items);return renderSpeciesRegistry(items);}
   if(kind==='factions'){if(view==='table')return renderTable(kind,items);if(template==='influence-board')return renderFactionInfluence(items);if(template==='intelligence-files')return renderFactionIntel(items);return renderFactionHeraldic(items);}
