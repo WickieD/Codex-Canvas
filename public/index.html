@@ -3580,7 +3580,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "login-loading-repair-2026-07-31";
+window.CODEX_BUILD = "confirmed-live-sync-repair-2026-07-31";
 </script>
   <script>
 (() => {
@@ -10018,6 +10018,155 @@ document.addEventListener('click',event=>{
 },true);
 
 
+/* === Confirmed per-document collaboration repair === */
+function codexSyncItemLabel(item){
+  if(item.kind==='workspace')return 'workspace details';
+  const collection=state[item.kind]||[];
+  const record=collection.find(value=>String(value.id||'').replaceAll('/','_')===item.id);
+  const singular=COLLECTIONS[item.kind]?.singular||item.kind;
+  return record?.name?`${singular} “${record.name}”`:`${singular} record`;
+}
+function codexEnhancedSyncError(error,item,stage='save'){
+  const code=error?.code||'codex/save-failed';
+  const label=item?codexSyncItemLabel(item):'shared workspace';
+  const original=String(error?.message||'').replace(/^FirebaseError:\s*/,'').trim();
+  const copy=new Error(`${label} could not ${stage==='asset'?'upload its image':'save'}${original?`: ${original}`:'.'}`);
+  copy.code=code;copy.codexItem=label;copy.codexStage=stage;return copy;
+}
+function codexForceEditingLock(detail={}){
+  window.CODEX_PENDING_SYNC_ERROR={request:Number(detail.request)||Date.now(),code:detail.code||'codex/sync-blocked',message:detail.message||'The shared save was not confirmed.'};
+  firebase.codexSyncBlocked=true;
+  if(el?.saveStatus)el.saveStatus.textContent='Sync failed — editing locked';
+  document.getElementById('app')?.setAttribute('inert','');
+  document.body.classList.add('is-save-locked');
+}
+function codexReleaseEditingLock(){
+  window.CODEX_PENDING_SYNC_ERROR=null;
+  document.getElementById('app')?.removeAttribute('inert');
+  document.body.classList.remove('is-save-locked');
+}
+window.addEventListener('codex-save-error',event=>codexForceEditingLock(event.detail||{}));
+window.addEventListener('codex-live-sync-error',event=>codexForceEditingLock(event.detail||{}));
+window.addEventListener('codex-save-complete',codexReleaseEditingLock);
+window.addEventListener('codex-sync-reset',codexReleaseEditingLock);
+
+async function codexCommitOneDocument(item){
+  const api=firebase.api,email=normalizeMemberEmail(firebase.user?.email),savedAt=nowISO();
+  let committedData=null;
+  try{
+    await codexWithTimeout(api.runTransaction(api.db,async transaction=>{
+      const snap=await transaction.get(item.ref);
+      const remote=snap.exists()?snap.data():null;
+      if(item.type==='delete'){
+        if(snap.exists())transaction.delete(item.ref);
+        committedData=null;return;
+      }
+      const base=codexJsonParse(item.base,null);
+      const result=remote&&base&&codexLogicalJson(remote)!==codexLogicalJson(base)
+        ?codexMergeDocument(base,item.local,remote)
+        :{merged:codexStripSyncFields(item.local),conflicts:[]};
+      committedData={...result.merged,__syncRevision:(Number(remote?.__syncRevision)||0)+1,__syncUpdatedAt:savedAt,__syncUpdatedBy:email};
+      transaction.set(item.ref,committedData,{merge:false});
+    }),45000,`Saving ${codexSyncItemLabel(item)}`);
+  }catch(error){throw codexEnhancedSyncError(error,item,'save');}
+
+  if(item.kind==='workspace'){
+    firebase.remoteCache.meta=committedData?JSON.stringify(committedData):'';
+    if(committedData)applyRemoteMeta(codexStripSyncFields(committedData));
+  }else{
+    const cache=firebase.remoteCache.collections[item.kind]||new Map();
+    if(committedData){
+      cache.set(item.id,JSON.stringify(committedData));
+      const clean=codexStripSyncFields(committedData);delete clean.__order;hydrateImageAssets(clean);
+      const at=(state[item.kind]||[]).findIndex(value=>String(value.id||'').replaceAll('/','_')===item.id);
+      if(at>=0)state[item.kind][at]=clean;
+    }else cache.delete(item.id);
+    firebase.remoteCache.collections[item.kind]=cache;
+  }
+}
+
+codexCommitDocumentPlan=async function(plan){
+  if(!plan.length)return;
+  // Save entity documents first so character/location edits survive even if a later
+  // workspace-metadata write is too large or delayed.
+  const ordered=[...plan].sort((a,b)=>(a.kind==='workspace'?1:0)-(b.kind==='workspace'?1:0));
+  for(const item of ordered)await codexCommitOneDocument(item);
+};
+
+codexWriteAssetChanges=async function(){
+  const api=firebase.api,assets=await collectStateImageAssets(),nextIds=new Set(),cache=firebase.remoteCache.assets||new Map();
+  for(const [assetId,asset] of assets){
+    nextIds.add(assetId);if(!asset.dataUrl)continue;
+    const data={dataUrl:asset.dataUrl,ownerKind:asset.ownerKind,ownerId:asset.ownerId,updatedAt:asset.updatedAt};
+    const json=JSON.stringify(data);if(cache.get(assetId)===json)continue;
+    const item={kind:asset.ownerKind||'asset',id:String(asset.ownerId||assetId),ref:imageAssetRef(assetId)};
+    try{
+      await codexWithTimeout(api.setDoc(item.ref,data,{merge:false}),60000,`Uploading image for ${asset.ownerKind||'record'}`);
+      cache.set(assetId,json);firebase.assetData.set(assetId,asset.dataUrl);
+    }catch(error){throw codexEnhancedSyncError(error,item,'asset');}
+  }
+  for(const oldId of [...cache.keys()]){
+    if(nextIds.has(oldId))continue;
+    try{await codexWithTimeout(api.deleteDoc(imageAssetRef(oldId)),30000,'Removing shared image');}
+    catch(error){throw codexEnhancedSyncError(error,{kind:'asset',id:oldId,ref:imageAssetRef(oldId)},'asset');}
+    cache.delete(oldId);firebase.assetData.delete(oldId);
+  }
+  firebase.remoteCache.assets=cache;
+};
+
+codexConfirmedSync=async function(){
+  if(!firebase.connected||!firebase.user)throw Object.assign(new Error('You are not connected to the shared world.'),{code:'codex/offline'});
+  if(!canEditSharedWorld())throw Object.assign(new Error('Your account is read-only.'),{code:'permission-denied'});
+  const plan=codexBuildDocumentPlan();
+  await codexCommitDocumentPlan(plan);
+  // Images are deliberately separate. Text and profile changes are already safely
+  // committed before a large image transfer begins.
+  await codexWriteAssetChanges();
+  codexClearLegacyEditBases();
+  writeBrowserWorkspaceSnapshot();
+};
+
+saveState=async function(){
+  if(firebase.applyingRemote)return;
+  writeBrowserWorkspaceSnapshot();
+  const request=Date.now();
+  if(!firebase.connected||!firebase.user){
+    codexMakeBrowserRecovery('Offline changes');
+    const detail={request,code:'codex/offline',message:'The shared world is offline. Your browser recovery copy was kept.'};
+    window.dispatchEvent(new CustomEvent('codex-save-error',{detail}));return;
+  }
+  if(!canEditSharedWorld()){
+    const detail={request,code:'permission-denied',message:'Your account cannot edit this world.'};
+    window.dispatchEvent(new CustomEvent('codex-save-error',{detail}));return;
+  }
+  if(firebase.codexSaving){firebase.codexSaveAgain=true;return;}
+  if(!codexHasPendingChanges()){el.saveStatus.textContent='Synced';codexReleaseEditingLock();return;}
+
+  firebase.codexSaving=true;firebase.codexSyncBlocked=false;codexMakeBrowserRecovery('Before confirmed save');
+  el.saveStatus.textContent='Syncing…';window.dispatchEvent(new CustomEvent('codex-save-start',{detail:{request}}));
+  try{
+    await codexConfirmedSync();
+    firebase.codexSyncBlocked=false;el.saveStatus.textContent='Synced';
+    window.dispatchEvent(new CustomEvent('codex-save-complete',{detail:{request}}));
+    if(firebase.codexRemoteWaiting){firebase.codexRemoteWaiting=false;await loadRemoteWorkspace();render();}
+  }catch(error){
+    console.error('Confirmed shared save failed:',error);
+    firebase.codexSyncBlocked=true;codexMakeBrowserRecovery('Shared save failed');
+    const detail={request,code:error?.code||'codex/save-failed',message:error?.message||'The shared save failed.'};
+    window.CODEX_LAST_SYNC_ERROR={...detail,at:nowISO()};
+    window.dispatchEvent(new CustomEvent('codex-save-error',{detail}));
+  }finally{
+    firebase.codexSaving=false;
+    if(firebase.codexSaveAgain&&!firebase.codexSyncBlocked){firebase.codexSaveAgain=false;setTimeout(()=>saveState(),100);}
+  }
+};
+
+window.codexRetrySync=async function(){
+  firebase.codexSyncBlocked=false;window.CODEX_PENDING_SYNC_ERROR=null;
+  await saveState();
+};
+
+
 initFirebase();
 
 })();
@@ -10152,6 +10301,13 @@ initFirebase();
   backup?.addEventListener('click',()=>window.codexDownloadEmergencyBackup?.());
   reload?.addEventListener('click',()=>{if(confirm('Reload the confirmed Firestore version? Unsynced browser changes will remain only in your downloaded or recovery backup.')){showSaving(Date.now());Promise.resolve(window.codexReloadSharedWorld?.()).catch(error=>showError(error.message));}});
   window.addEventListener('online',()=>{if(overlay.classList.contains('is-error'))detail.textContent='The connection is back. Choose Retry sync to publish the browser version.';});
+})();
+</script>
+
+<script id="codex-pending-sync-error-replay">
+(() => {
+  const pending=window.CODEX_PENDING_SYNC_ERROR;
+  if(pending)queueMicrotask(()=>window.dispatchEvent(new CustomEvent('codex-save-error',{detail:pending})));
 })();
 </script>
 
