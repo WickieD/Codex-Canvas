@@ -11252,5 +11252,370 @@ initFirebase();
 @media(max-width:560px){.cc4-layout-card{grid-template-columns:1fr}.cc4-layout-preview{grid-row:auto;height:250px}.cc4-content-with-outline{display:flex;flex-direction:column}.cc4-outline{width:100%}.cc4-page>.section-media-cover-slot{min-height:190px}.cc4-journal-page{padding-left:0;background:none}}
 </style>
 
+
+<style id="cc6-editing-behavior-fix">
+/* Live section editing */
+.cc5-section:not(.is-empty){opacity:1!important}
+.cc5-section-summary{gap:10px}
+.cc5-section-title{min-width:0;flex:1}
+.cc6-block-actions{
+  position:absolute;right:6px;top:5px;display:flex;gap:4px;
+  opacity:0;transition:opacity .15s;z-index:8
+}
+.block-row:hover>.cc6-block-actions,
+.block-row:focus-within>.cc6-block-actions{opacity:1}
+.cc6-block-actions button{
+  min-width:28px;height:28px;border:1px solid var(--border);border-radius:7px;
+  background:var(--panel-strong);color:var(--muted);font-size:12px;font-weight:800
+}
+.cc6-block-actions button:hover{border-color:var(--accent);color:var(--text)}
+.cc6-block-actions .danger{color:var(--danger)}
+.cc6-block-edit-hint{font-size:10px;color:var(--muted);margin-left:auto;align-self:center}
+.cc6-edit-block-modal textarea{min-height:220px;line-height:1.55}
+
+/* Page images: visible controls, movement and true offsets */
+.cc5-page-image{transform:translate(var(--cc6-x,0px),var(--cc6-y,0px))}
+.cc5-page-image.layout-wrap.side-center{float:none;margin:14px auto;clear:both}
+.cc5-page-image.layout-front{
+  position:relative;z-index:12;box-shadow:var(--shadow)
+}
+.cc5-page-image.layout-behind{
+  position:relative;z-index:0;opacity:var(--cc5-opacity);pointer-events:auto
+}
+.cc5-page-image-controls{opacity:1}
+.cc6-image-order-controls{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+
+/* Quick facts are read-only until clicked */
+.cc6-quick-facts{display:grid;gap:8px}
+.cc6-fact-row{
+  width:100%;display:grid;grid-template-columns:minmax(130px,.46fr) minmax(0,1fr);
+  align-items:center;gap:12px;border:1px solid transparent;border-radius:10px;
+  background:transparent;padding:9px 10px;text-align:left;color:inherit
+}
+.cc6-fact-row:hover,.cc6-fact-row:focus-visible{
+  border-color:var(--border);background:var(--panel-soft)
+}
+.cc6-fact-row label{
+  color:var(--muted);font-size:11px;font-weight:800;
+  text-transform:uppercase;letter-spacing:.05em;pointer-events:none
+}
+.cc6-fact-value{overflow-wrap:anywhere}
+.cc6-fact-help{grid-column:2;color:var(--muted);font-size:11px}
+.cc6-location-links-head{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.cc6-location-links-head h3{margin:0}
+.cc6-manage-link{
+  border:1px solid var(--section-line);border-radius:8px;background:transparent;
+  color:var(--section-accent);padding:5px 8px;font-size:11px;font-weight:800
+}
+.cc6-check-list{display:grid;gap:8px;max-height:380px;overflow:auto}
+.cc6-check-row{
+  display:flex;gap:10px;align-items:center;border:1px solid var(--border);
+  border-radius:10px;padding:9px 10px;background:var(--panel-strong)
+}
+
+/* Clickable empty media slots */
+.section-media-slot:not(.has-image),
+.section-media-cover-slot:not(.has-image){cursor:pointer}
+.section-media-slot:not(.has-image):hover,
+.section-media-cover-slot:not(.has-image):hover{
+  border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 14%,transparent)
+}
+
+/* Auto-growing fields */
+.properties-panel textarea,
+.cc3-properties-panel textarea,
+.cc4-mini-panel textarea{
+  overflow:hidden!important;resize:none;min-height:92px;height:auto
+}
+
+/* Better section/image editing on touch devices */
+@media(max-width:760px){
+  .cc6-block-actions{position:static;opacity:1;justify-content:flex-end;margin:4px 0}
+  .cc6-block-edit-hint{display:none}
+  .cc6-fact-row{grid-template-columns:1fr}
+  .cc6-fact-help{grid-column:auto}
+  .cc5-page-image-controls{position:static;padding:7px;justify-content:flex-end}
+}
+</style>
+
+<script id="cc6-editing-behavior-fix">
+(function(){
+  const originalRenderBlock = renderBlock;
+  renderBlock = function(kind,itemId,block,index){
+    let html = originalRenderBlock(kind,itemId,block,index);
+    if(!['species','locations'].includes(kind) || !block || block.type==='h2') return html;
+    if(block.type==='image') return html;
+    const ref = `${kind}:${itemId}:${index}`;
+    const controls = `<span class="cc6-block-actions">
+      <button type="button" data-cc6-block-edit="${esc(ref)}" title="Edit this part">✎</button>
+      <button type="button" data-cc6-block-up="${esc(ref)}" title="Move up">↑</button>
+      <button type="button" data-cc6-block-down="${esc(ref)}" title="Move down">↓</button>
+      <button class="danger" type="button" data-cc6-block-delete="${esc(ref)}" title="Delete this part">×</button>
+    </span>`;
+    return html.replace(/(<div class="block-row[^"]*"[^>]*>)/, `$1${controls}`);
+  };
+
+  function cc6Info(ref){
+    const [kind,itemId,indexRaw]=String(ref||'').split(':');
+    const target=resolveBlockTarget(kind,itemId), index=Number(indexRaw);
+    return {kind,itemId,index,target,block:target?.blocks?.[index]};
+  }
+  function cc6Render(kind,itemId){ kind==='world'?renderWorld():renderEntity(kind,itemId); }
+
+  function cc6ShowBlockEditor(ref){
+    const info=cc6Info(ref); if(!info.block) return;
+    showModal('Edit section content', `<div class="cc6-edit-block-modal">
+      <label class="property-row"><span>Content</span>
+        <textarea class="textarea" data-cc6-block-text="${esc(ref)}">${esc(info.block.content||'')}</textarea>
+      </label>
+      <p class="property-help">Use Backspace normally here. Save when finished, or delete this individual part.</p>
+    </div>`,
+    `<button class="button danger" type="button" data-cc6-block-delete="${esc(ref)}">Delete this part</button>
+     <button class="button secondary" type="button" data-close-modal>Cancel</button>
+     <button class="button" type="button" data-cc6-block-save="${esc(ref)}">Save</button>`);
+  }
+
+  function cc6UpdateSectionState(node){
+    const section=node?.closest?.('.cc5-section,.cc4-section'); if(!section) return;
+    const values=[...section.querySelectorAll('.block-content,[data-cc5-section-title]')]
+      .map(el=>('value' in el?el.value:el.innerText).trim())
+      .filter(v=>v && !/^new heading$/i.test(v) && !/^start writing here/i.test(v));
+    const empty=values.length===0;
+    section.classList.toggle('is-empty',empty);
+    const label=section.querySelector('.cc5-section-summary small,.cc4-section>summary small');
+    if(label) label.textContent=empty?'Not filled in':'Open section';
+  }
+
+  function cc6AutoGrow(el){
+    if(!el || el.tagName!=='TEXTAREA') return;
+    el.style.height='auto';
+    el.style.height=Math.max(el.scrollHeight,92)+'px';
+  }
+  function cc6GrowAll(root=document){
+    root.querySelectorAll('.properties-panel textarea,.cc3-properties-panel textarea,.cc4-mini-panel textarea')
+      .forEach(cc6AutoGrow);
+  }
+
+  // Location quick facts: parent first, type second, display-only until clicked.
+  const baseRenderProperties = renderProperties;
+  renderProperties = function(kind,item){
+    if(kind!=='locations') return baseRenderProperties(kind,item);
+    const parent=getItem('locations',item.parentLocationId);
+    const fact=(label,value,field,help='')=>`<button class="cc6-fact-row" type="button" data-cc6-edit-location-field="${esc(item.id)}:${esc(field)}">
+      <label>${esc(label)}</label><span class="cc6-fact-value">${esc(value||'Not set')}</span>
+      ${help?`<small class="cc6-fact-help">${esc(help)}</small>`:''}
+    </button>`;
+    return `<div class="property-list cc6-quick-facts">
+      ${fact('Inside / parent location',parent?.name||'No parent selected','parentLocationId','Click to choose where this location is physically inside.')}
+      ${fact('Type',item.type||'Location','type','Click to choose a location type.')}
+      ${fact('Atmosphere',item.atmosphere||'Not set','atmosphere')}
+      ${fact('Description',item.description||'Not set','description')}
+      ${fact('Controlled by',item.controlledBy||'Not set','controlledBy')}
+      <div class="property-row"><label>Key characters</label>${linkedPills('characters',item.keyCharacterIds)}</div>
+    </div>`;
+  };
+
+  function cc6LocationFieldEditor(itemId,field){
+    const item=getItem('locations',itemId); if(!item) return;
+    let body='';
+    if(field==='parentLocationId'){
+      body=`<label class="property-row"><span>Inside / parent location</span>
+        <select class="select" data-cc6-location-edit-value>
+          <option value="">No parent selected</option>
+          ${state.locations.filter(x=>x.id!==item.id&&!isDescendant(item.id,x.id))
+            .map(x=>`<option value="${esc(x.id)}" ${item.parentLocationId===x.id?'selected':''}>${esc(x.name)}</option>`).join('')}
+        </select></label>`;
+    }else if(field==='type'){
+      const types=['Region','Realm','Territory','Settlement','City','Urban District','District','Transit Point','Building','Room','Landmark'];
+      body=`<label class="property-row"><span>Type</span><select class="select" data-cc6-location-edit-value>
+        ${types.map(x=>`<option ${item.type===x?'selected':''}>${esc(x)}</option>`).join('')}
+      </select></label>`;
+    }else{
+      const isLong=['atmosphere','description'].includes(field);
+      body=`<label class="property-row"><span>${esc(field==='controlledBy'?'Controlled by':field[0].toUpperCase()+field.slice(1))}</span>
+        ${isLong?`<textarea class="textarea" data-cc6-location-edit-value>${esc(item[field]||'')}</textarea>`:
+        `<input class="input" data-cc6-location-edit-value value="${esc(item[field]||'')}">`}
+      </label>`;
+    }
+    showModal('Edit location detail',body,
+      `<button class="button secondary" type="button" data-close-modal>Cancel</button>
+       <button class="button" type="button" data-cc6-location-edit-save="${esc(itemId)}:${esc(field)}">Save</button>`);
+    requestAnimationFrame(()=>{const t=el.modal.querySelector('textarea');if(t)cc6AutoGrow(t);});
+  }
+
+  // Contains and Connected To are linked-location controls, not writing boxes.
+  cc4LocationLinks=function(item){
+    const children=childrenOf(item.id);
+    const connected=(item.relatedLocationIds||[]).map(x=>getItem('locations',x)).filter(Boolean);
+    const list=(items,empty)=>items.map(x=>`<button type="button" data-open="locations:${esc(x.id)}">${esc(x.name)}</button>`).join('')||`<span>${esc(empty)}</span>`;
+    return `<div class="cc4-link-grid">
+      <section><div class="cc6-location-links-head"><h3>Contains</h3><button class="cc6-manage-link" type="button" data-cc6-manage-contains="${esc(item.id)}">Manage</button></div>${list(children,'No places inside yet')}</section>
+      <section><div class="cc6-location-links-head"><h3>Connected To</h3><button class="cc6-manage-link" type="button" data-cc6-manage-connected="${esc(item.id)}">Manage</button></div>${list(connected,'No connected places yet')}</section>
+      <section><h3>Travel Routes</h3><p>${esc(item.travelConnections||item.notes||'Add routes and travel notes in a writing section.')}</p></section>
+    </div>`;
+  };
+
+  function cc6ShowLocationChecklist(itemId,mode){
+    const item=getItem('locations',itemId); if(!item) return;
+    const selected=new Set(mode==='contains'?childrenOf(item.id).map(x=>x.id):(item.relatedLocationIds||[]));
+    const rows=state.locations.filter(x=>x.id!==item.id).map(x=>`<label class="cc6-check-row">
+      <input type="checkbox" value="${esc(x.id)}" data-cc6-location-check ${selected.has(x.id)?'checked':''}>
+      <span>${esc(x.name)}</span>
+    </label>`).join('');
+    showModal(mode==='contains'?'Manage places inside':'Manage connected locations',
+      `<div class="cc6-check-list">${rows||'<p>No other locations exist yet.</p>'}</div>`,
+      `<button class="button secondary" type="button" data-close-modal>Cancel</button>
+       <button class="button" type="button" data-cc6-location-links-save="${esc(itemId)}:${esc(mode)}">Save links</button>`);
+  }
+
+  // Make empty cover/profile placeholders open their file picker.
+  document.addEventListener('click',event=>{
+    const emptySlot=event.target.closest('[data-section-media-select]:not(.has-image)');
+    if(emptySlot){
+      event.preventDefault();event.stopImmediatePropagation();
+      document.querySelector(`[data-section-media-input="${CSS.escape(emptySlot.dataset.sectionMediaSelect)}"]`)?.click();
+      return;
+    }
+
+    const editBlock=event.target.closest('[data-cc6-block-edit]');
+    if(editBlock){event.preventDefault();event.stopImmediatePropagation();cc6ShowBlockEditor(editBlock.dataset.cc6BlockEdit);return;}
+
+    const saveBlock=event.target.closest('[data-cc6-block-save]');
+    if(saveBlock){
+      event.preventDefault();event.stopImmediatePropagation();
+      const info=cc6Info(saveBlock.dataset.cc6BlockSave),ta=el.modal.querySelector(`[data-cc6-block-text="${CSS.escape(saveBlock.dataset.cc6BlockSave)}"]`);
+      if(info.block&&ta){info.block.content=ta.value;info.target.updatedAt=nowISO();scheduleSave();closeModal();cc6Render(info.kind,info.itemId);}
+      return;
+    }
+
+    const blockAction=event.target.closest('[data-cc6-block-delete],[data-cc6-block-up],[data-cc6-block-down]');
+    if(blockAction){
+      event.preventDefault();event.stopImmediatePropagation();
+      const ref=blockAction.dataset.cc6BlockDelete||blockAction.dataset.cc6BlockUp||blockAction.dataset.cc6BlockDown;
+      const info=cc6Info(ref);if(!info.block)return;
+      if(blockAction.hasAttribute('data-cc6-block-delete')){
+        if(confirm('Delete this individual part?')){info.target.blocks.splice(info.index,1);info.target.updatedAt=nowISO();scheduleSave();closeModal();cc6Render(info.kind,info.itemId);}
+      }else{
+        const delta=blockAction.hasAttribute('data-cc6-block-up')?-1:1,next=info.index+delta;
+        if(next>=0&&next<info.target.blocks.length){
+          const [moved]=info.target.blocks.splice(info.index,1);info.target.blocks.splice(next,0,moved);
+          info.target.updatedAt=nowISO();scheduleSave();cc6Render(info.kind,info.itemId);
+        }
+      }
+      return;
+    }
+
+    const editLocation=event.target.closest('[data-cc6-edit-location-field]');
+    if(editLocation){event.preventDefault();event.stopImmediatePropagation();const [id,field]=editLocation.dataset.cc6EditLocationField.split(':');cc6LocationFieldEditor(id,field);return;}
+
+    const saveLocation=event.target.closest('[data-cc6-location-edit-save]');
+    if(saveLocation){
+      event.preventDefault();event.stopImmediatePropagation();
+      const [id,field]=saveLocation.dataset.cc6LocationEditSave.split(':'),item=getItem('locations',id),input=el.modal.querySelector('[data-cc6-location-edit-value]');
+      if(item&&input){
+        item[field]=input.value;
+        if(field==='type'&&isRegionType(input.value))item.parentLocationId='';
+        normalizeLocationHierarchy();item.updatedAt=nowISO();scheduleSave();closeModal();renderSidebar();renderEntity('locations',id);
+      }return;
+    }
+
+    const manageContains=event.target.closest('[data-cc6-manage-contains]');
+    if(manageContains){event.preventDefault();event.stopImmediatePropagation();cc6ShowLocationChecklist(manageContains.dataset.cc6ManageContains,'contains');return;}
+    const manageConnected=event.target.closest('[data-cc6-manage-connected]');
+    if(manageConnected){event.preventDefault();event.stopImmediatePropagation();cc6ShowLocationChecklist(manageConnected.dataset.cc6ManageConnected,'connected');return;}
+
+    const saveLinks=event.target.closest('[data-cc6-location-links-save]');
+    if(saveLinks){
+      event.preventDefault();event.stopImmediatePropagation();
+      const [id,mode]=saveLinks.dataset.cc6LocationLinksSave.split(':'),item=getItem('locations',id);
+      const chosen=[...el.modal.querySelectorAll('[data-cc6-location-check]:checked')].map(x=>x.value);
+      if(item){
+        if(mode==='contains'){
+          state.locations.forEach(loc=>{if(loc.parentLocationId===id&&!chosen.includes(loc.id))loc.parentLocationId='';});
+          chosen.forEach(childId=>{const child=getItem('locations',childId);if(child&&!isDescendant(child.id,id))child.parentLocationId=id;});
+          normalizeLocationHierarchy();
+        }else{
+          const previous=new Set(item.relatedLocationIds||[]);
+          item.relatedLocationIds=[...new Set(chosen)];
+          state.locations.forEach(other=>{
+            if(other.id===id)return;
+            other.relatedLocationIds=other.relatedLocationIds||[];
+            const should=chosen.includes(other.id),has=other.relatedLocationIds.includes(id);
+            if(should&&!has)other.relatedLocationIds.push(id);
+            if(!should&&has)other.relatedLocationIds=other.relatedLocationIds.filter(x=>x!==id);
+          });
+        }
+        item.updatedAt=nowISO();scheduleSave();closeModal();renderSidebar();renderEntity('locations',id);
+      }return;
+    }
+  },true);
+
+  document.addEventListener('input',event=>{
+    const block=event.target.closest('[data-block]');
+    if(block){
+      // Let normal deletion and typing occur, then immediately update the faded state.
+      requestAnimationFrame(()=>cc6UpdateSectionState(block));
+    }
+    const title=event.target.closest('[data-cc5-section-title]');
+    if(title)requestAnimationFrame(()=>cc6UpdateSectionState(title));
+    if(event.target.matches('.properties-panel textarea,.cc3-properties-panel textarea,.cc4-mini-panel textarea,[data-cc6-location-edit-value]'))cc6AutoGrow(event.target);
+  },true);
+
+  // Improve page-image editor with ordering and offsets.
+  const baseImageEditor=cc5ShowImageEditor;
+  cc5ShowImageEditor=function(ref){
+    const info=blockFromRef(ref);if(!info.block||info.block.type!=='image')return;
+    const b=info.block;
+    baseImageEditor(ref);
+    const settings=el.modal.querySelector('.cc5-image-settings');
+    if(settings){
+      settings.insertAdjacentHTML('beforeend',`
+        <label class="property-row"><span>Horizontal position <output>${Number(b.offsetX)||0}px</output></span><input type="range" min="-300" max="300" step="5" value="${Number(b.offsetX)||0}" data-cc6-image-offset="offsetX" data-cc6-image-ref="${esc(ref)}"></label>
+        <label class="property-row"><span>Vertical position <output>${Number(b.offsetY)||0}px</output></span><input type="range" min="-300" max="300" step="5" value="${Number(b.offsetY)||0}" data-cc6-image-offset="offsetY" data-cc6-image-ref="${esc(ref)}"></label>
+        <div class="cc6-image-order-controls"><button class="button secondary small" type="button" data-cc6-image-move="${esc(ref)}:-1">Move earlier</button><button class="button secondary small" type="button" data-cc6-image-move="${esc(ref)}:1">Move later</button></div>`);
+    }
+  };
+
+  const basePageImageBlock=cc5PageImageBlock;
+  cc5PageImageBlock=function(kind,itemId,block,index){
+    let html=basePageImageBlock(kind,itemId,block,index);
+    const x=Number(block.offsetX)||0,y=Number(block.offsetY)||0;
+    return html.replace('style="',`style="--cc6-x:${x}px;--cc6-y:${y}px;`);
+  };
+
+  document.addEventListener('input',event=>{
+    const range=event.target.closest('[data-cc6-image-offset]');
+    if(!range)return;
+    const info=blockFromRef(range.dataset.cc6ImageRef);if(!info.block)return;
+    info.block[range.dataset.cc6ImageOffset]=Number(range.value);info.target.updatedAt=nowISO();
+    const out=range.closest('label')?.querySelector('output');if(out)out.textContent=`${range.value}px`;
+    scheduleSave();
+  },true);
+
+  document.addEventListener('click',event=>{
+    const move=event.target.closest('[data-cc6-image-move]');if(!move)return;
+    event.preventDefault();event.stopImmediatePropagation();
+    const parts=move.dataset.cc6ImageMove.split(':'),delta=Number(parts.pop()),ref=parts.join(':');
+    const info=blockFromRef(ref);if(!info.block)return;
+    const next=info.index+delta;if(next<0||next>=info.target.blocks.length)return;
+    const [block]=info.target.blocks.splice(info.index,1);info.target.blocks.splice(next,0,block);
+    info.target.updatedAt=nowISO();scheduleSave();closeModal();renderEntity(info.kind,info.itemId);
+  },true);
+
+  // Existing image controls need center as an inline option.
+  document.addEventListener('change',event=>{
+    const side=event.target.closest('select[data-cc5-image-field="wrapSide"]');
+    if(side && ![...side.options].some(o=>o.value==='center')){
+      // handled on the next open; no action needed here
+    }
+  },true);
+
+  // Run after every render cycle.
+  const baseRender=render;
+  render=function(){baseRender();requestAnimationFrame(()=>cc6GrowAll());};
+  requestAnimationFrame(()=>cc6GrowAll());
+})();
+</script>
+
 </body>
 </html>
