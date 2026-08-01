@@ -10983,6 +10983,219 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-cc4-jump]'
 /* === End Distinct Species, Faction, and Location Layouts === */
 
 
+/* Integrated final Species/Location editor controls */
+(function(){
+  function parseRef(ref){
+    const parts=String(ref||'').split(':');
+    const index=Number(parts.pop());
+    const itemId=parts.pop();
+    const kind=parts.join(':');
+    const item=getItem(kind,itemId);
+    return {kind,itemId,index,item,block:item?.blocks?.[index]};
+  }
+
+  function groupsFor(item){
+    const groups=[];let current=null;
+    (item.blocks||[]).forEach((block,index)=>{
+      if(block.type==='h2'){
+        current={title:stripMd(block.content||'')||'New heading',headingIndex:index,rows:[]};
+        groups.push(current);
+      }else{
+        if(!current){
+          current={title:'Overview',headingIndex:-1,rows:[]};
+          groups.push(current);
+        }
+        current.rows.push({block,index});
+      }
+    });
+    if(!groups.length) groups.push({title:'Overview',headingIndex:-1,rows:[]});
+    return groups;
+  }
+
+  function groupEmpty(group){
+    return !group.rows.some(({block})=>{
+      if(block.type==='divider'||block.type==='image') return block.type==='image';
+      const t=stripMd(block.content||'').trim();
+      return t && !/^(start writing here|describe|add |list |summarize)/i.test(t);
+    });
+  }
+
+  function sectionRange(item,headingIndex){
+    const blocks=item.blocks||[];
+    if(headingIndex<0){
+      let end=0;
+      while(end<blocks.length && blocks[end].type!=='h2') end++;
+      return {start:0,end};
+    }
+    let end=headingIndex+1;
+    while(end<blocks.length && blocks[end].type!=='h2') end++;
+    return {start:headingIndex,end};
+  }
+
+  function rerender(kind,itemId){
+    renderEntity(kind,itemId);
+  }
+
+  const originalRenderBlock=renderBlock;
+  renderBlock=function(kind,itemId,block,index){
+    let html=originalRenderBlock(kind,itemId,block,index);
+    if(!['species','locations'].includes(kind)) return html;
+    if(block?.type==='image') return html;
+    const ref=`${kind}:${itemId}:${index}`;
+    const actions=`<span class="cc8-block-actions">
+      <button type="button" data-cc8-block-up="${esc(ref)}" title="Move this part up">↑</button>
+      <button type="button" data-cc8-block-down="${esc(ref)}" title="Move this part down">↓</button>
+      <button class="danger" type="button" data-cc8-block-delete="${esc(ref)}" title="Delete this part">Delete</button>
+    </span>`;
+    return html.replace(/(<div class="block-row[^"]*"[^>]*>)/,`$1${actions}`);
+  };
+
+  cc4Editor=function(kind,item,openCount=2){
+    const groups=groupsFor(item);
+    const toolbar=`<div class="cc8-toolbar" data-editor="${kind}:${item.id}">
+      <button class="block-tool" type="button" data-add-block="text" title="Add text">T</button>
+      <button class="block-tool" type="button" data-add-block="h2" title="Add heading">H</button>
+      <button class="block-tool" type="button" data-add-block="bullet" title="Add bullet">•</button>
+      <button class="block-tool" type="button" data-add-block="quote" title="Add quote">❝</button>
+      <button class="block-tool" type="button" data-add-block="divider" title="Add divider">―</button>
+      <button class="block-tool cc8-image-button" type="button" data-cc8-add-image="${kind}:${item.id}" title="Add image">▧</button>
+      <input type="file" accept="image/*" hidden data-cc8-image-input="${kind}:${item.id}">
+      <span class="cc8-help">Each heading and each part below it can be moved or deleted.</span>
+    </div>`;
+
+    return `<div class="cc8-editor">${toolbar}<div class="cc4-section-stack block-list" data-block-list="${kind}:${item.id}">
+      ${groups.map((g,i)=>{
+        const empty=groupEmpty(g);
+        return `<details class="cc4-section ${empty?'is-empty':''}" ${i<openCount?'open':''}>
+          <summary>
+            <div class="cc8-section-summary">
+              <input class="cc8-section-title" value="${esc(g.title)}"
+                data-cc8-section-title="${kind}:${item.id}:${g.headingIndex}"
+                aria-label="Section heading">
+              <small>${empty?'Not filled in':'Open section'}</small>
+              <span class="cc8-section-actions">
+                <button type="button" data-cc8-section-up="${kind}:${item.id}:${g.headingIndex}" title="Move section up">↑</button>
+                <button type="button" data-cc8-section-down="${kind}:${item.id}:${g.headingIndex}" title="Move section down">↓</button>
+                <button class="danger" type="button" data-cc8-section-delete="${kind}:${item.id}:${g.headingIndex}" title="Delete section">Delete section</button>
+              </span>
+            </div>
+          </summary>
+          <div class="cc4-section-body">
+            ${g.rows.map(x=>renderBlock(kind,item.id,x.block,x.index)).join('')||'<p class="cc4-muted">Nothing has been added yet.</p>'}
+          </div>
+        </details>`;
+      }).join('')}
+    </div></div>`;
+  };
+
+  document.addEventListener('click',async event=>{
+    const addImage=event.target.closest('[data-cc8-add-image]');
+    if(addImage){
+      event.preventDefault();event.stopImmediatePropagation();
+      const input=document.querySelector(`[data-cc8-image-input="${CSS.escape(addImage.dataset.cc8AddImage)}"]`);
+      if(input){input.value='';input.click();}
+      return;
+    }
+
+    const blockAction=event.target.closest('[data-cc8-block-delete],[data-cc8-block-up],[data-cc8-block-down]');
+    if(blockAction){
+      event.preventDefault();event.stopImmediatePropagation();
+      const ref=blockAction.dataset.cc8BlockDelete||blockAction.dataset.cc8BlockUp||blockAction.dataset.cc8BlockDown;
+      const info=parseRef(ref);
+      if(!info.block)return;
+      if(blockAction.hasAttribute('data-cc8-block-delete')){
+        if(confirm('Delete this individual part?')){
+          info.item.blocks.splice(info.index,1);
+          info.item.updatedAt=nowISO();scheduleSave();rerender(info.kind,info.itemId);
+        }
+      }else{
+        const delta=blockAction.hasAttribute('data-cc8-block-up')?-1:1;
+        const next=info.index+delta;
+        if(next>=0&&next<info.item.blocks.length){
+          const [moved]=info.item.blocks.splice(info.index,1);
+          info.item.blocks.splice(next,0,moved);
+          info.item.updatedAt=nowISO();scheduleSave();rerender(info.kind,info.itemId);
+        }
+      }
+      return;
+    }
+
+    const sectionAction=event.target.closest('[data-cc8-section-delete],[data-cc8-section-up],[data-cc8-section-down]');
+    if(sectionAction){
+      event.preventDefault();event.stopImmediatePropagation();
+      const ref=sectionAction.dataset.cc8SectionDelete||sectionAction.dataset.cc8SectionUp||sectionAction.dataset.cc8SectionDown;
+      const info=parseRef(ref);
+      if(!info.item)return;
+      const groups=groupsFor(info.item);
+      const pos=groups.findIndex(g=>g.headingIndex===info.index);
+      if(pos<0)return;
+      const range=sectionRange(info.item,info.index);
+
+      if(sectionAction.hasAttribute('data-cc8-section-delete')){
+        if(confirm(`Delete “${groups[pos].title}” and everything inside it?`)){
+          info.item.blocks.splice(range.start,range.end-range.start);
+          info.item.updatedAt=nowISO();scheduleSave();rerender(info.kind,info.itemId);
+        }
+        return;
+      }
+
+      const delta=sectionAction.hasAttribute('data-cc8-section-up')?-1:1;
+      const otherPos=pos+delta;
+      if(otherPos<0||otherPos>=groups.length)return;
+      const otherRange=sectionRange(info.item,groups[otherPos].headingIndex);
+      const currentChunk=info.item.blocks.slice(range.start,range.end);
+      const otherChunk=info.item.blocks.slice(otherRange.start,otherRange.end);
+      const start=Math.min(range.start,otherRange.start);
+      const end=Math.max(range.end,otherRange.end);
+      const replacement=delta<0?[...currentChunk,...otherChunk]:[...otherChunk,...currentChunk];
+      info.item.blocks.splice(start,end-start,...replacement);
+      info.item.updatedAt=nowISO();scheduleSave();rerender(info.kind,info.itemId);
+      return;
+    }
+  },true);
+
+  document.addEventListener('change',async event=>{
+    const input=event.target.closest('[data-cc8-image-input]');
+    if(!input||!input.files?.[0])return;
+    event.stopImmediatePropagation();
+    const [kind,itemId]=input.dataset.cc8ImageInput.split(':');
+    await cc5AddPageImage(kind,itemId,input.files[0]);
+  },true);
+
+  document.addEventListener('click',event=>{
+    if(event.target.closest('.cc8-section-title')) event.stopPropagation();
+  },true);
+
+  document.addEventListener('input',event=>{
+    const title=event.target.closest('[data-cc8-section-title]');
+    if(title){
+      const info=parseRef(title.dataset.cc8SectionTitle);
+      if(info.item){
+        if(info.index>=0&&info.item.blocks[info.index]){
+          info.item.blocks[info.index].content=title.value;
+        }else if(title.value.trim()){
+          info.item.blocks.unshift({id:id('b'),type:'h2',content:title.value});
+          title.dataset.cc8SectionTitle=`${info.kind}:${info.itemId}:0`;
+        }
+        info.item.updatedAt=nowISO();scheduleSave();
+      }
+      return;
+    }
+
+    const block=event.target.closest('[data-block]');
+    if(block){
+      const section=block.closest('.cc4-section');
+      if(section){
+        const hasContent=[...section.querySelectorAll('.block-content')]
+          .some(el=>el.innerText.trim() && !/^start writing here/i.test(el.innerText.trim()));
+        section.classList.toggle('is-empty',!hasContent);
+        const label=section.querySelector('summary small');
+        if(label)label.textContent=hasContent?'Open section':'Not filled in';
+      }
+    }
+  },true);
+})();
+
 cleanCreateSaveOverlay();
 
 initFirebase();
@@ -11667,219 +11880,6 @@ initFirebase();
 }
 </style>
 
-<script id="cc8-final-editor-controls">
-(function(){
-  function parseRef(ref){
-    const parts=String(ref||'').split(':');
-    const index=Number(parts.pop());
-    const itemId=parts.pop();
-    const kind=parts.join(':');
-    const item=getItem(kind,itemId);
-    return {kind,itemId,index,item,block:item?.blocks?.[index]};
-  }
-
-  function groupsFor(item){
-    const groups=[];let current=null;
-    (item.blocks||[]).forEach((block,index)=>{
-      if(block.type==='h2'){
-        current={title:stripMd(block.content||'')||'New heading',headingIndex:index,rows:[]};
-        groups.push(current);
-      }else{
-        if(!current){
-          current={title:'Overview',headingIndex:-1,rows:[]};
-          groups.push(current);
-        }
-        current.rows.push({block,index});
-      }
-    });
-    if(!groups.length) groups.push({title:'Overview',headingIndex:-1,rows:[]});
-    return groups;
-  }
-
-  function groupEmpty(group){
-    return !group.rows.some(({block})=>{
-      if(block.type==='divider'||block.type==='image') return block.type==='image';
-      const t=stripMd(block.content||'').trim();
-      return t && !/^(start writing here|describe|add |list |summarize)/i.test(t);
-    });
-  }
-
-  function sectionRange(item,headingIndex){
-    const blocks=item.blocks||[];
-    if(headingIndex<0){
-      let end=0;
-      while(end<blocks.length && blocks[end].type!=='h2') end++;
-      return {start:0,end};
-    }
-    let end=headingIndex+1;
-    while(end<blocks.length && blocks[end].type!=='h2') end++;
-    return {start:headingIndex,end};
-  }
-
-  function rerender(kind,itemId){
-    renderEntity(kind,itemId);
-  }
-
-  const originalRenderBlock=renderBlock;
-  renderBlock=function(kind,itemId,block,index){
-    let html=originalRenderBlock(kind,itemId,block,index);
-    if(!['species','locations'].includes(kind)) return html;
-    if(block?.type==='image') return html;
-    const ref=`${kind}:${itemId}:${index}`;
-    const actions=`<span class="cc8-block-actions">
-      <button type="button" data-cc8-block-up="${esc(ref)}" title="Move this part up">↑</button>
-      <button type="button" data-cc8-block-down="${esc(ref)}" title="Move this part down">↓</button>
-      <button class="danger" type="button" data-cc8-block-delete="${esc(ref)}" title="Delete this part">Delete</button>
-    </span>`;
-    return html.replace(/(<div class="block-row[^"]*"[^>]*>)/,`$1${actions}`);
-  };
-
-  cc4Editor=function(kind,item,openCount=2){
-    const groups=groupsFor(item);
-    const toolbar=`<div class="cc8-toolbar" data-editor="${kind}:${item.id}">
-      <button class="block-tool" type="button" data-add-block="text" title="Add text">T</button>
-      <button class="block-tool" type="button" data-add-block="h2" title="Add heading">H</button>
-      <button class="block-tool" type="button" data-add-block="bullet" title="Add bullet">•</button>
-      <button class="block-tool" type="button" data-add-block="quote" title="Add quote">❝</button>
-      <button class="block-tool" type="button" data-add-block="divider" title="Add divider">―</button>
-      <button class="block-tool cc8-image-button" type="button" data-cc8-add-image="${kind}:${item.id}" title="Add image">▧</button>
-      <input type="file" accept="image/*" hidden data-cc8-image-input="${kind}:${item.id}">
-      <span class="cc8-help">Each heading and each part below it can be moved or deleted.</span>
-    </div>`;
-
-    return `<div class="cc8-editor">${toolbar}<div class="cc4-section-stack block-list" data-block-list="${kind}:${item.id}">
-      ${groups.map((g,i)=>{
-        const empty=groupEmpty(g);
-        return `<details class="cc4-section ${empty?'is-empty':''}" ${i<openCount?'open':''}>
-          <summary>
-            <div class="cc8-section-summary">
-              <input class="cc8-section-title" value="${esc(g.title)}"
-                data-cc8-section-title="${kind}:${item.id}:${g.headingIndex}"
-                aria-label="Section heading">
-              <small>${empty?'Not filled in':'Open section'}</small>
-              <span class="cc8-section-actions">
-                <button type="button" data-cc8-section-up="${kind}:${item.id}:${g.headingIndex}" title="Move section up">↑</button>
-                <button type="button" data-cc8-section-down="${kind}:${item.id}:${g.headingIndex}" title="Move section down">↓</button>
-                <button class="danger" type="button" data-cc8-section-delete="${kind}:${item.id}:${g.headingIndex}" title="Delete section">Delete section</button>
-              </span>
-            </div>
-          </summary>
-          <div class="cc4-section-body">
-            ${g.rows.map(x=>renderBlock(kind,item.id,x.block,x.index)).join('')||'<p class="cc4-muted">Nothing has been added yet.</p>'}
-          </div>
-        </details>`;
-      }).join('')}
-    </div></div>`;
-  };
-
-  document.addEventListener('click',async event=>{
-    const addImage=event.target.closest('[data-cc8-add-image]');
-    if(addImage){
-      event.preventDefault();event.stopImmediatePropagation();
-      const input=document.querySelector(`[data-cc8-image-input="${CSS.escape(addImage.dataset.cc8AddImage)}"]`);
-      if(input){input.value='';input.click();}
-      return;
-    }
-
-    const blockAction=event.target.closest('[data-cc8-block-delete],[data-cc8-block-up],[data-cc8-block-down]');
-    if(blockAction){
-      event.preventDefault();event.stopImmediatePropagation();
-      const ref=blockAction.dataset.cc8BlockDelete||blockAction.dataset.cc8BlockUp||blockAction.dataset.cc8BlockDown;
-      const info=parseRef(ref);
-      if(!info.block)return;
-      if(blockAction.hasAttribute('data-cc8-block-delete')){
-        if(confirm('Delete this individual part?')){
-          info.item.blocks.splice(info.index,1);
-          info.item.updatedAt=nowISO();scheduleSave();rerender(info.kind,info.itemId);
-        }
-      }else{
-        const delta=blockAction.hasAttribute('data-cc8-block-up')?-1:1;
-        const next=info.index+delta;
-        if(next>=0&&next<info.item.blocks.length){
-          const [moved]=info.item.blocks.splice(info.index,1);
-          info.item.blocks.splice(next,0,moved);
-          info.item.updatedAt=nowISO();scheduleSave();rerender(info.kind,info.itemId);
-        }
-      }
-      return;
-    }
-
-    const sectionAction=event.target.closest('[data-cc8-section-delete],[data-cc8-section-up],[data-cc8-section-down]');
-    if(sectionAction){
-      event.preventDefault();event.stopImmediatePropagation();
-      const ref=sectionAction.dataset.cc8SectionDelete||sectionAction.dataset.cc8SectionUp||sectionAction.dataset.cc8SectionDown;
-      const info=parseRef(ref);
-      if(!info.item)return;
-      const groups=groupsFor(info.item);
-      const pos=groups.findIndex(g=>g.headingIndex===info.index);
-      if(pos<0)return;
-      const range=sectionRange(info.item,info.index);
-
-      if(sectionAction.hasAttribute('data-cc8-section-delete')){
-        if(confirm(`Delete “${groups[pos].title}” and everything inside it?`)){
-          info.item.blocks.splice(range.start,range.end-range.start);
-          info.item.updatedAt=nowISO();scheduleSave();rerender(info.kind,info.itemId);
-        }
-        return;
-      }
-
-      const delta=sectionAction.hasAttribute('data-cc8-section-up')?-1:1;
-      const otherPos=pos+delta;
-      if(otherPos<0||otherPos>=groups.length)return;
-      const otherRange=sectionRange(info.item,groups[otherPos].headingIndex);
-      const currentChunk=info.item.blocks.slice(range.start,range.end);
-      const otherChunk=info.item.blocks.slice(otherRange.start,otherRange.end);
-      const start=Math.min(range.start,otherRange.start);
-      const end=Math.max(range.end,otherRange.end);
-      const replacement=delta<0?[...currentChunk,...otherChunk]:[...otherChunk,...currentChunk];
-      info.item.blocks.splice(start,end-start,...replacement);
-      info.item.updatedAt=nowISO();scheduleSave();rerender(info.kind,info.itemId);
-      return;
-    }
-  },true);
-
-  document.addEventListener('change',async event=>{
-    const input=event.target.closest('[data-cc8-image-input]');
-    if(!input||!input.files?.[0])return;
-    event.stopImmediatePropagation();
-    const [kind,itemId]=input.dataset.cc8ImageInput.split(':');
-    await cc5AddPageImage(kind,itemId,input.files[0]);
-  },true);
-
-  document.addEventListener('click',event=>{
-    if(event.target.closest('.cc8-section-title')) event.stopPropagation();
-  },true);
-
-  document.addEventListener('input',event=>{
-    const title=event.target.closest('[data-cc8-section-title]');
-    if(title){
-      const info=parseRef(title.dataset.cc8SectionTitle);
-      if(info.item){
-        if(info.index>=0&&info.item.blocks[info.index]){
-          info.item.blocks[info.index].content=title.value;
-        }else if(title.value.trim()){
-          info.item.blocks.unshift({id:id('b'),type:'h2',content:title.value});
-          title.dataset.cc8SectionTitle=`${info.kind}:${info.itemId}:0`;
-        }
-        info.item.updatedAt=nowISO();scheduleSave();
-      }
-      return;
-    }
-
-    const block=event.target.closest('[data-block]');
-    if(block){
-      const section=block.closest('.cc4-section');
-      if(section){
-        const hasContent=[...section.querySelectorAll('.block-content')]
-          .some(el=>el.innerText.trim() && !/^start writing here/i.test(el.innerText.trim()));
-        section.classList.toggle('is-empty',!hasContent);
-        const label=section.querySelector('summary small');
-        if(label)label.textContent=hasContent?'Open section':'Not filled in';
-      }
-    }
-  },true);
-})();
-</script>
 
 </body>
 </html>
