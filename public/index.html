@@ -3685,6 +3685,64 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .cc9-toolbar-upload{position:relative;display:inline-grid;place-items:center;cursor:pointer}
 </style>
 
+
+<style id="cc10-free-page-images">
+.cc4-approved{position:relative!important;isolation:isolate}
+.cc10-page-image{
+  --cc10-width:360px;--cc10-opacity:1;
+  width:min(var(--cc10-width),calc(100% - 16px));
+  border:1px solid var(--border);border-radius:14px;background:var(--panel-strong);
+  margin:14px auto;overflow:visible;z-index:6;box-shadow:none;
+}
+.cc10-page-image img{display:block;width:100%;height:auto;border-radius:13px;opacity:var(--cc10-opacity);user-select:none;-webkit-user-drag:none}
+.cc10-page-image.cc10-wrap.cc10-left{float:left;margin:10px var(--cc10-gap,18px) var(--cc10-gap,18px) 0}
+.cc10-page-image.cc10-wrap.cc10-right{float:right;margin:10px 0 var(--cc10-gap,18px) var(--cc10-gap,18px)}
+.cc10-page-image.cc10-wrap.cc10-center{float:none;clear:both;margin:14px auto}
+.cc10-page-image.cc10-front,.cc10-page-image.cc10-behind{position:absolute;margin:0;left:0;top:0}
+.cc10-page-image.cc10-front{z-index:30;box-shadow:var(--shadow)}
+.cc10-page-image.cc10-behind{z-index:1;border-color:transparent;background:transparent;box-shadow:none}
+.cc10-page-image.cc10-behind.is-editing{z-index:40;outline:3px solid color-mix(in srgb,var(--accent) 60%,transparent)}
+.cc10-page-image.is-selected{outline:3px solid color-mix(in srgb,var(--accent) 70%,transparent);outline-offset:3px}
+.cc10-page-image.is-editing{touch-action:none;outline:3px solid color-mix(in srgb,var(--accent) 75%,transparent);outline-offset:3px}
+.cc10-page-image.is-editing img{cursor:move}
+.cc10-image-edit-button{
+  position:absolute;right:8px;top:8px;z-index:45;border:1px solid var(--border);border-radius:9px;
+  background:color-mix(in srgb,var(--panel-strong) 95%,transparent);padding:7px 10px;font-weight:800
+}
+.cc10-image-toolbar{
+  display:none;position:absolute;left:8px;right:8px;top:8px;z-index:46;align-items:center;gap:7px;
+  border:1px solid var(--border);border-radius:10px;background:color-mix(in srgb,var(--panel-strong) 96%,transparent);padding:7px
+}
+.cc10-page-image.is-editing .cc10-image-toolbar{display:flex}
+.cc10-page-image.is-editing .cc10-image-edit-button{display:none}
+.cc10-image-toolbar select{min-width:150px;max-width:230px;height:34px;border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:4px 7px}
+.cc10-image-toolbar button{height:34px;border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:5px 9px;font-weight:750}
+.cc10-resize-handle{
+  display:none;position:absolute;right:-8px;bottom:-8px;z-index:48;width:28px;height:28px;border:3px solid var(--panel-strong);
+  border-radius:50%;background:var(--accent);box-shadow:0 4px 12px rgba(0,0,0,.24);cursor:nwse-resize;touch-action:none
+}
+.cc10-page-image.is-editing .cc10-resize-handle{display:block}
+.cc10-page-image-caption{padding:8px 10px;color:var(--muted);font-size:12px}
+.cc10-compact-image-settings{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.cc10-compact-image-settings label{display:grid;gap:5px;min-width:0}
+.cc10-compact-image-settings label>span{color:var(--muted);font-size:11px;font-weight:750}
+.cc10-compact-image-settings .wide{grid-column:span 2}
+.cc10-compact-image-settings .full{grid-column:1/-1}
+.modal:has(.cc10-compact-image-settings){width:min(780px,calc(100vw - 30px));max-height:none!important;overflow:visible!important}
+.modal:has(.cc10-compact-image-settings) .modal-body{overflow:visible!important;padding:16px 18px}
+.modal:has(.cc10-compact-image-settings) .modal-foot{padding:12px 18px}
+.cc10-native-replace{position:relative;cursor:pointer;display:flex;align-items:center;justify-content:center;min-height:40px;border:1px solid var(--border);border-radius:9px;background:var(--panel)}
+.cc10-native-replace input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+@media(max-width:760px){
+  .cc10-page-image.cc10-wrap.cc10-left,.cc10-page-image.cc10-wrap.cc10-right{float:none;clear:both;margin:14px auto}
+  .cc10-image-toolbar{flex-wrap:wrap;top:6px}
+  .cc10-image-toolbar select{min-width:0;flex:1 1 150px}
+  .cc10-compact-image-settings{grid-template-columns:1fr 1fr}
+  .cc10-compact-image-settings .wide,.cc10-compact-image-settings .full{grid-column:1/-1}
+  .modal:has(.cc10-compact-image-settings){width:calc(100vw - 18px)}
+}
+</style>
+
 </head>
 <body>
 
@@ -11878,6 +11936,107 @@ initFirebase();
     await cc5AddPageImage(kind,itemId,input.files[0]);
     input.value='';
   },true);
+
+
+/* === Free page image placement, integrated inside the Codex app scope === */
+let cc10EditingImage='';
+let cc10SuppressClickUntil=0;
+function cc10ImageSurface(figure){return figure?.closest('.cc4-approved')||figure?.closest('.main-content')||figure?.parentElement;}
+function cc10SyncImage(ref){
+  const info=blockFromRef(ref);if(!info.block||info.block.type!=='image')return;
+  const figure=document.querySelector(`[data-cc10-image="${CSS.escape(ref)}"]`);if(!figure)return;
+  const b=info.block,layout=['wrap','front','behind'].includes(b.layout)?b.layout:'wrap';
+  const side=['left','right','center'].includes(b.wrapSide)?b.wrapSide:'left';
+  const width=Math.max(120,Math.min(1100,Number(b.width)||360));
+  const opacity=Math.max(.15,Math.min(1,Number(b.opacity)||1));
+  figure.className=`cc10-page-image cc10-${layout} cc10-${side}${cc10EditingImage===ref?' is-editing is-selected':''}`;
+  figure.style.setProperty('--cc10-width',`${width}px`);figure.style.setProperty('--cc10-opacity',opacity);figure.style.setProperty('--cc10-gap',`${Math.max(0,Number(b.padding)||18)}px`);
+  if(layout==='front'||layout==='behind'){
+    const surface=cc10ImageSurface(figure);const maxLeft=Math.max(0,(surface?.clientWidth||0)-figure.offsetWidth);
+    const left=maxLeft*(Math.max(0,Math.min(100,Number(b.xPct)||0))/100);
+    figure.style.left=`${left}px`;figure.style.top=`${Math.max(0,Number(b.y)||0)}px`;
+    if(surface){const needed=Math.max(surface.scrollHeight,Math.max(0,Number(b.y)||0)+figure.offsetHeight+40);surface.style.minHeight=`${needed}px`;}
+  }else{figure.style.left='';figure.style.top='';}
+  const img=figure.querySelector('img');if(img){img.src=b.src||'';img.alt=b.alt||'Page image';}
+  const select=figure.querySelector('[data-cc10-layout]');if(select)select.value=layout;
+}
+function cc10PageImageBlock(kind,itemId,block,index){
+  const layout=['wrap','front','behind'].includes(block.layout)?block.layout:'wrap';
+  const side=['left','right','center'].includes(block.wrapSide)?block.wrapSide:'left';
+  const width=Math.max(120,Math.min(1100,Number(block.width)||360));
+  const opacity=Math.max(.15,Math.min(1,Number(block.opacity)||1));
+  const gap=Math.max(0,Math.min(100,Number(block.padding)||18));
+  const ref=`${kind}:${itemId}:${index}`;
+  const editing=cc10EditingImage===ref?' is-editing is-selected':'';
+  const pos=(layout==='front'||layout==='behind')?`left:${Math.max(0,Math.min(100,Number(block.xPct)||0))}%;top:${Math.max(0,Number(block.y)||0)}px;`:'';
+  return `<figure class="cc10-page-image cc10-${layout} cc10-${side}${editing}" data-block-row="${esc(ref)}" data-cc10-image="${esc(ref)}" style="--cc10-width:${width}px;--cc10-opacity:${opacity};--cc10-gap:${gap}px;${pos}">
+    <img src="${esc(block.src||'')}" alt="${esc(block.alt||'Page image')}" draggable="false" data-cc10-image-surface="${esc(ref)}">
+    <button class="cc10-image-edit-button" type="button" data-cc10-start-edit="${esc(ref)}">Edit image</button>
+    <div class="cc10-image-toolbar">
+      <select data-cc10-layout="${esc(ref)}"><option value="wrap" ${layout==='wrap'?'selected':''}>Inline with words</option><option value="front" ${layout==='front'?'selected':''}>Move freely in front</option><option value="behind" ${layout==='behind'?'selected':''}>Move freely behind</option></select>
+      <button type="button" data-cc10-more="${esc(ref)}">More settings</button>
+      <button type="button" data-cc10-done="${esc(ref)}">Done</button>
+    </div>
+    <button class="cc10-resize-handle" type="button" data-cc10-resize="${esc(ref)}" aria-label="Drag to resize"></button>
+    ${block.caption?`<figcaption class="cc10-page-image-caption">${esc(block.caption)}</figcaption>`:''}
+  </figure>`;
+}
+const cc10PriorRenderBlock=renderBlock;
+renderBlock=function(kind,itemId,block,index){
+  if(['species','locations'].includes(kind)&&block?.type==='image')return cc10PageImageBlock(kind,itemId,block,index);
+  return cc10PriorRenderBlock(kind,itemId,block,index);
+};
+function cc10StartEdit(ref){
+  cc10EditingImage=ref;document.querySelectorAll('.cc10-page-image').forEach(f=>f.classList.remove('is-editing','is-selected'));cc10SyncImage(ref);
+  document.querySelector(`[data-cc10-image="${CSS.escape(ref)}"]`)?.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+function cc10DoneEdit(ref){cc10EditingImage='';const f=document.querySelector(`[data-cc10-image="${CSS.escape(ref)}"]`);f?.classList.remove('is-editing','is-selected');}
+function cc10ShowCompactSettings(ref){
+  const info=blockFromRef(ref);if(!info.block||info.block.type!=='image')return;const b=info.block;
+  const layout=['wrap','front','behind'].includes(b.layout)?b.layout:'wrap';const side=['left','right','center'].includes(b.wrapSide)?b.wrapSide:'left';
+  showModal('Image settings',`<div class="cc10-compact-image-settings">
+    <label><span>Placement</span><select class="select" data-cc10-setting="layout" data-cc10-ref="${esc(ref)}"><option value="wrap" ${layout==='wrap'?'selected':''}>Inline with words</option><option value="front" ${layout==='front'?'selected':''}>In front of words</option><option value="behind" ${layout==='behind'?'selected':''}>Behind words</option></select></label>
+    <label><span>Inline side</span><select class="select" data-cc10-setting="wrapSide" data-cc10-ref="${esc(ref)}"><option value="left" ${side==='left'?'selected':''}>Left</option><option value="center" ${side==='center'?'selected':''}>Center</option><option value="right" ${side==='right'?'selected':''}>Right</option></select></label>
+    <label><span>Width <output>${Number(b.width)||360}px</output></span><input type="range" min="120" max="1100" step="5" value="${Number(b.width)||360}" data-cc10-setting="width" data-cc10-ref="${esc(ref)}"></label>
+    <label><span>Text spacing <output>${Number(b.padding)||18}px</output></span><input type="range" min="0" max="100" step="2" value="${Number(b.padding)||18}" data-cc10-setting="padding" data-cc10-ref="${esc(ref)}"></label>
+    <label><span>Opacity <output>${Math.round((Number(b.opacity)||1)*100)}%</output></span><input type="range" min="15" max="100" step="1" value="${Math.round((Number(b.opacity)||1)*100)}" data-cc10-setting="opacity" data-cc10-ref="${esc(ref)}"></label>
+    <label class="wide"><span>Caption</span><input class="input" value="${esc(b.caption||'')}" data-cc10-setting="caption" data-cc10-ref="${esc(ref)}"></label>
+    <label class="cc10-native-replace full">Replace image<input type="file" accept="image/*" data-cc10-replace="${esc(ref)}"></label>
+  </div>`,`<button class="button danger" type="button" data-cc10-delete="${esc(ref)}">Delete image</button><button class="button" type="button" data-close-modal>Done</button>`);
+}
+function cc10BeginMove(event,ref){
+  if(cc10EditingImage!==ref)return;const info=blockFromRef(ref),figure=document.querySelector(`[data-cc10-image="${CSS.escape(ref)}"]`);if(!info.block||!figure)return;
+  const surface=cc10ImageSurface(figure);if(!surface)return;event.preventDefault();event.stopImmediatePropagation();
+  if(info.block.layout==='wrap'){info.block.layout='front';cc10SyncImage(ref);}
+  const startX=event.clientX,startY=event.clientY,sr=surface.getBoundingClientRect(),fr=figure.getBoundingClientRect();const startLeft=fr.left-sr.left,startTop=fr.top-sr.top;let moved=false;
+  try{event.target.setPointerCapture(event.pointerId)}catch(e){}
+  const move=e=>{const dx=e.clientX-startX,dy=e.clientY-startY;if(Math.abs(dx)+Math.abs(dy)>3)moved=true;const maxLeft=Math.max(0,surface.clientWidth-figure.offsetWidth);const left=Math.max(0,Math.min(maxLeft,startLeft+dx)),top=Math.max(0,startTop+dy);info.block.xPct=maxLeft?left/maxLeft*100:0;info.block.y=Math.round(top);figure.style.left=`${left}px`;figure.style.top=`${top}px`;surface.style.minHeight=`${Math.max(surface.scrollHeight,top+figure.offsetHeight+40)}px`;};
+  const up=()=>{document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);info.target.updatedAt=nowISO();scheduleSave('Saving image position…');if(moved)cc10SuppressClickUntil=Date.now()+300;};
+  document.addEventListener('pointermove',move);document.addEventListener('pointerup',up,{once:true});
+}
+function cc10BeginResize(event,ref){
+  if(cc10EditingImage!==ref)return;const info=blockFromRef(ref),figure=document.querySelector(`[data-cc10-image="${CSS.escape(ref)}"]`);if(!info.block||!figure)return;const surface=cc10ImageSurface(figure);event.preventDefault();event.stopImmediatePropagation();
+  const startX=event.clientX,startY=event.clientY,startW=figure.offsetWidth,ratio=Number(info.block.ratio)||1.35;
+  const move=e=>{const delta=Math.max(e.clientX-startX,(e.clientY-startY)*ratio);const max=Math.max(140,(surface?.clientWidth||1100)-8);info.block.width=Math.round(Math.max(120,Math.min(max,startW+delta)));figure.style.setProperty('--cc10-width',`${info.block.width}px`);};
+  const up=()=>{document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);info.target.updatedAt=nowISO();scheduleSave('Saving image size…');};
+  document.addEventListener('pointermove',move);document.addEventListener('pointerup',up,{once:true});
+}
+document.addEventListener('pointerdown',event=>{
+  const resize=event.target.closest('[data-cc10-resize]');if(resize){cc10BeginResize(event,resize.dataset.cc10Resize);return;}
+  const surface=event.target.closest('[data-cc10-image-surface]');if(surface){cc10BeginMove(event,surface.dataset.cc10ImageSurface);}
+},true);
+document.addEventListener('click',event=>{
+  const start=event.target.closest('[data-cc10-start-edit]');if(start){event.preventDefault();event.stopImmediatePropagation();cc10StartEdit(start.dataset.cc10StartEdit);return;}
+  const done=event.target.closest('[data-cc10-done]');if(done){event.preventDefault();event.stopImmediatePropagation();cc10DoneEdit(done.dataset.cc10Done);return;}
+  const more=event.target.closest('[data-cc10-more]');if(more){event.preventDefault();event.stopImmediatePropagation();cc10ShowCompactSettings(more.dataset.cc10More);return;}
+  const del=event.target.closest('[data-cc10-delete]');if(del){event.preventDefault();event.stopImmediatePropagation();const info=blockFromRef(del.dataset.cc10Delete);if(info.block&&confirm('Delete this image?')){info.target.blocks.splice(info.index,1);info.target.updatedAt=nowISO();scheduleSave();closeModal();renderEntity(info.kind,info.itemId);}return;}
+},true);
+document.addEventListener('change',event=>{
+  const quick=event.target.closest('[data-cc10-layout]');if(quick){const info=blockFromRef(quick.dataset.cc10Layout);if(info.block){info.block.layout=quick.value;if(quick.value!=='wrap'&&info.block.y==null)info.block.y=80;info.target.updatedAt=nowISO();scheduleSave();cc10SyncImage(quick.dataset.cc10Layout);}return;}
+  const setting=event.target.closest('[data-cc10-setting]');if(setting){const info=blockFromRef(setting.dataset.cc10Ref);if(info.block){let value=setting.value;if(setting.dataset.cc10Setting==='width'||setting.dataset.cc10Setting==='padding')value=Number(value);if(setting.dataset.cc10Setting==='opacity')value=Number(value)/100;info.block[setting.dataset.cc10Setting]=value;info.target.updatedAt=nowISO();scheduleSave();const out=setting.closest('label')?.querySelector('output');if(out)out.textContent=setting.dataset.cc10Setting==='opacity'?`${setting.value}%`:`${setting.value}px`;cc10SyncImage(setting.dataset.cc10Ref);}return;}
+  const replace=event.target.closest('[data-cc10-replace]');if(replace&&replace.files?.[0]){const info=blockFromRef(replace.dataset.cc10Replace);imageFileToBlock(replace.files[0],info.target).then(prepared=>{info.block.src=prepared.src;info.block.ratio=prepared.ratio;info.target.updatedAt=nowISO();scheduleSave('Saving image…');closeModal();renderEntity(info.kind,info.itemId);});replace.value='';return;}
+},true);
+/* === End free page image placement === */
 })();
 </script>
 
