@@ -3439,7 +3439,6 @@ button:disabled { cursor: not-allowed; opacity: .48; }
     radial-gradient(circle at 85% 85%,rgba(101,124,158,.18),transparent 36%),
     linear-gradient(145deg,#0a111a,#111d2c 52%,#15120f);color:#f6eddc;font-family:Inter,system-ui,sans-serif}
   .auth-card{width:min(440px,100%);border:1px solid rgba(218,181,112,.38);border-radius:28px;padding:34px;background:rgba(15,23,33,.94);box-shadow:0 34px 100px rgba(0,0,0,.5);backdrop-filter:blur(18px)}
-  .auth-recovery-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.auth-recovery-actions[hidden]{display:none}.auth-recovery-actions button{flex:1;min-width:150px;border:1px solid rgba(218,181,112,.4);border-radius:12px;padding:11px 14px;font:700 .92rem Inter,system-ui,sans-serif;cursor:pointer}.auth-retry-button{background:#d9b56e;color:#17120b}.auth-signout-button{background:transparent;color:#e8dcc6}
   .auth-brand{display:flex;align-items:center;gap:14px;margin-bottom:28px}.auth-mark{width:52px;height:52px;border-radius:18px;display:grid;place-items:center;border:1px solid rgba(218,181,112,.55);color:#d8b36d;font:700 25px Georgia,serif;background:rgba(218,181,112,.08)}
   .auth-brand h1{font:600 27px Georgia,serif;margin:0;color:#fff6e7}.auth-brand p{margin:5px 0 0;color:#aeb9c6;font-size:.92rem}
   .auth-form{display:grid;gap:16px}.auth-field{display:grid;gap:7px}.auth-field span{font-size:.82rem;text-transform:uppercase;letter-spacing:.09em;color:#c8b790;font-weight:700}
@@ -3506,7 +3505,6 @@ button:disabled { cursor: not-allowed; opacity: .48; }
         <button id="authSubmit" class="auth-submit" type="submit">Sign in</button>
       </form>
       <div id="authMessage" class="auth-message">Checking your account…</div>
-      <div id="authRecoveryActions" class="auth-recovery-actions" hidden><button id="authRetryOpen" class="auth-retry-button" type="button">Retry opening workspace</button><button id="authLoadingSignOut" class="auth-signout-button" type="button">Sign out</button></div>
       <p class="auth-privacy">If you'd like to join, please reach out to the admin team.</p>
     </div>
   </section>
@@ -3580,7 +3578,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "confirmed-live-sync-repair-2026-07-31";
+window.CODEX_BUILD = "shared-world-login-repair-2026-07-31";
 </script>
   <script>
 (() => {
@@ -9073,1099 +9071,275 @@ document.addEventListener('change',event=>{
 },true);
 
 
-/* === Firestore-safe shared image assets === */
-const FIRESTORE_ASSET_COLLECTION = 'assets';
-const FIRESTORE_ASSET_MAX_DATA_URL = 700000;
-firebase.remoteCache.assets ||= new Map();
-firebase.assetData ||= new Map();
-
-function isInlineImageSource(value){
-  return typeof value === 'string' && value.startsWith('data:image/');
-}
-function walkImageMedia(value,visit,seen=new WeakSet()){
-  if(!value || typeof value !== 'object' || seen.has(value))return;
-  seen.add(value);
-  if(Array.isArray(value)){
-    value.forEach(child=>walkImageMedia(child,visit,seen));
-    return;
-  }
-  if(value.assetId || isInlineImageSource(value.src) || (value.type === 'image' && typeof value.src === 'string'))visit(value);
-  for(const [key,child] of Object.entries(value)){
-    if(key === 'src')continue;
-    if(child && typeof child === 'object')walkImageMedia(child,visit,seen);
-  }
-}
-function ensureImageAssetId(media){
-  if(!media.assetId)media.assetId=id('asset');
-  return media.assetId;
-}
-function imageAssetCollection(){
-  return firebase.api.collection(firebaseWorkspaceRef(),FIRESTORE_ASSET_COLLECTION);
-}
-function imageAssetRef(assetId){
-  return firebase.api.doc(imageAssetCollection(),String(assetId).replaceAll('/','_'));
-}
-function canvasDataUrl(canvas,quality){
-  let data=canvas.toDataURL('image/webp',quality);
-  if(!data.startsWith('data:image/webp'))data=canvas.toDataURL('image/jpeg',quality);
-  return data;
-}
-async function loadImageSource(source){
-  return await new Promise((resolve,reject)=>{
-    const image=new Image();
-    image.onload=()=>resolve(image);
-    image.onerror=()=>reject(new Error('The image could not be opened.'));
-    image.src=source;
-  });
-}
-async function compressImageSource(source,targetLength=FIRESTORE_ASSET_MAX_DATA_URL,maxSide=1600){
-  const image=await loadImageSource(source);
-  let scale=Math.min(1,maxSide/Math.max(image.naturalWidth,image.naturalHeight));
-  let width=Math.max(1,Math.round(image.naturalWidth*scale));
-  let height=Math.max(1,Math.round(image.naturalHeight*scale));
-  let quality=.82,data='';
-  for(let attempt=0;attempt<12;attempt++){
-    const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
-    const context=canvas.getContext('2d',{alpha:true});
-    context.imageSmoothingEnabled=true;context.imageSmoothingQuality='high';
-    context.drawImage(image,0,0,width,height);
-    data=canvasDataUrl(canvas,quality);
-    if(data.length<=targetLength)return {data,width,height};
-    if(quality>.52)quality=Math.max(.52,quality-.08);
-    else{width=Math.max(420,Math.round(width*.84));height=Math.max(260,Math.round(height*.84));quality=.72;}
-  }
-  if(data.length>900000)throw new Error('This image is too detailed to prepare safely. Try a smaller image.');
-  return {data,width,height};
-}
-
-imageFileToBlock=async function(file,character){
-  if(!file || !file.type?.startsWith('image/'))throw new Error('Choose an image file.');
-  if(file.size>18*1024*1024)throw new Error('That image is larger than 18 MB.');
-  const source=await new Promise((resolve,reject)=>{
-    const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('The image could not be read.'));reader.readAsDataURL(file);
-  });
-  const prepared=await compressImageSource(source);
-  return {id:id('image'),type:'image',content:'',src:prepared.data,assetId:id('asset'),alt:`${character?.name||'World'} image`,layout:'front',wrapSide:'left',width:Math.min(360,prepared.width),padding:18,xPct:8,y:24,opacity:1,ratio:prepared.width/prepared.height};
+/* === Clean shared sync rebuild === */
+const CODEX_ASSET_COLLECTION='assets';
+const CODEX_ASSET_MAX_DATA_URL=650000;
+const cleanSync={
+  saving:false,queued:false,dirty:false,blocked:false,saveSequence:0,showTimer:null,
+  baseMeta:'',baseCollections:{},baseAssets:new Map(),assetData:new Map(),remoteDeferred:false
 };
+for(const kind of SYNC_COLLECTIONS)cleanSync.baseCollections[kind]=new Map();
 
-async function collectStateImageAssets(){
-  const assets=new Map();
-  for(const kind of SYNC_COLLECTIONS){
-    for(const item of state[kind]||[]){
-      const mediaNodes=[];walkImageMedia(item,media=>mediaNodes.push(media));
-      for(const media of mediaNodes){
-        const assetId=media.assetId || (isInlineImageSource(media.src)?ensureImageAssetId(media):'');
-        if(!assetId)continue;
-        let dataUrl=isInlineImageSource(media.src)?media.src:(firebase.assetData.get(assetId)||'');
-        if(dataUrl && dataUrl.length>FIRESTORE_ASSET_MAX_DATA_URL){
-          const compressed=await compressImageSource(dataUrl);
-          dataUrl=compressed.data;media.src=dataUrl;
-        }
-        assets.set(assetId,{assetId,dataUrl,ownerKind:kind,ownerId:item.id||'',updatedAt:item.updatedAt||nowISO()});
-      }
-    }
-  }
-  return assets;
-}
-function assetSafeClone(value){
-  const clone=cleanFirestoreValue(value);
-  walkImageMedia(clone,media=>{
-    if(isInlineImageSource(media.src)){
-      ensureImageAssetId(media);
-      delete media.src;
-    }
-  });
-  return clone;
-}
-function hydrateImageAssets(value){
-  walkImageMedia(value,media=>{
-    if(media.assetId){
-      const dataUrl=firebase.assetData.get(media.assetId);
-      if(dataUrl)media.src=dataUrl;
-    }
-  });
-  return value;
-}
-function hydrateAllStateImages(){
-  for(const kind of SYNC_COLLECTIONS)for(const item of state[kind]||[])hydrateImageAssets(item);
-}
-function comparableEntity(value){return JSON.stringify(assetSafeClone(value));}
-
-loadRemoteWorkspace=async function(){
-  const api=firebase.api,workspaceRef=firebaseWorkspaceRef();
-  const [metaSnap,assetSnap,...collectionSnaps]=await Promise.all([
-    api.getDoc(workspaceRef),api.getDocs(imageAssetCollection()),...SYNC_COLLECTIONS.map(kind=>api.getDocs(api.collection(workspaceRef,kind)))
-  ]);
-  firebase.assetData=new Map();firebase.remoteCache.assets=new Map();
-  assetSnap.docs.forEach(docSnap=>{
-    const raw=docSnap.data();
-    if(raw.dataUrl)firebase.assetData.set(docSnap.id,raw.dataUrl);
-    firebase.remoteCache.assets.set(docSnap.id,JSON.stringify(raw));
-  });
-  const next=deepClone(window.INITIAL_WORLD_DATA);
-  if(metaSnap.exists())Object.assign(next,metaSnap.data());
-  SYNC_COLLECTIONS.forEach((kind,i)=>{
-    const docs=collectionSnaps[i].docs.map(docSnap=>{
-      const raw=docSnap.data(),order=Number(raw.__order)||0;delete raw.__order;hydrateImageAssets(raw);return {value:raw,order};
-    }).sort((a,b)=>a.order-b.order).map(entry=>entry.value);
-    next[kind]=docs;
-    firebase.remoteCache.collections[kind]=new Map(collectionSnaps[i].docs.map(docSnap=>[docSnap.id,JSON.stringify(docSnap.data())]));
-  });
-  firebase.remoteCache.meta=metaSnap.exists()?JSON.stringify(metaSnap.data()):'';
-  const members=state.workspace?.members||[],access=state.workspace?.access||{};
-  firebase.applyingRemote=true;state=next;normalizeState();state.workspace.members=members;state.workspace.access=access;hydrateAllStateImages();localStateSnapshot();firebase.applyingRemote=false;
-};
-
-syncStateToFirestore=async function(force=false){
-  if(!firebase.connected||!firebase.user||firebase.applyingRemote||!canEditSharedWorld())return;
-  const api=firebase.api,workspaceRef=firebaseWorkspaceRef(),operations=[];
-  const assets=await collectStateImageAssets(),nextAssetIds=new Set();
-  const assetCache=firebase.remoteCache.assets||new Map();
-  for(const [assetId,asset] of assets){
-    nextAssetIds.add(assetId);
-    if(!asset.dataUrl)continue;
-    const data={dataUrl:asset.dataUrl,ownerKind:asset.ownerKind,ownerId:asset.ownerId,updatedAt:asset.updatedAt};
-    const json=JSON.stringify(data);
-    if(force||assetCache.get(assetId)!==json){operations.push({type:'set',ref:imageAssetRef(assetId),data});assetCache.set(assetId,json);}
-    firebase.assetData.set(assetId,asset.dataUrl);
-  }
-  for(const oldId of [...assetCache.keys()])if(!nextAssetIds.has(oldId)){
-    operations.push({type:'delete',ref:imageAssetRef(oldId)});assetCache.delete(oldId);firebase.assetData.delete(oldId);
-  }
-  firebase.remoteCache.assets=assetCache;
-  const meta=stateMetaPayload(),metaJson=JSON.stringify(meta);
-  if(force||metaJson!==firebase.remoteCache.meta){operations.push({type:'set',ref:workspaceRef,data:meta});firebase.remoteCache.meta=metaJson;}
-  for(const kind of SYNC_COLLECTIONS){
-    const cache=firebase.remoteCache.collections[kind]||new Map(),nextIds=new Set();
-    (state[kind]||[]).forEach((item,index)=>{
-      const docId=String(item.id||id(kind)).replaceAll('/','_');if(!item.id)item.id=docId;nextIds.add(docId);
-      const data=assetSafeClone({...item,__order:index}),json=JSON.stringify(data);
-      if(force||cache.get(docId)!==json){operations.push({type:'set',ref:api.doc(api.collection(workspaceRef,kind),docId),data});cache.set(docId,json);}
-    });
-    for(const oldId of [...cache.keys()])if(!nextIds.has(oldId)){
-      operations.push({type:'delete',ref:api.doc(api.collection(workspaceRef,kind),oldId)});cache.delete(oldId);
-    }
-    firebase.remoteCache.collections[kind]=cache;
-  }
-  if(operations.length)await commitFirestoreOperations(operations);
-};
-
-attachFirestoreListeners=function(){
-  detachFirestoreListeners();const api=firebase.api,workspaceRef=firebaseWorkspaceRef();
-  firebase.unsubscribes.push(api.onSnapshot(firebaseMembersCollection(),{includeMetadataChanges:true},snap=>{
-    if(snap.metadata.hasPendingWrites)return;
-    const members=snap.docs.map(docSnap=>({id:docSnap.id,...docSnap.data()})).sort((a,b)=>{
-      const order={Owner:0,Admin:1,Editor:2,Commenter:3,Viewer:4};return (order[a.role]??9)-(order[b.role]??9)||a.email.localeCompare(b.email);
-    });
-    state.workspace.members=members;state.workspace.access=Object.fromEntries(members.map(member=>[normalizeMemberEmail(member.email),member.role]));
-    firebase.currentMember=members.find(member=>normalizeMemberEmail(member.email)===normalizeMemberEmail(firebase.user?.email))||null;
-    firebase.currentRole=firebase.currentMember?.role||'';localStateSnapshot();render();
-  },error=>{console.error(error);toast('Member access updates stopped. Check the Firestore rules.','error');}));
-  firebase.unsubscribes.push(api.onSnapshot(workspaceRef,{includeMetadataChanges:true},snap=>{
-    if(!snap.exists()||snap.metadata.hasPendingWrites)return;const data=snap.data(),json=JSON.stringify(data);firebase.remoteCache.meta=json;
-    if(json===JSON.stringify(stateMetaPayload()))return;applyRemoteMeta(data);queueRemoteRender();
-  },error=>{console.error(error);toast('Live workspace updates stopped. Check the Firestore rules.','error');}));
-  firebase.unsubscribes.push(api.onSnapshot(imageAssetCollection(),{includeMetadataChanges:true},snap=>{
-    if(snap.metadata.hasPendingWrites)return;
-    const nextData=new Map(),nextCache=new Map();
-    snap.docs.forEach(docSnap=>{const raw=docSnap.data();if(raw.dataUrl)nextData.set(docSnap.id,raw.dataUrl);nextCache.set(docSnap.id,JSON.stringify(raw));});
-    firebase.assetData=nextData;firebase.remoteCache.assets=nextCache;firebase.applyingRemote=true;hydrateAllStateImages();firebase.applyingRemote=false;localStateSnapshot();queueRemoteRender();
-  },error=>{console.error(error);toast('Shared images stopped syncing. Publish the updated Firestore rules.','error');}));
-  for(const kind of SYNC_COLLECTIONS){
-    firebase.unsubscribes.push(api.onSnapshot(api.collection(workspaceRef,kind),{includeMetadataChanges:true},snap=>{
-      if(snap.metadata.hasPendingWrites)return;
-      const entries=snap.docs.map(docSnap=>{
-        const raw=docSnap.data(),json=JSON.stringify(raw),order=Number(raw.__order)||0;
-        firebase.remoteCache.collections[kind].set(docSnap.id,json);delete raw.__order;hydrateImageAssets(raw);return {value:raw,order};
-      }).sort((a,b)=>a.order-b.order);
-      const incoming=entries.map(x=>x.value);
-      const incomingComparable=JSON.stringify(incoming.map(value=>assetSafeClone(value)));
-      const localComparable=JSON.stringify((state[kind]||[]).map(value=>assetSafeClone(value)));
-      if(incomingComparable===localComparable)return;
-      firebase.applyingRemote=true;state[kind]=incoming;firebase.applyingRemote=false;queueRemoteRender();
-    },error=>{console.error(error);toast(`Live ${kind} updates stopped.`,'error');}));
-  }
-};
-
-function browserSafeWorkspaceSnapshot(){
-  // Images live in the shared Firestore assets collection. Keep only their
-  // asset IDs in the browser cache so localStorage never fills with data URLs.
-  return assetSafeClone(state);
-}
-function writeBrowserWorkspaceSnapshot(){
-  const payload=JSON.stringify(browserSafeWorkspaceSnapshot());
-  try{
-    localStorage.setItem(STORAGE_KEY,payload);
-    return true;
-  }catch(error){
-    // A legacy build may already have filled the quota with embedded images.
-    // Remove that oversized copy and retry with the image-free snapshot.
-    try{
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.setItem(STORAGE_KEY,payload);
-      return true;
-    }catch(retryError){
-      console.warn('Local workspace cache is unavailable. Firestore sync will continue.',retryError);
-      return false;
-    }
-  }
-}
-localStateSnapshot=function(){
-  writeBrowserWorkspaceSnapshot();
-};
-
-saveState=async function(){
-  if(firebase.connected&&firebase.user&&!firebase.applyingRemote&&!canEditSharedWorld()){
-    el.saveStatus.textContent='Read only';
-    try{await loadRemoteWorkspace();render();}catch(error){console.error(error);}
-    toast('Your current role is read-only. Ask an owner to change your access.','error');
-    return;
-  }
-
-  const localSaved=writeBrowserWorkspaceSnapshot();
-  el.saveStatus.textContent=firebase.connected?'Syncing…':(localSaved?'Saved locally':'Local cache unavailable');
-
-  if(firebase.connected&&firebase.user&&!firebase.applyingRemote){
-    try{
-      await syncStateToFirestore();
-      el.saveStatus.textContent='Synced';
-    }catch(error){
-      el.saveStatus.textContent='Sync failed';
-      console.error(error);
-      toast(error.code==='permission-denied'
-        ? 'Your role does not allow this change, or the Firestore rules need updating.'
-        : 'The workspace could not sync.','error');
-    }
-  }else if(!localSaved){
-    toast('This browser could not keep an offline cache. Sign in to save changes online.','error');
-  }
-};
-
-
-/* === Ordered collaboration saves, conflict merging, and recovery copies === */
-(function(){
-  const RECOVERY_COLLECTION='recovery';
-  const LOCAL_RECOVERY_KEY='codex-canvas-local-recovery-v1';
-  const originalSyncStateToFirestore=syncStateToFirestore;
-
-  firebase.saveChain=Promise.resolve();
-  firebase.saveRequest=0;
-  firebase.saveActive=false;
-  firebase.editBases={meta:undefined,collections:{}};
-  for(const kind of SYNC_COLLECTIONS)firebase.editBases.collections[kind]=new Map();
-
-  function recoveryCollection(){return firebase.api.collection(firebaseWorkspaceRef(),RECOVERY_COLLECTION);}
-  function recoveryRef(key){return firebase.api.doc(recoveryCollection(),String(key).replaceAll('/','_'));}
-  function parseJson(value,fallback=null){try{return value==null?fallback:JSON.parse(value);}catch(error){return fallback;}}
-  function stripSyncFields(value){
-    const copy=assetSafeClone(value);
-    if(copy&&typeof copy==='object'){
-      delete copy.__syncRevision;delete copy.__syncUpdatedAt;delete copy.__syncUpdatedBy;
-    }
-    return copy;
-  }
-  function logicalJson(value){return JSON.stringify(stripSyncFields(value));}
-  function valuesEqual(a,b){return JSON.stringify(a)===JSON.stringify(b);}
-  function threeWayMerge(base,local,remote){
-    const cleanBase=stripSyncFields(base||{}),cleanLocal=stripSyncFields(local||{}),cleanRemote=stripSyncFields(remote||{});
-    const merged={...cleanRemote};const conflicts=[];
-    const keys=new Set([...Object.keys(cleanBase),...Object.keys(cleanLocal),...Object.keys(cleanRemote)]);
-    for(const key of keys){
-      const b=cleanBase[key],l=cleanLocal[key],r=cleanRemote[key];
-      if(valuesEqual(l,b))merged[key]=r;
-      else if(valuesEqual(r,b)||valuesEqual(l,r))merged[key]=l;
-      else{merged[key]=l;conflicts.push(key);}
-      if(merged[key]===undefined)delete merged[key];
-    }
-    return {merged,conflicts};
-  }
-  function localRecoverySnapshot(label='Unsynced edits'){
-    try{
-      const snapshot={id:`recovery-${Date.now()}`,savedAt:nowISO(),savedBy:firebase.user?.email||'',label,state:browserSafeWorkspaceSnapshot()};
-      const current=parseJson(localStorage.getItem(LOCAL_RECOVERY_KEY),[]);
-      const latest=Array.isArray(current)?current:[];
-      const json=JSON.stringify(snapshot.state);
-      if(latest[0]&&JSON.stringify(latest[0].state)===json)return;
-      latest.unshift(snapshot);
-      while(latest.length>4)latest.pop();
-      localStorage.setItem(LOCAL_RECOVERY_KEY,JSON.stringify(latest));
-    }catch(error){console.warn('A local recovery copy could not be created.',error);}
-  }
-  function captureEditBases(){
-    const metaJson=JSON.stringify(stateMetaPayload());
-    if(metaJson!==logicalJson(parseJson(firebase.remoteCache.meta,{}))&&firebase.editBases.meta===undefined){
-      firebase.editBases.meta=firebase.remoteCache.meta||null;
-    }
-    for(const kind of SYNC_COLLECTIONS){
-      const bases=firebase.editBases.collections[kind],cache=firebase.remoteCache.collections[kind]||new Map();
-      const localIds=new Set();
-      (state[kind]||[]).forEach((item,index)=>{
-        const docId=String(item.id||id(kind)).replaceAll('/','_');if(!item.id)item.id=docId;localIds.add(docId);
-        const local=assetSafeClone({...item,__order:index});
-        const remoteRaw=cache.get(docId)||null;
-        if(logicalJson(local)!==logicalJson(parseJson(remoteRaw,{}))&&!bases.has(docId))bases.set(docId,remoteRaw);
-      });
-      for(const [oldId,oldJson] of cache)if(!localIds.has(oldId)&&!bases.has(oldId))bases.set(oldId,oldJson);
-    }
-  }
-
-  scheduleSave=function(message='Saving…'){
-    el.saveStatus.textContent=message;
-    captureEditBases();
-    localRecoverySnapshot('Before shared save');
-    clearTimeout(saveTimer);
-    saveTimer=setTimeout(saveState,450);
-  };
-
-  async function transactionalSet(ref,baseJson,localData,recoveryKey,kind,documentId){
-    const api=firebase.api,email=normalizeMemberEmail(firebase.user?.email),savedAt=nowISO();let committed=null;
-    await api.runTransaction(api.db,async transaction=>{
-      const snap=await transaction.get(ref),remote=snap.exists()?snap.data():null,base=parseJson(baseJson,null);
-      const merge=remote&&base&&logicalJson(remote)!==logicalJson(base)?threeWayMerge(base,localData,remote):{merged:stripSyncFields(localData),conflicts:[]};
-      const revision=(Number(remote?.__syncRevision)||0)+1;
-      committed={...merge.merged,__syncRevision:revision,__syncUpdatedAt:savedAt,__syncUpdatedBy:email};
-      if(remote&&logicalJson(remote)!==logicalJson(committed)){
-        transaction.set(recoveryRef(recoveryKey),{
-          kind,documentId,previous:stripSyncFields(remote),replacement:stripSyncFields(committed),conflicts:merge.conflicts,
-          savedAt,savedBy:email,action:'update'
-        },{merge:false});
-      }
-      transaction.set(ref,committed,{merge:false});
-    });
-    return committed;
-  }
-  async function transactionalDelete(ref,baseJson,recoveryKey,kind,documentId){
-    const api=firebase.api,email=normalizeMemberEmail(firebase.user?.email),savedAt=nowISO();
-    await api.runTransaction(api.db,async transaction=>{
-      const snap=await transaction.get(ref);if(!snap.exists())return;
-      const remote=snap.data();
-      transaction.set(recoveryRef(recoveryKey),{kind,documentId,previous:stripSyncFields(remote),replacement:null,conflicts:[],savedAt,savedBy:email,action:'delete'},{merge:false});
-      transaction.delete(ref);
-    });
-  }
-
-  syncStateToFirestore=async function(force=false){
-    if(force)return originalSyncStateToFirestore(true);
-    if(!firebase.connected||!firebase.user||firebase.applyingRemote||!canEditSharedWorld())return;
-    const api=firebase.api,workspaceRef=firebaseWorkspaceRef();
-
-    // Assets use unique IDs, so ordered batching is sufficient for them.
-    const assets=await collectStateImageAssets(),nextAssetIds=new Set(),assetCache=firebase.remoteCache.assets||new Map(),assetOps=[],nextAssetCache=new Map(assetCache);
-    for(const [assetId,asset] of assets){
-      nextAssetIds.add(assetId);if(!asset.dataUrl)continue;
-      const data={dataUrl:asset.dataUrl,ownerKind:asset.ownerKind,ownerId:asset.ownerId,updatedAt:asset.updatedAt},json=JSON.stringify(data);
-      if(assetCache.get(assetId)!==json){assetOps.push({type:'set',ref:imageAssetRef(assetId),data});nextAssetCache.set(assetId,json);}
-      firebase.assetData.set(assetId,asset.dataUrl);
-    }
-    for(const oldId of [...assetCache.keys()])if(!nextAssetIds.has(oldId)){
-      assetOps.push({type:'delete',ref:imageAssetRef(oldId)});nextAssetCache.delete(oldId);firebase.assetData.delete(oldId);
-    }
-    if(assetOps.length)await commitFirestoreOperations(assetOps);
-    firebase.remoteCache.assets=nextAssetCache;
-
-    const meta=stateMetaPayload();
-    if(JSON.stringify(meta)!==logicalJson(parseJson(firebase.remoteCache.meta,{}))){
-      const base=firebase.editBases.meta===undefined?firebase.remoteCache.meta:firebase.editBases.meta;
-      const committed=await transactionalSet(workspaceRef,base,meta,'workspace-meta','workspace','main');
-      firebase.remoteCache.meta=JSON.stringify(committed);firebase.editBases.meta=undefined;
-    }
-
-    for(const kind of SYNC_COLLECTIONS){
-      const cache=firebase.remoteCache.collections[kind]||new Map(),bases=firebase.editBases.collections[kind],nextIds=new Set();
-      for(const [index,item] of (state[kind]||[]).entries()){
-        const docId=String(item.id||id(kind)).replaceAll('/','_');if(!item.id)item.id=docId;nextIds.add(docId);
-        const localData=assetSafeClone({...item,__order:index}),remoteJson=cache.get(docId)||null;
-        if(logicalJson(localData)===logicalJson(parseJson(remoteJson,{})))continue;
-        const base=bases.has(docId)?bases.get(docId):remoteJson;
-        const ref=api.doc(api.collection(workspaceRef,kind),docId);
-        const committed=await transactionalSet(ref,base,localData,`${kind}-${docId}`,kind,docId);
-        cache.set(docId,JSON.stringify(committed));bases.delete(docId);
-      }
-      for(const oldId of [...cache.keys()])if(!nextIds.has(oldId)){
-        const base=bases.has(oldId)?bases.get(oldId):cache.get(oldId);
-        await transactionalDelete(api.doc(api.collection(workspaceRef,kind),oldId),base,`${kind}-${oldId}`,kind,oldId);
-        cache.delete(oldId);bases.delete(oldId);
-      }
-      firebase.remoteCache.collections[kind]=cache;
-    }
-  };
-
-  function hasPendingSharedChanges(){
-    if(!firebase.connected||!firebase.user||firebase.applyingRemote)return false;
-    const remoteMeta=parseJson(firebase.remoteCache.meta,null);
-    if(!remoteMeta||logicalJson(stateMetaPayload())!==logicalJson(remoteMeta))return true;
-    for(const kind of SYNC_COLLECTIONS){
-      const cache=firebase.remoteCache.collections[kind]||new Map();
-      const localItems=state[kind]||[];
-      if(cache.size!==localItems.length)return true;
-      for(const [index,item] of localItems.entries()){
-        const docId=String(item.id||'').replaceAll('/','_');
-        if(!docId||!cache.has(docId))return true;
-        const localData=assetSafeClone({...item,__order:index});
-        const remoteData=parseJson(cache.get(docId),null);
-        if(!remoteData||logicalJson(localData)!==logicalJson(remoteData))return true;
-      }
-    }
-    return false;
-  }
-
-  saveState=function(){
-    if(firebase.connected&&firebase.user&&!firebase.applyingRemote&&!canEditSharedWorld()){
-      el.saveStatus.textContent='Read only';toast('Your current role is read-only. Ask an owner to change your access.','error');return;
-    }
-    const localSaved=writeBrowserWorkspaceSnapshot();
-    if(!firebase.connected||!firebase.user||firebase.applyingRemote){
-      el.saveStatus.textContent=localSaved?'Saved locally':'Local cache unavailable';
-      return;
-    }
-    if(!hasPendingSharedChanges()){
-      el.saveStatus.textContent='Synced';
-      return;
-    }
-    el.saveStatus.textContent='Waiting to sync…';
-    const request=++firebase.saveRequest;
-    firebase.saveChain=firebase.saveChain.catch(error=>console.error(error)).then(async()=>{
-      if(request<firebase.saveRequest)return;
-      firebase.saveActive=true;el.saveStatus.textContent='Syncing…';
-      window.dispatchEvent(new CustomEvent('codex-save-start',{detail:{request}}));
-      let timeoutId=0;
-      try{
-        const timeout=new Promise((_,reject)=>{
-          timeoutId=setTimeout(()=>{
-            const error=new Error('Firestore confirmation timed out.');
-            error.code='sync-timeout';
-            reject(error);
-          },20000);
-        });
-        await Promise.race([syncStateToFirestore(),timeout]);
-        clearTimeout(timeoutId);
-        writeBrowserWorkspaceSnapshot();
-        el.saveStatus.textContent='Synced';
-        window.dispatchEvent(new CustomEvent('codex-save-complete',{detail:{request}}));
-      }catch(error){
-        clearTimeout(timeoutId);
-        console.error(error);el.saveStatus.textContent='Sync failed';localRecoverySnapshot('Sync failed');
-        window.dispatchEvent(new CustomEvent('codex-save-error',{detail:{request,code:error?.code||''}}));
-        toast(error.code==='permission-denied'?'Your role does not allow this change, or the Firestore rules need updating.':error.code==='sync-timeout'?'The save confirmation took too long. You can return to the workspace and retry.':'The workspace could not sync. A recovery copy was kept in this browser.','error');
-      }finally{firebase.saveActive=false;}
-    });
-  };
-
-  // Preserve unsaved local entities while remote snapshots arrive. The original
-  // remote version remains in remoteCache and is used as the merge base.
-  attachFirestoreListeners=function(){
-    detachFirestoreListeners();const api=firebase.api,workspaceRef=firebaseWorkspaceRef();
-    firebase.unsubscribes.push(api.onSnapshot(firebaseMembersCollection(),{includeMetadataChanges:true},snap=>{
-      if(snap.metadata.hasPendingWrites)return;
-      const members=snap.docs.map(docSnap=>({id:docSnap.id,...docSnap.data()})).sort((a,b)=>{const order={Owner:0,Admin:1,Editor:2,Commenter:3,Viewer:4};return (order[a.role]??9)-(order[b.role]??9)||a.email.localeCompare(b.email);});
-      state.workspace.members=members;state.workspace.access=Object.fromEntries(members.map(member=>[normalizeMemberEmail(member.email),member.role]));
-      firebase.currentMember=members.find(member=>normalizeMemberEmail(member.email)===normalizeMemberEmail(firebase.user?.email))||null;firebase.currentRole=firebase.currentMember?.role||'';localStateSnapshot();render();
-    },error=>{console.error(error);toast('Member access updates stopped. Check the Firestore rules.','error');}));
-    firebase.unsubscribes.push(api.onSnapshot(workspaceRef,{includeMetadataChanges:true},snap=>{
-      if(!snap.exists()||snap.metadata.hasPendingWrites)return;const data=snap.data(),json=JSON.stringify(data);firebase.remoteCache.meta=json;
-      if(firebase.editBases.meta!==undefined)return;
-      if(logicalJson(data)===JSON.stringify(stateMetaPayload()))return;applyRemoteMeta(stripSyncFields(data));queueRemoteRender();
-    },error=>{console.error(error);toast('Live workspace updates stopped. Check the Firestore rules.','error');}));
-    firebase.unsubscribes.push(api.onSnapshot(imageAssetCollection(),{includeMetadataChanges:true},snap=>{
-      if(snap.metadata.hasPendingWrites)return;const nextData=new Map(),nextCache=new Map();
-      snap.docs.forEach(docSnap=>{const raw=docSnap.data();if(raw.dataUrl)nextData.set(docSnap.id,raw.dataUrl);nextCache.set(docSnap.id,JSON.stringify(raw));});
-      firebase.assetData=nextData;firebase.remoteCache.assets=nextCache;firebase.applyingRemote=true;hydrateAllStateImages();firebase.applyingRemote=false;localStateSnapshot();queueRemoteRender();
-    },error=>{console.error(error);toast('Shared images stopped syncing. Publish the updated Firestore rules.','error');}));
-    for(const kind of SYNC_COLLECTIONS){
-      firebase.unsubscribes.push(api.onSnapshot(api.collection(workspaceRef,kind),{includeMetadataChanges:true},snap=>{
-        if(snap.metadata.hasPendingWrites)return;
-        const bases=firebase.editBases.collections[kind],localMap=new Map((state[kind]||[]).map(item=>[String(item.id).replaceAll('/','_'),item]));
-        const entries=snap.docs.map(docSnap=>{
-          const raw=docSnap.data(),json=JSON.stringify(raw),order=Number(raw.__order)||0;firebase.remoteCache.collections[kind].set(docSnap.id,json);
-          if(bases.has(docSnap.id)&&localMap.has(docSnap.id))return {value:localMap.get(docSnap.id),order:Number(localMap.get(docSnap.id).__order)||order,dirty:true};
-          delete raw.__order;hydrateImageAssets(raw);return {value:stripSyncFields(raw),order};
-        });
-        const remoteIds=new Set(snap.docs.map(doc=>doc.id));
-        for(const [docId,item] of localMap)if(bases.has(docId)&&!remoteIds.has(docId))entries.push({value:item,order:(state[kind]||[]).indexOf(item),dirty:true});
-        entries.sort((a,b)=>a.order-b.order);
-        const incoming=entries.map(x=>x.value),incomingComparable=JSON.stringify(incoming.map(value=>assetSafeClone(value))),localComparable=JSON.stringify((state[kind]||[]).map(value=>assetSafeClone(value)));
-        if(incomingComparable===localComparable)return;firebase.applyingRemote=true;state[kind]=incoming;firebase.applyingRemote=false;queueRemoteRender();
-      },error=>{console.error(error);toast(`Live ${kind} updates stopped.`,'error');}));
-    }
-  };
-
-  async function showRecoveryCopies(){
-    if(!firebase.connected||!firebase.user){toast('Sign in to view recovery copies.','error');return;}
-    try{
-      const snap=await firebase.api.getDocs(recoveryCollection());
-      const records=snap.docs.map(doc=>({id:doc.id,...doc.data()})).sort((a,b)=>String(b.savedAt||'').localeCompare(String(a.savedAt||'')));
-      const localCopies=parseJson(localStorage.getItem(LOCAL_RECOVERY_KEY),[]);
-      const remoteHtml=records.length?records.map(record=>{
-        const previous=record.previous||{},name=previous.name||record.documentId||'Workspace';
-        return `<div class="member-row"><div><strong>${esc(name)}</strong><div class="member-email">${esc(record.kind)} · ${esc(record.savedAt||'')} · replaced by ${esc(record.savedBy||'another member')}${record.conflicts?.length?` · conflicting fields: ${esc(record.conflicts.join(', '))}`:''}</div></div><button class="button secondary small" type="button" data-restore-remote-recovery="${esc(record.id)}">Restore previous</button></div>`;
-      }).join(''):'<p class="page-subtitle">No shared recovery copies have been created yet.</p>';
-      const localHtml=Array.isArray(localCopies)&&localCopies.length?localCopies.map(copy=>`<div class="member-row"><div><strong>${esc(copy.label||'Browser recovery')}</strong><div class="member-email">${esc(copy.savedAt||'')} · ${esc(copy.savedBy||'this browser')}</div></div><button class="button secondary small" type="button" data-restore-local-recovery="${esc(copy.id)}">Restore copy</button></div>`).join(''):'<p class="page-subtitle">No browser recovery copies are available.</p>';
-      showModal('Recovery copies',`<h3>Shared item recovery</h3><div class="member-list">${remoteHtml}</div><h3 style="margin-top:22px">This browser</h3><div class="member-list">${localHtml}</div>`,`<button class="button secondary" type="button" data-close-modal>Close</button>`);
-    }catch(error){console.error(error);toast('Recovery copies could not be loaded. Publish the updated Firestore rules.','error');}
-  }
-  const baseRenderSettings=renderSettings;
-  renderSettings=function(){
-    baseRenderSettings();
-    document.querySelector('.settings-grid')?.insertAdjacentHTML('beforeend',`<section class="settings-card"><h2>Recovery copies</h2><p class="page-subtitle">Codex Canvas keeps the previous shared version of an item when it is overwritten, plus several recent browser snapshots.</p><button class="button secondary" type="button" data-open-recovery-copies>View recovery copies</button></section>`);
-  };
-  document.addEventListener('click',async event=>{
-    const open=event.target.closest('[data-open-recovery-copies]');if(open){event.preventDefault();await showRecoveryCopies();return;}
-    const remoteButton=event.target.closest('[data-restore-remote-recovery]');if(remoteButton){
-      event.preventDefault();const snap=await firebase.api.getDoc(recoveryRef(remoteButton.dataset.restoreRemoteRecovery));if(!snap.exists())return;
-      const record=snap.data(),previous=record.previous;if(!previous)return;
-      if(record.kind==='workspace'){applyRemoteMeta(previous);}else if(SYNC_COLLECTIONS.includes(record.kind)){
-        const index=(state[record.kind]||[]).findIndex(item=>String(item.id).replaceAll('/','_')===record.documentId);
-        const restored=stripSyncFields(previous);delete restored.__order;hydrateImageAssets(restored);
-        if(index>=0)state[record.kind][index]=restored;else state[record.kind].push(restored);
-      }
-      localRecoverySnapshot('Before recovery restore');captureEditBases();scheduleSave('Restoring previous version…');closeModal();render();toast('The previous version was restored and is syncing.');return;
-    }
-    const localButton=event.target.closest('[data-restore-local-recovery]');if(localButton){
-      event.preventDefault();const copies=parseJson(localStorage.getItem(LOCAL_RECOVERY_KEY),[]),copy=copies.find(item=>item.id===localButton.dataset.restoreLocalRecovery);if(!copy)return;
-      localRecoverySnapshot('Before browser recovery restore');firebase.applyingRemote=true;state=deepClone(copy.state);normalizeState();hydrateAllStateImages();firebase.applyingRemote=false;captureEditBases();scheduleSave('Restoring browser recovery…');closeModal();render();toast('The browser recovery copy was restored and is syncing.');
-    }
-  },true);
-})();
-
-
-
-/* === Recoverable shared-world startup === */
-function codexWithTimeout(promise, milliseconds, label){
-  let timer=0;
-  const timeout=new Promise((_,reject)=>{
-    timer=setTimeout(()=>{
-      const error=new Error(`${label||'The request'} took too long.`);
-      error.code='codex/open-timeout';
-      reject(error);
-    },milliseconds);
-  });
-  return Promise.race([Promise.resolve(promise).finally(()=>clearTimeout(timer)),timeout]);
-}
-function authRecoveryElements(){
-  return {
-    actions:document.getElementById('authRecoveryActions'),
-    retry:document.getElementById('authRetryOpen'),
-    signOut:document.getElementById('authLoadingSignOut')
-  };
-}
-function hideAuthRecovery(){const ui=authRecoveryElements();if(ui.actions)ui.actions.hidden=true;}
-function showAuthRecovery(message){
-  const ui=authRecoveryElements();
-  el.app.hidden=true;el.authGate.hidden=false;el.authGate.classList.remove('auth-loading');
-  setAuthMessage(message||'The shared world did not finish opening.','error');
-  if(ui.actions)ui.actions.hidden=false;
-}
-async function codexServerDoc(ref){
-  const api=firebase.api;
-  return (api.getDocFromServer?api.getDocFromServer(ref):api.getDoc(ref));
-}
-async function codexServerDocs(ref){
-  const api=firebase.api;
-  return (api.getDocsFromServer?api.getDocsFromServer(ref):api.getDocs(ref));
-}
-
-bootstrapSharedWorkspace=async function(){
-  const api=firebase.api,workspaceRef=firebaseWorkspaceRef(),email=normalizeMemberEmail(firebase.user.email),memberRef=firebaseMemberRef(email);
-  const memberSnap=await codexWithTimeout(codexServerDoc(memberRef),12000,'Membership check');
-  if(memberSnap.exists()){
-    firebase.currentMember={id:memberSnap.id,...memberSnap.data()};
-    firebase.currentRole=firebase.currentMember.role||'Viewer';
-    // Presence information is helpful, but it must never block opening the app.
-    api.setDoc(memberRef,{uid:firebase.user.uid,lastSeenAt:nowISO()},{merge:true}).catch(error=>console.warn('Last-seen update was delayed.',error));
-    return;
-  }
-
-  // First-owner initialization remains atomic. Existing worlds reject uninvited accounts.
-  try{await codexWithTimeout(readWorkspaceFromRef(firebaseLegacyWorkspaceRef()),12000,'Legacy workspace check');}catch(error){console.warn('No legacy workspace could be loaded.',error);}
-  normalizeState();state.workspace.members=[];state.workspace.access={};
-  const createdAt=nowISO();
-  state.createdAt=createdAt;state.createdByUid=firebase.user.uid;state.createdByEmail=email;
-  const ownerRecord={email,role:'Owner',status:'Access granted',uid:firebase.user.uid,addedAt:createdAt,addedBy:email,lastSeenAt:createdAt};
-  const meta={...stateMetaPayload(),createdAt,createdByUid:firebase.user.uid,createdByEmail:email};
-  const batch=api.writeBatch(api.db);
-  batch.set(workspaceRef,meta,{merge:false});batch.set(memberRef,ownerRecord,{merge:false});
-  try{await codexWithTimeout(batch.commit(),15000,'Shared-world setup');}
-  catch(error){
-    if(['permission-denied','already-exists','failed-precondition'].includes(error.code)){
-      const denied=new Error('This account has not been granted access to this shared world. Please contact the admin team.');
-      denied.code='codex/access-denied';throw denied;
-    }
-    throw error;
-  }
-  firebase.currentMember={id:email,...ownerRecord};firebase.currentRole='Owner';
-};
-
-loadRemoteWorkspace=async function(){
-  const api=firebase.api,workspaceRef=firebaseWorkspaceRef();
-  // Open the usable workspace first. Large images hydrate after the app is visible.
-  const [metaSnap,...collectionSnaps]=await codexWithTimeout(Promise.all([
-    codexServerDoc(workspaceRef),...SYNC_COLLECTIONS.map(kind=>codexServerDocs(api.collection(workspaceRef,kind)))
-  ]),18000,'Workspace download');
-  const next=deepClone(window.INITIAL_WORLD_DATA);
-  if(metaSnap.exists())Object.assign(next,metaSnap.data());
-  SYNC_COLLECTIONS.forEach((kind,index)=>{
-    const snap=collectionSnaps[index];
-    next[kind]=snap.docs.map(docSnap=>{
-      const raw=docSnap.data(),order=Number(raw.__order)||0;delete raw.__order;hydrateImageAssets(raw);return {value:raw,order};
-    }).sort((a,b)=>a.order-b.order).map(entry=>entry.value);
-    firebase.remoteCache.collections[kind]=new Map(snap.docs.map(docSnap=>[docSnap.id,JSON.stringify(docSnap.data())]));
-  });
-  firebase.remoteCache.meta=metaSnap.exists()?JSON.stringify(metaSnap.data()):'';
-  const members=state.workspace?.members||[],access=state.workspace?.access||{};
-  firebase.applyingRemote=true;state=next;normalizeState();state.workspace.members=members;state.workspace.access=access;hydrateAllStateImages();localStateSnapshot();firebase.applyingRemote=false;
-};
-
-async function loadRemoteImagesAfterOpen(){
-  try{
-    const snap=await codexWithTimeout(codexServerDocs(imageAssetCollection()),20000,'Shared image download');
-    const nextData=new Map(),nextCache=new Map();
-    snap.docs.forEach(docSnap=>{const raw=docSnap.data();if(raw.dataUrl)nextData.set(docSnap.id,raw.dataUrl);nextCache.set(docSnap.id,JSON.stringify(raw));});
-    firebase.assetData=nextData;firebase.remoteCache.assets=nextCache;
-    firebase.applyingRemote=true;hydrateAllStateImages();firebase.applyingRemote=false;localStateSnapshot();queueRemoteRender();
-  }catch(error){
-    console.warn('The workspace opened before all shared images finished loading.',error);
-    toast('The workspace opened, but some shared images are still loading.','error');
-  }
-}
-
-firebase.openAttempt=0;
-async function openAuthenticatedWorkspace(user){
-  const attempt=++firebase.openAttempt;
-  hideAuthRecovery();
-  el.authGate.hidden=false;el.app.hidden=true;el.authGate.classList.add('auth-loading');setAuthMessage('Opening the shared world…');
-  try{
-    await codexWithTimeout(bootstrapSharedWorkspace(),16000,'Membership verification');
-    if(attempt!==firebase.openAttempt)return;
-    await codexWithTimeout(loadRemoteWorkspace(),22000,'Shared-world loading');
-    if(attempt!==firebase.openAttempt)return;
-    attachFirestoreListeners();showAuthenticatedApp();render();el.saveStatus.textContent='Synced';
-    loadRemoteImagesAfterOpen();
-  }catch(error){
-    if(attempt!==firebase.openAttempt)return;
-    console.error(error);
-    if(error.code==='codex/access-denied'){
-      firebase.pendingAuthMessage={message:error.message,type:'error'};
-      await firebase.api.signOut(firebase.api.auth);return;
-    }
-    const copy=error.code==='permission-denied'
-      ? 'Your login worked, but Firestore denied access. Publish the Firestore rules included with this build, then retry.'
-      : error.code==='codex/open-timeout'
-        ? 'The shared world did not respond in time. Check the connection, then retry opening it.'
-        : `The shared world could not open. ${error.message||''}`;
-    showAuthRecovery(copy);
-  }
-}
-
-initFirebase=async function(){
-  el.authGate.classList.add('auth-loading');setAuthMessage('Checking your account…');hideAuthRecovery();
-  try{
-    const appMod=await import('https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js');
-    const authMod=await import('https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js');
-    const fsMod=await import('https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js');
-    const app=appMod.initializeApp(window.FIREBASE_CONFIG),auth=authMod.getAuth(app);
-    let db;
-    try{db=fsMod.initializeFirestore(app,{experimentalAutoDetectLongPolling:true});}
-    catch(error){db=fsMod.getFirestore(app);}
-    await authMod.setPersistence(auth,authMod.browserLocalPersistence);
-    firebase.api={...authMod,...fsMod,auth,db};
-    try{await fsMod.enableNetwork(db);}catch(error){console.warn('Firestore network activation was delayed.',error);}
-    authMod.onAuthStateChanged(auth,user=>{
-      firebase.user=user;firebase.connected=Boolean(user);firebase.currentMember=null;firebase.currentRole='';detachFirestoreListeners();
-      if(!user){
-        firebase.openAttempt++;
-        const pending=firebase.pendingAuthMessage;firebase.pendingAuthMessage=null;hideAuthRecovery();showAuthGate(pending?.message||'',pending?.type||'');return;
-      }
-      openAuthenticatedWorkspace(user);
-    });
-    const recovery=authRecoveryElements();
-    recovery.retry?.addEventListener('click',()=>{if(firebase.user)openAuthenticatedWorkspace(firebase.user);});
-    recovery.signOut?.addEventListener('click',async()=>{firebase.openAttempt++;hideAuthRecovery();await authMod.signOut(auth);});
-  }catch(error){console.error(error);showAuthRecovery('Firebase could not start. Check the internet connection and try again.');}
-};
-
-
-/* === Confirmed live sync, related characters, and editable current details === */
-const codexJsonParse = (value, fallback=null) => { try { return value == null ? fallback : JSON.parse(value); } catch (error) { return fallback; } };
-function codexStripSyncFields(value){
-  const copy=assetSafeClone(value);
+function cleanParse(value,fallback=null){try{return value==null?fallback:JSON.parse(value);}catch(error){return fallback;}}
+function cleanWithoutSyncFields(value){
+  const copy=cleanFirestoreValue(value||{});
   if(copy&&typeof copy==='object'){
     delete copy.__syncRevision;delete copy.__syncUpdatedAt;delete copy.__syncUpdatedBy;
   }
   return copy;
 }
-function codexLogicalJson(value){return JSON.stringify(codexStripSyncFields(value));}
-function codexValuesEqual(a,b){return JSON.stringify(a)===JSON.stringify(b);}
-function codexMergeDocument(base,local,remote){
-  const b=codexStripSyncFields(base||{}),l=codexStripSyncFields(local||{}),r=codexStripSyncFields(remote||{}),merged={...r};
-  const conflicts=[];const keys=new Set([...Object.keys(b),...Object.keys(l),...Object.keys(r)]);
+function cleanEqual(a,b){return JSON.stringify(a)===JSON.stringify(b);}
+function cleanLogical(value){return JSON.stringify(cleanWithoutSyncFields(value));}
+function cleanThreeWayMerge(base,local,remote){
+  const b=cleanWithoutSyncFields(base||{}),l=cleanWithoutSyncFields(local||{}),r=cleanWithoutSyncFields(remote||{}),merged={...r};
+  const keys=new Set([...Object.keys(b),...Object.keys(l),...Object.keys(r)]);
   for(const key of keys){
-    if(codexValuesEqual(l[key],b[key]))merged[key]=r[key];
-    else if(codexValuesEqual(r[key],b[key])||codexValuesEqual(l[key],r[key]))merged[key]=l[key];
-    else{merged[key]=l[key];conflicts.push(key);}
+    if(cleanEqual(l[key],b[key]))merged[key]=r[key];
+    else if(cleanEqual(r[key],b[key])||cleanEqual(l[key],r[key]))merged[key]=l[key];
+    else merged[key]=l[key];
     if(merged[key]===undefined)delete merged[key];
   }
-  return {merged,conflicts};
+  return merged;
 }
-function codexClearLegacyEditBases(){
-  if(!firebase.editBases)return;
-  firebase.editBases.meta=undefined;
-  for(const kind of SYNC_COLLECTIONS)firebase.editBases.collections?.[kind]?.clear?.();
+function cleanWithTimeout(promise,milliseconds,label){
+  return Promise.race([
+    promise,
+    new Promise((_,reject)=>setTimeout(()=>{const error=new Error(`${label} timed out.`);error.code='codex/timeout';reject(error);},milliseconds))
+  ]);
 }
-function codexCollectionHasChanges(kind,cache=firebase.remoteCache.collections[kind]||new Map()){
-  const items=state[kind]||[];
-  if(cache.size!==items.length)return true;
-  for(const [index,item] of items.entries()){
-    const docId=String(item.id||'').replaceAll('/','_');
-    if(!docId||!cache.has(docId))return true;
-    const local=assetSafeClone({...item,__order:index});
-    if(codexLogicalJson(local)!==codexLogicalJson(codexJsonParse(cache.get(docId),{})))return true;
+function cleanIsInlineImage(value){return typeof value==='string'&&value.startsWith('data:image/');}
+function cleanWalkImages(value,visit,seen=new WeakSet()){
+  if(!value||typeof value!=='object'||seen.has(value))return;seen.add(value);
+  if(Array.isArray(value)){value.forEach(child=>cleanWalkImages(child,visit,seen));return;}
+  if(value.assetId||cleanIsInlineImage(value.src)||(value.type==='image'&&typeof value.src==='string'))visit(value);
+  for(const [key,child] of Object.entries(value)){if(key==='src')continue;if(child&&typeof child==='object')cleanWalkImages(child,visit,seen);}
+}
+function cleanEnsureAssetId(media){if(!media.assetId)media.assetId=id('asset');return media.assetId;}
+function cleanAssetCollection(){return firebase.api.collection(firebaseWorkspaceRef(),CODEX_ASSET_COLLECTION);}
+function cleanAssetRef(assetId){return firebase.api.doc(cleanAssetCollection(),String(assetId).replaceAll('/','_'));}
+function cleanCanvasDataUrl(canvas,quality){let data=canvas.toDataURL('image/webp',quality);if(!data.startsWith('data:image/webp'))data=canvas.toDataURL('image/jpeg',quality);return data;}
+async function cleanLoadImage(source){return new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(new Error('The image could not be opened.'));image.src=source;});}
+async function cleanCompressImage(source,targetLength=CODEX_ASSET_MAX_DATA_URL,maxSide=1500){
+  const image=await cleanLoadImage(source);let scale=Math.min(1,maxSide/Math.max(image.naturalWidth,image.naturalHeight));
+  let width=Math.max(1,Math.round(image.naturalWidth*scale)),height=Math.max(1,Math.round(image.naturalHeight*scale)),quality=.82,data='';
+  for(let attempt=0;attempt<14;attempt++){
+    const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+    const context=canvas.getContext('2d',{alpha:true});context.imageSmoothingEnabled=true;context.imageSmoothingQuality='high';context.drawImage(image,0,0,width,height);
+    data=cleanCanvasDataUrl(canvas,quality);
+    if(data.length<=targetLength)return {data,width,height};
+    if(quality>.5)quality=Math.max(.5,quality-.08);else{width=Math.max(380,Math.round(width*.82));height=Math.max(240,Math.round(height*.82));quality=.7;}
   }
-  return false;
+  if(data.length>900000)throw new Error('This image is still too large after compression. Try a smaller image.');
+  return {data,width,height};
 }
-function codexHasPendingChanges(){
-  if(!firebase.connected||!firebase.user||firebase.applyingRemote)return false;
-  if(codexLogicalJson(stateMetaPayload())!==codexLogicalJson(codexJsonParse(firebase.remoteCache.meta,{})))return true;
-  return SYNC_COLLECTIONS.some(kind=>codexCollectionHasChanges(kind));
+
+imageFileToBlock=async function(file,character){
+  if(!file||!file.type?.startsWith('image/'))throw new Error('Choose an image file.');
+  if(file.size>18*1024*1024)throw new Error('That image is larger than 18 MB.');
+  const source=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('The image could not be read.'));reader.readAsDataURL(file);});
+  const prepared=await cleanCompressImage(source);
+  return {id:id('image'),type:'image',content:'',src:prepared.data,assetId:id('asset'),alt:`${character?.name||'World'} image`,layout:'front',wrapSide:'left',width:Math.min(360,prepared.width),padding:18,xPct:8,y:24,opacity:1,ratio:prepared.width/prepared.height};
+};
+
+function cleanAssetSafeClone(value){
+  cleanWalkImages(value,media=>{if(cleanIsInlineImage(media.src))cleanEnsureAssetId(media);});
+  const clone=cleanFirestoreValue(value);
+  cleanWalkImages(clone,media=>{if(cleanIsInlineImage(media.src))delete media.src;});
+  return clone;
 }
-function codexMakeBrowserRecovery(label='Unsynced shared changes'){
-  try{
-    const key='codex-canvas-live-sync-recovery-v2';
-    const current=codexJsonParse(localStorage.getItem(key),[]);const copies=Array.isArray(current)?current:[];
-    const snapshot={id:`live-${Date.now()}`,savedAt:nowISO(),savedBy:firebase.user?.email||'',label,state:browserSafeWorkspaceSnapshot()};
-    if(!copies[0]||JSON.stringify(copies[0].state)!==JSON.stringify(snapshot.state))copies.unshift(snapshot);
-    localStorage.setItem(key,JSON.stringify(copies.slice(0,5)));
-  }catch(error){console.warn('A live-sync recovery copy could not be stored.',error);}
+function cleanHydrateImages(value){
+  cleanWalkImages(value,media=>{if(media.assetId&&cleanSync.assetData.has(media.assetId))media.src=cleanSync.assetData.get(media.assetId);});
+  return value;
 }
-async function codexWriteAssetChanges(){
-  const api=firebase.api,assets=await collectStateImageAssets(),nextIds=new Set(),cache=firebase.remoteCache.assets||new Map();
-  const writes=[];
-  for(const [assetId,asset] of assets){
-    nextIds.add(assetId);if(!asset.dataUrl)continue;
-    const data={dataUrl:asset.dataUrl,ownerKind:asset.ownerKind,ownerId:asset.ownerId,updatedAt:asset.updatedAt};
-    const json=JSON.stringify(data);
-    if(cache.get(assetId)!==json)writes.push(async()=>{await api.setDoc(imageAssetRef(assetId),data,{merge:false});cache.set(assetId,json);firebase.assetData.set(assetId,asset.dataUrl);});
-  }
-  for(const oldId of [...cache.keys()])if(!nextIds.has(oldId))writes.push(async()=>{await api.deleteDoc(imageAssetRef(oldId));cache.delete(oldId);firebase.assetData.delete(oldId);});
-  // Asset documents can be large. Send them one at a time so a group cannot exceed Firestore's request limit.
-  for(const write of writes)await write();
-  firebase.remoteCache.assets=cache;
-}
-function codexBuildDocumentPlan(){
-  const api=firebase.api,workspaceRef=firebaseWorkspaceRef(),plan=[];
-  const meta=stateMetaPayload(),remoteMeta=firebase.remoteCache.meta||null;
-  if(codexLogicalJson(meta)!==codexLogicalJson(codexJsonParse(remoteMeta,{})))plan.push({type:'set',kind:'workspace',id:'main',ref:workspaceRef,local:meta,base:remoteMeta});
+function cleanHydrateAll(){for(const kind of SYNC_COLLECTIONS)for(const item of state[kind]||[])cleanHydrateImages(item);}
+async function cleanCollectAssets(){
+  const assets=new Map();
   for(const kind of SYNC_COLLECTIONS){
-    const cache=firebase.remoteCache.collections[kind]||new Map(),nextIds=new Set();
+    for(const item of state[kind]||[]){
+      const nodes=[];cleanWalkImages(item,media=>nodes.push(media));
+      for(const media of nodes){
+        const assetId=media.assetId||(cleanIsInlineImage(media.src)?cleanEnsureAssetId(media):'');if(!assetId)continue;
+        let dataUrl=cleanIsInlineImage(media.src)?media.src:(cleanSync.assetData.get(assetId)||'');
+        if(dataUrl&&dataUrl.length>CODEX_ASSET_MAX_DATA_URL){const compressed=await cleanCompressImage(dataUrl);dataUrl=compressed.data;media.src=dataUrl;}
+        assets.set(assetId,{dataUrl,ownerKind:kind,ownerId:item.id||'',updatedAt:item.updatedAt||nowISO()});
+      }
+    }
+  }
+  return assets;
+}
+function cleanBrowserSnapshot(){return cleanAssetSafeClone(state);}
+function cleanWriteBrowserSnapshot(){
+  const payload=JSON.stringify(cleanBrowserSnapshot());
+  try{localStorage.setItem(STORAGE_KEY,payload);return true;}
+  catch(error){
+    try{localStorage.removeItem(STORAGE_KEY);localStorage.setItem(STORAGE_KEY,payload);return true;}
+    catch(retryError){console.warn('Browser recovery cache is unavailable.',retryError);return false;}
+  }
+}
+localStateSnapshot=cleanWriteBrowserSnapshot;
+
+function cleanCreateSaveOverlay(){
+  if(document.getElementById('cleanSaveOverlay'))return;
+  const style=document.createElement('style');style.textContent=`
+    #cleanSaveOverlay{position:fixed;inset:0;z-index:12000;display:none;place-items:center;background:rgba(8,15,24,.78);backdrop-filter:blur(8px);padding:20px}
+    #cleanSaveOverlay.visible{display:grid}#cleanSaveOverlay .clean-save-card{width:min(430px,94vw);border:1px solid #8f7445;border-radius:24px;background:#0e1927;color:#f7f1e5;padding:30px;text-align:center;box-shadow:0 28px 80px rgba(0,0,0,.45)}
+    #cleanSaveOverlay h2{font:700 2rem Georgia,serif;margin:12px 0}#cleanSaveOverlay p{color:#b9c3d1;line-height:1.55;margin:8px 0}.clean-save-spinner{width:48px;height:48px;border:3px solid rgba(217,177,92,.25);border-top-color:#d9b15c;border-radius:50%;margin:auto;animation:cleanSpin .8s linear infinite}
+    #cleanSaveOverlay.error .clean-save-spinner{animation:none;border-color:#8f7445;display:grid;place-items:center}#cleanSaveOverlay.error .clean-save-spinner:after{content:'!';font:bold 24px Georgia;color:#ffb3b3}
+    .clean-save-actions{display:none;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:20px}#cleanSaveOverlay.error .clean-save-actions{display:flex}@keyframes cleanSpin{to{transform:rotate(360deg)}}
+    .character-related-links{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:0 0 14px;padding:12px 14px;border:1px solid var(--border);border-radius:15px;background:var(--panel)}
+    .practical-dossier-page .character-related-links{margin:12px 18px 14px;border-color:var(--dossier-line);background:var(--dossier-panel);color:var(--dossier-ink)}
+    .character-related-label{font-size:.76rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}.character-related-pills{display:flex;gap:8px;flex-wrap:wrap}.character-related-pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:999px;padding:6px 10px;background:var(--panel-2);color:inherit;font:700 .86rem Inter,system-ui,sans-serif;cursor:pointer}.character-related-pill span{width:22px;height:22px;display:grid;place-items:center;border-radius:50%;background:var(--accent);color:white;font-size:.68rem}.character-related-empty{color:var(--muted);font-size:.9rem}
+    .character-snapshot-head,.dossier-section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.current-details-editor{display:grid;grid-template-columns:1fr 1fr;gap:14px}.current-details-editor label{display:grid;gap:7px}.current-details-editor .wide{grid-column:1/-1}@media(max-width:680px){.current-details-editor{grid-template-columns:1fr}.current-details-editor .wide{grid-column:auto}.character-related-links{align-items:flex-start;flex-direction:column}}
+  `;document.head.appendChild(style);
+  const overlay=document.createElement('div');overlay.id='cleanSaveOverlay';overlay.innerHTML=`<div class="clean-save-card"><div class="clean-save-spinner"></div><h2 data-clean-save-title>Saving your world…</h2><p data-clean-save-message>Editing will reopen after Firestore confirms this version.</p><p data-clean-save-detail>Keep this tab open.</p><div class="clean-save-actions"><button class="button" type="button" data-clean-retry>Retry sync</button><button class="button secondary" type="button" data-clean-backup>Download backup</button><button class="button ghost" type="button" data-clean-reload>Reload shared world</button></div></div>`;document.body.appendChild(overlay);
+  overlay.addEventListener('click',event=>{
+    if(event.target.closest('[data-clean-retry]')){cleanSync.blocked=false;cleanHideSaveOverlay();saveState();}
+    if(event.target.closest('[data-clean-backup]'))downloadBackup();
+    if(event.target.closest('[data-clean-reload]')){cleanSync.blocked=false;cleanHideSaveOverlay();loadRemoteWorkspace().then(()=>{render();el.saveStatus.textContent='Synced';}).catch(error=>cleanShowSaveError(error));}
+  });
+}
+function cleanShowSaving(){
+  cleanCreateSaveOverlay();const overlay=document.getElementById('cleanSaveOverlay');overlay.classList.remove('error');overlay.classList.add('visible');
+  overlay.querySelector('[data-clean-save-title]').textContent='Saving your world…';overlay.querySelector('[data-clean-save-message]').textContent='Editing will reopen after Firestore confirms this version.';overlay.querySelector('[data-clean-save-detail]').textContent='Keep this tab open.';
+  document.getElementById('app')?.setAttribute('inert','');
+}
+function cleanHideSaveOverlay(){const overlay=document.getElementById('cleanSaveOverlay');overlay?.classList.remove('visible','error');document.getElementById('app')?.removeAttribute('inert');}
+function cleanShowSaveError(error){
+  cleanCreateSaveOverlay();const overlay=document.getElementById('cleanSaveOverlay');overlay.classList.add('visible','error');
+  overlay.querySelector('[data-clean-save-title]').textContent='The save did not finish';overlay.querySelector('[data-clean-save-message]').textContent=error?.message||'Firestore did not confirm the save.';overlay.querySelector('[data-clean-save-detail]').textContent='Your browser recovery copy is still available.';document.getElementById('app')?.setAttribute('inert','');
+}
+
+function cleanMetaPayload(){return cleanAssetSafeClone(stateMetaPayload());}
+function cleanEntityPayload(item,index){return cleanAssetSafeClone({...item,__order:index});}
+function cleanBaseCollection(kind){return cleanSync.baseCollections[kind]||(cleanSync.baseCollections[kind]=new Map());}
+function cleanBuildPlan(force=false){
+  const plan=[],workspaceRef=firebaseWorkspaceRef(),api=firebase.api;
+  const meta=cleanMetaPayload(),baseMeta=cleanParse(cleanSync.baseMeta,{});
+  if(force||cleanLogical(meta)!==cleanLogical(baseMeta))plan.push({kind:'workspace',id:'main',ref:workspaceRef,type:'set',local:meta,base:cleanSync.baseMeta});
+  for(const kind of SYNC_COLLECTIONS){
+    const baseMap=cleanBaseCollection(kind),nextIds=new Set();
     for(const [index,item] of (state[kind]||[]).entries()){
       const docId=String(item.id||id(kind)).replaceAll('/','_');if(!item.id)item.id=docId;nextIds.add(docId);
-      const local=assetSafeClone({...item,__order:index}),remote=cache.get(docId)||null;
-      if(codexLogicalJson(local)!==codexLogicalJson(codexJsonParse(remote,{})))plan.push({type:'set',kind,id:docId,ref:api.doc(api.collection(workspaceRef,kind),docId),local,base:remote});
+      const local=cleanEntityPayload(item,index),base=baseMap.get(docId)||null;
+      if(force||cleanLogical(local)!==cleanLogical(cleanParse(base,{})))plan.push({kind,id:docId,ref:api.doc(api.collection(workspaceRef,kind),docId),type:'set',local,base});
     }
-    for(const [oldId,oldJson] of cache)if(!nextIds.has(oldId))plan.push({type:'delete',kind,id:oldId,ref:api.doc(api.collection(workspaceRef,kind),oldId),base:oldJson});
+    for(const [oldId,base] of baseMap)if(!nextIds.has(oldId))plan.push({kind,id:oldId,ref:api.doc(api.collection(workspaceRef,kind),oldId),type:'delete',base});
   }
   return plan;
 }
-async function codexCommitDocumentPlan(plan){
-  if(!plan.length)return;
-  const api=firebase.api,email=normalizeMemberEmail(firebase.user?.email),savedAt=nowISO(),committed=new Map();
-  await api.runTransaction(api.db,async transaction=>{
-    // Firestore requires all reads before any write. One transaction confirms the complete workspace change together.
-    const snapshots=await Promise.all(plan.map(item=>transaction.get(item.ref)));
-    for(let index=0;index<plan.length;index++){
-      const item=plan[index],snap=snapshots[index],remote=snap.exists()?snap.data():null;
-      if(item.type==='delete'){
-        if(snap.exists())transaction.delete(item.ref);
-        committed.set(`${item.kind}:${item.id}`,null);continue;
-      }
-      const base=codexJsonParse(item.base,null);
-      const result=remote&&base&&codexLogicalJson(remote)!==codexLogicalJson(base)?codexMergeDocument(base,item.local,remote):{merged:codexStripSyncFields(item.local),conflicts:[]};
-      const data={...result.merged,__syncRevision:(Number(remote?.__syncRevision)||0)+1,__syncUpdatedAt:savedAt,__syncUpdatedBy:email};
-      transaction.set(item.ref,data,{merge:false});committed.set(`${item.kind}:${item.id}`,data);
+async function cleanCommitItem(item){
+  const api=firebase.api,email=normalizeMemberEmail(firebase.user?.email),savedAt=nowISO();let committed=null;
+  await cleanWithTimeout(api.runTransaction(api.db,async transaction=>{
+    const snap=await transaction.get(item.ref),remote=snap.exists()?snap.data():null;
+    if(item.type==='delete'){if(snap.exists())transaction.delete(item.ref);return;}
+    const base=cleanParse(item.base,null),merged=remote&&base&&cleanLogical(remote)!==cleanLogical(base)?cleanThreeWayMerge(base,item.local,remote):cleanWithoutSyncFields(item.local);
+    committed={...merged,__syncRevision:(Number(remote?.__syncRevision)||0)+1,__syncUpdatedAt:savedAt,__syncUpdatedBy:email};transaction.set(item.ref,committed,{merge:false});
+  }),30000,`Saving ${item.kind==='workspace'?'workspace details':(COLLECTIONS[item.kind]?.singular||item.kind)}`);
+  if(item.kind==='workspace'){
+    cleanSync.baseMeta=committed?JSON.stringify(committed):'';firebase.remoteCache.meta=cleanSync.baseMeta;
+    if(committed){firebase.applyingRemote=true;applyRemoteMeta(cleanWithoutSyncFields(committed));firebase.applyingRemote=false;}
+  }else{
+    const baseMap=cleanBaseCollection(item.kind),remoteMap=firebase.remoteCache.collections[item.kind]||new Map();
+    if(item.type==='delete'){baseMap.delete(item.id);remoteMap.delete(item.id);}
+    else{
+      baseMap.set(item.id,JSON.stringify(committed));remoteMap.set(item.id,JSON.stringify(committed));const clean=cleanWithoutSyncFields(committed),order=Number(clean.__order)||0;delete clean.__order;cleanHydrateImages(clean);
+      const list=state[item.kind]||[],at=list.findIndex(value=>String(value.id||'').replaceAll('/','_')===item.id);if(at>=0)list[at]=clean;else list.push(clean);
+      list.sort((a,b)=>{const aBase=cleanParse(baseMap.get(String(a.id||'').replaceAll('/','_')),{}),bBase=cleanParse(baseMap.get(String(b.id||'').replaceAll('/','_')),{});return (Number(aBase.__order)||0)-(Number(bBase.__order)||0);});
     }
-  });
-  // The transaction promise is server-confirmed; wait for any remaining queued writes such as images too.
-  if(api.waitForPendingWrites)await api.waitForPendingWrites(api.db);
-  for(const item of plan){
-    const data=committed.get(`${item.kind}:${item.id}`);
-    if(item.kind==='workspace'){
-      firebase.remoteCache.meta=data?JSON.stringify(data):'';
-      if(data)applyRemoteMeta(codexStripSyncFields(data));
-    }else{
-      const cache=firebase.remoteCache.collections[item.kind]||new Map();
-      if(data){cache.set(item.id,JSON.stringify(data));const clean=codexStripSyncFields(data);delete clean.__order;hydrateImageAssets(clean);const at=(state[item.kind]||[]).findIndex(value=>String(value.id).replaceAll('/','_')===item.id);if(at>=0)state[item.kind][at]=clean;}
-      else cache.delete(item.id);
-      firebase.remoteCache.collections[item.kind]=cache;
-    }
+    firebase.remoteCache.collections[item.kind]=remoteMap;
   }
 }
-async function codexConfirmedSync(){
-  if(!firebase.connected||!firebase.user)throw Object.assign(new Error('You are not connected to the shared world.'),{code:'codex/offline'});
+async function cleanSyncAssets(){
+  const assets=await cleanCollectAssets(),nextIds=new Set();
+  for(const [assetId,asset] of assets){
+    nextIds.add(assetId);if(!asset.dataUrl)continue;const data={...asset},json=JSON.stringify(data);if(cleanSync.baseAssets.get(assetId)===json)continue;
+    await cleanWithTimeout(firebase.api.setDoc(cleanAssetRef(assetId),data,{merge:false}),45000,'Uploading an image');cleanSync.baseAssets.set(assetId,json);cleanSync.assetData.set(assetId,asset.dataUrl);
+  }
+  for(const oldId of [...cleanSync.baseAssets.keys()])if(!nextIds.has(oldId)){await cleanWithTimeout(firebase.api.deleteDoc(cleanAssetRef(oldId)),20000,'Removing an image');cleanSync.baseAssets.delete(oldId);cleanSync.assetData.delete(oldId);}
+}
+async function cleanPerformSync(force=false){
+  if(!firebase.connected||!firebase.user)throw Object.assign(new Error('The shared world is offline.'),{code:'codex/offline'});
   if(!canEditSharedWorld())throw Object.assign(new Error('Your account is read-only.'),{code:'permission-denied'});
-  await codexWriteAssetChanges();
-  const plan=codexBuildDocumentPlan();
-  await codexCommitDocumentPlan(plan);
-  codexClearLegacyEditBases();
-  writeBrowserWorkspaceSnapshot();
+  const plan=cleanBuildPlan(force);
+  for(const item of plan)await cleanCommitItem(item);
+  await cleanSyncAssets();cleanWriteBrowserSnapshot();cleanSync.dirty=false;
 }
 
-firebase.codexSaving=false;firebase.codexSaveAgain=false;firebase.codexSyncBlocked=false;firebase.codexRemoteWaiting=false;
-scheduleSave=function(message='Changes pending…'){
-  if(firebase.applyingRemote)return;
-  el.saveStatus.textContent=message;writeBrowserWorkspaceSnapshot();
-  clearTimeout(saveTimer);saveTimer=setTimeout(()=>saveState(),650);
-};
-saveState=async function(){
-  if(firebase.applyingRemote)return;
-  writeBrowserWorkspaceSnapshot();
-  if(!firebase.connected||!firebase.user){el.saveStatus.textContent='Offline';codexMakeBrowserRecovery('Offline changes');window.dispatchEvent(new CustomEvent('codex-save-error',{detail:{request:Date.now(),code:'codex/offline',message:'The shared world is offline.'}}));return;}
-  if(!canEditSharedWorld()){el.saveStatus.textContent='Read only';window.dispatchEvent(new CustomEvent('codex-save-error',{detail:{request:Date.now(),code:'permission-denied',message:'Your account cannot edit this world.'}}));return;}
-  if(firebase.codexSaving){firebase.codexSaveAgain=true;return;}
-  if(!codexHasPendingChanges()){el.saveStatus.textContent='Synced';return;}
-  const request=Date.now();firebase.codexSaving=true;firebase.codexSyncBlocked=false;codexMakeBrowserRecovery('Before confirmed save');
-  el.saveStatus.textContent='Syncing…';window.dispatchEvent(new CustomEvent('codex-save-start',{detail:{request}}));
-  try{
-    await codexConfirmedSync();
-    firebase.codexSyncBlocked=false;el.saveStatus.textContent='Synced';
-    window.dispatchEvent(new CustomEvent('codex-save-complete',{detail:{request}}));
-    if(firebase.codexRemoteWaiting){firebase.codexRemoteWaiting=false;await loadRemoteWorkspace();render();}
-  }catch(error){
-    console.error('Confirmed shared save failed:',error);firebase.codexSyncBlocked=true;codexMakeBrowserRecovery('Shared save failed');el.saveStatus.textContent='Sync failed';
-    window.dispatchEvent(new CustomEvent('codex-save-error',{detail:{request,code:error?.code||'codex/save-failed',message:error?.message||'The shared save failed.'}}));
-  }finally{
-    firebase.codexSaving=false;
-    if(firebase.codexSaveAgain&&!firebase.codexSyncBlocked){firebase.codexSaveAgain=false;setTimeout(()=>saveState(),80);}
-  }
-};
-window.codexRetrySync=async function(){firebase.codexSyncBlocked=false;await saveState();};
-window.codexDownloadEmergencyBackup=function(){downloadBackup();};
-window.codexReloadSharedWorld=async function(){
-  try{
-    el.saveStatus.textContent='Reloading…';firebase.applyingRemote=true;codexClearLegacyEditBases();firebase.applyingRemote=false;
-    await loadRemoteWorkspace();firebase.codexSyncBlocked=false;firebase.codexRemoteWaiting=false;render();el.saveStatus.textContent='Synced';
-    window.dispatchEvent(new CustomEvent('codex-sync-reset'));
-  }catch(error){console.error(error);window.dispatchEvent(new CustomEvent('codex-save-error',{detail:{request:Date.now(),code:error?.code||'codex/reload-failed',message:error?.message||'The shared world could not reload.'}}));}
+loadRemoteWorkspace=async function(){
+  const api=firebase.api,workspaceRef=firebaseWorkspaceRef();
+  const [metaSnap,assetSnap,...collectionSnaps]=await Promise.all([api.getDoc(workspaceRef),api.getDocs(cleanAssetCollection()),...SYNC_COLLECTIONS.map(kind=>api.getDocs(api.collection(workspaceRef,kind)))]);
+  cleanSync.assetData=new Map();cleanSync.baseAssets=new Map();
+  assetSnap.docs.forEach(docSnap=>{const raw=docSnap.data();if(raw.dataUrl)cleanSync.assetData.set(docSnap.id,raw.dataUrl);cleanSync.baseAssets.set(docSnap.id,JSON.stringify(raw));});
+  const next=deepClone(window.INITIAL_WORLD_DATA);if(metaSnap.exists())Object.assign(next,cleanWithoutSyncFields(metaSnap.data()));
+  cleanSync.baseMeta=metaSnap.exists()?JSON.stringify(metaSnap.data()):'';firebase.remoteCache.meta=cleanSync.baseMeta;
+  SYNC_COLLECTIONS.forEach((kind,index)=>{
+    const baseMap=new Map(),docs=collectionSnaps[index].docs.map(docSnap=>{const raw=docSnap.data(),order=Number(raw.__order)||0;baseMap.set(docSnap.id,JSON.stringify(raw));const clean=cleanWithoutSyncFields(raw);delete clean.__order;cleanHydrateImages(clean);return {value:clean,order};}).sort((a,b)=>a.order-b.order).map(entry=>entry.value);
+    next[kind]=docs;cleanSync.baseCollections[kind]=baseMap;firebase.remoteCache.collections[kind]=new Map(baseMap);
+  });
+  const members=state.workspace?.members||[],access=state.workspace?.access||{};firebase.applyingRemote=true;state=next;normalizeState();state.workspace.members=members;state.workspace.access=access;cleanHydrateAll();cleanWriteBrowserSnapshot();firebase.applyingRemote=false;cleanSync.dirty=false;cleanSync.blocked=false;
 };
 
+syncStateToFirestore=async function(force=false){await cleanPerformSync(force);};
+
+function cleanApplyRemoteCollection(kind,snap){
+  const oldBase=cleanBaseCollection(kind),incomingBase=new Map(),incomingOrder=new Map(),incomingValues=new Map();
+  snap.docs.forEach(docSnap=>{const raw=docSnap.data(),order=Number(raw.__order)||0;incomingBase.set(docSnap.id,JSON.stringify(raw));incomingOrder.set(docSnap.id,order);const clean=cleanWithoutSyncFields(raw);delete clean.__order;cleanHydrateImages(clean);incomingValues.set(docSnap.id,clean);});
+  const localById=new Map((state[kind]||[]).map((item,index)=>[String(item.id||'').replaceAll('/','_'),{item,index}]));const merged=[];let changed=false;
+  const ids=new Set([...incomingBase.keys(),...localById.keys()]);
+  for(const docId of ids){
+    const localEntry=localById.get(docId),baseRaw=oldBase.get(docId)||null,incomingRaw=incomingBase.get(docId)||null;
+    const localPayload=localEntry?cleanEntityPayload(localEntry.item,localEntry.index):null;
+    const localDirty=localEntry?cleanLogical(localPayload)!==cleanLogical(cleanParse(baseRaw,{})):Boolean(baseRaw);
+    if(localDirty){if(localEntry)merged.push({value:localEntry.item,order:localEntry.index});cleanSync.remoteDeferred=true;continue;}
+    if(incomingRaw){merged.push({value:incomingValues.get(docId),order:incomingOrder.get(docId)||0});if(cleanLogical(localPayload||{})!==cleanLogical(cleanParse(incomingRaw,{})))changed=true;}
+    else if(localEntry)changed=true;
+    if(incomingRaw)oldBase.set(docId,incomingRaw);else oldBase.delete(docId);
+  }
+  if(changed&&!cleanSync.saving){firebase.applyingRemote=true;state[kind]=merged.sort((a,b)=>a.order-b.order).map(entry=>entry.value);firebase.applyingRemote=false;cleanWriteBrowserSnapshot();queueRemoteRender();}
+  firebase.remoteCache.collections[kind]=new Map(incomingBase);
+}
 attachFirestoreListeners=function(){
   detachFirestoreListeners();const api=firebase.api,workspaceRef=firebaseWorkspaceRef();
-  const liveError=(message,error)=>{console.error(error);el.saveStatus.textContent='Sync failed';firebase.codexSyncBlocked=true;window.dispatchEvent(new CustomEvent('codex-live-sync-error',{detail:{message,code:error?.code||''}}));};
   firebase.unsubscribes.push(api.onSnapshot(firebaseMembersCollection(),{includeMetadataChanges:true},snap=>{
-    if(snap.metadata.hasPendingWrites)return;
-    const members=snap.docs.map(docSnap=>({id:docSnap.id,...docSnap.data()})).sort((a,b)=>{const order={Owner:0,Admin:1,Editor:2,Commenter:3,Viewer:4};return (order[a.role]??9)-(order[b.role]??9)||a.email.localeCompare(b.email);});
-    state.workspace.members=members;state.workspace.access=Object.fromEntries(members.map(member=>[normalizeMemberEmail(member.email),member.role]));
-    firebase.currentMember=members.find(member=>normalizeMemberEmail(member.email)===normalizeMemberEmail(firebase.user?.email))||null;firebase.currentRole=firebase.currentMember?.role||'';applyMemberIdentity();writeBrowserWorkspaceSnapshot();
-    if(route.view==='members'||route.view==='settings')render();
-  },error=>liveError('Member access stopped syncing.',error)));
+    if(snap.metadata.hasPendingWrites)return;const members=snap.docs.map(docSnap=>({id:docSnap.id,...docSnap.data()})).sort((a,b)=>{const order={Owner:0,Admin:1,Editor:2,Commenter:3,Viewer:4};return (order[a.role]??9)-(order[b.role]??9)||a.email.localeCompare(b.email);});state.workspace.members=members;state.workspace.access=Object.fromEntries(members.map(member=>[normalizeMemberEmail(member.email),member.role]));firebase.currentMember=members.find(member=>normalizeMemberEmail(member.email)===normalizeMemberEmail(firebase.user?.email))||null;firebase.currentRole=firebase.currentMember?.role||'';cleanWriteBrowserSnapshot();render();
+  },error=>{console.error(error);toast('Member access updates stopped.','error');}));
   firebase.unsubscribes.push(api.onSnapshot(workspaceRef,{includeMetadataChanges:true},snap=>{
-    if(!snap.exists()||snap.metadata.hasPendingWrites)return;const data=snap.data(),oldCache=firebase.remoteCache.meta;const localDirty=codexLogicalJson(stateMetaPayload())!==codexLogicalJson(codexJsonParse(oldCache,{}));firebase.remoteCache.meta=JSON.stringify(data);
-    if(firebase.codexSaving||localDirty){firebase.codexRemoteWaiting=true;return;}
-    firebase.applyingRemote=true;applyRemoteMeta(codexStripSyncFields(data));firebase.applyingRemote=false;writeBrowserWorkspaceSnapshot();queueRemoteRender();el.saveStatus.textContent='Synced';
-  },error=>liveError('Live workspace updates stopped.',error)));
-  firebase.unsubscribes.push(api.onSnapshot(imageAssetCollection(),{includeMetadataChanges:true},snap=>{
-    if(snap.metadata.hasPendingWrites)return;const nextData=new Map(),nextCache=new Map();snap.docs.forEach(docSnap=>{const raw=docSnap.data();if(raw.dataUrl)nextData.set(docSnap.id,raw.dataUrl);nextCache.set(docSnap.id,JSON.stringify(raw));});firebase.assetData=nextData;firebase.remoteCache.assets=nextCache;
-    if(firebase.codexSaving){firebase.codexRemoteWaiting=true;return;}firebase.applyingRemote=true;hydrateAllStateImages();firebase.applyingRemote=false;writeBrowserWorkspaceSnapshot();queueRemoteRender();
-  },error=>liveError('Shared images stopped syncing.',error)));
-  for(const kind of SYNC_COLLECTIONS){
-    firebase.unsubscribes.push(api.onSnapshot(api.collection(workspaceRef,kind),{includeMetadataChanges:true},snap=>{
-      if(snap.metadata.hasPendingWrites)return;const oldCache=firebase.remoteCache.collections[kind]||new Map(),localDirty=codexCollectionHasChanges(kind,oldCache),nextCache=new Map();
-      const incoming=snap.docs.map(docSnap=>{const raw=docSnap.data(),order=Number(raw.__order)||0;nextCache.set(docSnap.id,JSON.stringify(raw));delete raw.__order;hydrateImageAssets(raw);return {value:codexStripSyncFields(raw),order};}).sort((a,b)=>a.order-b.order).map(entry=>entry.value);
-      firebase.remoteCache.collections[kind]=nextCache;
-      if(firebase.codexSaving||localDirty){firebase.codexRemoteWaiting=true;return;}
-      firebase.applyingRemote=true;state[kind]=incoming;firebase.applyingRemote=false;writeBrowserWorkspaceSnapshot();queueRemoteRender();el.saveStatus.textContent='Synced';
-    },error=>liveError(`Live ${kind} updates stopped.`,error)));
-  }
+    if(!snap.exists()||snap.metadata.hasPendingWrites)return;const raw=snap.data(),base=cleanParse(cleanSync.baseMeta,{}),local=cleanMetaPayload(),localDirty=cleanLogical(local)!==cleanLogical(base);
+    firebase.remoteCache.meta=JSON.stringify(raw);
+    if(localDirty||cleanSync.saving){cleanSync.remoteDeferred=true;return;}
+    cleanSync.baseMeta=JSON.stringify(raw);firebase.applyingRemote=true;applyRemoteMeta(cleanWithoutSyncFields(raw));firebase.applyingRemote=false;cleanWriteBrowserSnapshot();queueRemoteRender();el.saveStatus.textContent='Synced';
+  },error=>{console.error(error);toast('Live workspace updates stopped.','error');}));
+  firebase.unsubscribes.push(api.onSnapshot(cleanAssetCollection(),{includeMetadataChanges:true},snap=>{
+    if(snap.metadata.hasPendingWrites)return;const nextData=new Map(),nextBase=new Map();snap.docs.forEach(docSnap=>{const raw=docSnap.data();if(raw.dataUrl)nextData.set(docSnap.id,raw.dataUrl);nextBase.set(docSnap.id,JSON.stringify(raw));});cleanSync.assetData=nextData;cleanSync.baseAssets=nextBase;firebase.applyingRemote=true;cleanHydrateAll();firebase.applyingRemote=false;cleanWriteBrowserSnapshot();queueRemoteRender();
+  },error=>{console.error(error);toast('Shared images stopped syncing. Publish the matching Firestore rules.','error');}));
+  for(const kind of SYNC_COLLECTIONS)firebase.unsubscribes.push(api.onSnapshot(api.collection(workspaceRef,kind),{includeMetadataChanges:true},snap=>{if(snap.metadata.hasPendingWrites)return;cleanApplyRemoteCollection(kind,snap);el.saveStatus.textContent=cleanSync.dirty?'Changes pending…':'Synced';},error=>{console.error(error);toast(`Live ${kind} updates stopped.`,'error');}));
 };
 
-function relatedCharactersFor(item){
-  const ids=new Set(item.relationshipIds||[]);
-  for(const other of state.characters||[])if(other.id!==item.id&&(other.relationshipIds||[]).includes(item.id))ids.add(other.id);
-  return [...ids].map(characterId=>getItem('characters',characterId)).filter(Boolean);
-}
-function renderCharacterRelatedLinks(item){
-  const related=relatedCharactersFor(item);
-  return `<nav class="character-related-links" aria-label="Related characters"><span class="character-related-label">Related characters</span><div class="character-related-pills">${related.length?related.map(character=>`<button class="character-related-pill" type="button" data-open="characters:${character.id}"><span>${esc(initials(character.name))}</span>${esc(character.name)}</button>`).join(''):'<span class="character-related-empty">No related characters linked yet.</span>'}</div></nav>`;
-}
-const renderPracticalDossierBeforeLiveSync=renderPracticalDossier;
-renderPracticalDossier=function(item){
-  let html=renderPracticalDossierBeforeLiveSync(item);
-  html=html.replace('<div class="dossier-cover">',`${renderCharacterRelatedLinks(item)}<div class="dossier-cover">`);
-  const locationText=locationNames(item.currentLocationIds).join(', ');
-  const oldSection=`<section class="dossier-section"><h3>${dossierLabelButton(item,'currentDetails')}</h3><p>${esc([item.status,item.mood,item.outfit,locationText].filter(Boolean).join(' · ')||'No current details set.')}</p></section>`;
-  const newSection=`<section class="dossier-section dossier-current-details"><div class="dossier-section-heading"><h3>${dossierLabelButton(item,'currentDetails')}</h3><button class="dossier-section-edit" type="button" data-edit-current-details="${item.id}">Edit</button></div><p>${esc([item.status,item.mood,item.outfit,item.position,locationText].filter(Boolean).join(' · ')||'No current details set.')}</p></section>`;
-  return html.replace(oldSection,newSection);
+scheduleSave=function(message='Changes pending…'){
+  if(firebase.applyingRemote)return;cleanSync.dirty=true;el.saveStatus.textContent=message;cleanWriteBrowserSnapshot();clearTimeout(saveTimer);saveTimer=setTimeout(()=>saveState(),700);
 };
-renderCharacterSnapshot=function(item){
-  const locations=(item.currentLocationIds||[]).map(locationId=>getItem('locations',locationId)).filter(Boolean);
-  const field=(label,value)=>`<div class="snapshot-field"><span class="snapshot-label">${esc(label)}</span><span class="snapshot-value">${esc(cleanNotionRefs(value||'Not set'))}</span></div>`;
-  return `<section class="character-snapshot" aria-label="Current character details"><div class="character-snapshot-head"><span>Current details</span><button class="button ghost small" type="button" data-edit-current-details="${item.id}">Edit current details</button></div><div class="character-snapshot-layout">${renderCharacterPortrait(item)}<div class="character-snapshot-details"><div class="snapshot-grid">${field('Age',item.age)}<div class="snapshot-field"><span class="snapshot-label">Current location</span><div class="property-links">${locations.map(location=>`<button class="link-pill" type="button" data-open="locations:${location.id}">${esc(location.name)}</button>`).join('')||'<span class="snapshot-value">Not set</span>'}</div></div>${field('Current mood',item.mood)}${field('Current outfit',item.outfit)}${field('Current position',item.position)}${field('Current status',item.status)}</div></div>${item.relationshipsText?`<div class="snapshot-relationships character-snapshot-wide"><span class="snapshot-label">Key relationships</span><p>${esc(cleanNotionRefs(item.relationshipsText))}</p></div>`:''}</div></section>`;
-};
-const renderEntityBeforeRelatedLinks=renderEntity;
-renderEntity=function(kind,itemId){
-  renderEntityBeforeRelatedLinks(kind,itemId);
-  if(kind==='characters'){
-    const item=getItem('characters',itemId);
-    if(item&&item.pageTemplate!=='practical-dossier')document.querySelector('.entity-hero')?.insertAdjacentHTML('beforebegin',renderCharacterRelatedLinks(item));
-  }
-};
-function showCurrentDetailsEditor(characterId){
-  const item=getItem('characters',characterId);if(!item)return;
-  const statusOptions=['Active','Off-screen','Missing','Inactive','Deceased','Unknown'];
-  showModal('Edit current details',`<div class="current-details-editor"><label><span>Status</span><select class="select" data-current-status>${[...new Set([...statusOptions,item.status].filter(Boolean))].map(value=>`<option value="${esc(value)}" ${item.status===value?'selected':''}>${esc(value)}</option>`).join('')}</select></label><label><span>Current mood</span><input class="input" value="${esc(item.mood||'')}" data-current-mood></label><label><span>Current outfit</span><input class="input" value="${esc(item.outfit||'')}" data-current-outfit></label><label class="current-details-wide"><span>Current position</span><textarea class="textarea" rows="3" data-current-position>${esc(item.position||'')}</textarea></label><label class="current-details-wide"><span>Current location</span><select class="select" data-current-location><option value="">No location selected</option>${state.locations.map(location=>`<option value="${location.id}" ${item.currentLocationIds?.[0]===location.id?'selected':''}>${esc(location.name)}</option>`).join('')}</select></label></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-save-current-details="${characterId}">Save current details</button>`);
-}
-document.addEventListener('click',event=>{
-  const edit=event.target.closest('[data-edit-current-details]');if(edit){event.preventDefault();showCurrentDetailsEditor(edit.dataset.editCurrentDetails);return;}
-  const save=event.target.closest('[data-save-current-details]');if(save){event.preventDefault();const item=getItem('characters',save.dataset.saveCurrentDetails);if(!item)return;item.status=el.modal.querySelector('[data-current-status]')?.value||'';item.mood=el.modal.querySelector('[data-current-mood]')?.value||'';item.outfit=el.modal.querySelector('[data-current-outfit]')?.value||'';item.position=el.modal.querySelector('[data-current-position]')?.value||'';const locationId=el.modal.querySelector('[data-current-location]')?.value||'';item.currentLocationIds=locationId?[locationId]:[];item.updatedAt=nowISO();closeModal();renderEntity('characters',item.id);scheduleSave('Saving current details…');}
-},true);
-
-
-/* === Confirmed per-document collaboration repair === */
-function codexSyncItemLabel(item){
-  if(item.kind==='workspace')return 'workspace details';
-  const collection=state[item.kind]||[];
-  const record=collection.find(value=>String(value.id||'').replaceAll('/','_')===item.id);
-  const singular=COLLECTIONS[item.kind]?.singular||item.kind;
-  return record?.name?`${singular} “${record.name}”`:`${singular} record`;
-}
-function codexEnhancedSyncError(error,item,stage='save'){
-  const code=error?.code||'codex/save-failed';
-  const label=item?codexSyncItemLabel(item):'shared workspace';
-  const original=String(error?.message||'').replace(/^FirebaseError:\s*/,'').trim();
-  const copy=new Error(`${label} could not ${stage==='asset'?'upload its image':'save'}${original?`: ${original}`:'.'}`);
-  copy.code=code;copy.codexItem=label;copy.codexStage=stage;return copy;
-}
-function codexForceEditingLock(detail={}){
-  window.CODEX_PENDING_SYNC_ERROR={request:Number(detail.request)||Date.now(),code:detail.code||'codex/sync-blocked',message:detail.message||'The shared save was not confirmed.'};
-  firebase.codexSyncBlocked=true;
-  if(el?.saveStatus)el.saveStatus.textContent='Sync failed — editing locked';
-  document.getElementById('app')?.setAttribute('inert','');
-  document.body.classList.add('is-save-locked');
-}
-function codexReleaseEditingLock(){
-  window.CODEX_PENDING_SYNC_ERROR=null;
-  document.getElementById('app')?.removeAttribute('inert');
-  document.body.classList.remove('is-save-locked');
-}
-window.addEventListener('codex-save-error',event=>codexForceEditingLock(event.detail||{}));
-window.addEventListener('codex-live-sync-error',event=>codexForceEditingLock(event.detail||{}));
-window.addEventListener('codex-save-complete',codexReleaseEditingLock);
-window.addEventListener('codex-sync-reset',codexReleaseEditingLock);
-
-async function codexCommitOneDocument(item){
-  const api=firebase.api,email=normalizeMemberEmail(firebase.user?.email),savedAt=nowISO();
-  let committedData=null;
-  try{
-    await codexWithTimeout(api.runTransaction(api.db,async transaction=>{
-      const snap=await transaction.get(item.ref);
-      const remote=snap.exists()?snap.data():null;
-      if(item.type==='delete'){
-        if(snap.exists())transaction.delete(item.ref);
-        committedData=null;return;
-      }
-      const base=codexJsonParse(item.base,null);
-      const result=remote&&base&&codexLogicalJson(remote)!==codexLogicalJson(base)
-        ?codexMergeDocument(base,item.local,remote)
-        :{merged:codexStripSyncFields(item.local),conflicts:[]};
-      committedData={...result.merged,__syncRevision:(Number(remote?.__syncRevision)||0)+1,__syncUpdatedAt:savedAt,__syncUpdatedBy:email};
-      transaction.set(item.ref,committedData,{merge:false});
-    }),45000,`Saving ${codexSyncItemLabel(item)}`);
-  }catch(error){throw codexEnhancedSyncError(error,item,'save');}
-
-  if(item.kind==='workspace'){
-    firebase.remoteCache.meta=committedData?JSON.stringify(committedData):'';
-    if(committedData)applyRemoteMeta(codexStripSyncFields(committedData));
-  }else{
-    const cache=firebase.remoteCache.collections[item.kind]||new Map();
-    if(committedData){
-      cache.set(item.id,JSON.stringify(committedData));
-      const clean=codexStripSyncFields(committedData);delete clean.__order;hydrateImageAssets(clean);
-      const at=(state[item.kind]||[]).findIndex(value=>String(value.id||'').replaceAll('/','_')===item.id);
-      if(at>=0)state[item.kind][at]=clean;
-    }else cache.delete(item.id);
-    firebase.remoteCache.collections[item.kind]=cache;
-  }
-}
-
-codexCommitDocumentPlan=async function(plan){
-  if(!plan.length)return;
-  // Save entity documents first so character/location edits survive even if a later
-  // workspace-metadata write is too large or delayed.
-  const ordered=[...plan].sort((a,b)=>(a.kind==='workspace'?1:0)-(b.kind==='workspace'?1:0));
-  for(const item of ordered)await codexCommitOneDocument(item);
-};
-
-codexWriteAssetChanges=async function(){
-  const api=firebase.api,assets=await collectStateImageAssets(),nextIds=new Set(),cache=firebase.remoteCache.assets||new Map();
-  for(const [assetId,asset] of assets){
-    nextIds.add(assetId);if(!asset.dataUrl)continue;
-    const data={dataUrl:asset.dataUrl,ownerKind:asset.ownerKind,ownerId:asset.ownerId,updatedAt:asset.updatedAt};
-    const json=JSON.stringify(data);if(cache.get(assetId)===json)continue;
-    const item={kind:asset.ownerKind||'asset',id:String(asset.ownerId||assetId),ref:imageAssetRef(assetId)};
-    try{
-      await codexWithTimeout(api.setDoc(item.ref,data,{merge:false}),60000,`Uploading image for ${asset.ownerKind||'record'}`);
-      cache.set(assetId,json);firebase.assetData.set(assetId,asset.dataUrl);
-    }catch(error){throw codexEnhancedSyncError(error,item,'asset');}
-  }
-  for(const oldId of [...cache.keys()]){
-    if(nextIds.has(oldId))continue;
-    try{await codexWithTimeout(api.deleteDoc(imageAssetRef(oldId)),30000,'Removing shared image');}
-    catch(error){throw codexEnhancedSyncError(error,{kind:'asset',id:oldId,ref:imageAssetRef(oldId)},'asset');}
-    cache.delete(oldId);firebase.assetData.delete(oldId);
-  }
-  firebase.remoteCache.assets=cache;
-};
-
-codexConfirmedSync=async function(){
-  if(!firebase.connected||!firebase.user)throw Object.assign(new Error('You are not connected to the shared world.'),{code:'codex/offline'});
-  if(!canEditSharedWorld())throw Object.assign(new Error('Your account is read-only.'),{code:'permission-denied'});
-  const plan=codexBuildDocumentPlan();
-  await codexCommitDocumentPlan(plan);
-  // Images are deliberately separate. Text and profile changes are already safely
-  // committed before a large image transfer begins.
-  await codexWriteAssetChanges();
-  codexClearLegacyEditBases();
-  writeBrowserWorkspaceSnapshot();
-};
-
 saveState=async function(){
-  if(firebase.applyingRemote)return;
-  writeBrowserWorkspaceSnapshot();
-  const request=Date.now();
-  if(!firebase.connected||!firebase.user){
-    codexMakeBrowserRecovery('Offline changes');
-    const detail={request,code:'codex/offline',message:'The shared world is offline. Your browser recovery copy was kept.'};
-    window.dispatchEvent(new CustomEvent('codex-save-error',{detail}));return;
-  }
-  if(!canEditSharedWorld()){
-    const detail={request,code:'permission-denied',message:'Your account cannot edit this world.'};
-    window.dispatchEvent(new CustomEvent('codex-save-error',{detail}));return;
-  }
-  if(firebase.codexSaving){firebase.codexSaveAgain=true;return;}
-  if(!codexHasPendingChanges()){el.saveStatus.textContent='Synced';codexReleaseEditingLock();return;}
-
-  firebase.codexSaving=true;firebase.codexSyncBlocked=false;codexMakeBrowserRecovery('Before confirmed save');
-  el.saveStatus.textContent='Syncing…';window.dispatchEvent(new CustomEvent('codex-save-start',{detail:{request}}));
+  if(firebase.applyingRemote)return;if(cleanSync.saving){cleanSync.queued=true;return;}if(cleanSync.blocked)return;
+  if(!cleanSync.dirty&&!cleanBuildPlan(false).length){el.saveStatus.textContent='Synced';return;}
+  cleanSync.saving=true;cleanSync.queued=false;cleanSync.saveSequence++;el.saveStatus.textContent='Syncing…';cleanShowSaving();
   try{
-    await codexConfirmedSync();
-    firebase.codexSyncBlocked=false;el.saveStatus.textContent='Synced';
-    window.dispatchEvent(new CustomEvent('codex-save-complete',{detail:{request}}));
-    if(firebase.codexRemoteWaiting){firebase.codexRemoteWaiting=false;await loadRemoteWorkspace();render();}
-  }catch(error){
-    console.error('Confirmed shared save failed:',error);
-    firebase.codexSyncBlocked=true;codexMakeBrowserRecovery('Shared save failed');
-    const detail={request,code:error?.code||'codex/save-failed',message:error?.message||'The shared save failed.'};
-    window.CODEX_LAST_SYNC_ERROR={...detail,at:nowISO()};
-    window.dispatchEvent(new CustomEvent('codex-save-error',{detail}));
-  }finally{
-    firebase.codexSaving=false;
-    if(firebase.codexSaveAgain&&!firebase.codexSyncBlocked){firebase.codexSaveAgain=false;setTimeout(()=>saveState(),100);}
-  }
+    await cleanPerformSync(false);cleanSync.blocked=false;el.saveStatus.textContent='Saved and live';const overlay=document.getElementById('cleanSaveOverlay');if(overlay){overlay.querySelector('[data-clean-save-title]').textContent='Saved and live';overlay.querySelector('[data-clean-save-message]').textContent='Firestore confirmed this version.';overlay.querySelector('[data-clean-save-detail]').textContent='Editing is reopening.';}setTimeout(cleanHideSaveOverlay,550);
+  }catch(error){console.error('Clean shared save failed:',error);cleanSync.blocked=true;el.saveStatus.textContent='Sync failed';cleanShowSaveError(error);}
+  finally{cleanSync.saving=false;if(cleanSync.queued&&!cleanSync.blocked){cleanSync.queued=false;setTimeout(()=>saveState(),100);}}
 };
 
-window.codexRetrySync=async function(){
-  firebase.codexSyncBlocked=false;window.CODEX_PENDING_SYNC_ERROR=null;
-  await saveState();
-};
+/* Related character shortcuts and editable current details */
+function cleanRelatedCharacters(item){const ids=new Set(item.relationshipIds||[]);for(const other of state.characters||[])if(other.id!==item.id&&(other.relationshipIds||[]).includes(item.id))ids.add(other.id);return [...ids].map(characterId=>getItem('characters',characterId)).filter(Boolean);}
+function cleanRenderRelatedCharacters(item){const related=cleanRelatedCharacters(item);return `<nav class="character-related-links" aria-label="Related characters"><span class="character-related-label">Related characters</span><div class="character-related-pills">${related.length?related.map(character=>`<button class="character-related-pill" type="button" data-open="characters:${character.id}"><span>${esc(initials(character.name))}</span>${esc(character.name)}</button>`).join(''):'<span class="character-related-empty">No related characters linked yet.</span>'}</div></nav>`;}
+const cleanRenderPracticalDossierBase=renderPracticalDossier;
+renderPracticalDossier=function(item){let html=cleanRenderPracticalDossierBase(item);html=html.replace('<div class="dossier-cover">',`${cleanRenderRelatedCharacters(item)}<div class="dossier-cover">`);const locationText=locationNames(item.currentLocationIds).join(', '),oldSection=`<section class="dossier-section"><h3>${dossierLabelButton(item,'currentDetails')}</h3><p>${esc([item.status,item.mood,item.outfit,locationText].filter(Boolean).join(' · ')||'No current details set.')}</p></section>`,newSection=`<section class="dossier-section dossier-current-details"><div class="dossier-section-heading"><h3>${dossierLabelButton(item,'currentDetails')}</h3><button class="dossier-section-edit" type="button" data-edit-current-details="${item.id}">Edit</button></div><p>${esc([item.status,item.mood,item.outfit,item.position,locationText].filter(Boolean).join(' · ')||'No current details set.')}</p></section>`;return html.replace(oldSection,newSection);};
+renderCharacterSnapshot=function(item){const locations=(item.currentLocationIds||[]).map(locationId=>getItem('locations',locationId)).filter(Boolean),field=(label,value)=>`<div class="snapshot-field"><span class="snapshot-label">${esc(label)}</span><span class="snapshot-value">${esc(cleanNotionRefs(value||'Not set'))}</span></div>`;return `<section class="character-snapshot" aria-label="Current character details"><div class="character-snapshot-head"><span>Current details</span><button class="button ghost small" type="button" data-edit-current-details="${item.id}">Edit current details</button></div><div class="character-snapshot-layout">${renderCharacterPortrait(item)}<div class="character-snapshot-details"><div class="snapshot-grid">${field('Age',item.age)}<div class="snapshot-field"><span class="snapshot-label">Current location</span><div class="property-links">${locations.map(location=>`<button class="link-pill" type="button" data-open="locations:${location.id}">${esc(location.name)}</button>`).join('')||'<span class="snapshot-value">Not set</span>'}</div></div>${field('Current mood',item.mood)}${field('Current outfit',item.outfit)}${field('Current position',item.position)}${field('Current status',item.status)}</div></div>${item.relationshipsText?`<div class="snapshot-relationships character-snapshot-wide"><span class="snapshot-label">Key relationships</span><p>${esc(cleanNotionRefs(item.relationshipsText))}</p></div>`:''}</div></section>`;};
+const cleanRenderEntityBase=renderEntity;
+renderEntity=function(kind,itemId){cleanRenderEntityBase(kind,itemId);if(kind==='characters'){const item=getItem('characters',itemId);if(item&&item.pageTemplate!=='practical-dossier')document.querySelector('.entity-hero')?.insertAdjacentHTML('beforebegin',cleanRenderRelatedCharacters(item));}};
+function cleanShowCurrentDetailsEditor(characterId){const item=getItem('characters',characterId);if(!item)return;const statuses=['Active','Off-screen','Missing','Inactive','Deceased','Unknown'];showModal('Edit current details',`<div class="current-details-editor"><label><span>Status</span><select class="select" data-current-status>${[...new Set([...statuses,item.status].filter(Boolean))].map(value=>`<option value="${esc(value)}" ${item.status===value?'selected':''}>${esc(value)}</option>`).join('')}</select></label><label><span>Current mood</span><input class="input" value="${esc(item.mood||'')}" data-current-mood></label><label><span>Current outfit</span><input class="input" value="${esc(item.outfit||'')}" data-current-outfit></label><label class="wide"><span>Current position</span><textarea class="textarea" rows="3" data-current-position>${esc(item.position||'')}</textarea></label><label class="wide"><span>Current location</span><select class="select" data-current-location><option value="">No location selected</option>${state.locations.map(location=>`<option value="${location.id}" ${item.currentLocationIds?.[0]===location.id?'selected':''}>${esc(location.name)}</option>`).join('')}</select></label></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-save-current-details="${characterId}">Save current details</button>`);}
+document.addEventListener('click',event=>{const edit=event.target.closest('[data-edit-current-details]');if(edit){event.preventDefault();cleanShowCurrentDetailsEditor(edit.dataset.editCurrentDetails);return;}const save=event.target.closest('[data-save-current-details]');if(save){event.preventDefault();const item=getItem('characters',save.dataset.saveCurrentDetails);if(!item)return;item.status=el.modal.querySelector('[data-current-status]')?.value||'';item.mood=el.modal.querySelector('[data-current-mood]')?.value||'';item.outfit=el.modal.querySelector('[data-current-outfit]')?.value||'';item.position=el.modal.querySelector('[data-current-position]')?.value||'';const locationId=el.modal.querySelector('[data-current-location]')?.value||'';item.currentLocationIds=locationId?[locationId]:[];item.updatedAt=nowISO();closeModal();renderEntity('characters',item.id);scheduleSave('Saving current details…');}},true);
 
+cleanCreateSaveOverlay();
 
 initFirebase();
 
@@ -10208,106 +9382,6 @@ initFirebase();
     }
     if (event.key === 'Escape') clearCharacterMediaSelection();
   });
-})();
-
-
-
-</script>
-
-
-
-
-<style id="codex-live-sync-character-styles">
-  .character-related-links{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:0 0 14px;padding:12px 14px;border:1px solid var(--border);border-radius:15px;background:var(--panel)}
-  .practical-dossier-page .character-related-links{margin:12px 18px 14px;border-color:var(--dossier-line);background:var(--dossier-panel);color:var(--dossier-ink)}
-  .character-related-label{font-size:.76rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-  .practical-dossier-page .character-related-label{color:var(--dossier-muted)}
-  .character-related-pills{display:flex;gap:8px;flex-wrap:wrap;min-width:0}
-  .character-related-pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:999px;padding:6px 10px;background:var(--panel-2);color:inherit;font:700 .86rem Inter,system-ui,sans-serif;cursor:pointer}
-  .practical-dossier-page .character-related-pill{border-color:var(--dossier-line);background:var(--dossier-paper-2);color:var(--dossier-ink)}
-  .character-related-pill span{width:22px;height:22px;display:grid;place-items:center;border-radius:50%;background:var(--accent);color:white;font-size:.68rem}
-  .character-related-empty{color:var(--muted);font-size:.9rem}
-  .character-snapshot-head,.dossier-section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
-  .character-snapshot-head{padding:0 0 12px;font-weight:800}
-  .dossier-section-heading h3{margin:0}
-  .dossier-section-edit{border:1px solid currentColor;border-radius:999px;background:transparent;color:inherit;padding:4px 9px;font:700 .75rem Inter,system-ui,sans-serif;cursor:pointer;opacity:.75}
-  .current-details-editor{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  .current-details-editor label{display:grid;gap:7px;font-weight:700}
-  .current-details-editor label span{font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-  .current-details-editor .current-details-wide{grid-column:1/-1}
-  @media(max-width:680px){.current-details-editor{grid-template-columns:1fr}.current-details-editor .current-details-wide{grid-column:auto}.character-related-links{align-items:flex-start;flex-direction:column}}
-</style>
-
-<style id="codex-save-lock-styles">
-  .save-lock-overlay{
-    position:fixed;inset:0;z-index:100000;display:none;place-items:center;
-    padding:24px;background:rgba(8,14,22,.76);backdrop-filter:blur(10px);
-  }
-  .save-lock-overlay.is-visible{display:grid}
-  .save-lock-card{
-    width:min(430px,calc(100vw - 36px));box-sizing:border-box;text-align:center;
-    border:1px solid rgba(217,181,110,.46);border-radius:26px;padding:34px 30px;
-    color:#f8eedc;background:linear-gradient(155deg,#101a27,#0d1520 68%,#17130e);
-    box-shadow:0 32px 100px rgba(0,0,0,.52)
-  }
-  .save-lock-mark{
-    width:64px;height:64px;margin:0 auto 19px;border-radius:21px;display:grid;place-items:center;
-    border:1px solid rgba(217,181,110,.48);background:rgba(217,181,110,.09);color:#ddb566;
-    font:700 27px Georgia,serif
-  }
-  .save-lock-spinner{
-    width:28px;height:28px;border:3px solid rgba(221,181,102,.24);border-top-color:#ddb566;
-    border-radius:50%;animation:codexSaveSpin .8s linear infinite
-  }
-  .save-lock-check{font-size:30px;line-height:1;color:#b9e1c3}
-  .save-lock-error{font-size:30px;line-height:1;color:#ffb6b6}
-  .save-lock-card h2{margin:0;font:700 28px Georgia,serif;color:#fff6e8}
-  .save-lock-card p{margin:10px auto 0;max-width:340px;line-height:1.55;color:#adb9c7}
-  .save-lock-detail{font-size:.83rem!important;color:#8290a0!important}
-  .save-lock-actions{display:none;margin-top:22px}
-  .save-lock-overlay.is-error .save-lock-actions{display:block}
-  .save-lock-actions{gap:9px;flex-wrap:wrap;justify-content:center}.save-lock-overlay.is-error .save-lock-actions{display:flex}.save-lock-actions button{border:1px solid rgba(221,181,102,.55);border-radius:12px;padding:11px 16px;background:#ddb566;color:#17120b;font:800 .94rem Inter,system-ui,sans-serif;cursor:pointer}.save-lock-actions button.secondary{background:transparent;color:#f8eedc}
-  body.is-save-locked{overflow:hidden}
-  @keyframes codexSaveSpin{to{transform:rotate(360deg)}}
-  @media(max-width:600px){.save-lock-card{padding:29px 22px;border-radius:22px}.save-lock-card h2{font-size:25px}}
-  @media(prefers-reduced-motion:reduce){.save-lock-spinner{animation-duration:1.6s}}
-</style>
-
-<div id="saveLockOverlay" class="save-lock-overlay" role="status" aria-live="assertive" aria-modal="true" aria-hidden="true">
-  <div class="save-lock-card">
-    <div id="saveLockIcon" class="save-lock-mark"><span class="save-lock-spinner" aria-hidden="true"></span></div>
-    <h2 id="saveLockTitle">Saving your world…</h2>
-    <p id="saveLockMessage">Please wait. Editing will unlock after Firestore confirms the newest version.</p>
-    <p id="saveLockDetail" class="save-lock-detail">Keep this tab open while the save finishes.</p>
-    <div class="save-lock-actions"><button id="saveLockRetry" type="button">Retry sync</button><button id="saveLockBackup" class="secondary" type="button">Download backup</button><button id="saveLockReload" class="secondary" type="button">Reload shared world</button></div>
-  </div>
-</div>
-
-<script id="codex-save-lock-controller">
-(() => {
-  const overlay=document.getElementById('saveLockOverlay'),icon=document.getElementById('saveLockIcon'),title=document.getElementById('saveLockTitle'),message=document.getElementById('saveLockMessage'),detail=document.getElementById('saveLockDetail');
-  const retry=document.getElementById('saveLockRetry'),backup=document.getElementById('saveLockBackup'),reload=document.getElementById('saveLockReload'),app=document.getElementById('app'),modalRoot=document.getElementById('modalRoot');
-  let showTimer=0,activeRequest=0;
-  function setLocked(value){document.body.classList.toggle('is-save-locked',value);if(app)app.inert=value;if(modalRoot)modalRoot.inert=value;}
-  function showSaving(request){activeRequest=request;overlay.classList.remove('is-error');overlay.classList.add('is-visible');overlay.setAttribute('aria-hidden','false');setLocked(true);document.activeElement?.blur?.();icon.innerHTML='<span class="save-lock-spinner" aria-hidden="true"></span>';title.textContent='Saving your world…';message.textContent='Editing will reopen only after Firestore confirms this version.';detail.textContent='Keep this tab open. Other members will receive the same confirmed version.';}
-  function unlock(){clearTimeout(showTimer);activeRequest=0;overlay.classList.remove('is-visible','is-error');overlay.setAttribute('aria-hidden','true');setLocked(false);}
-  function showError(errorMessage,errorDetail){clearTimeout(showTimer);overlay.classList.add('is-visible','is-error');overlay.setAttribute('aria-hidden','false');setLocked(true);icon.innerHTML='<span class="save-lock-error" aria-hidden="true">!</span>';title.textContent='Live sync did not finish';message.textContent=errorMessage||'Firestore did not confirm the newest version.';detail.textContent=errorDetail||'Editing remains locked so an older server copy cannot overwrite more work.';}
-  window.addEventListener('codex-save-start',event=>{clearTimeout(showTimer);const request=Number(event.detail?.request)||Date.now();showTimer=setTimeout(()=>showSaving(request),250);});
-  window.addEventListener('codex-save-complete',event=>{clearTimeout(showTimer);const request=Number(event.detail?.request)||0;if(activeRequest&&request!==activeRequest)return;if(!overlay.classList.contains('is-visible'))return;icon.innerHTML='<span class="save-lock-check" aria-hidden="true">✓</span>';title.textContent='Saved and live';message.textContent='Firestore confirmed the newest shared version.';detail.textContent='Editing is reopening.';setTimeout(unlock,600);});
-  window.addEventListener('codex-save-error',event=>{clearTimeout(showTimer);activeRequest=Number(event.detail?.request)||activeRequest;const code=event.detail?.code||'';showError(event.detail?.message||(code==='permission-denied'?'Firebase denied this save.':'The newest changes were not confirmed.'),code?`Error: ${code}. Retry the sync, download a backup, or reload the confirmed server version.`:'Retry the sync, download a backup, or reload the confirmed server version.');});
-  window.addEventListener('codex-live-sync-error',event=>showError(event.detail?.message||'The live connection to Firestore stopped.',event.detail?.code?`Error: ${event.detail.code}. Editing is locked until the connection is restored.`:'Editing is locked until the connection is restored.'));
-  window.addEventListener('codex-sync-reset',unlock);
-  retry?.addEventListener('click',()=>{showSaving(Date.now());Promise.resolve(window.codexRetrySync?.()).catch(error=>showError(error.message));});
-  backup?.addEventListener('click',()=>window.codexDownloadEmergencyBackup?.());
-  reload?.addEventListener('click',()=>{if(confirm('Reload the confirmed Firestore version? Unsynced browser changes will remain only in your downloaded or recovery backup.')){showSaving(Date.now());Promise.resolve(window.codexReloadSharedWorld?.()).catch(error=>showError(error.message));}});
-  window.addEventListener('online',()=>{if(overlay.classList.contains('is-error'))detail.textContent='The connection is back. Choose Retry sync to publish the browser version.';});
-})();
-</script>
-
-<script id="codex-pending-sync-error-replay">
-(() => {
-  const pending=window.CODEX_PENDING_SYNC_ERROR;
-  if(pending)queueMicrotask(()=>window.dispatchEvent(new CustomEvent('codex-save-error',{detail:pending})));
 })();
 </script>
 
