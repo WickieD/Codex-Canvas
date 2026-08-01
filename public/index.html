@@ -9339,153 +9339,308 @@ renderEntity=function(kind,itemId){cleanRenderEntityBase(kind,itemId);if(kind===
 function cleanShowCurrentDetailsEditor(characterId){const item=getItem('characters',characterId);if(!item)return;const statuses=['Active','Off-screen','Missing','Inactive','Deceased','Unknown'];showModal('Edit current details',`<div class="current-details-editor"><label><span>Status</span><select class="select" data-current-status>${[...new Set([...statuses,item.status].filter(Boolean))].map(value=>`<option value="${esc(value)}" ${item.status===value?'selected':''}>${esc(value)}</option>`).join('')}</select></label><label><span>Current mood</span><input class="input" value="${esc(item.mood||'')}" data-current-mood></label><label><span>Current outfit</span><input class="input" value="${esc(item.outfit||'')}" data-current-outfit></label><label class="wide"><span>Current position</span><textarea class="textarea" rows="3" data-current-position>${esc(item.position||'')}</textarea></label><label class="wide"><span>Current location</span><select class="select" data-current-location><option value="">No location selected</option>${state.locations.map(location=>`<option value="${location.id}" ${item.currentLocationIds?.[0]===location.id?'selected':''}>${esc(location.name)}</option>`).join('')}</select></label></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-save-current-details="${characterId}">Save current details</button>`);}
 document.addEventListener('click',event=>{const edit=event.target.closest('[data-edit-current-details]');if(edit){event.preventDefault();cleanShowCurrentDetailsEditor(edit.dataset.editCurrentDetails);return;}const save=event.target.closest('[data-save-current-details]');if(save){event.preventDefault();const item=getItem('characters',save.dataset.saveCurrentDetails);if(!item)return;item.status=el.modal.querySelector('[data-current-status]')?.value||'';item.mood=el.modal.querySelector('[data-current-mood]')?.value||'';item.outfit=el.modal.querySelector('[data-current-outfit]')?.value||'';item.position=el.modal.querySelector('[data-current-position]')?.value||'';const locationId=el.modal.querySelector('[data-current-location]')?.value||'';item.currentLocationIds=locationId?[locationId]:[];item.updatedAt=nowISO();closeModal();renderEntity('characters',item.id);scheduleSave('Saving current details…');}},true);
 
+/* === Stable direct Firestore sync reset === */
+const CODEX_STORY_COLLECTION = 'stories';
+cleanSync.baseStories = cleanSync.baseStories || new Map();
+cleanSync.activeStep = '';
+cleanSync.overlayDelay = null;
 
-
-/* === Shared-world startup repair === */
-const codexStartup={attempt:0,assetLoad:null};
-function codexStartupTimeout(promise,milliseconds,label){
-  let timer;
-  return Promise.race([
-    Promise.resolve(promise).finally(()=>clearTimeout(timer)),
-    new Promise((_,reject)=>{timer=setTimeout(()=>{const error=new Error(`${label} did not respond in time.`);error.code='codex/open-timeout';reject(error);},milliseconds);})
-  ]);
-}
-function codexEnsureAuthRecovery(){
-  if(document.getElementById('codexAuthRecovery'))return;
-  const style=document.createElement('style');style.textContent=`
-    #codexAuthRecovery{display:none;gap:10px;flex-wrap:wrap;margin-top:14px}
-    #codexAuthRecovery.visible{display:flex}
-    #codexAuthRecovery button{min-height:42px;border-radius:12px;padding:0 15px;font:700 .9rem Inter,system-ui,sans-serif;cursor:pointer}
-    #codexAuthRetry{border:0;background:#d9b15c;color:#111827}
-    #codexAuthSignOut{border:1px solid rgba(217,177,92,.38);background:transparent;color:#f4ead4}
-  `;document.head.appendChild(style);
-  const actions=document.createElement('div');actions.id='codexAuthRecovery';actions.innerHTML='<button id="codexAuthRetry" type="button">Retry opening workspace</button><button id="codexAuthSignOut" type="button">Sign out</button>';
-  el.authMessage?.insertAdjacentElement('afterend',actions);
-  actions.querySelector('#codexAuthRetry')?.addEventListener('click',()=>{if(firebase.user)codexOpenAuthenticatedWorkspace(firebase.user);});
-  actions.querySelector('#codexAuthSignOut')?.addEventListener('click',async()=>{codexStartup.attempt++;actions.classList.remove('visible');if(firebase.api?.auth)await firebase.api.signOut(firebase.api.auth);});
-}
-function codexShowAuthRecovery(message){
-  codexEnsureAuthRecovery();
-  el.app.hidden=true;el.authGate.hidden=false;el.authGate.classList.remove('auth-loading');setAuthMessage(message,'error');
-  document.getElementById('codexAuthRecovery')?.classList.add('visible');
-}
-function codexHideAuthRecovery(){document.getElementById('codexAuthRecovery')?.classList.remove('visible');}
-async function codexServerDoc(ref){
-  const api=firebase.api;
-  return api.getDocFromServer?api.getDocFromServer(ref):api.getDoc(ref);
-}
-async function codexServerDocs(ref){
-  const api=firebase.api;
-  return api.getDocsFromServer?api.getDocsFromServer(ref):api.getDocs(ref);
-}
-
-bootstrapSharedWorkspace=async function(){
-  const api=firebase.api,workspaceRef=firebaseWorkspaceRef(),email=normalizeMemberEmail(firebase.user.email),memberRef=firebaseMemberRef(email);
-  const memberSnap=await codexStartupTimeout(codexServerDoc(memberRef),12000,'Membership verification');
-  if(memberSnap.exists()){
-    firebase.currentMember={id:memberSnap.id,...memberSnap.data()};
-    firebase.currentRole=firebase.currentMember.role||'Viewer';
-    // Presence is useful, but it must never block opening the workspace.
-    api.setDoc(memberRef,{uid:firebase.user.uid,lastSeenAt:nowISO()},{merge:true}).catch(error=>console.warn('Last-seen update was delayed.',error));
-    return;
+function stableCanonicalValue(value){
+  if(value === null || typeof value !== 'object') return value;
+  if(Array.isArray(value)) return value.map(stableCanonicalValue);
+  const output = {};
+  for(const key of Object.keys(value).sort()){
+    const child = value[key];
+    if(child !== undefined) output[key] = stableCanonicalValue(child);
   }
-  // First-owner initialization. This path is only used when no membership exists.
-  try{await codexStartupTimeout(readWorkspaceFromRef(firebaseLegacyWorkspaceRef()),12000,'Legacy workspace check');}catch(error){console.warn('No readable legacy workspace was found.',error);}
-  normalizeState();state.workspace.members=[];state.workspace.access={};
-  const createdAt=nowISO();state.createdAt=createdAt;state.createdByUid=firebase.user.uid;state.createdByEmail=email;
-  const ownerRecord={email,role:'Owner',status:'Access granted',uid:firebase.user.uid,addedAt:createdAt,addedBy:email,lastSeenAt:createdAt};
-  const meta={...stateMetaPayload(),createdAt,createdByUid:firebase.user.uid,createdByEmail:email};
-  const batch=api.writeBatch(api.db);batch.set(workspaceRef,meta,{merge:false});batch.set(memberRef,ownerRecord,{merge:false});
-  try{await codexStartupTimeout(batch.commit(),15000,'Shared-world setup');}
-  catch(error){
-    if(['permission-denied','already-exists','failed-precondition'].includes(error.code)){
-      const denied=new Error('This account has not been granted access to this shared world. Please contact the admin team.');denied.code='codex/access-denied';throw denied;
-    }
-    throw error;
+  return output;
+}
+function stableStringify(value){ return JSON.stringify(stableCanonicalValue(value)); }
+function stableWithoutSync(value){
+  const copy = cleanFirestoreValue(value || {});
+  if(copy && typeof copy === 'object'){
+    delete copy.__syncRevision;
+    delete copy.__syncUpdatedAt;
+    delete copy.__syncUpdatedBy;
   }
-  firebase.currentMember={id:email,...ownerRecord};firebase.currentRole='Owner';
+  return copy;
+}
+cleanEqual = function(a,b){ return stableStringify(a) === stableStringify(b); };
+cleanLogical = function(value){ return stableStringify(stableWithoutSync(value)); };
+
+stateMetaPayload = function(){
+  const payload = {
+    schemaVersion: state.schemaVersion,
+    workspace: workspaceWithoutMembership(),
+    world: state.world,
+    activity: Array.isArray(state.activity) ? state.activity.slice(0,200) : []
+  };
+  if(state.createdAt) payload.createdAt = state.createdAt;
+  if(state.createdByUid) payload.createdByUid = state.createdByUid;
+  if(state.createdByEmail) payload.createdByEmail = state.createdByEmail;
+  return cleanFirestoreValue(payload);
 };
 
-loadRemoteWorkspace=async function(){
+function stableStoryCollection(){ return firebase.api.collection(firebaseWorkspaceRef(), CODEX_STORY_COLLECTION); }
+function stableStoryRef(storyId){ return firebase.api.doc(stableStoryCollection(), String(storyId || id('story')).replaceAll('/','_')); }
+function stableStoryPayload(story,index){ return cleanAssetSafeClone({...story,__order:index}); }
+function stableRemoteMeta(raw){
+  const copy = stableWithoutSync(raw || {});
+  delete copy.storyGraphs;
+  if(Array.isArray(copy.activity)) copy.activity = copy.activity.slice(0,200);
+  return copy;
+}
+function stableBaseJson(value){ return stableStringify(value || {}); }
+function stableError(error,label){
+  const original = error instanceof Error ? error : new Error(String(error || 'Unknown Firestore error'));
+  const code = original.code ? ` (${original.code})` : '';
+  const wrapped = new Error(`${label}${code}: ${original.message || 'Firestore did not accept the write.'}`);
+  wrapped.code = original.code || 'codex/save-failed';
+  wrapped.cause = original;
+  return wrapped;
+}
+async function stableTimed(promise,ms,label){
+  try{
+    return await Promise.race([
+      promise,
+      new Promise((_,reject)=>setTimeout(()=>{const error=new Error(`${label} did not receive a server confirmation within ${Math.round(ms/1000)} seconds.`);error.code='codex/timeout';reject(error);},ms))
+    ]);
+  }catch(error){ throw stableError(error,label); }
+}
+function stableCommittedPayload(local,baseRaw){
+  const base = cleanParse(baseRaw,{});
+  return {
+    ...stableWithoutSync(local),
+    __syncRevision:(Number(base?.__syncRevision)||0)+1,
+    __syncUpdatedAt:nowISO(),
+    __syncUpdatedBy:normalizeMemberEmail(firebase.user?.email)
+  };
+}
+
+function stableBuildSavePlan(force=false){
+  const api=firebase.api,workspaceRef=firebaseWorkspaceRef(),plan=[];
+  for(const kind of SYNC_COLLECTIONS){
+    const baseMap=cleanBaseCollection(kind),nextIds=new Set();
+    for(const [index,item] of (state[kind]||[]).entries()){
+      const docId=String(item.id||id(kind)).replaceAll('/','_');
+      if(!item.id)item.id=docId;
+      nextIds.add(docId);
+      const local=cleanEntityPayload(item,index),baseRaw=baseMap.get(docId)||'';
+      if(force||cleanLogical(local)!==cleanLogical(cleanParse(baseRaw,{}))){
+        plan.push({group:'entity',kind,id:docId,label:`Saving ${COLLECTIONS[kind]?.singular || kind}: ${item.name || docId}`,ref:api.doc(api.collection(workspaceRef,kind),docId),type:'set',local,baseRaw});
+      }
+    }
+    for(const [oldId,baseRaw] of baseMap){
+      if(!nextIds.has(oldId)) plan.push({group:'entity',kind,id:oldId,label:`Deleting ${COLLECTIONS[kind]?.singular || kind}`,ref:api.doc(api.collection(workspaceRef,kind),oldId),type:'delete',baseRaw});
+    }
+  }
+
+  const storyIds=new Set();
+  for(const [index,story] of (state.storyGraphs||[]).entries()){
+    const docId=String(story.id||id('story')).replaceAll('/','_');
+    if(!story.id)story.id=docId;
+    storyIds.add(docId);
+    const local=stableStoryPayload(story,index),baseRaw=cleanSync.baseStories.get(docId)||'';
+    if(force||cleanLogical(local)!==cleanLogical(cleanParse(baseRaw,{}))){
+      plan.push({group:'story',kind:'stories',id:docId,label:`Saving story: ${story.name || 'Untitled story'}`,ref:stableStoryRef(docId),type:'set',local,baseRaw});
+    }
+  }
+  for(const [oldId,baseRaw] of cleanSync.baseStories){
+    if(!storyIds.has(oldId)) plan.push({group:'story',kind:'stories',id:oldId,label:'Deleting story',ref:stableStoryRef(oldId),type:'delete',baseRaw});
+  }
+
+  const meta=cleanMetaPayload(),baseMeta=cleanParse(cleanSync.baseMeta,{});
+  if(force||cleanLogical(meta)!==cleanLogical(baseMeta)){
+    plan.push({group:'meta',kind:'workspace',id:'main',label:'Saving workspace settings',ref:workspaceRef,type:'set',local:meta,baseRaw:cleanSync.baseMeta});
+  }
+  return plan;
+}
+
+async function stableWritePlanItem(item){
+  cleanSync.activeStep=item.label;
+  const api=firebase.api;
+  if(item.type==='delete'){
+    await stableTimed(api.deleteDoc(item.ref),45000,item.label);
+    if(item.group==='entity'){
+      cleanBaseCollection(item.kind).delete(item.id);
+      firebase.remoteCache.collections[item.kind]?.delete(item.id);
+    }else if(item.group==='story') cleanSync.baseStories.delete(item.id);
+    return;
+  }
+  const committed=stableCommittedPayload(item.local,item.baseRaw);
+  await stableTimed(api.setDoc(item.ref,committed,{merge:false}),60000,item.label);
+  const raw=JSON.stringify(committed);
+  if(item.group==='entity'){
+    cleanBaseCollection(item.kind).set(item.id,raw);
+    firebase.remoteCache.collections[item.kind] ||= new Map();
+    firebase.remoteCache.collections[item.kind].set(item.id,raw);
+  }else if(item.group==='story'){
+    cleanSync.baseStories.set(item.id,raw);
+  }else{
+    cleanSync.baseMeta=raw;
+    firebase.remoteCache.meta=raw;
+  }
+}
+
+async function stableCollectAssets(){
+  const assets=new Map();
+  for(const kind of SYNC_COLLECTIONS){
+    for(const item of state[kind]||[]){
+      const mediaNodes=[];
+      cleanWalkImages(item,media=>mediaNodes.push(media));
+      for(const media of mediaNodes){
+        const assetId=media.assetId||(cleanIsInlineImage(media.src)?cleanEnsureAssetId(media):'');
+        if(!assetId)continue;
+        let dataUrl=cleanIsInlineImage(media.src)?media.src:(cleanSync.assetData.get(assetId)||'');
+        if(dataUrl&&dataUrl.length>CODEX_ASSET_MAX_DATA_URL){
+          const compressed=await cleanCompressImage(dataUrl);
+          dataUrl=compressed.data;
+          media.src=dataUrl;
+        }
+        if(dataUrl) assets.set(assetId,{dataUrl,ownerKind:kind,ownerId:item.id||''});
+      }
+    }
+  }
+  return assets;
+}
+async function stableSyncChangedAssets(){
+  const api=firebase.api,assets=await stableCollectAssets(),nextIds=new Set(assets.keys());
+  for(const [assetId,data] of assets){
+    const previous=cleanParse(cleanSync.baseAssets.get(assetId),{});
+    const comparablePrevious={dataUrl:previous.dataUrl||'',ownerKind:previous.ownerKind||'',ownerId:previous.ownerId||''};
+    if(stableStringify(comparablePrevious)===stableStringify(data))continue;
+    cleanSync.activeStep=`Uploading image for ${data.ownerKind}`;
+    const committed={...data,__syncUpdatedAt:nowISO(),__syncUpdatedBy:normalizeMemberEmail(firebase.user?.email)};
+    await stableTimed(api.setDoc(cleanAssetRef(assetId),committed,{merge:false}),90000,cleanSync.activeStep);
+    cleanSync.baseAssets.set(assetId,JSON.stringify(committed));
+    cleanSync.assetData.set(assetId,data.dataUrl);
+  }
+  for(const oldId of [...cleanSync.baseAssets.keys()]){
+    if(nextIds.has(oldId))continue;
+    cleanSync.activeStep='Removing shared image';
+    await stableTimed(api.deleteDoc(cleanAssetRef(oldId)),45000,cleanSync.activeStep);
+    cleanSync.baseAssets.delete(oldId);cleanSync.assetData.delete(oldId);
+  }
+}
+
+cleanBuildPlan = stableBuildSavePlan;
+cleanPerformSync = async function(force=false){
+  if(!firebase.connected||!firebase.user)throw Object.assign(new Error('The shared world is offline.'),{code:'codex/offline'});
+  if(!canEditSharedWorld())throw Object.assign(new Error('Your account does not have editing permission.'),{code:'permission-denied'});
+  const plan=stableBuildSavePlan(force);
+  for(const item of plan)await stableWritePlanItem(item);
+  await stableSyncChangedAssets();
+  if(firebase.api.waitForPendingWrites)await stableTimed(firebase.api.waitForPendingWrites(firebase.api.db),60000,'Confirming the shared save');
+  cleanWriteBrowserSnapshot();
+  cleanSync.dirty=false;cleanSync.remoteDeferred=false;cleanSync.activeStep='';
+};
+syncStateToFirestore = async function(force=false){ await cleanPerformSync(force); };
+
+loadRemoteWorkspace = async function(){
   const api=firebase.api,workspaceRef=firebaseWorkspaceRef();
-  const [metaSnap,...collectionSnaps]=await codexStartupTimeout(Promise.all([
-    codexServerDoc(workspaceRef),...SYNC_COLLECTIONS.map(kind=>codexServerDocs(api.collection(workspaceRef,kind)))
-  ]),22000,'Shared-world download');
+  const [metaSnap,assetSnap,storySnap,...collectionSnaps]=await Promise.all([
+    api.getDoc(workspaceRef),api.getDocs(cleanAssetCollection()),api.getDocs(stableStoryCollection()),
+    ...SYNC_COLLECTIONS.map(kind=>api.getDocs(api.collection(workspaceRef,kind)))
+  ]);
+  cleanSync.assetData=new Map();cleanSync.baseAssets=new Map();
+  assetSnap.docs.forEach(docSnap=>{const raw=docSnap.data();if(raw.dataUrl)cleanSync.assetData.set(docSnap.id,raw.dataUrl);cleanSync.baseAssets.set(docSnap.id,JSON.stringify(raw));});
   const next=deepClone(window.INITIAL_WORLD_DATA);
-  if(metaSnap.exists())Object.assign(next,cleanWithoutSyncFields(metaSnap.data()));
-  cleanSync.baseMeta=metaSnap.exists()?JSON.stringify(metaSnap.data()):'';firebase.remoteCache.meta=cleanSync.baseMeta;
+  const metaRaw=metaSnap.exists()?metaSnap.data():{};
+  if(metaSnap.exists())Object.assign(next,stableRemoteMeta(metaRaw));
+  cleanSync.baseMeta=metaSnap.exists()?JSON.stringify(stableCommittedPayload(stableRemoteMeta(metaRaw),JSON.stringify(metaRaw))):'';
+  // Preserve the actual remote sync metadata while comparing only logical content.
+  cleanSync.baseMeta=metaSnap.exists()?JSON.stringify(metaRaw):'';
+  firebase.remoteCache.meta=cleanSync.baseMeta;
   SYNC_COLLECTIONS.forEach((kind,index)=>{
     const baseMap=new Map();
-    const docs=collectionSnaps[index].docs.map(docSnap=>{
-      const raw=docSnap.data(),order=Number(raw.__order)||0;baseMap.set(docSnap.id,JSON.stringify(raw));
-      const clean=cleanWithoutSyncFields(raw);delete clean.__order;cleanHydrateImages(clean);return {value:clean,order};
-    }).sort((a,b)=>a.order-b.order).map(entry=>entry.value);
+    const docs=collectionSnaps[index].docs.map(docSnap=>{const raw=docSnap.data(),order=Number(raw.__order)||0;baseMap.set(docSnap.id,JSON.stringify(raw));const clean=stableWithoutSync(raw);delete clean.__order;cleanHydrateImages(clean);return {value:clean,order};}).sort((a,b)=>a.order-b.order).map(entry=>entry.value);
     next[kind]=docs;cleanSync.baseCollections[kind]=baseMap;firebase.remoteCache.collections[kind]=new Map(baseMap);
   });
+  const storyBase=new Map();
+  if(!storySnap.empty){
+    next.storyGraphs=storySnap.docs.map(docSnap=>{const raw=docSnap.data(),order=Number(raw.__order)||0;storyBase.set(docSnap.id,JSON.stringify(raw));const clean=stableWithoutSync(raw);delete clean.__order;return {value:clean,order};}).sort((a,b)=>a.order-b.order).map(entry=>entry.value);
+  }else{
+    next.storyGraphs=Array.isArray(metaRaw.storyGraphs)?cleanFirestoreValue(metaRaw.storyGraphs):[];
+  }
+  cleanSync.baseStories=storyBase;
   const members=state.workspace?.members||[],access=state.workspace?.access||{};
   firebase.applyingRemote=true;state=next;normalizeState();state.workspace.members=members;state.workspace.access=access;cleanHydrateAll();cleanWriteBrowserSnapshot();firebase.applyingRemote=false;
   cleanSync.dirty=false;cleanSync.blocked=false;
-};
-
-async function codexLoadAssetsAfterOpen(){
-  if(codexStartup.assetLoad)return codexStartup.assetLoad;
-  codexStartup.assetLoad=(async()=>{
-    try{
-      const snap=await codexStartupTimeout(codexServerDocs(cleanAssetCollection()),25000,'Shared image download');
-      const nextData=new Map(),nextBase=new Map();
-      snap.docs.forEach(docSnap=>{const raw=docSnap.data();if(raw.dataUrl)nextData.set(docSnap.id,raw.dataUrl);nextBase.set(docSnap.id,JSON.stringify(raw));});
-      cleanSync.assetData=nextData;cleanSync.baseAssets=nextBase;firebase.applyingRemote=true;cleanHydrateAll();firebase.applyingRemote=false;cleanWriteBrowserSnapshot();queueRemoteRender();
-    }catch(error){console.warn('The workspace opened before all images finished loading.',error);toast('The workspace opened, but some shared images are still loading.','error');}
-    finally{codexStartup.assetLoad=null;}
-  })();
-  return codexStartup.assetLoad;
-}
-
-async function codexOpenAuthenticatedWorkspace(user){
-  const attempt=++codexStartup.attempt;codexHideAuthRecovery();
-  el.authGate.hidden=false;el.app.hidden=true;el.authGate.classList.add('auth-loading');setAuthMessage('Opening the shared world…');
-  try{
-    await bootstrapSharedWorkspace();if(attempt!==codexStartup.attempt)return;
-    setAuthMessage('Loading characters and locations…');
-    await loadRemoteWorkspace();if(attempt!==codexStartup.attempt)return;
-    attachFirestoreListeners();showAuthenticatedApp();render();el.saveStatus.textContent='Synced';
-    codexLoadAssetsAfterOpen();
-  }catch(error){
-    if(attempt!==codexStartup.attempt)return;
-    console.error('Shared-world startup failed:',error);
-    if(error.code==='codex/access-denied'){
-      firebase.pendingAuthMessage={message:error.message,type:'error'};await firebase.api.signOut(firebase.api.auth);return;
-    }
-    const message=error.code==='permission-denied'
-      ? 'Your login worked, but Firestore denied access. Publish the firestore.rules file included with the Clean Sync Rebuild, then retry.'
-      : error.code==='codex/open-timeout'
-        ? 'Firestore did not respond in time. Check the connection, then choose Retry opening workspace.'
-        : `The shared world could not open. ${error.message||'Please retry.'}`;
-    codexShowAuthRecovery(message);
+  if(storySnap.empty&&next.storyGraphs.length){
+    cleanSync.dirty=true;
+    setTimeout(()=>saveState(),1200);
   }
-}
-
-initFirebase=async function(){
-  el.authGate.classList.add('auth-loading');setAuthMessage('Checking your account…');codexEnsureAuthRecovery();codexHideAuthRecovery();
-  try{
-    const appMod=await import('https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js');
-    const authMod=await import('https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js');
-    const fsMod=await import('https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js');
-    const app=appMod.initializeApp(window.FIREBASE_CONFIG),auth=authMod.getAuth(app);
-    let db;
-    try{db=fsMod.initializeFirestore(app,{experimentalAutoDetectLongPolling:true,experimentalLongPollingOptions:{timeoutSeconds:15},ignoreUndefinedProperties:true});}
-    catch(error){console.warn('Custom Firestore transport was unavailable; using the standard transport.',error);db=fsMod.getFirestore(app);}
-    await authMod.setPersistence(auth,authMod.browserLocalPersistence);
-    firebase.api={...authMod,...fsMod,auth,db};
-    fsMod.enableNetwork(db).catch(error=>console.warn('Firestore network activation was delayed.',error));
-    authMod.onAuthStateChanged(auth,user=>{
-      firebase.user=user;firebase.connected=Boolean(user);firebase.currentMember=null;firebase.currentRole='';detachFirestoreListeners();
-      if(!user){codexStartup.attempt++;const pending=firebase.pendingAuthMessage;firebase.pendingAuthMessage=null;codexHideAuthRecovery();showAuthGate(pending?.message||'',pending?.type||'');return;}
-      codexOpenAuthenticatedWorkspace(user);
-    });
-  }catch(error){console.error(error);codexShowAuthRecovery('Firebase could not start. Check the internet connection, then retry.');}
 };
 
+function stableApplyRemoteStories(snap){
+  const incomingBase=new Map(),incoming=[];
+  snap.docs.forEach(docSnap=>{const raw=docSnap.data(),order=Number(raw.__order)||0;incomingBase.set(docSnap.id,JSON.stringify(raw));const clean=stableWithoutSync(raw);delete clean.__order;incoming.push({id:docSnap.id,value:clean,order});});
+  const localById=new Map((state.storyGraphs||[]).map((story,index)=>[String(story.id||'').replaceAll('/','_'),{story,index}]));
+  const merged=[];let changed=false;
+  const ids=new Set([...incomingBase.keys(),...localById.keys()]);
+  for(const storyId of ids){
+    const localEntry=localById.get(storyId),baseRaw=cleanSync.baseStories.get(storyId)||'',incomingRaw=incomingBase.get(storyId)||'';
+    const localPayload=localEntry?stableStoryPayload(localEntry.story,localEntry.index):null;
+    const localDirty=localEntry?cleanLogical(localPayload)!==cleanLogical(cleanParse(baseRaw,{})):Boolean(baseRaw);
+    if(localDirty){if(localEntry)merged.push({value:localEntry.story,order:localEntry.index});continue;}
+    const incomingEntry=incoming.find(entry=>entry.id===storyId);
+    if(incomingEntry){merged.push({value:incomingEntry.value,order:incomingEntry.order});if(cleanLogical(localPayload||{})!==cleanLogical(cleanParse(incomingRaw,{})))changed=true;}
+    else if(localEntry)changed=true;
+  }
+  cleanSync.baseStories=new Map(incomingBase);
+  if(changed&&!cleanSync.saving){firebase.applyingRemote=true;state.storyGraphs=merged.sort((a,b)=>a.order-b.order).map(entry=>entry.value);firebase.applyingRemote=false;cleanWriteBrowserSnapshot();queueRemoteRender();}
+}
+
+attachFirestoreListeners = function(){
+  detachFirestoreListeners();const api=firebase.api,workspaceRef=firebaseWorkspaceRef();
+  firebase.unsubscribes.push(api.onSnapshot(firebaseMembersCollection(),{includeMetadataChanges:true},snap=>{
+    if(snap.metadata.hasPendingWrites)return;
+    const members=snap.docs.map(docSnap=>({id:docSnap.id,...docSnap.data()})).sort((a,b)=>{const order={Owner:0,Admin:1,Editor:2,Commenter:3,Viewer:4};return (order[a.role]??9)-(order[b.role]??9)||String(a.email||'').localeCompare(String(b.email||''));});
+    state.workspace.members=members;state.workspace.access=Object.fromEntries(members.map(member=>[normalizeMemberEmail(member.email),member.role]));firebase.currentMember=members.find(member=>normalizeMemberEmail(member.email)===normalizeMemberEmail(firebase.user?.email))||null;firebase.currentRole=firebase.currentMember?.role||'';cleanWriteBrowserSnapshot();render();
+  },error=>{console.error(error);el.saveStatus.textContent='Member sync failed';toast('Member access updates stopped.','error');}));
+
+  firebase.unsubscribes.push(api.onSnapshot(workspaceRef,{includeMetadataChanges:true},snap=>{
+    if(!snap.exists()||snap.metadata.hasPendingWrites)return;
+    const raw=snap.data();firebase.remoteCache.meta=JSON.stringify(raw);
+    const localDirty=cleanLogical(cleanMetaPayload())!==cleanLogical(cleanParse(cleanSync.baseMeta,{}));
+    if(localDirty||cleanSync.saving)return;
+    cleanSync.baseMeta=JSON.stringify(raw);firebase.applyingRemote=true;applyRemoteMeta(stableRemoteMeta(raw));firebase.applyingRemote=false;cleanWriteBrowserSnapshot();queueRemoteRender();el.saveStatus.textContent='Synced';
+  },error=>{console.error(error);el.saveStatus.textContent='Workspace sync failed';toast('Live workspace updates stopped.','error');}));
+
+  firebase.unsubscribes.push(api.onSnapshot(cleanAssetCollection(),{includeMetadataChanges:true},snap=>{
+    if(snap.metadata.hasPendingWrites)return;const nextData=new Map(),nextBase=new Map();snap.docs.forEach(docSnap=>{const raw=docSnap.data();if(raw.dataUrl)nextData.set(docSnap.id,raw.dataUrl);nextBase.set(docSnap.id,JSON.stringify(raw));});cleanSync.assetData=nextData;cleanSync.baseAssets=nextBase;firebase.applyingRemote=true;cleanHydrateAll();firebase.applyingRemote=false;cleanWriteBrowserSnapshot();queueRemoteRender();
+  },error=>{console.error(error);el.saveStatus.textContent='Image sync failed';toast('Shared images stopped syncing.','error');}));
+
+  firebase.unsubscribes.push(api.onSnapshot(stableStoryCollection(),{includeMetadataChanges:true},snap=>{if(snap.metadata.hasPendingWrites)return;stableApplyRemoteStories(snap);},error=>{console.error(error);el.saveStatus.textContent='Story sync failed';toast('Live story updates stopped.','error');}));
+
+  for(const kind of SYNC_COLLECTIONS)firebase.unsubscribes.push(api.onSnapshot(api.collection(workspaceRef,kind),{includeMetadataChanges:true},snap=>{if(snap.metadata.hasPendingWrites)return;cleanApplyRemoteCollection(kind,snap);if(!cleanSync.dirty)el.saveStatus.textContent='Synced';},error=>{console.error(error);el.saveStatus.textContent=`${COLLECTIONS[kind]?.singular||kind} sync failed`;toast(`Live ${kind} updates stopped.`,'error');}));
+};
+
+cleanShowSaveError = function(error){
+  cleanCreateSaveOverlay();const overlay=document.getElementById('cleanSaveOverlay');overlay.classList.add('visible','error');
+  overlay.querySelector('[data-clean-save-title]').textContent='This change is not live yet';
+  overlay.querySelector('[data-clean-save-message]').textContent=error?.message||'Firestore did not confirm the save.';
+  overlay.querySelector('[data-clean-save-detail]').textContent=`Stopped at: ${cleanSync.activeStep||'shared save'}. Your browser recovery copy is still available.`;
+  document.getElementById('app')?.setAttribute('inert','');
+};
+
+scheduleSave = function(message='Changes pending…'){
+  if(firebase.applyingRemote)return;
+  cleanSync.dirty=true;cleanSync.blocked=false;el.saveStatus.textContent=message;cleanWriteBrowserSnapshot();clearTimeout(saveTimer);saveTimer=setTimeout(()=>saveState(),900);
+};
+saveState = async function(){
+  if(firebase.applyingRemote)return;
+  if(cleanSync.saving){cleanSync.queued=true;return;}
+  if(!firebase.connected||!firebase.user){cleanSync.blocked=true;cleanShowSaveError(Object.assign(new Error('The shared world is offline.'),{code:'codex/offline'}));return;}
+  const plan=stableBuildSavePlan(false);
+  if(!cleanSync.dirty&&!plan.length){el.saveStatus.textContent='Synced';return;}
+  cleanSync.saving=true;cleanSync.queued=false;cleanSync.activeStep='Preparing the shared save';el.saveStatus.textContent='Syncing…';document.getElementById('app')?.setAttribute('inert','');
+  clearTimeout(cleanSync.overlayDelay);cleanSync.overlayDelay=setTimeout(cleanShowSaving,250);
+  try{
+    await cleanPerformSync(false);clearTimeout(cleanSync.overlayDelay);cleanSync.blocked=false;el.saveStatus.textContent='Saved and live';const overlay=document.getElementById('cleanSaveOverlay');if(overlay?.classList.contains('visible')){overlay.querySelector('[data-clean-save-title]').textContent='Saved and live';overlay.querySelector('[data-clean-save-message]').textContent='Firestore confirmed this version.';overlay.querySelector('[data-clean-save-detail]').textContent='Other signed-in members can now receive it.';}setTimeout(cleanHideSaveOverlay,500);document.getElementById('app')?.removeAttribute('inert');
+  }catch(error){clearTimeout(cleanSync.overlayDelay);console.error('Stable direct save failed:',error);cleanSync.blocked=true;el.saveStatus.textContent='Not saved';cleanShowSaveError(error);}
+  finally{cleanSync.saving=false;if(cleanSync.queued&&!cleanSync.blocked){cleanSync.queued=false;setTimeout(()=>saveState(),150);}}
+};
 
 cleanCreateSaveOverlay();
 
