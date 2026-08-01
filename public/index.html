@@ -9532,24 +9532,63 @@ initFirebase();
     }
   };
 
+  function hasPendingSharedChanges(){
+    if(!firebase.connected||!firebase.user||firebase.applyingRemote)return false;
+    const remoteMeta=parseJson(firebase.remoteCache.meta,null);
+    if(!remoteMeta||logicalJson(stateMetaPayload())!==logicalJson(remoteMeta))return true;
+    for(const kind of SYNC_COLLECTIONS){
+      const cache=firebase.remoteCache.collections[kind]||new Map();
+      const localItems=state[kind]||[];
+      if(cache.size!==localItems.length)return true;
+      for(const [index,item] of localItems.entries()){
+        const docId=String(item.id||'').replaceAll('/','_');
+        if(!docId||!cache.has(docId))return true;
+        const localData=assetSafeClone({...item,__order:index});
+        const remoteData=parseJson(cache.get(docId),null);
+        if(!remoteData||logicalJson(localData)!==logicalJson(remoteData))return true;
+      }
+    }
+    return false;
+  }
+
   saveState=function(){
     if(firebase.connected&&firebase.user&&!firebase.applyingRemote&&!canEditSharedWorld()){
       el.saveStatus.textContent='Read only';toast('Your current role is read-only. Ask an owner to change your access.','error');return;
     }
     const localSaved=writeBrowserWorkspaceSnapshot();
-    el.saveStatus.textContent=firebase.connected?'Waiting to sync…':(localSaved?'Saved locally':'Local cache unavailable');
-    if(!firebase.connected||!firebase.user||firebase.applyingRemote)return;
+    if(!firebase.connected||!firebase.user||firebase.applyingRemote){
+      el.saveStatus.textContent=localSaved?'Saved locally':'Local cache unavailable';
+      return;
+    }
+    if(!hasPendingSharedChanges()){
+      el.saveStatus.textContent='Synced';
+      return;
+    }
+    el.saveStatus.textContent='Waiting to sync…';
     const request=++firebase.saveRequest;
     firebase.saveChain=firebase.saveChain.catch(error=>console.error(error)).then(async()=>{
       if(request<firebase.saveRequest)return;
       firebase.saveActive=true;el.saveStatus.textContent='Syncing…';
+      window.dispatchEvent(new CustomEvent('codex-save-start',{detail:{request}}));
+      let timeoutId=0;
       try{
-        await syncStateToFirestore();
+        const timeout=new Promise((_,reject)=>{
+          timeoutId=setTimeout(()=>{
+            const error=new Error('Firestore confirmation timed out.');
+            error.code='sync-timeout';
+            reject(error);
+          },20000);
+        });
+        await Promise.race([syncStateToFirestore(),timeout]);
+        clearTimeout(timeoutId);
         writeBrowserWorkspaceSnapshot();
         el.saveStatus.textContent='Synced';
+        window.dispatchEvent(new CustomEvent('codex-save-complete',{detail:{request}}));
       }catch(error){
+        clearTimeout(timeoutId);
         console.error(error);el.saveStatus.textContent='Sync failed';localRecoverySnapshot('Sync failed');
-        toast(error.code==='permission-denied'?'Your role does not allow this change, or the Firestore rules need updating.':'The workspace could not sync. A recovery copy was kept in this browser.','error');
+        window.dispatchEvent(new CustomEvent('codex-save-error',{detail:{request,code:error?.code||''}}));
+        toast(error.code==='permission-denied'?'Your role does not allow this change, or the Firestore rules need updating.':error.code==='sync-timeout'?'The save confirmation took too long. You can return to the workspace and retry.':'The workspace could not sync. A recovery copy was kept in this browser.','error');
       }finally{firebase.saveActive=false;}
     });
   };
@@ -9692,86 +9731,109 @@ initFirebase();
   const dismiss = document.getElementById('saveLockDismiss');
   const app = document.getElementById('app');
   const modalRoot = document.getElementById('modalRoot');
-  const status = document.getElementById('saveStatus');
   let hideTimer = 0;
-  let longSaveTimer = 0;
+  let showTimer = 0;
+  let safetyTimer = 0;
+  let activeRequest = 0;
+  let pendingRequest = 0;
 
-  function lockSurface() {
+  function setLocked(value) {
+    document.body.classList.toggle('is-save-locked', value);
+    if (app) app.inert = value;
+    if (modalRoot) modalRoot.inert = value;
+  }
+
+  function resetTimers() {
     clearTimeout(hideTimer);
-    clearTimeout(longSaveTimer);
+    clearTimeout(showTimer);
+    clearTimeout(safetyTimer);
+  }
+
+  function lockSurface(request) {
+    if (request !== pendingRequest) return;
+    activeRequest = request;
     overlay.classList.remove('is-error');
     overlay.classList.add('is-visible');
     overlay.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('is-save-locked');
-    if (app) app.inert = true;
-    if (modalRoot) modalRoot.inert = true;
+    setLocked(true);
     document.activeElement?.blur?.();
     icon.innerHTML = '<span class="save-lock-spinner" aria-hidden="true"></span>';
     title.textContent = 'Saving your world…';
     message.textContent = 'Please wait. Editing will unlock after Firestore confirms the newest version.';
     detail.textContent = 'Keep this tab open while the save finishes.';
-    longSaveTimer = setTimeout(() => {
-      if (!overlay.classList.contains('is-visible') || overlay.classList.contains('is-error')) return;
-      detail.textContent = 'This save is taking a little longer, but Codex Canvas is still waiting for confirmation.';
-    }, 7000);
+    safetyTimer = setTimeout(() => {
+      if (activeRequest !== request || !overlay.classList.contains('is-visible')) return;
+      showError('The save confirmation is taking too long.', 'You may return to the workspace and retry. A browser recovery copy was kept.');
+    }, 22000);
   }
 
   function unlockSurface() {
-    clearTimeout(longSaveTimer);
+    resetTimers();
+    pendingRequest = 0;
+    activeRequest = 0;
     overlay.classList.remove('is-visible', 'is-error');
     overlay.setAttribute('aria-hidden', 'true');
-    document.body.classList.remove('is-save-locked');
-    if (app) app.inert = false;
-    if (modalRoot) modalRoot.inert = false;
+    setLocked(false);
   }
 
-  function showSaved() {
-    if (!overlay.classList.contains('is-visible')) return;
-    clearTimeout(longSaveTimer);
+  function showSaved(request) {
+    clearTimeout(showTimer);
+    if (request !== activeRequest) {
+      if (request === pendingRequest) unlockSurface();
+      return;
+    }
+    clearTimeout(safetyTimer);
     icon.innerHTML = '<span class="save-lock-check" aria-hidden="true">✓</span>';
     title.textContent = 'Saved';
     message.textContent = 'Your newest changes are safely synced to the shared world.';
     detail.textContent = 'Editing will reopen now.';
-    hideTimer = setTimeout(unlockSurface, 500);
+    hideTimer = setTimeout(unlockSurface, 450);
   }
 
-  function showError() {
-    clearTimeout(longSaveTimer);
-    clearTimeout(hideTimer);
+  function showError(errorMessage, errorDetail) {
+    clearTimeout(showTimer);
+    clearTimeout(safetyTimer);
     overlay.classList.add('is-visible', 'is-error');
     overlay.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('is-save-locked');
-    if (app) app.inert = true;
-    if (modalRoot) modalRoot.inert = true;
+    setLocked(true);
     icon.innerHTML = '<span class="save-lock-error" aria-hidden="true">!</span>';
     title.textContent = 'The save did not finish';
-    message.textContent = 'A recovery copy may still be available, but these changes are not confirmed in the shared world.';
-    detail.textContent = 'Return to the workspace only after noting what you changed, then retry or download a backup.';
+    message.textContent = errorMessage || 'The newest changes were not confirmed in the shared world.';
+    detail.textContent = errorDetail || 'Return to the workspace, then retry the edit or download a backup.';
   }
 
-  function reactToStatus() {
-    const value = (status?.textContent || '').trim().toLowerCase();
-    if (!app || app.hidden) return;
-    if (value.includes('waiting to sync') || value === 'syncing…' || value === 'syncing...') {
-      lockSurface();
+  window.addEventListener('codex-save-start', event => {
+    resetTimers();
+    pendingRequest = Number(event.detail?.request) || Date.now();
+    // Fast saves finish without flashing a full-screen page.
+    showTimer = setTimeout(() => lockSurface(pendingRequest), 500);
+  });
+  window.addEventListener('codex-save-complete', event => {
+    const request = Number(event.detail?.request) || 0;
+    clearTimeout(showTimer);
+    if (!overlay.classList.contains('is-visible')) {
+      pendingRequest = 0;
+      activeRequest = 0;
       return;
     }
-    if (value === 'synced') {
-      showSaved();
-      return;
-    }
-    if (value.includes('sync failed') || value.includes('save failed')) {
-      showError();
-      return;
-    }
-    if (value.includes('read only') || value.includes('saved locally') || value.includes('local cache unavailable')) {
-      unlockSurface();
-    }
-  }
+    showSaved(request);
+  });
+  window.addEventListener('codex-save-error', event => {
+    clearTimeout(showTimer);
+    const request = Number(event.detail?.request) || 0;
+    if (activeRequest && request !== activeRequest) return;
+    activeRequest = request || pendingRequest;
+    showError(
+      event.detail?.code === 'sync-timeout' ? 'Firestore did not confirm the save in time.' : 'The newest changes were not confirmed in the shared world.',
+      'You can return to the workspace and retry. A browser recovery copy was kept.'
+    );
+  });
 
   dismiss.addEventListener('click', unlockSurface);
-  if (status) new MutationObserver(reactToStatus).observe(status, {childList:true, characterData:true, subtree:true});
-  window.addEventListener('pageshow', reactToStatus);
+  window.addEventListener('pageshow', unlockSurface);
+  window.addEventListener('online', () => {
+    if (overlay.classList.contains('is-error')) detail.textContent = 'Your connection is back. Return to the workspace and retry the edit.';
+  });
 })();
 </script>
 
