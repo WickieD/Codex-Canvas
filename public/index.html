@@ -3667,6 +3667,24 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 @media(max-width:760px){.cc5-section-summary{align-items:flex-start;flex-wrap:wrap}.cc5-section-actions{width:100%;justify-content:flex-end}.cc5-page-image.layout-wrap.side-left,.cc5-page-image.layout-wrap.side-right{float:none;margin:14px auto}.cc5-image-settings{grid-template-columns:1fr}.cc5-image-toolbar-help{flex-basis:100%;margin-left:0}}
 </style>
 
+
+<style id="cc9-native-upload-fix">
+.cc9-native-upload{display:block;position:relative;cursor:pointer}
+.cc9-native-upload>input[type=file],
+.cc9-replace-label>input[type=file],
+.cc9-toolbar-upload>input[type=file]{
+  position:absolute!important;width:1px!important;height:1px!important;
+  opacity:0!important;pointer-events:none!important;overflow:hidden!important
+}
+.cc9-native-upload:focus-within{
+  outline:3px solid color-mix(in srgb,var(--accent) 35%,transparent);
+  outline-offset:3px
+}
+.cc9-upload-hint{display:block;margin-top:10px;color:var(--accent-strong);font-size:12px;font-weight:800}
+.cc9-replace-label{cursor:pointer;position:relative}
+.cc9-toolbar-upload{position:relative;display:inline-grid;place-items:center;cursor:pointer}
+</style>
+
 </head>
 <body>
 
@@ -8981,8 +8999,8 @@ async function setSectionMedia(kind,itemId,slot,file){
   try{el.saveStatus.textContent='Preparing image…';const prepared=await imageFileToBlock(file,{name:item.name});const field=slot==='cover'?'headerImage':'profileImage';item[field]={src:prepared.src,alt:`${item.name} ${slot} image`,positionX:50,positionY:slot==='cover'?45:25,zoom:1,fit:'cover'};item.updatedAt=nowISO();scheduleSave('Saving image…');renderEntity(kind,itemId);toast('Image added.');}
   catch(error){console.error(error);toast(error.message||'The image could not be added.','error');}
 }
-function renderSectionMediaCover(kind,item){const copy=SECTION_MEDIA_COPY[kind],media=item.headerImage,image=media?.src||'',ref=`${kind}:cover:${item.id}`;return `<div class="section-media-cover-slot ${image?'has-image':''}" data-section-media-select="${ref}" ${image?'tabindex="0" role="button"':''}>${image?`<img src="${esc(image)}" alt="${esc(media.alt||item.name+' cover')}" style="${sectionMediaStyle(media,'cover')}"><div class="section-media-cover-overlay"></div><div class="section-media-controls"><button class="button secondary small" type="button" data-section-media-trigger="${ref}">Replace cover</button><button class="button ghost small" type="button" data-section-media-remove="${ref}">Remove</button></div>`:`<div class="section-media-placeholder"><div><span class="title">${esc(copy.cover)}</span><span class="help">${esc(copy.coverHelp)}</span></div></div>`}<input type="file" accept="image/*" hidden data-section-media-input="${ref}"></div>`;}
-function renderSectionMediaPortrait(kind,item){const copy=SECTION_MEDIA_COPY[kind],media=item.profileImage,image=media?.src||'',ref=`${kind}:profile:${item.id}`;return `<section class="panel section-media-portrait-card"><div class="section-media-portrait-label">${esc(copy.label)}</div><div class="section-media-slot ${image?'has-image':''}" data-section-media-select="${ref}" ${image?'tabindex="0" role="button"':''}>${image?`<img src="${esc(image)}" alt="${esc(media.alt||item.name+' image')}" style="${sectionMediaStyle(media,'profile')}"><div class="section-media-controls"><button class="button secondary small" type="button" data-section-media-trigger="${ref}">Replace image</button><button class="button ghost small" type="button" data-section-media-remove="${ref}">Remove</button></div>`:`<div class="section-media-placeholder-compact"><div><span class="title">${esc(copy.image)}</span><span class="help">${esc(copy.imageHelp)}</span></div></div>`}<input type="file" accept="image/*" hidden data-section-media-input="${ref}"></div></section>`;}
+function renderSectionMediaCover(kind,item){const copy=SECTION_MEDIA_COPY[kind],media=item.headerImage,image=media?.src||'',ref=`${kind}:cover:${item.id}`;if(!image)return `<label class="section-media-cover-slot cc9-native-upload"><div class="section-media-placeholder"><div><span class="title">${esc(copy.cover)}</span><span class="help">${esc(copy.coverHelp)}</span><span class="cc9-upload-hint">Tap to choose an image</span></div></div><input type="file" accept="image/*" data-section-media-input="${ref}"></label>`;return `<div class="section-media-cover-slot has-image" data-section-media-select="${ref}" tabindex="0" role="button"><img src="${esc(image)}" alt="${esc(media.alt||item.name+' cover')}" style="${sectionMediaStyle(media,'cover')}"><div class="section-media-cover-overlay"></div><div class="section-media-controls"><label class="button secondary small cc9-replace-label">Replace cover<input type="file" accept="image/*" data-section-media-input="${ref}"></label><button class="button ghost small" type="button" data-section-media-remove="${ref}">Remove</button></div></div>`;}
+function renderSectionMediaPortrait(kind,item){const copy=SECTION_MEDIA_COPY[kind],media=item.profileImage,image=media?.src||'',ref=`${kind}:profile:${item.id}`;if(!image)return `<section class="panel section-media-portrait-card"><div class="section-media-portrait-label">${esc(copy.label)}</div><label class="section-media-slot cc9-native-upload"><div class="section-media-placeholder-compact"><div><span class="title">${esc(copy.image)}</span><span class="help">${esc(copy.imageHelp)}</span><span class="cc9-upload-hint">Tap to choose an image</span></div></div><input type="file" accept="image/*" data-section-media-input="${ref}"></label></section>`;return `<section class="panel section-media-portrait-card"><div class="section-media-portrait-label">${esc(copy.label)}</div><div class="section-media-slot has-image" data-section-media-select="${ref}" tabindex="0" role="button"><img src="${esc(image)}" alt="${esc(media.alt||item.name+' image')}" style="${sectionMediaStyle(media,'profile')}"><div class="section-media-controls"><label class="button secondary small cc9-replace-label">Replace image<input type="file" accept="image/*" data-section-media-input="${ref}"></label><button class="button ghost small" type="button" data-section-media-remove="${ref}">Remove</button></div></div></section>`;}
 const originalSectionEntityCover=sectionEntityCover;
 sectionEntityCover=function(kind,item){
   if(!SECTION_MEDIA_COPY[kind])return originalSectionEntityCover(kind,item);
@@ -9440,7 +9458,7 @@ function cc5ShowImageEditor(ref){
 }
 cc4Editor=function(kind,item,openCount=2){
   const groups=cc4SectionGroups(item);
-  const toolbar=`<div class="block-toolbar" data-editor="${kind}:${item.id}"><button class="block-tool" type="button" data-add-block="text" title="Text">T</button><button class="block-tool" type="button" data-add-block="h2" title="New section">H</button><button class="block-tool" type="button" data-add-block="bullet" title="Bullet">•</button><button class="block-tool" type="button" data-add-block="quote" title="Quote">❝</button><button class="block-tool" type="button" data-add-block="divider" title="Divider">―</button><button class="block-tool" type="button" data-cc5-add-image="${kind}:${item.id}" title="Add image">▧</button><input type="file" accept="image/*" hidden data-cc5-image-input="${kind}:${item.id}"><span class="cc5-image-toolbar-help">Add images anywhere, then choose inline, in front, or behind.</span></div>`;
+  const toolbar=`<div class="block-toolbar" data-editor="${kind}:${item.id}"><button class="block-tool" type="button" data-add-block="text" title="Text">T</button><button class="block-tool" type="button" data-add-block="h2" title="New section">H</button><button class="block-tool" type="button" data-add-block="bullet" title="Bullet">•</button><button class="block-tool" type="button" data-add-block="quote" title="Quote">❝</button><button class="block-tool" type="button" data-add-block="divider" title="Divider">―</button><label class="block-tool cc9-toolbar-upload" title="Add image">▧<input type="file" accept="image/*" data-cc5-image-input="${kind}:${item.id}"></label><span class="cc5-image-toolbar-help">Add images anywhere, then choose inline, in front, or behind.</span></div>`;
   return `${toolbar}<div class="cc4-section-stack block-list" data-block-list="${kind}:${item.id}">${groups.map((g,i)=>{
     const headingIndex=g.heading?.index;
     return `<details class="cc4-section cc5-section ${cc4GroupEmpty(g)?'is-empty':''}" ${i<openCount?'open':''} id="cc4-${kind}-${item.id}-${i}">
@@ -11068,8 +11086,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-cc4-jump]'
       <button class="block-tool" type="button" data-add-block="bullet" title="Add bullet">•</button>
       <button class="block-tool" type="button" data-add-block="quote" title="Add quote">❝</button>
       <button class="block-tool" type="button" data-add-block="divider" title="Add divider">―</button>
-      <button class="block-tool cc8-image-button" type="button" data-cc8-add-image="${kind}:${item.id}" title="Add image">▧</button>
-      <input type="file" accept="image/*" hidden data-cc8-image-input="${kind}:${item.id}">
+      <label class="block-tool cc8-image-button cc9-toolbar-upload" title="Add image">▧<input type="file" accept="image/*" data-cc8-image-input="${kind}:${item.id}"></label>
       <span class="cc8-help">Each heading and each part below it can be moved or deleted.</span>
     </div>`;
 
