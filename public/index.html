@@ -11617,5 +11617,318 @@ initFirebase();
 })();
 </script>
 
+
+<style id="cc7-editor-core-fix">
+/* Ensure property fields show all content and never trap it in an inner scroller. */
+.cc4-approved .properties-panel,
+.cc4-approved .cc3-properties-panel{
+  max-height:none!important;
+  overflow:visible!important;
+}
+.cc4-approved .properties-panel textarea,
+.cc4-approved .cc3-properties-panel textarea,
+.cc4-approved textarea[data-field]{
+  height:auto!important;
+  min-height:96px;
+  max-height:none!important;
+  overflow:hidden!important;
+  resize:none!important;
+}
+
+/* Approved-layout editor toolbar and section controls. */
+.cc7-toolbar{
+  position:sticky;
+  top:70px;
+  z-index:9;
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  align-items:center;
+  margin-bottom:12px;
+  padding:9px;
+  border:1px solid var(--section-line);
+  border-radius:12px;
+  background:color-mix(in srgb,var(--section-panel) 94%,transparent);
+  backdrop-filter:blur(10px);
+}
+.cc7-toolbar .cc7-help{
+  margin-left:auto;
+  color:var(--section-muted);
+  font-size:11px;
+}
+.cc7-section-summary{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  width:100%;
+}
+.cc7-section-title{
+  min-width:0;
+  flex:1;
+  border:0;
+  border-radius:7px;
+  background:transparent;
+  color:inherit;
+  padding:4px 6px;
+  font:inherit;
+  font-weight:800;
+}
+.cc7-section-title:focus{
+  background:var(--section-paper-2);
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--section-accent) 32%,transparent);
+  outline:none;
+}
+.cc7-section-actions{
+  display:flex;
+  gap:4px;
+  align-items:center;
+}
+.cc7-section-actions button{
+  min-width:30px;
+  height:30px;
+  border:1px solid var(--section-line);
+  border-radius:8px;
+  background:var(--section-paper-2);
+  color:var(--section-muted);
+  font-size:12px;
+  font-weight:850;
+}
+.cc7-section-actions button:hover{border-color:var(--section-accent);color:var(--section-ink)}
+.cc7-section-actions button.danger{color:var(--danger)}
+.cc4-section:not(.is-empty){opacity:1!important}
+.cc4-section-body{overflow:visible!important}
+.cc4-section .block-row{padding-right:120px}
+.cc4-section .block-content{min-height:30px}
+
+/* Make page-image controls usable on mouse and touch. */
+.cc5-page-image-controls{
+  opacity:1!important;
+  visibility:visible!important;
+  pointer-events:auto!important;
+}
+.cc5-page-image{
+  max-width:100%;
+  clear:both;
+}
+.cc5-page-image.layout-wrap.side-left{float:left;margin-right:var(--cc5-gap);margin-bottom:var(--cc5-gap)}
+.cc5-page-image.layout-wrap.side-right{float:right;margin-left:var(--cc5-gap);margin-bottom:var(--cc5-gap)}
+.cc5-page-image.layout-wrap.side-center{float:none;margin:var(--cc5-gap) auto;clear:both}
+.cc5-page-image.layout-front{position:relative;z-index:20}
+.cc5-page-image.layout-behind{position:relative;z-index:0}
+
+/* Keep all modal actions reachable. */
+.modal:has(.cc5-image-settings),
+.modal:has(.cc7-section-editor){
+  max-height:min(860px,92vh);
+}
+.modal:has(.cc5-image-settings) .modal-body,
+.modal:has(.cc7-section-editor) .modal-body{
+  overflow:auto;
+}
+
+@media(max-width:760px){
+  .cc7-toolbar{position:static}
+  .cc7-toolbar .cc7-help{flex-basis:100%;margin-left:0}
+  .cc7-section-summary{align-items:flex-start;flex-wrap:wrap}
+  .cc7-section-title{flex-basis:calc(100% - 10px)}
+  .cc7-section-actions{width:100%;justify-content:flex-end}
+  .cc4-section .block-row{padding-right:0}
+}
+</style>
+
+<script id="cc7-editor-core-fix">
+(function(){
+  function cc7Groups(item){
+    const blocks=item.blocks||[], groups=[]; let current=null;
+    blocks.forEach((block,index)=>{
+      if(block.type==='h2'){
+        current={title:stripMd(block.content)||'Untitled section',heading:{block,index},rows:[]};
+        groups.push(current);
+      }else{
+        if(!current){current={title:'Overview',heading:null,rows:[]};groups.push(current);}
+        current.rows.push({block,index});
+      }
+    });
+    return groups;
+  }
+
+  function cc7IsEmpty(group){
+    return !group.rows.some(({block})=>{
+      const text=stripMd(block.content||'').trim();
+      return text && !/^(describe|add |list |summarize|record |start writing here)/i.test(text);
+    });
+  }
+
+  cc4Editor=function(kind,item,openCount=2){
+    const groups=cc7Groups(item);
+    const toolbar=`<div class="cc7-toolbar" data-editor="${kind}:${item.id}">
+      <button class="block-tool" type="button" data-add-block="text" title="Add text">T</button>
+      <button class="block-tool" type="button" data-add-block="h2" title="Add section">H</button>
+      <button class="block-tool" type="button" data-add-block="bullet" title="Add bullet">•</button>
+      <button class="block-tool" type="button" data-add-block="quote" title="Add quote">❝</button>
+      <button class="block-tool" type="button" data-add-block="divider" title="Add divider">―</button>
+      <button class="block-tool" type="button" data-cc5-add-image="${kind}:${item.id}" title="Add image">▧</button>
+      <input type="file" accept="image/*" hidden data-cc5-image-input="${kind}:${item.id}">
+      <span class="cc7-help">Add images anywhere. Edit or delete each individual part from its controls.</span>
+    </div>`;
+
+    return `${toolbar}<div class="cc4-section-stack block-list" data-block-list="${kind}:${item.id}">
+      ${groups.map((g,i)=>{
+        const headingIndex=g.heading?.index ?? -1;
+        const empty=cc7IsEmpty(g);
+        return `<details class="cc4-section ${empty?'is-empty':''}" ${i<openCount?'open':''} id="cc4-${kind}-${item.id}-${i}">
+          <summary>
+            <div class="cc7-section-summary">
+              <input class="cc7-section-title" value="${esc(g.title)}"
+                data-cc7-section-title="${kind}:${item.id}:${headingIndex}"
+                aria-label="Section heading">
+              <small>${empty?'Not filled in':'Open section'}</small>
+              <span class="cc7-section-actions">
+                <button type="button" data-cc7-section-up="${kind}:${item.id}:${headingIndex}" title="Move section up">↑</button>
+                <button type="button" data-cc7-section-down="${kind}:${item.id}:${headingIndex}" title="Move section down">↓</button>
+                <button class="danger" type="button" data-cc7-section-delete="${kind}:${item.id}:${headingIndex}" title="Delete section">Delete</button>
+              </span>
+            </div>
+          </summary>
+          <div class="cc4-section-body">
+            ${g.rows.map(x=>renderBlock(kind,item.id,x.block,x.index)).join('')||'<p class="cc4-muted">Nothing has been added yet.</p>'}
+          </div>
+        </details>`;
+      }).join('')}
+    </div>`;
+  };
+
+  function cc7Resolve(ref){
+    const [kind,itemId,indexRaw]=String(ref||'').split(':');
+    const item=getItem(kind,itemId), index=Number(indexRaw);
+    return {kind,itemId,item,index};
+  }
+
+  function cc7SectionBounds(item,headingIndex){
+    if(!item?.blocks?.length)return null;
+    let start=headingIndex;
+    if(start<0){
+      start=0;
+      while(start<item.blocks.length && item.blocks[start].type==='h2')start++;
+      return {start:0,end:start};
+    }
+    let end=start+1;
+    while(end<item.blocks.length && item.blocks[end].type!=='h2')end++;
+    return {start,end};
+  }
+
+  function cc7Render(kind,itemId){
+    renderEntity(kind,itemId);
+    requestAnimationFrame(()=>cc7GrowAll(document));
+  }
+
+  function cc7Grow(el){
+    if(!el || el.tagName!=='TEXTAREA')return;
+    el.style.height='auto';
+    el.style.height=Math.max(el.scrollHeight,96)+'px';
+  }
+  function cc7GrowAll(root){
+    root.querySelectorAll('.cc4-approved textarea,.properties-panel textarea').forEach(cc7Grow);
+  }
+
+  document.addEventListener('click',event=>{
+    const action=event.target.closest('[data-cc7-section-up],[data-cc7-section-down],[data-cc7-section-delete]');
+    if(!action)return;
+    event.preventDefault();event.stopImmediatePropagation();
+
+    const ref=action.dataset.cc7SectionUp||action.dataset.cc7SectionDown||action.dataset.cc7SectionDelete;
+    const info=cc7Resolve(ref);
+    if(!info.item)return;
+    const bounds=cc7SectionBounds(info.item,info.index);
+    if(!bounds)return;
+
+    if(action.hasAttribute('data-cc7-section-delete')){
+      if(!confirm('Delete this entire section and everything inside it?'))return;
+      info.item.blocks.splice(bounds.start,bounds.end-bounds.start);
+      info.item.updatedAt=nowISO();scheduleSave();cc7Render(info.kind,info.itemId);
+      return;
+    }
+
+    const direction=action.hasAttribute('data-cc7-section-up')?-1:1;
+    const groups=cc7Groups(info.item);
+    const groupIndex=groups.findIndex(g=>(g.heading?.index??-1)===info.index);
+    const targetIndex=groupIndex+direction;
+    if(groupIndex<0 || targetIndex<0 || targetIndex>=groups.length)return;
+
+    const current=groups[groupIndex];
+    const target=groups[targetIndex];
+    const currentBounds=cc7SectionBounds(info.item,current.heading?.index??-1);
+    const targetBounds=cc7SectionBounds(info.item,target.heading?.index??-1);
+    const chunk=info.item.blocks.splice(currentBounds.start,currentBounds.end-currentBounds.start);
+
+    let insertAt;
+    if(direction<0){
+      insertAt=targetBounds.start;
+    }else{
+      const adjustedEnd=targetBounds.end-(currentBounds.end-currentBounds.start);
+      insertAt=adjustedEnd;
+    }
+    info.item.blocks.splice(insertAt,0,...chunk);
+    info.item.updatedAt=nowISO();scheduleSave();cc7Render(info.kind,info.itemId);
+  },true);
+
+  document.addEventListener('click',event=>{
+    if(event.target.closest('.cc7-section-title'))event.stopPropagation();
+  },true);
+
+  document.addEventListener('input',event=>{
+    const title=event.target.closest('[data-cc7-section-title]');
+    if(title){
+      const info=cc7Resolve(title.dataset.cc7SectionTitle);
+      if(info.item){
+        if(info.index>=0 && info.item.blocks[info.index]){
+          info.item.blocks[info.index].content=title.value;
+        }else if(title.value.trim()){
+          info.item.blocks.unshift({id:id('b'),type:'h2',content:title.value});
+        }
+        info.item.updatedAt=nowISO();scheduleSave();
+      }
+      const section=title.closest('.cc4-section');
+      if(section){
+        section.classList.toggle('is-empty',!title.value.trim());
+        const small=section.querySelector('summary small');
+        if(small && title.value.trim())small.textContent='Open section';
+      }
+      return;
+    }
+
+    const block=event.target.closest('[data-block]');
+    if(block){
+      const section=block.closest('.cc4-section');
+      if(section){
+        const hasContent=[...section.querySelectorAll('.block-content')]
+          .some(el=>el.innerText.trim() && !/^start writing here/i.test(el.innerText.trim()));
+        section.classList.toggle('is-empty',!hasContent);
+        const small=section.querySelector('summary small');
+        if(small)small.textContent=hasContent?'Open section':'Not filled in';
+      }
+    }
+    if(event.target.tagName==='TEXTAREA')cc7Grow(event.target);
+  },true);
+
+  const observer=new MutationObserver(records=>{
+    for(const record of records){
+      for(const node of record.addedNodes){
+        if(node.nodeType===1)cc7GrowAll(node);
+      }
+    }
+  });
+  observer.observe(document.body,{childList:true,subtree:true});
+  requestAnimationFrame(()=>cc7GrowAll(document));
+
+  /* Force an immediate re-render if a Species or Location page is already open. */
+  const hash=location.hash||'';
+  const match=hash.match(/^#\/(species|locations)\/([^/?]+)/);
+  if(match){
+    requestAnimationFrame(()=>cc7Render(match[1],decodeURIComponent(match[2])));
+  }
+})();
+</script>
+
 </body>
 </html>
