@@ -9012,7 +9012,17 @@ renderEntityCard=function(kind,item){
 document.addEventListener('click',event=>{
   const trigger=event.target.closest('[data-section-media-trigger]');if(trigger){event.preventDefault();event.stopImmediatePropagation();document.querySelector(`[data-section-media-input="${CSS.escape(trigger.dataset.sectionMediaTrigger)}"]`)?.click();return;}
   const remove=event.target.closest('[data-section-media-remove]');if(remove){event.preventDefault();event.stopImmediatePropagation();const [kind,slot,itemId]=remove.dataset.sectionMediaRemove.split(':'),item=getItem(kind,itemId);if(item){item[slot==='cover'?'headerImage':'profileImage']=null;item.updatedAt=nowISO();scheduleSave();renderEntity(kind,itemId);}return;}
-  const slot=event.target.closest('[data-section-media-select]');if(slot&&slot.classList.contains('has-image')){if(!event.target.closest('.section-media-controls')){event.preventDefault();slot.classList.toggle('is-media-selected');}return;}
+  const slot=event.target.closest('[data-section-media-select]');if(slot){
+    if(!slot.classList.contains('has-image')){
+      event.preventDefault();event.stopImmediatePropagation();
+      document.querySelector(`[data-section-media-input="${CSS.escape(slot.dataset.sectionMediaSelect)}"]`)?.click();
+      return;
+    }
+    if(!event.target.closest('.section-media-controls')){
+      event.preventDefault();slot.classList.toggle('is-media-selected');
+    }
+    return;
+  }
 },true);
 document.addEventListener('change',event=>{const input=event.target.closest?.('[data-section-media-input]');if(!input)return;const file=input.files?.[0];if(file){const [kind,slot,itemId]=input.dataset.sectionMediaInput.split(':');setSectionMedia(kind,itemId,slot,file);}input.value='';});
 document.addEventListener('dragover',event=>{if(event.target.closest?.('[data-section-media-select]'))event.preventDefault();});
@@ -11827,6 +11837,30 @@ initFirebase();
   const baseRender=render;
   render=function(){baseRender();requestAnimationFrame(()=>cc6GrowAll());};
   requestAnimationFrame(()=>cc6GrowAll());
+
+  /* Final image-upload fallback for Species and Locations. */
+  document.addEventListener('click',event=>{
+    const add=event.target.closest('[data-cc8-add-image],[data-cc5-add-image]');
+    if(!add)return;
+    event.preventDefault();event.stopImmediatePropagation();
+    const ref=add.dataset.cc8AddImage||add.dataset.cc5AddImage;
+    const input=document.querySelector(
+      `[data-cc8-image-input="${CSS.escape(ref)}"],[data-cc5-image-input="${CSS.escape(ref)}"]`
+    );
+    if(input){input.value='';input.click();}
+  },true);
+
+  document.addEventListener('change',async event=>{
+    const input=event.target.closest('[data-cc8-image-input],[data-cc5-image-input]');
+    if(!input||!input.files?.[0])return;
+    event.stopImmediatePropagation();
+    const ref=input.dataset.cc8ImageInput||input.dataset.cc5ImageInput;
+    const split=ref.split(':');
+    const kind=split.shift();
+    const itemId=split.join(':');
+    await cc5AddPageImage(kind,itemId,input.files[0]);
+    input.value='';
+  },true);
 })();
 </script>
 
