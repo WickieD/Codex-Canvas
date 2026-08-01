@@ -3439,6 +3439,7 @@ button:disabled { cursor: not-allowed; opacity: .48; }
     radial-gradient(circle at 85% 85%,rgba(101,124,158,.18),transparent 36%),
     linear-gradient(145deg,#0a111a,#111d2c 52%,#15120f);color:#f6eddc;font-family:Inter,system-ui,sans-serif}
   .auth-card{width:min(440px,100%);border:1px solid rgba(218,181,112,.38);border-radius:28px;padding:34px;background:rgba(15,23,33,.94);box-shadow:0 34px 100px rgba(0,0,0,.5);backdrop-filter:blur(18px)}
+  .auth-recovery-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.auth-recovery-actions[hidden]{display:none}.auth-recovery-actions button{flex:1;min-width:150px;border:1px solid rgba(218,181,112,.4);border-radius:12px;padding:11px 14px;font:700 .92rem Inter,system-ui,sans-serif;cursor:pointer}.auth-retry-button{background:#d9b56e;color:#17120b}.auth-signout-button{background:transparent;color:#e8dcc6}
   .auth-brand{display:flex;align-items:center;gap:14px;margin-bottom:28px}.auth-mark{width:52px;height:52px;border-radius:18px;display:grid;place-items:center;border:1px solid rgba(218,181,112,.55);color:#d8b36d;font:700 25px Georgia,serif;background:rgba(218,181,112,.08)}
   .auth-brand h1{font:600 27px Georgia,serif;margin:0;color:#fff6e7}.auth-brand p{margin:5px 0 0;color:#aeb9c6;font-size:.92rem}
   .auth-form{display:grid;gap:16px}.auth-field{display:grid;gap:7px}.auth-field span{font-size:.82rem;text-transform:uppercase;letter-spacing:.09em;color:#c8b790;font-weight:700}
@@ -3505,6 +3506,7 @@ button:disabled { cursor: not-allowed; opacity: .48; }
         <button id="authSubmit" class="auth-submit" type="submit">Sign in</button>
       </form>
       <div id="authMessage" class="auth-message">Checking your account…</div>
+      <div id="authRecoveryActions" class="auth-recovery-actions" hidden><button id="authRetryOpen" class="auth-retry-button" type="button">Retry opening workspace</button><button id="authLoadingSignOut" class="auth-signout-button" type="button">Sign out</button></div>
       <p class="auth-privacy">If you'd like to join, please reach out to the admin team.</p>
     </div>
   </section>
@@ -3578,7 +3580,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "shared-world-login-repair-2026-07-31";
+window.CODEX_BUILD = "login-loading-repair-2026-07-31";
 </script>
   <script>
 (() => {
@@ -9340,50 +9342,6 @@ saveState=async function(){
 };
 
 
-initFirebase();
-
-})();
-
-</script>
-
-<script id="character-media-click-controls">
-(() => {
-  function clearCharacterMediaSelection(except = null) {
-    document.querySelectorAll('.is-media-selected[data-character-media-select]').forEach(slot => {
-      if (slot !== except) slot.classList.remove('is-media-selected');
-    });
-  }
-
-  document.addEventListener('click', event => {
-    const control = event.target.closest('[data-character-media-trigger],[data-character-media-edit],[data-character-media-remove]');
-    const slot = event.target.closest('[data-character-media-select]');
-
-    if (slot && slot.classList.contains('has-image')) {
-      clearCharacterMediaSelection(slot);
-      if (!control) {
-        event.preventDefault();
-        slot.classList.toggle('is-media-selected');
-      }
-      return;
-    }
-
-    if (!event.target.closest('.character-cover-slot,.character-portrait-slot,.dossier-media-slot')) {
-      clearCharacterMediaSelection();
-    }
-  }, true);
-
-  document.addEventListener('keydown', event => {
-    const slot = event.target.closest?.('[data-character-media-select].has-image');
-    if (slot && (event.key === 'Enter' || event.key === ' ')) {
-      event.preventDefault();
-      clearCharacterMediaSelection(slot);
-      slot.classList.toggle('is-media-selected');
-    }
-    if (event.key === 'Escape') clearCharacterMediaSelection();
-  });
-})();
-
-
 /* === Ordered collaboration saves, conflict merging, and recovery copies === */
 (function(){
   const RECOVERY_COLLECTION='recovery';
@@ -9668,6 +9626,208 @@ initFirebase();
     }
   },true);
 })();
+
+
+
+/* === Recoverable shared-world startup === */
+function codexWithTimeout(promise, milliseconds, label){
+  let timer=0;
+  const timeout=new Promise((_,reject)=>{
+    timer=setTimeout(()=>{
+      const error=new Error(`${label||'The request'} took too long.`);
+      error.code='codex/open-timeout';
+      reject(error);
+    },milliseconds);
+  });
+  return Promise.race([Promise.resolve(promise).finally(()=>clearTimeout(timer)),timeout]);
+}
+function authRecoveryElements(){
+  return {
+    actions:document.getElementById('authRecoveryActions'),
+    retry:document.getElementById('authRetryOpen'),
+    signOut:document.getElementById('authLoadingSignOut')
+  };
+}
+function hideAuthRecovery(){const ui=authRecoveryElements();if(ui.actions)ui.actions.hidden=true;}
+function showAuthRecovery(message){
+  const ui=authRecoveryElements();
+  el.app.hidden=true;el.authGate.hidden=false;el.authGate.classList.remove('auth-loading');
+  setAuthMessage(message||'The shared world did not finish opening.','error');
+  if(ui.actions)ui.actions.hidden=false;
+}
+async function codexServerDoc(ref){
+  const api=firebase.api;
+  return (api.getDocFromServer?api.getDocFromServer(ref):api.getDoc(ref));
+}
+async function codexServerDocs(ref){
+  const api=firebase.api;
+  return (api.getDocsFromServer?api.getDocsFromServer(ref):api.getDocs(ref));
+}
+
+bootstrapSharedWorkspace=async function(){
+  const api=firebase.api,workspaceRef=firebaseWorkspaceRef(),email=normalizeMemberEmail(firebase.user.email),memberRef=firebaseMemberRef(email);
+  const memberSnap=await codexWithTimeout(codexServerDoc(memberRef),12000,'Membership check');
+  if(memberSnap.exists()){
+    firebase.currentMember={id:memberSnap.id,...memberSnap.data()};
+    firebase.currentRole=firebase.currentMember.role||'Viewer';
+    // Presence information is helpful, but it must never block opening the app.
+    api.setDoc(memberRef,{uid:firebase.user.uid,lastSeenAt:nowISO()},{merge:true}).catch(error=>console.warn('Last-seen update was delayed.',error));
+    return;
+  }
+
+  // First-owner initialization remains atomic. Existing worlds reject uninvited accounts.
+  try{await codexWithTimeout(readWorkspaceFromRef(firebaseLegacyWorkspaceRef()),12000,'Legacy workspace check');}catch(error){console.warn('No legacy workspace could be loaded.',error);}
+  normalizeState();state.workspace.members=[];state.workspace.access={};
+  const createdAt=nowISO();
+  state.createdAt=createdAt;state.createdByUid=firebase.user.uid;state.createdByEmail=email;
+  const ownerRecord={email,role:'Owner',status:'Access granted',uid:firebase.user.uid,addedAt:createdAt,addedBy:email,lastSeenAt:createdAt};
+  const meta={...stateMetaPayload(),createdAt,createdByUid:firebase.user.uid,createdByEmail:email};
+  const batch=api.writeBatch(api.db);
+  batch.set(workspaceRef,meta,{merge:false});batch.set(memberRef,ownerRecord,{merge:false});
+  try{await codexWithTimeout(batch.commit(),15000,'Shared-world setup');}
+  catch(error){
+    if(['permission-denied','already-exists','failed-precondition'].includes(error.code)){
+      const denied=new Error('This account has not been granted access to this shared world. Please contact the admin team.');
+      denied.code='codex/access-denied';throw denied;
+    }
+    throw error;
+  }
+  firebase.currentMember={id:email,...ownerRecord};firebase.currentRole='Owner';
+};
+
+loadRemoteWorkspace=async function(){
+  const api=firebase.api,workspaceRef=firebaseWorkspaceRef();
+  // Open the usable workspace first. Large images hydrate after the app is visible.
+  const [metaSnap,...collectionSnaps]=await codexWithTimeout(Promise.all([
+    codexServerDoc(workspaceRef),...SYNC_COLLECTIONS.map(kind=>codexServerDocs(api.collection(workspaceRef,kind)))
+  ]),18000,'Workspace download');
+  const next=deepClone(window.INITIAL_WORLD_DATA);
+  if(metaSnap.exists())Object.assign(next,metaSnap.data());
+  SYNC_COLLECTIONS.forEach((kind,index)=>{
+    const snap=collectionSnaps[index];
+    next[kind]=snap.docs.map(docSnap=>{
+      const raw=docSnap.data(),order=Number(raw.__order)||0;delete raw.__order;hydrateImageAssets(raw);return {value:raw,order};
+    }).sort((a,b)=>a.order-b.order).map(entry=>entry.value);
+    firebase.remoteCache.collections[kind]=new Map(snap.docs.map(docSnap=>[docSnap.id,JSON.stringify(docSnap.data())]));
+  });
+  firebase.remoteCache.meta=metaSnap.exists()?JSON.stringify(metaSnap.data()):'';
+  const members=state.workspace?.members||[],access=state.workspace?.access||{};
+  firebase.applyingRemote=true;state=next;normalizeState();state.workspace.members=members;state.workspace.access=access;hydrateAllStateImages();localStateSnapshot();firebase.applyingRemote=false;
+};
+
+async function loadRemoteImagesAfterOpen(){
+  try{
+    const snap=await codexWithTimeout(codexServerDocs(imageAssetCollection()),20000,'Shared image download');
+    const nextData=new Map(),nextCache=new Map();
+    snap.docs.forEach(docSnap=>{const raw=docSnap.data();if(raw.dataUrl)nextData.set(docSnap.id,raw.dataUrl);nextCache.set(docSnap.id,JSON.stringify(raw));});
+    firebase.assetData=nextData;firebase.remoteCache.assets=nextCache;
+    firebase.applyingRemote=true;hydrateAllStateImages();firebase.applyingRemote=false;localStateSnapshot();queueRemoteRender();
+  }catch(error){
+    console.warn('The workspace opened before all shared images finished loading.',error);
+    toast('The workspace opened, but some shared images are still loading.','error');
+  }
+}
+
+firebase.openAttempt=0;
+async function openAuthenticatedWorkspace(user){
+  const attempt=++firebase.openAttempt;
+  hideAuthRecovery();
+  el.authGate.hidden=false;el.app.hidden=true;el.authGate.classList.add('auth-loading');setAuthMessage('Opening the shared world…');
+  try{
+    await codexWithTimeout(bootstrapSharedWorkspace(),16000,'Membership verification');
+    if(attempt!==firebase.openAttempt)return;
+    await codexWithTimeout(loadRemoteWorkspace(),22000,'Shared-world loading');
+    if(attempt!==firebase.openAttempt)return;
+    attachFirestoreListeners();showAuthenticatedApp();render();el.saveStatus.textContent='Synced';
+    loadRemoteImagesAfterOpen();
+  }catch(error){
+    if(attempt!==firebase.openAttempt)return;
+    console.error(error);
+    if(error.code==='codex/access-denied'){
+      firebase.pendingAuthMessage={message:error.message,type:'error'};
+      await firebase.api.signOut(firebase.api.auth);return;
+    }
+    const copy=error.code==='permission-denied'
+      ? 'Your login worked, but Firestore denied access. Publish the Firestore rules included with this build, then retry.'
+      : error.code==='codex/open-timeout'
+        ? 'The shared world did not respond in time. Check the connection, then retry opening it.'
+        : `The shared world could not open. ${error.message||''}`;
+    showAuthRecovery(copy);
+  }
+}
+
+initFirebase=async function(){
+  el.authGate.classList.add('auth-loading');setAuthMessage('Checking your account…');hideAuthRecovery();
+  try{
+    const appMod=await import('https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js');
+    const authMod=await import('https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js');
+    const fsMod=await import('https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js');
+    const app=appMod.initializeApp(window.FIREBASE_CONFIG),auth=authMod.getAuth(app);
+    let db;
+    try{db=fsMod.initializeFirestore(app,{experimentalAutoDetectLongPolling:true});}
+    catch(error){db=fsMod.getFirestore(app);}
+    await authMod.setPersistence(auth,authMod.browserLocalPersistence);
+    firebase.api={...authMod,...fsMod,auth,db};
+    try{await fsMod.enableNetwork(db);}catch(error){console.warn('Firestore network activation was delayed.',error);}
+    authMod.onAuthStateChanged(auth,user=>{
+      firebase.user=user;firebase.connected=Boolean(user);firebase.currentMember=null;firebase.currentRole='';detachFirestoreListeners();
+      if(!user){
+        firebase.openAttempt++;
+        const pending=firebase.pendingAuthMessage;firebase.pendingAuthMessage=null;hideAuthRecovery();showAuthGate(pending?.message||'',pending?.type||'');return;
+      }
+      openAuthenticatedWorkspace(user);
+    });
+    const recovery=authRecoveryElements();
+    recovery.retry?.addEventListener('click',()=>{if(firebase.user)openAuthenticatedWorkspace(firebase.user);});
+    recovery.signOut?.addEventListener('click',async()=>{firebase.openAttempt++;hideAuthRecovery();await authMod.signOut(auth);});
+  }catch(error){console.error(error);showAuthRecovery('Firebase could not start. Check the internet connection and try again.');}
+};
+
+
+initFirebase();
+
+})();
+
+</script>
+
+<script id="character-media-click-controls">
+(() => {
+  function clearCharacterMediaSelection(except = null) {
+    document.querySelectorAll('.is-media-selected[data-character-media-select]').forEach(slot => {
+      if (slot !== except) slot.classList.remove('is-media-selected');
+    });
+  }
+
+  document.addEventListener('click', event => {
+    const control = event.target.closest('[data-character-media-trigger],[data-character-media-edit],[data-character-media-remove]');
+    const slot = event.target.closest('[data-character-media-select]');
+
+    if (slot && slot.classList.contains('has-image')) {
+      clearCharacterMediaSelection(slot);
+      if (!control) {
+        event.preventDefault();
+        slot.classList.toggle('is-media-selected');
+      }
+      return;
+    }
+
+    if (!event.target.closest('.character-cover-slot,.character-portrait-slot,.dossier-media-slot')) {
+      clearCharacterMediaSelection();
+    }
+  }, true);
+
+  document.addEventListener('keydown', event => {
+    const slot = event.target.closest?.('[data-character-media-select].has-image');
+    if (slot && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault();
+      clearCharacterMediaSelection(slot);
+      slot.classList.toggle('is-media-selected');
+    }
+    if (event.key === 'Escape') clearCharacterMediaSelection();
+  });
+})();
+
+
 
 </script>
 
