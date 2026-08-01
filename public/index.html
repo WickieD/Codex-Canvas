@@ -9339,6 +9339,154 @@ renderEntity=function(kind,itemId){cleanRenderEntityBase(kind,itemId);if(kind===
 function cleanShowCurrentDetailsEditor(characterId){const item=getItem('characters',characterId);if(!item)return;const statuses=['Active','Off-screen','Missing','Inactive','Deceased','Unknown'];showModal('Edit current details',`<div class="current-details-editor"><label><span>Status</span><select class="select" data-current-status>${[...new Set([...statuses,item.status].filter(Boolean))].map(value=>`<option value="${esc(value)}" ${item.status===value?'selected':''}>${esc(value)}</option>`).join('')}</select></label><label><span>Current mood</span><input class="input" value="${esc(item.mood||'')}" data-current-mood></label><label><span>Current outfit</span><input class="input" value="${esc(item.outfit||'')}" data-current-outfit></label><label class="wide"><span>Current position</span><textarea class="textarea" rows="3" data-current-position>${esc(item.position||'')}</textarea></label><label class="wide"><span>Current location</span><select class="select" data-current-location><option value="">No location selected</option>${state.locations.map(location=>`<option value="${location.id}" ${item.currentLocationIds?.[0]===location.id?'selected':''}>${esc(location.name)}</option>`).join('')}</select></label></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-save-current-details="${characterId}">Save current details</button>`);}
 document.addEventListener('click',event=>{const edit=event.target.closest('[data-edit-current-details]');if(edit){event.preventDefault();cleanShowCurrentDetailsEditor(edit.dataset.editCurrentDetails);return;}const save=event.target.closest('[data-save-current-details]');if(save){event.preventDefault();const item=getItem('characters',save.dataset.saveCurrentDetails);if(!item)return;item.status=el.modal.querySelector('[data-current-status]')?.value||'';item.mood=el.modal.querySelector('[data-current-mood]')?.value||'';item.outfit=el.modal.querySelector('[data-current-outfit]')?.value||'';item.position=el.modal.querySelector('[data-current-position]')?.value||'';const locationId=el.modal.querySelector('[data-current-location]')?.value||'';item.currentLocationIds=locationId?[locationId]:[];item.updatedAt=nowISO();closeModal();renderEntity('characters',item.id);scheduleSave('Saving current details…');}},true);
 
+
+
+/* === Shared-world startup repair === */
+const codexStartup={attempt:0,assetLoad:null};
+function codexStartupTimeout(promise,milliseconds,label){
+  let timer;
+  return Promise.race([
+    Promise.resolve(promise).finally(()=>clearTimeout(timer)),
+    new Promise((_,reject)=>{timer=setTimeout(()=>{const error=new Error(`${label} did not respond in time.`);error.code='codex/open-timeout';reject(error);},milliseconds);})
+  ]);
+}
+function codexEnsureAuthRecovery(){
+  if(document.getElementById('codexAuthRecovery'))return;
+  const style=document.createElement('style');style.textContent=`
+    #codexAuthRecovery{display:none;gap:10px;flex-wrap:wrap;margin-top:14px}
+    #codexAuthRecovery.visible{display:flex}
+    #codexAuthRecovery button{min-height:42px;border-radius:12px;padding:0 15px;font:700 .9rem Inter,system-ui,sans-serif;cursor:pointer}
+    #codexAuthRetry{border:0;background:#d9b15c;color:#111827}
+    #codexAuthSignOut{border:1px solid rgba(217,177,92,.38);background:transparent;color:#f4ead4}
+  `;document.head.appendChild(style);
+  const actions=document.createElement('div');actions.id='codexAuthRecovery';actions.innerHTML='<button id="codexAuthRetry" type="button">Retry opening workspace</button><button id="codexAuthSignOut" type="button">Sign out</button>';
+  el.authMessage?.insertAdjacentElement('afterend',actions);
+  actions.querySelector('#codexAuthRetry')?.addEventListener('click',()=>{if(firebase.user)codexOpenAuthenticatedWorkspace(firebase.user);});
+  actions.querySelector('#codexAuthSignOut')?.addEventListener('click',async()=>{codexStartup.attempt++;actions.classList.remove('visible');if(firebase.api?.auth)await firebase.api.signOut(firebase.api.auth);});
+}
+function codexShowAuthRecovery(message){
+  codexEnsureAuthRecovery();
+  el.app.hidden=true;el.authGate.hidden=false;el.authGate.classList.remove('auth-loading');setAuthMessage(message,'error');
+  document.getElementById('codexAuthRecovery')?.classList.add('visible');
+}
+function codexHideAuthRecovery(){document.getElementById('codexAuthRecovery')?.classList.remove('visible');}
+async function codexServerDoc(ref){
+  const api=firebase.api;
+  return api.getDocFromServer?api.getDocFromServer(ref):api.getDoc(ref);
+}
+async function codexServerDocs(ref){
+  const api=firebase.api;
+  return api.getDocsFromServer?api.getDocsFromServer(ref):api.getDocs(ref);
+}
+
+bootstrapSharedWorkspace=async function(){
+  const api=firebase.api,workspaceRef=firebaseWorkspaceRef(),email=normalizeMemberEmail(firebase.user.email),memberRef=firebaseMemberRef(email);
+  const memberSnap=await codexStartupTimeout(codexServerDoc(memberRef),12000,'Membership verification');
+  if(memberSnap.exists()){
+    firebase.currentMember={id:memberSnap.id,...memberSnap.data()};
+    firebase.currentRole=firebase.currentMember.role||'Viewer';
+    // Presence is useful, but it must never block opening the workspace.
+    api.setDoc(memberRef,{uid:firebase.user.uid,lastSeenAt:nowISO()},{merge:true}).catch(error=>console.warn('Last-seen update was delayed.',error));
+    return;
+  }
+  // First-owner initialization. This path is only used when no membership exists.
+  try{await codexStartupTimeout(readWorkspaceFromRef(firebaseLegacyWorkspaceRef()),12000,'Legacy workspace check');}catch(error){console.warn('No readable legacy workspace was found.',error);}
+  normalizeState();state.workspace.members=[];state.workspace.access={};
+  const createdAt=nowISO();state.createdAt=createdAt;state.createdByUid=firebase.user.uid;state.createdByEmail=email;
+  const ownerRecord={email,role:'Owner',status:'Access granted',uid:firebase.user.uid,addedAt:createdAt,addedBy:email,lastSeenAt:createdAt};
+  const meta={...stateMetaPayload(),createdAt,createdByUid:firebase.user.uid,createdByEmail:email};
+  const batch=api.writeBatch(api.db);batch.set(workspaceRef,meta,{merge:false});batch.set(memberRef,ownerRecord,{merge:false});
+  try{await codexStartupTimeout(batch.commit(),15000,'Shared-world setup');}
+  catch(error){
+    if(['permission-denied','already-exists','failed-precondition'].includes(error.code)){
+      const denied=new Error('This account has not been granted access to this shared world. Please contact the admin team.');denied.code='codex/access-denied';throw denied;
+    }
+    throw error;
+  }
+  firebase.currentMember={id:email,...ownerRecord};firebase.currentRole='Owner';
+};
+
+loadRemoteWorkspace=async function(){
+  const api=firebase.api,workspaceRef=firebaseWorkspaceRef();
+  const [metaSnap,...collectionSnaps]=await codexStartupTimeout(Promise.all([
+    codexServerDoc(workspaceRef),...SYNC_COLLECTIONS.map(kind=>codexServerDocs(api.collection(workspaceRef,kind)))
+  ]),22000,'Shared-world download');
+  const next=deepClone(window.INITIAL_WORLD_DATA);
+  if(metaSnap.exists())Object.assign(next,cleanWithoutSyncFields(metaSnap.data()));
+  cleanSync.baseMeta=metaSnap.exists()?JSON.stringify(metaSnap.data()):'';firebase.remoteCache.meta=cleanSync.baseMeta;
+  SYNC_COLLECTIONS.forEach((kind,index)=>{
+    const baseMap=new Map();
+    const docs=collectionSnaps[index].docs.map(docSnap=>{
+      const raw=docSnap.data(),order=Number(raw.__order)||0;baseMap.set(docSnap.id,JSON.stringify(raw));
+      const clean=cleanWithoutSyncFields(raw);delete clean.__order;cleanHydrateImages(clean);return {value:clean,order};
+    }).sort((a,b)=>a.order-b.order).map(entry=>entry.value);
+    next[kind]=docs;cleanSync.baseCollections[kind]=baseMap;firebase.remoteCache.collections[kind]=new Map(baseMap);
+  });
+  const members=state.workspace?.members||[],access=state.workspace?.access||{};
+  firebase.applyingRemote=true;state=next;normalizeState();state.workspace.members=members;state.workspace.access=access;cleanHydrateAll();cleanWriteBrowserSnapshot();firebase.applyingRemote=false;
+  cleanSync.dirty=false;cleanSync.blocked=false;
+};
+
+async function codexLoadAssetsAfterOpen(){
+  if(codexStartup.assetLoad)return codexStartup.assetLoad;
+  codexStartup.assetLoad=(async()=>{
+    try{
+      const snap=await codexStartupTimeout(codexServerDocs(cleanAssetCollection()),25000,'Shared image download');
+      const nextData=new Map(),nextBase=new Map();
+      snap.docs.forEach(docSnap=>{const raw=docSnap.data();if(raw.dataUrl)nextData.set(docSnap.id,raw.dataUrl);nextBase.set(docSnap.id,JSON.stringify(raw));});
+      cleanSync.assetData=nextData;cleanSync.baseAssets=nextBase;firebase.applyingRemote=true;cleanHydrateAll();firebase.applyingRemote=false;cleanWriteBrowserSnapshot();queueRemoteRender();
+    }catch(error){console.warn('The workspace opened before all images finished loading.',error);toast('The workspace opened, but some shared images are still loading.','error');}
+    finally{codexStartup.assetLoad=null;}
+  })();
+  return codexStartup.assetLoad;
+}
+
+async function codexOpenAuthenticatedWorkspace(user){
+  const attempt=++codexStartup.attempt;codexHideAuthRecovery();
+  el.authGate.hidden=false;el.app.hidden=true;el.authGate.classList.add('auth-loading');setAuthMessage('Opening the shared world…');
+  try{
+    await bootstrapSharedWorkspace();if(attempt!==codexStartup.attempt)return;
+    setAuthMessage('Loading characters and locations…');
+    await loadRemoteWorkspace();if(attempt!==codexStartup.attempt)return;
+    attachFirestoreListeners();showAuthenticatedApp();render();el.saveStatus.textContent='Synced';
+    codexLoadAssetsAfterOpen();
+  }catch(error){
+    if(attempt!==codexStartup.attempt)return;
+    console.error('Shared-world startup failed:',error);
+    if(error.code==='codex/access-denied'){
+      firebase.pendingAuthMessage={message:error.message,type:'error'};await firebase.api.signOut(firebase.api.auth);return;
+    }
+    const message=error.code==='permission-denied'
+      ? 'Your login worked, but Firestore denied access. Publish the firestore.rules file included with the Clean Sync Rebuild, then retry.'
+      : error.code==='codex/open-timeout'
+        ? 'Firestore did not respond in time. Check the connection, then choose Retry opening workspace.'
+        : `The shared world could not open. ${error.message||'Please retry.'}`;
+    codexShowAuthRecovery(message);
+  }
+}
+
+initFirebase=async function(){
+  el.authGate.classList.add('auth-loading');setAuthMessage('Checking your account…');codexEnsureAuthRecovery();codexHideAuthRecovery();
+  try{
+    const appMod=await import('https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js');
+    const authMod=await import('https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js');
+    const fsMod=await import('https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js');
+    const app=appMod.initializeApp(window.FIREBASE_CONFIG),auth=authMod.getAuth(app);
+    let db;
+    try{db=fsMod.initializeFirestore(app,{experimentalAutoDetectLongPolling:true,experimentalLongPollingOptions:{timeoutSeconds:15},ignoreUndefinedProperties:true});}
+    catch(error){console.warn('Custom Firestore transport was unavailable; using the standard transport.',error);db=fsMod.getFirestore(app);}
+    await authMod.setPersistence(auth,authMod.browserLocalPersistence);
+    firebase.api={...authMod,...fsMod,auth,db};
+    fsMod.enableNetwork(db).catch(error=>console.warn('Firestore network activation was delayed.',error));
+    authMod.onAuthStateChanged(auth,user=>{
+      firebase.user=user;firebase.connected=Boolean(user);firebase.currentMember=null;firebase.currentRole='';detachFirestoreListeners();
+      if(!user){codexStartup.attempt++;const pending=firebase.pendingAuthMessage;firebase.pendingAuthMessage=null;codexHideAuthRecovery();showAuthGate(pending?.message||'',pending?.type||'');return;}
+      codexOpenAuthenticatedWorkspace(user);
+    });
+  }catch(error){console.error(error);codexShowAuthRecovery('Firebase could not start. Check the internet connection, then retry.');}
+};
+
+
 cleanCreateSaveOverlay();
 
 initFirebase();
