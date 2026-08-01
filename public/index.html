@@ -3685,6 +3685,51 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .cc9-toolbar-upload{position:relative;display:inline-grid;place-items:center;cursor:pointer}
 </style>
 
+
+<style id="cc13-media-consolidated-style">
+/* One stable media system for Species and Locations. */
+.cc13-cover-frame{
+  position:relative;width:100%;aspect-ratio:16/5;min-height:180px;max-height:360px;
+  overflow:hidden;border:1px solid var(--border);border-radius:18px;background:var(--panel-soft)
+}
+.cc13-profile-card{border:1px solid var(--border);border-radius:14px;background:var(--panel);padding:12px}
+.cc13-profile-label{margin-bottom:8px;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.cc13-profile-frame{
+  position:relative;width:100%;aspect-ratio:4/3;min-height:220px;max-height:420px;
+  overflow:hidden;border:1px solid var(--border);border-radius:13px;background:var(--panel-soft)
+}
+.cc13-cover-frame img,.cc13-profile-frame img{width:100%;height:100%;display:block;object-fit:cover}
+.cc13-media-placeholder{width:100%;height:100%;display:grid;place-items:center;padding:24px;text-align:center;cursor:pointer}
+.cc13-media-placeholder strong{display:block;margin-bottom:8px}
+.cc13-media-placeholder span{display:block;color:var(--muted);font-size:13px;max-width:520px}
+.cc13-media-overlay{
+  position:absolute;inset:auto 10px 10px auto;display:flex;gap:7px;z-index:4
+}
+.cc13-media-overlay label,.cc13-media-overlay button{
+  min-height:34px;border:1px solid var(--border);border-radius:9px;background:color-mix(in srgb,var(--panel) 92%,transparent);
+  color:var(--text);padding:6px 10px;font-weight:750;cursor:pointer
+}
+.cc13-media-overlay input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.cc13-media-click{cursor:pointer}
+.cc13-media-click:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:3px}
+.cc13-media-editor{display:grid;grid-template-columns:minmax(220px,.9fr) minmax(260px,1.1fr);gap:16px;align-items:start}
+.cc13-media-preview{aspect-ratio:16/10;overflow:hidden;border:1px solid var(--border);border-radius:12px;background:var(--panel-soft)}
+.cc13-media-preview img{width:100%;height:100%;display:block;object-fit:cover}
+.cc13-media-controls{display:grid;gap:11px}
+.cc13-media-controls label{display:grid;gap:5px}
+.cc13-media-controls label>span{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:12px;font-weight:750}
+.cc13-media-controls input[type=range]{width:100%}
+.cc13-media-controls select{width:100%;min-height:38px;border:1px solid var(--border);border-radius:9px;background:var(--panel-strong);padding:7px 9px}
+.modal:has(.cc13-media-editor){width:min(780px,calc(100vw - 28px));max-height:90vh}
+.modal:has(.cc13-media-editor) .modal-body{overflow:auto}
+@media(max-width:760px){
+ .cc13-cover-frame{aspect-ratio:16/7;min-height:150px}
+ .cc13-profile-frame{min-height:190px}
+ .cc13-media-editor{grid-template-columns:1fr}
+ .cc13-media-overlay{left:8px;right:8px;justify-content:flex-end}
+}
+</style>
+
 </head>
 <body>
 
@@ -11879,50 +11924,80 @@ initFirebase();
     input.value='';
   },true);
 
-  /* Reliable Firestore asset rendering for Species and Location images. */
-  function cc12ImageSource(media){
+  function cc13Source(media){
     if(!media)return '';
-    if(typeof media.src==='string' && media.src.trim())return media.src;
-    if(media.assetId && cleanSync?.assetData?.has(media.assetId)){
-      return cleanSync.assetData.get(media.assetId)||'';
-    }
+    if(typeof media.src==='string'&&media.src.trim())return media.src;
+    if(media.assetId&&typeof cleanSync!=='undefined'&&cleanSync?.assetData?.has(media.assetId))return cleanSync.assetData.get(media.assetId)||'';
     return '';
   }
-
-  const cc12BasePageImageBlock=cc5PageImageBlock;
-  cc5PageImageBlock=function(kind,itemId,block,index){
-    if(block?.type==='image'){
-      const hydrated=cc12ImageSource(block);
-      if(hydrated && !block.src)block.src=hydrated;
-    }
-    return cc12BasePageImageBlock(kind,itemId,block,index);
-  };
-
+  function cc13Style(media,slot){
+    const x=Math.max(0,Math.min(100,Number(media?.positionX??50)));
+    const y=Math.max(0,Math.min(100,Number(media?.positionY??(slot==='cover'?50:35))));
+    const zoom=Math.max(1,Math.min(3,Number(media?.zoom??1)));
+    const fit=media?.fit==='contain'?'contain':'cover';
+    return `object-position:${x}% ${y}%;transform:scale(${zoom});transform-origin:${x}% ${y}%;object-fit:${fit}`;
+  }
+  function cc13Copy(kind){
+    return SECTION_MEDIA_COPY?.[kind]||{cover:'Add cover image',coverHelp:'Choose a representative scene',image:'Add image',imageHelp:'Choose a reference image',label:'Image'};
+  }
   renderSectionMediaCover=function(kind,item){
-    const copy=SECTION_MEDIA_COPY[kind],media=item.headerImage,image=cc12ImageSource(media),ref=`${kind}:cover:${item.id}`;
-    if(!image)return `<label class="section-media-cover-slot cc9-native-upload"><div class="section-media-placeholder"><div><span class="title">${esc(copy.cover)}</span><span class="help">${esc(copy.coverHelp)}</span><span class="cc9-upload-hint">Tap to choose an image</span></div></div><input type="file" accept="image/*" data-section-media-input="${ref}"></label>`;
-    return `<div class="section-media-cover-slot has-image" data-section-media-select="${ref}" tabindex="0" role="button"><img src="${esc(image)}" alt="${esc(media.alt||item.name+' cover')}" style="${sectionMediaStyle(media,'cover')}"><div class="section-media-cover-overlay"></div><div class="section-media-controls"><label class="button secondary small cc9-replace-label">Replace cover<input type="file" accept="image/*" data-section-media-input="${ref}"></label><button class="button ghost small" type="button" data-section-media-remove="${ref}">Remove</button></div></div>`;
+    const copy=cc13Copy(kind),media=item.headerImage,src=cc13Source(media),ref=`${kind}:cover:${item.id}`;
+    if(!src)return `<div class="cc13-cover-frame"><label class="cc13-media-placeholder"><div><strong>${esc(copy.cover)}</strong><span>${esc(copy.coverHelp)}</span></div><input type="file" accept="image/*" hidden data-section-media-input="${esc(ref)}"></label></div>`;
+    return `<div class="cc13-cover-frame cc13-media-click" tabindex="0" role="button" data-cc13-media-edit="${esc(ref)}"><img src="${esc(src)}" alt="${esc(media?.alt||item.name+' cover')}" style="${cc13Style(media,'cover')}"><div class="cc13-media-overlay"><button type="button" data-cc13-media-edit="${esc(ref)}">Edit cover</button><label>Replace<input type="file" accept="image/*" data-section-media-input="${esc(ref)}"></label></div></div>`;
   };
-
   renderSectionMediaPortrait=function(kind,item){
-    const copy=SECTION_MEDIA_COPY[kind],media=item.profileImage,image=cc12ImageSource(media),ref=`${kind}:profile:${item.id}`;
-    if(!image)return `<section class="panel section-media-portrait-card"><div class="section-media-portrait-label">${esc(copy.label)}</div><label class="section-media-slot cc9-native-upload"><div class="section-media-placeholder-compact"><div><span class="title">${esc(copy.image)}</span><span class="help">${esc(copy.imageHelp)}</span><span class="cc9-upload-hint">Tap to choose an image</span></div></div><input type="file" accept="image/*" data-section-media-input="${ref}"></label></section>`;
-    return `<section class="panel section-media-portrait-card"><div class="section-media-portrait-label">${esc(copy.label)}</div><div class="section-media-slot has-image" data-section-media-select="${ref}" tabindex="0" role="button"><img src="${esc(image)}" alt="${esc(media.alt||item.name+' image')}" style="${sectionMediaStyle(media,'profile')}"><div class="section-media-controls"><label class="button secondary small cc9-replace-label">Replace image<input type="file" accept="image/*" data-section-media-input="${ref}"></label><button class="button ghost small" type="button" data-section-media-remove="${ref}">Remove</button></div></div></section>`;
+    const copy=cc13Copy(kind),media=item.profileImage,src=cc13Source(media),ref=`${kind}:profile:${item.id}`;
+    if(!src)return `<section class="cc13-profile-card"><div class="cc13-profile-label">${esc(copy.label)}</div><div class="cc13-profile-frame"><label class="cc13-media-placeholder"><div><strong>${esc(copy.image)}</strong><span>${esc(copy.imageHelp)}</span></div><input type="file" accept="image/*" hidden data-section-media-input="${esc(ref)}"></label></div></section>`;
+    return `<section class="cc13-profile-card"><div class="cc13-profile-label">${esc(copy.label)}</div><div class="cc13-profile-frame cc13-media-click" tabindex="0" role="button" data-cc13-media-edit="${esc(ref)}"><img src="${esc(src)}" alt="${esc(media?.alt||item.name+' image')}" style="${cc13Style(media,'profile')}"><div class="cc13-media-overlay"><button type="button" data-cc13-media-edit="${esc(ref)}">Edit image</button><label>Replace<input type="file" accept="image/*" data-section-media-input="${esc(ref)}"></label></div></div></section>`;
   };
 
-  /* Re-render after asset documents finish hydrating. */
-  const cc12BaseHydrate=cleanHydrateImages;
-  cleanHydrateImages=function(value){
-    const result=cc12BaseHydrate(value);
-    requestAnimationFrame(()=>{
-      const route=parseRoute();
-      if(['species','locations'].includes(route.view) && route.id){
-        renderEntity(route.view,route.id);
-      }
-    });
-    return result;
-  };
-
+  function cc13Info(ref){
+    const [kind,slot,itemId]=String(ref||'').split(':');
+    const item=getItem(kind,itemId);const field=slot==='cover'?'headerImage':'profileImage';
+    return {kind,slot,itemId,item,field,media:item?.[field]};
+  }
+  function cc13Open(ref){
+    const info=cc13Info(ref);if(!info.item||!info.media)return;
+    const src=cc13Source(info.media);if(!src)return;
+    const m=info.media;
+    showModal(info.slot==='cover'?'Edit cover image':'Edit image',`<div class="cc13-media-editor">
+      <div class="cc13-media-preview"><img data-cc13-preview src="${esc(src)}" alt="Image preview" style="${cc13Style(m,info.slot)}"></div>
+      <div class="cc13-media-controls">
+        <label><span>Fit</span><select data-cc13-field="fit"><option value="cover" ${m.fit!=='contain'?'selected':''}>Fill frame</option><option value="contain" ${m.fit==='contain'?'selected':''}>Show whole image</option></select></label>
+        <label><span>Zoom <output>${Number(m.zoom||1).toFixed(2)}×</output></span><input type="range" min="1" max="3" step="0.05" value="${Number(m.zoom||1)}" data-cc13-field="zoom"></label>
+        <label><span>Horizontal position <output>${Number(m.positionX??50)}%</output></span><input type="range" min="0" max="100" step="1" value="${Number(m.positionX??50)}" data-cc13-field="positionX"></label>
+        <label><span>Vertical position <output>${Number(m.positionY??(info.slot==='cover'?50:35))}%</output></span><input type="range" min="0" max="100" step="1" value="${Number(m.positionY??(info.slot==='cover'?50:35))}" data-cc13-field="positionY"></label>
+      </div></div>`,
+      `<button class="button danger" type="button" data-cc13-remove="${esc(ref)}">Remove image</button><button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-cc13-save="${esc(ref)}">Done</button>`);
+    el.modal.dataset.cc13Ref=ref;
+  }
+  function cc13Preview(){
+    const ref=el.modal?.dataset?.cc13Ref;if(!ref)return;
+    const info=cc13Info(ref),img=el.modal.querySelector('[data-cc13-preview]');if(!info.media||!img)return;
+    img.style.cssText=cc13Style(info.media,info.slot);
+  }
+  document.addEventListener('click',event=>{
+    const edit=event.target.closest('[data-cc13-media-edit]');
+    if(edit){event.preventDefault();event.stopImmediatePropagation();cc13Open(edit.dataset.cc13MediaEdit);return;}
+    const remove=event.target.closest('[data-cc13-remove]');
+    if(remove){event.preventDefault();event.stopImmediatePropagation();const info=cc13Info(remove.dataset.cc13Remove);if(info.item&&confirm('Remove this image?')){info.item[info.field]=null;info.item.updatedAt=nowISO();scheduleSave();closeModal();renderEntity(info.kind,info.itemId);}return;}
+    const save=event.target.closest('[data-cc13-save]');
+    if(save){event.preventDefault();event.stopImmediatePropagation();const info=cc13Info(save.dataset.cc13Save);if(info.item){info.item.updatedAt=nowISO();scheduleSave();closeModal();renderEntity(info.kind,info.itemId);}return;}
+  },true);
+  document.addEventListener('input',event=>{
+    const control=event.target.closest('[data-cc13-field]');if(!control)return;
+    const ref=el.modal?.dataset?.cc13Ref,info=cc13Info(ref);if(!info.media)return;
+    const field=control.dataset.cc13Field;
+    info.media[field]=field==='fit'?control.value:Number(control.value);
+    const output=control.closest('label')?.querySelector('output');
+    if(output)output.textContent=field==='zoom'?`${Number(control.value).toFixed(2)}×`:`${control.value}%`;
+    cc13Preview();
+  },true);
+  document.addEventListener('change',event=>{
+    const control=event.target.closest('select[data-cc13-field]');if(!control)return;
+    const ref=el.modal?.dataset?.cc13Ref,info=cc13Info(ref);if(!info.media)return;
+    info.media[control.dataset.cc13Field]=control.value;cc13Preview();
+  },true);
 })();
 </script>
 
