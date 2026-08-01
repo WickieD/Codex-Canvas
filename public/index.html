@@ -6404,7 +6404,7 @@ window.CODEX_BUILD = "shared-world-login-repair-2026-07-31";
     const dossierThemePicker=event.target.closest('[data-dossier-theme-picker]');if(dossierThemePicker){showDossierThemePicker(dossierThemePicker.dataset.dossierThemePicker);return;}
     const dossierThemeApply=event.target.closest('[data-dossier-theme-apply]');if(dossierThemeApply){const [characterId,themeId]=dossierThemeApply.dataset.dossierThemeApply.split(':');const item=getItem('characters',characterId);if(item&&DOSSIER_THEMES[themeId]){item.dossierTheme=themeId;item.updatedAt=nowISO();scheduleSave();closeModal();renderEntity('characters',characterId);toast(`${DOSSIER_THEMES[themeId].name} applied.`);}return;}
     const dossierCustomSave=event.target.closest('[data-dossier-custom-save]');if(dossierCustomSave){const characterId=dossierCustomSave.dataset.dossierCustomSave;const item=getItem('characters',characterId);if(item){const fallback=DOSSIER_THEMES['classic-parchment'];item.dossierCustomTheme={};el.modal.querySelectorAll('[data-dossier-custom-color]').forEach(input=>{const key=input.dataset.dossierCustomColor;item.dossierCustomTheme[key]=safeDossierColor(input.value,fallback[key]);});item.dossierTheme='custom';item.updatedAt=nowISO();scheduleSave();closeModal();renderEntity('characters',characterId);toast('Custom dossier colors saved.');}return;}
-    const dossierEdit=event.target.closest('[data-dossier-edit]');if(dossierEdit){const [characterId,field,labelRaw]=dossierEdit.dataset.dossierEdit.split(':');showDossierFieldEditor(characterId,field,decodeURIComponent(labelRaw||field));return;}
+    const dossierEdit=event.target.closest('[data-dossier-edit]');if(dossierEdit){const [characterId,field,labelRaw]=dossierEdit.dataset.dossierEdit.split(':');if(field==='speciesRace'){showCharacterSpeciesPicker(characterId);return;}showDossierFieldEditor(characterId,field,decodeURIComponent(labelRaw||field));return;}
     const dossierSave=event.target.closest('[data-dossier-save]');if(dossierSave){const [characterId,field]=dossierSave.dataset.dossierSave.split(':');const item=getItem('characters',characterId);const input=el.modal.querySelector(`[data-dossier-field-input="${CSS.escape(characterId)}:${CSS.escape(field)}"]`);if(item&&input){item[field]=input.value;item.updatedAt=nowISO();scheduleSave();closeModal();renderEntity('characters',characterId);}return;}
     const newButton=event.target.closest('[data-new]');if(newButton){addItem(newButton.dataset.new);return;}
     const newChild=event.target.closest('[data-new-child]');if(newChild){addItem('locations',newChild.dataset.newChild);return;}
@@ -10314,6 +10314,262 @@ const CC2_VERSION = 'story-timeline-2026-08';
   requestAnimationFrame(()=>render());
 /* === End integrated Story Timeline Update === */
 
+
+/* === Standard Species Bio and Linked Character Species Picker === */
+const CC_SPECIES_BIO_TEMPLATE_VERSION = 1;
+
+function ccSpeciesBioTemplateBlocks(){
+  const block=(type,content)=>({id:id('block'),type,content});
+  return [
+    block('h2','Species Overview'),
+    block('bullet','**Common Name:**'),
+    block('bullet','**Scientific or Formal Classification:**'),
+    block('bullet','**Other Names:**'),
+    block('bullet','**Species Type:**'),
+    block('bullet','**Origin:**'),
+    block('bullet','**Average Lifespan:**'),
+    block('bullet','**Maturity:**'),
+    block('bullet','**Typical Height:**'),
+    block('bullet','**Primary Habitats:**'),
+    block('bullet','**Population Status:**'),
+    block('text','Write a clear overview of the species, what distinguishes it, and its place in Riftbound.'),
+
+    block('h2','Physical Appearance'),
+    block('text','Describe typical appearance, natural variation, recognizable traits, and changes caused by ancestry, environment, magic, technology, or rift exposure.'),
+
+    block('h2','Biology'),
+    block('text','Explain anatomy, body systems, natural defenses, movement, healing, environmental needs, and other important biological features.'),
+    block('h3','Biological Strengths'),
+    block('bullet','Add a biological strength.'),
+    block('h3','Biological Limitations'),
+    block('bullet','Add a biological limitation.'),
+
+    block('h2','Reproduction and Family'),
+    block('text','Describe reproduction, pregnancy or incubation, birth, childhood needs, family structures, inheritance, adoption, and community support.'),
+
+    block('h2','Life Stages'),
+    block('h3','Infancy'),
+    block('text','Describe the earliest life stage.'),
+    block('h3','Childhood'),
+    block('text','Describe growth, learning, and dependence during childhood.'),
+    block('h3','Adolescence'),
+    block('text','Describe physical, emotional, magical, or social maturity.'),
+    block('h3','Adulthood'),
+    block('text','Describe when adulthood is recognized and what it means culturally.'),
+    block('h3','Middle Age'),
+    block('text','Describe this stage, including changes in ability, status, or responsibility.'),
+    block('h3','Elderhood'),
+    block('text','Describe aging, elder status, life expectancy, and end-of-life traditions.'),
+
+    block('h2','Senses'),
+    block('text','Describe vision, hearing, smell, taste, touch, magical perception, and any unusual senses.'),
+
+    block('h2','Adaptability'),
+    block('text','Explain how the species responds to new environments, cultures, technologies, magic, hardship, and change.'),
+
+    block('h2','Magic'),
+    block('text','Describe natural magical ability, learned traditions, limitations, common disciplines, and attitudes toward magic.'),
+
+    block('h2','Rift Exposure'),
+    block('text','Describe how rifts affect this species physically, mentally, culturally, magically, or technologically.'),
+
+    block('h2','Technology'),
+    block('text','Describe common technology levels, specialties, tools, inventions, and relationships with recovered or foreign technology.'),
+
+    block('h2','Society'),
+    block('text','Describe governments, institutions, communities, social structures, laws, leadership, and sources of internal conflict.'),
+
+    block('h2','Culture'),
+    block('text','Describe traditions, values, celebrations, art, music, food, courtship, burial practices, identity, and regional differences.'),
+
+    block('h2','Language'),
+    block('text','Describe languages, dialects, writing systems, naming customs, translation methods, and concepts that are difficult to translate.'),
+
+    block('h2','Religion and Belief'),
+    block('text','Describe faiths, philosophies, sacred practices, creation beliefs, views of the Sundering, and attitudes toward gods or powerful beings.'),
+
+    block('h2','Relationships With Other Species'),
+    block('text','Describe alliances, prejudices, integration, trade, conflict, diplomacy, mixed communities, and inter-species families.'),
+
+    block('h2','Common Strengths'),
+    block('bullet','Add a common strength.'),
+
+    block('h2','Common Weaknesses'),
+    block('bullet','Add a common weakness.'),
+
+    block('h2','Diet'),
+    block('text','Describe dietary needs, common foods, restrictions, cultural practices, and foods that may be dangerous to or from other species.'),
+
+    block('h2','Clothing and Adornment'),
+    block('text','Describe practical clothing, social markers, jewelry, tattoos, uniforms, magical protection, modifications, and personal expression.'),
+
+    block('h2','Settlements'),
+    block('text','Describe common homes, cities, villages, colonies, environmental preferences, architecture, and settlement patterns.'),
+
+    block('h2','Historical Role in Riftbound'),
+    block('text','Describe the species before and after the Sundering, major discoveries, conflicts, migrations, achievements, disasters, and present-day influence.'),
+
+    block('h2','Species Variants'),
+    block('text','List lineages, regional populations, magical variants, technological variants, mixed ancestry, adaptations, or disputed classifications.'),
+
+    block('h2','Naming Examples'),
+    block('h3','Given Names'),
+    block('text','Add representative given names and explain relevant naming patterns.'),
+    block('h3','Family, Clan, or Group Names'),
+    block('text','Add family, clan, house, lineage, settlement, title, or occupational names.'),
+
+    block('h2','Common Misconceptions'),
+    block('text','List common stereotypes or misunderstandings and explain what is actually true.'),
+
+    block('h2','Story Uses'),
+    block('bullet','Add a character, conflict, mystery, culture, or plot role this species supports.'),
+
+    block('h2','Species Summary'),
+    block('text','Summarize the species, its defining qualities, its greatest strengths and challenges, and why it matters in this world.')
+  ];
+}
+
+function ccSpeciesNormalizeName(value){
+  return String(value||'').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,' ').trim();
+}
+function ccSpeciesIdList(character){
+  const valid=new Set((state.species||[]).map(item=>item.id));
+  const ids=[...(Array.isArray(character?.speciesIds)?character.speciesIds:[]),character?.speciesId].filter(Boolean);
+  return [...new Set(ids)].filter(itemId=>valid.has(itemId));
+}
+function ccSpeciesRecords(character){
+  return ccSpeciesIdList(character).map(itemId=>getItem('species',itemId)).filter(Boolean);
+}
+function ccSpeciesDisplay(character){
+  const linked=ccSpeciesRecords(character);
+  return linked.length?linked.map(item=>item.name).join(' / '):(character?.speciesRace||'');
+}
+function ccInferSpeciesIdsFromText(value){
+  const raw=ccSpeciesNormalizeName(value);if(!raw)return[];
+  const exact=(state.species||[]).filter(item=>ccSpeciesNormalizeName(item.name)===raw).map(item=>item.id);
+  if(exact.length)return exact;
+  return (state.species||[]).filter(item=>{const name=ccSpeciesNormalizeName(item.name);return name.length>2&&raw.includes(name);}).map(item=>item.id);
+}
+function ccSynchronizeSpeciesMembership(){
+  state.species ||= []; state.characters ||= [];
+  const speciesIds=new Set(state.species.map(item=>item.id));
+  const characterIds=new Set(state.characters.map(item=>item.id));
+  const fromSpecies=new Map();
+  for(const species of state.species){
+    species.keyMemberIds=[...new Set((species.keyMemberIds||[]).filter(itemId=>characterIds.has(itemId)))];
+    for(const characterId of species.keyMemberIds){
+      if(!fromSpecies.has(characterId))fromSpecies.set(characterId,[]);
+      fromSpecies.get(characterId).push(species.id);
+    }
+  }
+  for(const character of state.characters){
+    let selected=[...(Array.isArray(character.speciesIds)?character.speciesIds:[]),character.speciesId,...(fromSpecies.get(character.id)||[])].filter(Boolean);
+    if(!selected.length&&character.speciesRace)selected.push(...ccInferSpeciesIdsFromText(character.speciesRace));
+    character.speciesIds=[...new Set(selected)].filter(itemId=>speciesIds.has(itemId));
+    character.speciesId=character.speciesIds[0]||'';
+    const names=character.speciesIds.map(itemId=>getItem('species',itemId)?.name).filter(Boolean);
+    if(names.length)character.speciesRace=names.join(' / ');
+  }
+  for(const species of state.species){
+    species.keyMemberIds=state.characters.filter(character=>character.speciesIds?.includes(species.id)).map(character=>character.id);
+  }
+}
+function ccSetCharacterSpecies(characterId,selectedIds){
+  const character=getItem('characters',characterId);if(!character)return;
+  const valid=new Set((state.species||[]).map(item=>item.id));
+  character.speciesIds=[...new Set(selectedIds||[])].filter(itemId=>valid.has(itemId));
+  character.speciesId=character.speciesIds[0]||'';
+  character.speciesRace=character.speciesIds.map(itemId=>getItem('species',itemId)?.name).filter(Boolean).join(' / ');
+  character.updatedAt=nowISO();
+  ccSynchronizeSpeciesMembership();
+  for(const species of state.species)species.updatedAt=nowISO();
+}
+function ccSpeciesLinkedPills(character){
+  const linked=ccSpeciesRecords(character);
+  return linked.map(item=>`<button class="link-pill" type="button" data-open="species:${item.id}">${esc(item.name)}</button>`).join('')||'<span class="property-help">No species selected.</span>';
+}
+function renderCharacterSpeciesProperty(character){
+  const selected=new Set(ccSpeciesIdList(character));
+  const options=(state.species||[]).slice().sort((a,b)=>a.name.localeCompare(b.name)).map(item=>`<label class="character-species-option"><input type="checkbox" value="${esc(item.id)}" data-character-species-inline="${esc(character.id)}" ${selected.has(item.id)?'checked':''}><span>${esc(item.name)}</span></label>`).join('');
+  const summary=ccSpeciesDisplay(character)||'Choose species';
+  return `<div class="property-row"><label>Species / race</label><details class="character-species-dropdown"><summary>${esc(summary)}</summary><div class="character-species-dropdown-panel">${options||'<p class="property-help">Create a species entry first.</p>'}<button class="button secondary small" type="button" data-save-character-species-inline="${esc(character.id)}">Apply selection</button></div></details><div class="property-links character-species-linked">${ccSpeciesLinkedPills(character)}</div><div class="property-help">Choose one or more species. Hybrid characters can link to each relevant species record.</div></div>`;
+}
+function showCharacterSpeciesPicker(characterId){
+  const character=getItem('characters',characterId);if(!character)return;
+  const selected=new Set(ccSpeciesIdList(character));
+  const options=(state.species||[]).slice().sort((a,b)=>a.name.localeCompare(b.name)).map(item=>`<label class="character-species-option modal-option"><input type="checkbox" value="${esc(item.id)}" data-character-species-option ${selected.has(item.id)?'checked':''}><span><strong>${esc(item.name)}</strong>${item.classification||item.prevalence?`<small>${esc(item.classification||item.prevalence)}</small>`:''}</span></label>`).join('');
+  showModal(`Choose species for ${character.name}`,`<p class="page-subtitle">Select every species or ancestry that applies. Each selection links this character back to the species page automatically.</p><div class="character-species-modal-list">${options||'<p class="property-help">No species records exist yet. Create one from the Species section first.</p>'}</div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-save-character-species-picker="${esc(character.id)}">Save species</button>`);
+}
+
+const normalizeStateBeforeSpeciesStandard=normalizeState;
+normalizeState=function(){
+  normalizeStateBeforeSpeciesStandard();
+  for(const species of state.species||[]){
+    species.classification ||= species.prevalence || '';
+    species.origin ||= '';
+    species.description ||= species.survivalGoal || '';
+    species.traitsText ||= '';
+    species.culture ||= species.relations || '';
+    species.bioTemplateVersion ||= 0;
+  }
+  ccSynchronizeSpeciesMembership();
+};
+normalizeState();
+
+const addItemBeforeSpeciesStandard=addItem;
+addItem=function(kind,parentId=''){
+  if(kind!=='species')return addItemBeforeSpeciesStandard(kind,parentId);
+  const itemId=id('species');
+  const item={id:itemId,name:'Untitled Species',favorite:false,updatedAt:nowISO(),prevalence:'Unspecified',classification:'',origin:'',description:'',traitsText:'',culture:'',survivalGoal:'',relations:'',notes:'',keyMemberIds:[],bioTemplateVersion:CC_SPECIES_BIO_TEMPLATE_VERSION,blocks:ccSpeciesBioTemplateBlocks()};
+  state.species.push(item);logActivity(`Created ${item.name}`);scheduleSave('Saving new species bio…');navigate('species',itemId);
+};
+
+const deleteItemBeforeSpeciesStandard=deleteItem;
+deleteItem=function(kind,itemId){
+  const species=kind==='species'?getItem('species',itemId):null;
+  deleteItemBeforeSpeciesStandard(kind,itemId);
+  if(species&&!getItem('species',itemId)){
+    for(const character of state.characters||[]){
+      character.speciesIds=ccSpeciesIdList(character).filter(idValue=>idValue!==itemId);
+      character.speciesId=character.speciesIds[0]||'';
+      if(character.speciesRace===species.name||character.speciesRace===ccSpeciesDisplay(character))character.speciesRace=character.speciesIds.map(idValue=>getItem('species',idValue)?.name).filter(Boolean).join(' / ');
+    }
+    ccSynchronizeSpeciesMembership();
+  }
+};
+
+const propertyInputBeforeSpeciesStandard=propertyInput;
+propertyInput=function(label,field,value,kind,itemId){
+  if(kind==='characters'&&field==='speciesRace'){
+    const character=getItem('characters',itemId);return character?renderCharacterSpeciesProperty(character):propertyInputBeforeSpeciesStandard(label,field,value,kind,itemId);
+  }
+  return propertyInputBeforeSpeciesStandard(label,field,value,kind,itemId);
+};
+
+const renderCharacterSnapshotBeforeSpeciesStandard=renderCharacterSnapshot;
+renderCharacterSnapshot=function(character){
+  let html=renderCharacterSnapshotBeforeSpeciesStandard(character);
+  const species=ccSpeciesRecords(character);
+  const row=`<div class="snapshot-field"><span class="snapshot-label">Species / race</span><div class="property-links">${species.map(item=>`<button class="link-pill" type="button" data-open="species:${item.id}">${esc(item.name)}</button>`).join('')||'<span class="snapshot-value">Not set</span>'}</div></div>`;
+  return html.replace('<div class="snapshot-grid">',`<div class="snapshot-grid">${row}`);
+};
+
+const cc2CharacterHubHtmlBeforeSpeciesStandard=cc2CharacterHubHtml;
+cc2CharacterHubHtml=function(character){
+  let html=cc2CharacterHubHtmlBeforeSpeciesStandard(character);
+  const linked=ccSpeciesRecords(character);
+  const row=`<div class="cc2-hub-row"><span class="cc2-hub-label">Species / ancestry</span><div class="cc2-hub-content">${linked.map(item=>cc2EntityChip('species',item.id)).join('')||'<span class="cc2-empty">No species selected.</span>'}</div><button class="button ghost small" type="button" data-cc2-manage-species="${esc(character.id)}">Choose</button></div>`;
+  return html.replace('<div class="cc2-hub-row"><span class="cc2-hub-label">Current location</span>',`${row}<div class="cc2-hub-row"><span class="cc2-hub-label">Current location</span>`);
+};
+
+document.addEventListener('click',event=>{
+  const manage=event.target.closest('[data-cc2-manage-species]');if(manage){event.preventDefault();event.stopImmediatePropagation();showCharacterSpeciesPicker(manage.dataset.cc2ManageSpecies);return;}
+  const inlineSave=event.target.closest('[data-save-character-species-inline]');if(inlineSave){event.preventDefault();event.stopImmediatePropagation();const characterId=inlineSave.dataset.saveCharacterSpeciesInline;const container=inlineSave.closest('.character-species-dropdown');const selected=[...(container?.querySelectorAll('[data-character-species-inline]:checked')||[])].map(input=>input.value);ccSetCharacterSpecies(characterId,selected);scheduleSave('Saving species links…');renderEntity('characters',characterId);return;}
+  const modalSave=event.target.closest('[data-save-character-species-picker]');if(modalSave){event.preventDefault();event.stopImmediatePropagation();const characterId=modalSave.dataset.saveCharacterSpeciesPicker;const selected=[...el.modal.querySelectorAll('[data-character-species-option]:checked')].map(input=>input.value);ccSetCharacterSpecies(characterId,selected);closeModal();scheduleSave('Saving species links…');renderEntity('characters',characterId);return;}
+},true);
+
+/* === End Standard Species Bio and Linked Character Species Picker === */
+
 cleanCreateSaveOverlay();
 
 initFirebase();
@@ -10487,6 +10743,25 @@ initFirebase();
 
 </style>
 
+
+
+<style id="codex-species-standard-update">
+.character-species-dropdown{position:relative;border:1px solid var(--border);border-radius:10px;background:var(--panel-strong)}
+.character-species-dropdown summary{cursor:pointer;list-style:none;padding:10px 12px;font-weight:700}
+.character-species-dropdown summary::-webkit-details-marker{display:none}
+.character-species-dropdown summary:after{content:"▾";float:right;color:var(--muted)}
+.character-species-dropdown[open] summary:after{content:"▴"}
+.character-species-dropdown-panel{display:grid;gap:7px;border-top:1px solid var(--border);padding:10px;max-height:300px;overflow:auto}
+.character-species-option{display:flex;align-items:center;gap:9px;border:1px solid var(--border);border-radius:9px;background:var(--panel);padding:8px 10px;cursor:pointer}
+.character-species-option input{margin:0;accent-color:var(--accent)}
+.character-species-option span{min-width:0}
+.character-species-option strong,.character-species-option small{display:block}
+.character-species-option small{color:var(--muted);margin-top:2px}
+.character-species-linked{margin-top:8px}
+.character-species-modal-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px}
+.practical-dossier-page .character-species-option{border-color:var(--dossier-line);background:var(--dossier-panel);color:var(--dossier-ink)}
+@media(max-width:600px){.character-species-modal-list{grid-template-columns:1fr}.character-species-dropdown-panel{max-height:240px}}
+</style>
 
 </body>
 </html>
