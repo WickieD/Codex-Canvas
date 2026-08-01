@@ -3512,6 +3512,131 @@ button:disabled { cursor: not-allowed; opacity: .48; }
   @media(max-width:780px){.member-row{grid-template-columns:1fr}.member-admin-actions{justify-content:flex-start}.story-manager-grid,.story-manager-add,.graph-connection-form{grid-template-columns:1fr}.graph-connection-row{grid-template-columns:1fr}.story-intersection-card{grid-template-columns:1fr}}
 </style>
 
+
+<style id="cc5-layout-polish-fixes">
+/* Full-width, non-squished layout pickers on desktop. */
+.modal:has(.cc4-layout-gallery){
+  width:min(1120px,calc(100vw - 48px));
+  max-height:min(820px,calc(100vh - 40px));
+  overflow:hidden;
+}
+.modal:has(.cc4-layout-gallery) .modal-head{padding:18px 22px}
+.modal:has(.cc4-layout-gallery) .modal-body{
+  overflow:auto;
+  padding:18px 22px 14px;
+}
+.modal:has(.cc4-layout-gallery) .modal-foot{
+  position:sticky;
+  bottom:0;
+  z-index:2;
+  background:var(--panel);
+  padding:13px 22px 18px;
+}
+.cc4-layout-gallery{gap:16px}
+.cc4-layout-card{
+  min-width:0;
+  grid-template-rows:auto 260px auto auto;
+  padding:14px;
+}
+.cc4-layout-card p{min-height:70px;margin:0;line-height:1.5}
+.cc4-layout-card>.button{width:100%;align-self:end}
+.cc4-layout-preview{min-width:0}
+
+/* Make approved pages feel closer to the approved mockups. */
+.cc4-approved .cc4-page{max-width:1180px;margin:0 auto}
+.cc4-approved .cc4-page>.section-media-cover-slot{
+  min-height:300px;
+  border-radius:18px;
+  overflow:hidden;
+}
+.cc4-approved .cc3-title-row{
+  margin-top:-1px;
+  border-radius:16px;
+  padding:20px 22px;
+}
+.cc4-approved .cc4-top-grid,
+.cc4-approved .cc4-map-summary{align-items:stretch}
+.cc4-approved .cc4-top-grid>div,
+.cc4-approved .cc4-map-summary>div{min-width:0}
+.cc4-approved .cc4-outline{max-height:calc(100vh - 110px);overflow:auto}
+.cc4-approved .cc4-section summary{min-height:48px;align-items:center}
+.cc4-approved .cc4-section.is-empty{opacity:.34}
+.cc4-approved .cc4-mini-panel{margin-top:12px}
+.cc4-approved .cc4-map-box{min-height:330px}
+.cc4-approved .cc4-journal-page{
+  border-radius:18px;
+  padding:0 0 0 28px;
+}
+.cc4-approved .cc4-journal-page>.section-media-cover-slot{margin-left:-28px;width:calc(100% + 28px)}
+.cc4-approved .cc4-connections .cc4-link-grid{margin-top:2px}
+.cc4-approved .cc4-connections .cc4-story-strip{padding:18px;text-align:center}
+
+/* Sidebar location tree: clean pills, no metadata or decorative asterisks. */
+.location-mini-tree .codex-tree-pill{
+  min-height:48px;
+  grid-template-columns:40px minmax(0,1fr);
+}
+.location-mini-tree .codex-tree-open{
+  display:flex;
+  align-items:center;
+  min-height:46px;
+  padding:7px 14px 7px 3px;
+  gap:0;
+}
+.location-mini-tree .codex-tree-name{
+  display:block;
+  width:100%;
+  line-height:1.18;
+  text-align:left;
+}
+.location-mini-tree .codex-tree-meta{display:none!important}
+.codex-tree-toggle .codex-tree-chevron{
+  width:100%!important;
+  height:100%!important;
+  display:grid!important;
+  place-items:center!important;
+}
+.codex-tree-toggle .codex-tree-chevron:before{
+  position:static!important;
+  display:block;
+  transform:rotate(0deg);
+  transform-origin:center;
+}
+.codex-tree-node.is-open>.codex-tree-pill .codex-tree-chevron:before{transform:rotate(90deg)}
+.codex-tree-toggle .codex-tree-chevron:after{display:none!important;content:none!important}
+.location-mini-tree .codex-tree-toggle{
+  width:30px!important;
+  height:30px!important;
+  padding:0!important;
+}
+.location-mini-tree .codex-tree-leaf-dot{margin-left:10px}
+
+@media(max-width:900px){
+  .modal:has(.cc4-layout-gallery){width:min(720px,calc(100vw - 24px));max-height:calc(100vh - 20px)}
+  .cc4-layout-gallery{grid-template-columns:1fr}
+  .cc4-layout-card{
+    grid-template-columns:155px minmax(0,1fr);
+    grid-template-rows:auto auto auto;
+  }
+  .cc4-layout-preview{grid-column:1;grid-row:1/4;min-height:210px}
+  .cc4-layout-card p{min-height:0}
+}
+@media(max-width:560px){
+  .modal:has(.cc4-layout-gallery){width:calc(100vw - 14px);max-height:calc(100vh - 14px);border-radius:14px}
+  .modal:has(.cc4-layout-gallery) .modal-head,
+  .modal:has(.cc4-layout-gallery) .modal-body,
+  .modal:has(.cc4-layout-gallery) .modal-foot{padding-left:14px;padding-right:14px}
+  .cc4-layout-card{grid-template-columns:112px minmax(0,1fr);padding:11px;gap:9px}
+  .cc4-layout-preview{min-height:170px;padding:7px}
+  .cc4-layout-card header>span{width:30px;height:30px}
+  .cc4-layout-card h3{font-size:16px}
+  .cc4-layout-card p{font-size:13px}
+  .cc4-approved .cc4-page>.section-media-cover-slot{min-height:210px}
+  .cc4-approved .cc4-journal-page{padding-left:0;background:none}
+  .cc4-approved .cc4-journal-page>.section-media-cover-slot{margin-left:0;width:100%}
+}
+</style>
+
 </head>
 <body>
 
@@ -10727,9 +10852,9 @@ function cc4KnownMembers(item){return `<section class="cc4-mini-panel"><h3>Known
 function cc4LocationLinks(item){const children=childrenOf(item.id),connected=(item.relatedLocationIds||[]).map(x=>getItem('locations',x)).filter(Boolean);return `<div class="cc4-link-grid"><section><h3>Contains</h3>${children.map(x=>`<button data-open="locations:${x.id}">${esc(x.name)}</button>`).join('')||'<span>None yet</span>'}</section><section><h3>Connected To</h3>${connected.map(x=>`<button data-open="locations:${x.id}">${esc(x.name)}</button>`).join('')||'<span>None yet</span>'}</section><section><h3>Travel Routes</h3><p>${esc(item.travelConnections||item.notes||'Add routes and travel notes.')}</p></section></div>`}
 function cc4Title(kind,item,label){return `${cc3TitleRow(kind,item,label,[kind==='locations'?item.type:item.classification,kind==='locations'?parentName(item):item.origin].filter(Boolean).map(cc3Tag).join(''))}`}
 function cc4Species(item,t){const cover=renderSectionMediaCover('species',item),portrait=renderSectionMediaPortrait('species',item),props=cc3PropertiesPanel('species',item,'Quick Facts');
- if(t==='lineage-cards')return `<article class="cc4-page cc4-anatomy">${cover}${cc4Title('species',item,'Anatomy & Culture')}<div class="cc4-top-grid"><div>${portrait}</div><div>${props}${cc4KnownMembers(item)}</div></div><div class="cc4-content-with-outline"><main>${cc4Editor('species',item,4)}</main>${cc4Outline('species',item)}</div></article>`;
- if(t==='classification-index')return `<article class="cc4-page cc4-lineage">${cover}<header class="cc4-archive-head">${cc4Title('species',item,'Lineage Archive')}</header><div class="cc4-lineage-grid"><aside>${props}${cc4KnownMembers(item)}</aside><main>${cc4Editor('species',item,1)}</main></div></article>`;
- return `<article class="cc4-page cc4-field">${cover}${cc4Title('species',item,'Field Guide')}<div class="cc4-top-grid"><div>${portrait}</div><div>${props}${cc4KnownMembers(item)}</div></div><div class="cc4-content-with-outline"><main>${cc4Editor('species',item,2)}</main>${cc4Outline('species',item)}</div></article>`}
+ if(t==='lineage-cards')return `<article class="cc4-page cc4-anatomy">${cover}${cc4Title('species',item,'Anatomy & Culture')}<div class="cc4-top-grid"><div>${portrait}</div><div>${props}</div></div><div class="cc4-content-with-outline"><main>${cc4Editor('species',item,4)}</main>${cc4Outline('species',item)}</div></article>`;
+ if(t==='classification-index')return `<article class="cc4-page cc4-lineage">${cover}<header class="cc4-archive-head">${cc4Title('species',item,'Lineage Archive')}</header><div class="cc4-lineage-grid"><aside>${props}</aside><main>${cc4Editor('species',item,1)}</main></div></article>`;
+ return `<article class="cc4-page cc4-field">${cover}${cc4Title('species',item,'Field Guide')}<div class="cc4-top-grid"><div>${portrait}</div><div>${props}</div></div><div class="cc4-content-with-outline"><main>${cc4Editor('species',item,2)}</main>${cc4Outline('species',item)}</div></article>`}
 function cc4Location(item,t){const cover=renderSectionMediaCover('locations',item),portrait=renderSectionMediaPortrait('locations',item),props=cc3PropertiesPanel('locations',item,'Quick Facts'),crumb=renderLocationBreadcrumb(item);
  if(t==='travel-journal')return `${crumb}<article class="cc4-page cc4-journal-page">${cover}${cc4Title('locations',item,"Traveler’s Journal")}<div class="cc4-content-with-outline"><main>${portrait}${cc4Editor('locations',item,3)}</main>${cc4Outline('locations',item)}</div></article>`;
  if(t==='hierarchy-survey')return `${crumb}<article class="cc4-page cc4-connections">${cover}${cc4Title('locations',item,'Map & Connections')}<div class="cc4-map-summary"><div class="cc4-map-box">${portrait}</div>${props}</div>${cc4LocationLinks(item)}<div class="cc4-story-strip"><h3>Story Appearances</h3><div>●────●────●────●</div></div><div class="cc4-content-with-outline"><main>${cc4Editor('locations',item,1)}</main>${cc4Outline('locations',item)}</div></article>`;
