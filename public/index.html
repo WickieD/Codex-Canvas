@@ -10154,8 +10154,11 @@ const CC2_VERSION = 'story-timeline-2026-08';
 
   function cc2ManualRelationEditor(characterId){
     const character=getItem('characters',characterId); if(!character)return;
-    const rows=state.characters.filter(item=>item.id!==characterId).map(item=>`<label class="cc2-entity-chip"><input type="checkbox" data-cc2-relation value="${esc(item.id)}" ${(character.relationshipIds || []).includes(item.id)?'checked':''}> ${esc(item.name)}</label>`).join('');
-    showModal(`Manage ${character.name}'s linked characters`,`<p class="page-subtitle">Manual links appear alongside relationships generated from shared story points.</p><div class="cc2-hub-content" style="margin-top:14px">${rows || '<span class="cc2-empty">No other characters yet.</span>'}</div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-cc2-save-relations="${esc(characterId)}">Save links</button>`);
+    const rows=state.characters.filter(item=>item.id!==characterId).map(item=>{
+      const linked=(character.relationshipIds || []).includes(item.id) || (item.relationshipIds || []).includes(characterId);
+      return `<label class="cc2-entity-chip"><input type="checkbox" data-cc2-relation value="${esc(item.id)}" ${linked?'checked':''}> ${esc(item.name)}</label>`;
+    }).join('');
+    showModal(`Manage ${character.name}'s linked characters`,`<p class="page-subtitle">Character links work both ways. Linking or unlinking someone here automatically updates both profiles.</p><div class="cc2-hub-content" style="margin-top:14px">${rows || '<span class="cc2-empty">No other characters yet.</span>'}</div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-cc2-save-relations="${esc(characterId)}">Save links</button>`);
   }
 
   function cc2CharacterAppearances(characterId){
@@ -10179,6 +10182,7 @@ const CC2_VERSION = 'story-timeline-2026-08';
   function cc2CharacterHubHtml(character){
     const appearances=cc2CharacterAppearances(character.id);
     const related=new Set(character.relationshipIds || []);
+    for(const other of state.characters || []) if(other.id!==character.id && (other.relationshipIds || []).includes(character.id)) related.add(other.id);
     for(const appearance of appearances) for(const otherId of appearance.point.participantIds) if(otherId!==character.id)related.add(otherId);
     const manualCurrent=(character.currentLocationIds || []).map(idValue=>getItem('locations',idValue)).filter(Boolean);
     const visits=appearances.filter(item=>item.point.participantIds.includes(character.id)).flatMap(item=>item.point.locationIds.map(locationId=>({...item,locationId}))).filter(item=>getItem('locations',item.locationId));
@@ -10288,7 +10292,17 @@ const CC2_VERSION = 'story-timeline-2026-08';
     const openMap=event.target.closest('[data-cc2-open-map]'); if(openMap){event.preventDefault();event.stopImmediatePropagation();graphSettings.graphType='story';graphSettings.storyId=openMap.dataset.cc2OpenMap;closeModal();navigate('graph');return;}
     const move=event.target.closest('[data-cc2-move-point]'); if(move){event.preventDefault();event.stopImmediatePropagation();const [storyId,nodeId,direction]=move.dataset.cc2MovePoint.split('|');cc2MovePoint(storyId,nodeId,direction);return;}
     const manage=event.target.closest('[data-cc2-manage-relations]'); if(manage){event.preventDefault();event.stopImmediatePropagation();cc2ManualRelationEditor(manage.dataset.cc2ManageRelations);return;}
-    const saveRelations=event.target.closest('[data-cc2-save-relations]'); if(saveRelations){event.preventDefault();event.stopImmediatePropagation();const character=getItem('characters',saveRelations.dataset.cc2SaveRelations);if(character){character.relationshipIds=[...el.modal.querySelectorAll('[data-cc2-relation]:checked')].map(input=>input.value);closeModal();scheduleSave('Saving character links…');renderEntity('characters',character.id);}return;}
+    const saveRelations=event.target.closest('[data-cc2-save-relations]'); if(saveRelations){event.preventDefault();event.stopImmediatePropagation();const character=getItem('characters',saveRelations.dataset.cc2SaveRelations);if(character){
+      const selected=new Set([...el.modal.querySelectorAll('[data-cc2-relation]:checked')].map(input=>input.value).filter(idValue=>idValue!==character.id && getItem('characters',idValue)));
+      character.relationshipIds=[...selected];
+      for(const other of state.characters || []){
+        if(other.id===character.id)continue;
+        const reciprocal=new Set((other.relationshipIds || []).filter(idValue=>idValue!==other.id && getItem('characters',idValue)));
+        if(selected.has(other.id))reciprocal.add(character.id);else reciprocal.delete(character.id);
+        other.relationshipIds=[...reciprocal];
+      }
+      closeModal();scheduleSave('Saving reciprocal character links…');renderEntity('characters',character.id);
+    }return;}
   },true);
 
   document.addEventListener('input',event=>{
