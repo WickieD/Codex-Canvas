@@ -3637,6 +3637,36 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 </style>
 
+
+<style id="cc5-section-image-fix">
+.cc5-section-summary{display:flex;align-items:center;gap:10px;min-width:0}
+.cc5-section-title{flex:1;min-width:0;border:0;background:transparent;color:inherit;font:inherit;font-weight:800;padding:4px 2px;outline:none}
+.cc5-section-title:focus{background:var(--panel-strong);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 38%,transparent);border-radius:7px}
+.cc5-section-actions{display:flex;align-items:center;gap:6px;margin-left:auto}
+.cc5-section-actions button{border:1px solid var(--border);background:var(--panel);color:var(--muted);border-radius:8px;min-height:30px;padding:4px 8px;font-size:12px;font-weight:700}
+.cc5-section-actions button:hover{border-color:var(--accent);color:var(--text)}
+.cc5-section-actions .danger{color:var(--danger)}
+.cc5-section .cc4-section-body>.block-row:first-child[data-cc5-heading-row]{display:none}
+.cc5-image-toolbar-help{margin-left:auto;align-self:center;color:var(--muted);font-size:11px}
+.cc5-page-image{--cc5-width:360px;--cc5-gap:18px;--cc5-opacity:1;position:relative;width:min(var(--cc5-width),100%);margin:14px auto;border:1px solid var(--border);border-radius:14px;background:var(--panel-strong);overflow:visible;z-index:3}
+.cc5-page-image img{display:block;width:100%;height:auto;border-radius:13px;opacity:var(--cc5-opacity)}
+.cc5-page-image.layout-wrap.side-left{float:left;margin:10px var(--cc5-gap) var(--cc5-gap) 0}
+.cc5-page-image.layout-wrap.side-right{float:right;margin:10px 0 var(--cc5-gap) var(--cc5-gap)}
+.cc5-page-image.layout-front{position:relative;z-index:8;box-shadow:var(--shadow)}
+.cc5-page-image.layout-behind{position:relative;z-index:0;opacity:.72;margin-top:-24px;margin-bottom:-24px}
+.cc5-page-image.layout-behind+.block-row{position:relative;z-index:2}
+.cc5-page-image-controls{position:absolute;top:8px;right:8px;display:flex;gap:6px;opacity:0;transition:opacity .15s}
+.cc5-page-image:hover .cc5-page-image-controls,.cc5-page-image:focus-within .cc5-page-image-controls{opacity:1}
+.cc5-page-image-controls button{border:1px solid var(--border);border-radius:8px;background:color-mix(in srgb,var(--panel-strong) 94%,transparent);padding:6px 9px;font-size:12px;font-weight:750}
+.cc5-page-image-caption{padding:8px 10px;color:var(--muted);font-size:12px}
+.cc5-section-body::after{content:"";display:block;clear:both}
+.cc5-image-modal-grid{display:grid;gap:14px}
+.cc5-image-preview{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--panel-soft)}
+.cc5-image-preview img{display:block;width:100%;max-height:320px;object-fit:contain}
+.cc5-image-settings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media(max-width:760px){.cc5-section-summary{align-items:flex-start;flex-wrap:wrap}.cc5-section-actions{width:100%;justify-content:flex-end}.cc5-page-image.layout-wrap.side-left,.cc5-page-image.layout-wrap.side-right{float:none;margin:14px auto}.cc5-image-settings{grid-template-columns:1fr}.cc5-image-toolbar-help{flex-basis:100%;margin-left:0}}
+</style>
+
 </head>
 <body>
 
@@ -9345,7 +9375,93 @@ function cleanCreateSaveOverlay(){
   });
 }
 function cleanShowSaving(){
-  cleanCreateSaveOverlay();const overlay=document.getElementById('cleanSaveOverlay');overlay.classList.remove('error');overlay.classList.add('visible');
+  
+/* === Editable grouped sections and page images for Species / Locations === */
+function cc5SectionRange(item,headingIndex){
+  const blocks=item?.blocks||[];let end=blocks.length;
+  for(let i=headingIndex+1;i<blocks.length;i++){if(blocks[i]?.type==='h2'){end=i;break;}}
+  return {start:headingIndex,end};
+}
+function cc5PageImageBlock(kind,itemId,block,index){
+  const layout=['wrap','front','behind'].includes(block.layout)?block.layout:'wrap';
+  const side=block.wrapSide==='right'?'right':'left';
+  const width=Math.max(140,Math.min(900,Number(block.width)||360));
+  const gap=Math.max(0,Math.min(80,Number(block.padding)||18));
+  const opacity=Math.max(.15,Math.min(1,Number(block.opacity)||1));
+  const ref=`${kind}:${itemId}:${index}`;
+  return `<figure class="cc5-page-image layout-${layout} side-${side}" data-block-row="${esc(ref)}" style="--cc5-width:${width}px;--cc5-gap:${gap}px;--cc5-opacity:${opacity}">
+    <img src="${esc(block.src||'')}" alt="${esc(block.alt||'Page image')}">
+    <div class="cc5-page-image-controls"><button type="button" data-cc5-image-edit="${esc(ref)}">Edit image</button></div>
+    ${block.caption?`<figcaption class="cc5-page-image-caption">${esc(block.caption)}</figcaption>`:''}
+  </figure>`;
+}
+const cc5BaseRenderBlock=renderBlock;
+renderBlock=function(kind,itemId,block,index){
+  if(['species','locations'].includes(kind)&&block?.type==='image')return cc5PageImageBlock(kind,itemId,block,index);
+  const html=cc5BaseRenderBlock(kind,itemId,block,index);
+  return block?.type==='h2'?html.replace('class="block-row"','class="block-row" data-cc5-heading-row'):html;
+};
+async function cc5AddPageImage(kind,itemId,file){
+  const item=getItem(kind,itemId);if(!item)return;
+  try{
+    el.saveStatus.textContent='Preparing image…';
+    const block=await imageFileToBlock(file,item);
+    block.alt=`${item.name||COLLECTIONS[kind]?.singular||'Page'} image`;
+    block.layout='wrap';block.wrapSide='left';block.width=360;block.padding=18;block.opacity=1;block.caption='';
+    item.blocks||=[];item.blocks.push(block);item.updatedAt=nowISO();
+    scheduleSave('Saving image…');renderEntity(kind,itemId);toast('Image added. Use Edit image to wrap, layer, resize, replace, or remove it.');
+  }catch(error){console.error(error);toast(error.message||'The image could not be added.','error');}
+}
+function cc5ShowImageEditor(ref){
+  const info=blockFromRef(ref);if(!info.block||info.block.type!=='image')return;
+  const b=info.block,layout=['wrap','front','behind'].includes(b.layout)?b.layout:'wrap';
+  showModal('Edit page image',`<div class="cc5-image-modal-grid">
+    <div class="cc5-image-preview"><img src="${esc(b.src||'')}" alt="${esc(b.alt||'Page image')}"></div>
+    <div class="cc5-image-settings">
+      <label class="property-row"><span>Placement</span><select class="select" data-cc5-image-field="layout" data-cc5-image-ref="${esc(ref)}"><option value="wrap" ${layout==='wrap'?'selected':''}>Inline with words</option><option value="front" ${layout==='front'?'selected':''}>In front of words</option><option value="behind" ${layout==='behind'?'selected':''}>Behind words</option></select></label>
+      <label class="property-row"><span>Side when inline</span><select class="select" data-cc5-image-field="wrapSide" data-cc5-image-ref="${esc(ref)}"><option value="left" ${b.wrapSide!=='right'?'selected':''}>Left</option><option value="right" ${b.wrapSide==='right'?'selected':''}>Right</option></select></label>
+      <label class="property-row"><span>Width <output>${Number(b.width)||360}px</output></span><input type="range" min="140" max="900" step="10" value="${Number(b.width)||360}" data-cc5-image-field="width" data-cc5-image-ref="${esc(ref)}"></label>
+      <label class="property-row"><span>Text spacing <output>${Number(b.padding)||18}px</output></span><input type="range" min="0" max="80" step="2" value="${Number(b.padding)||18}" data-cc5-image-field="padding" data-cc5-image-ref="${esc(ref)}"></label>
+      <label class="property-row"><span>Opacity <output>${Math.round((Number(b.opacity)||1)*100)}%</output></span><input type="range" min="15" max="100" step="1" value="${Math.round((Number(b.opacity)||1)*100)}" data-cc5-image-field="opacity" data-cc5-image-ref="${esc(ref)}"></label>
+      <label class="property-row"><span>Caption</span><input class="input" value="${esc(b.caption||'')}" data-cc5-image-field="caption" data-cc5-image-ref="${esc(ref)}"></label>
+    </div>
+    <label class="button secondary">Replace image<input type="file" accept="image/*" hidden data-cc5-image-replace="${esc(ref)}"></label>
+  </div>`,`<button class="button danger" type="button" data-cc5-image-delete="${esc(ref)}">Delete image</button><button class="button" type="button" data-close-modal>Done</button>`);
+}
+cc4Editor=function(kind,item,openCount=2){
+  const groups=cc4SectionGroups(item);
+  const toolbar=`<div class="block-toolbar" data-editor="${kind}:${item.id}"><button class="block-tool" type="button" data-add-block="text" title="Text">T</button><button class="block-tool" type="button" data-add-block="h2" title="New section">H</button><button class="block-tool" type="button" data-add-block="bullet" title="Bullet">•</button><button class="block-tool" type="button" data-add-block="quote" title="Quote">❝</button><button class="block-tool" type="button" data-add-block="divider" title="Divider">―</button><button class="block-tool" type="button" data-cc5-add-image="${kind}:${item.id}" title="Add image">▧</button><input type="file" accept="image/*" hidden data-cc5-image-input="${kind}:${item.id}"><span class="cc5-image-toolbar-help">Add images anywhere, then choose inline, in front, or behind.</span></div>`;
+  return `${toolbar}<div class="cc4-section-stack block-list" data-block-list="${kind}:${item.id}">${groups.map((g,i)=>{
+    const headingIndex=g.heading?.index;
+    return `<details class="cc4-section cc5-section ${cc4GroupEmpty(g)?'is-empty':''}" ${i<openCount?'open':''} id="cc4-${kind}-${item.id}-${i}">
+      <summary><div class="cc5-section-summary"><input class="cc5-section-title" value="${esc(g.title)}" aria-label="Section heading" data-cc5-section-title="${kind}:${item.id}:${headingIndex??-1}"><small>${cc4GroupEmpty(g)?'Not filled in':'Open section'}</small><span class="cc5-section-actions"><button type="button" data-cc5-section-up="${kind}:${item.id}:${headingIndex??-1}" title="Move section up">↑</button><button type="button" data-cc5-section-down="${kind}:${item.id}:${headingIndex??-1}" title="Move section down">↓</button><button class="danger" type="button" data-cc5-section-delete="${kind}:${item.id}:${headingIndex??-1}">Delete</button></span></div></summary>
+      <div class="cc4-section-body">${g.heading?renderBlock(kind,item.id,g.heading.block,g.heading.index):''}${g.rows.map(x=>renderBlock(kind,item.id,x.block,x.index)).join('')||'<p class="cc4-muted">Nothing has been added yet.</p>'}</div>
+    </details>`;}).join('')}</div>`;
+};
+
+document.addEventListener('click',event=>{
+  const add=event.target.closest('[data-cc5-add-image]');if(add){event.preventDefault();event.stopImmediatePropagation();const input=document.querySelector(`[data-cc5-image-input="${CSS.escape(add.dataset.cc5AddImage)}"]`);if(input){input.value='';input.click();}return;}
+  const edit=event.target.closest('[data-cc5-image-edit]');if(edit){event.preventDefault();event.stopImmediatePropagation();cc5ShowImageEditor(edit.dataset.cc5ImageEdit);return;}
+  const delImg=event.target.closest('[data-cc5-image-delete]');if(delImg){event.preventDefault();event.stopImmediatePropagation();if(confirm('Delete this image?')){const info=blockFromRef(delImg.dataset.cc5ImageDelete);if(info.block){info.target.blocks.splice(info.index,1);info.target.updatedAt=nowISO();scheduleSave();closeModal();renderEntity(info.kind,info.itemId);}}return;}
+  const action=event.target.closest('[data-cc5-section-delete],[data-cc5-section-up],[data-cc5-section-down]');if(action){event.preventDefault();event.stopImmediatePropagation();const attr=action.hasAttribute('data-cc5-section-delete')?'cc5SectionDelete':action.hasAttribute('data-cc5-section-up')?'cc5SectionUp':'cc5SectionDown';const [kind,itemId,raw]=action.dataset[attr].split(':');const headingIndex=Number(raw),item=getItem(kind,itemId);if(!item||headingIndex<0)return;const range=cc5SectionRange(item,headingIndex);
+    if(attr==='cc5SectionDelete'){if(confirm(`Delete “${stripMd(item.blocks[headingIndex]?.content||'this section')}” and everything inside it?`)){item.blocks.splice(range.start,range.end-range.start);item.updatedAt=nowISO();scheduleSave();renderEntity(kind,itemId);}return;}
+    const groups=cc4SectionGroups(item);const pos=groups.findIndex(g=>g.heading?.index===headingIndex);const other=attr==='cc5SectionUp'?groups[pos-1]:groups[pos+1];if(!other?.heading)return;const a=cc5SectionRange(item,headingIndex),b=cc5SectionRange(item,other.heading.index);const firstStart=Math.min(a.start,b.start),lastEnd=Math.max(a.end,b.end),segA=item.blocks.slice(a.start,a.end),segB=item.blocks.slice(b.start,b.end);item.blocks.splice(firstStart,lastEnd-firstStart,...(a.start<b.start?(attr==='cc5SectionUp'?[...segA,...segB]:[...segB,...segA]):(attr==='cc5SectionUp'?[...segA,...segB]:[...segB,...segA])));item.updatedAt=nowISO();scheduleSave();renderEntity(kind,itemId);return;}
+},true);
+
+document.addEventListener('input',event=>{
+  const title=event.target.closest('[data-cc5-section-title]');if(title){event.stopPropagation();const [kind,itemId,raw]=title.dataset.cc5SectionTitle.split(':');const item=getItem(kind,itemId),index=Number(raw);if(item?.blocks?.[index]){item.blocks[index].content=title.value;item.updatedAt=nowISO();scheduleSave();}return;}
+  const field=event.target.closest('[data-cc5-image-field]');if(field){const info=blockFromRef(field.dataset.cc5ImageRef);if(!info.block)return;let value=field.value;if(field.dataset.cc5ImageField==='width'||field.dataset.cc5ImageField==='padding')value=Number(value);if(field.dataset.cc5ImageField==='opacity')value=Number(value)/100;info.block[field.dataset.cc5ImageField]=value;info.target.updatedAt=nowISO();const output=field.closest('label')?.querySelector('output');if(output)output.textContent=field.dataset.cc5ImageField==='opacity'?`${field.value}%`:`${field.value}px`;scheduleSave();return;}
+},true);
+
+document.addEventListener('change',event=>{
+  const input=event.target.closest('[data-cc5-image-input]');if(input){event.stopImmediatePropagation();const file=input.files?.[0];if(file){const [kind,itemId]=input.dataset.cc5ImageInput.split(':');cc5AddPageImage(kind,itemId,file);}input.value='';return;}
+  const replace=event.target.closest('[data-cc5-image-replace]');if(replace){event.stopImmediatePropagation();const file=replace.files?.[0],info=blockFromRef(replace.dataset.cc5ImageReplace);if(file&&info.block){imageFileToBlock(file,info.target).then(prepared=>{info.block.src=prepared.src;info.block.ratio=prepared.ratio;info.target.updatedAt=nowISO();scheduleSave('Saving image…');closeModal();renderEntity(info.kind,info.itemId);});}replace.value='';return;}
+  const field=event.target.closest('select[data-cc5-image-field]');if(field){const info=blockFromRef(field.dataset.cc5ImageRef);if(info.block){info.block[field.dataset.cc5ImageField]=field.value;info.target.updatedAt=nowISO();scheduleSave();closeModal();renderEntity(info.kind,info.itemId);}return;}
+},true);
+/* === End editable sections and page images === */
+
+
+cleanCreateSaveOverlay();const overlay=document.getElementById('cleanSaveOverlay');overlay.classList.remove('error');overlay.classList.add('visible');
   overlay.querySelector('[data-clean-save-title]').textContent='Saving your world…';overlay.querySelector('[data-clean-save-message]').textContent='Editing will reopen after Firestore confirms this version.';overlay.querySelector('[data-clean-save-detail]').textContent='Keep this tab open.';
   document.getElementById('app')?.setAttribute('inert','');
 }
