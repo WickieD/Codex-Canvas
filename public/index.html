@@ -11354,6 +11354,64 @@ initFirebase();
   /* Test hooks are removed from the production package after browser verification. */
   
 
+
+  /* Isolated final upload channel: avoids legacy change listeners. */
+  const cc13MediaKinds=new Set(['species','locations']);
+
+  const cc13BaseEditor=cc4Editor;
+  cc4Editor=function(kind,item,openCount=2){
+    let markup=cc13BaseEditor(kind,item,openCount);
+    if(!cc13MediaKinds.has(kind))return markup;
+    /* Rename only the active toolbar input so older listeners cannot intercept it. */
+    markup=markup
+      .replaceAll('data-cc5-image-input=', 'data-cc13-page-image-input=')
+      .replaceAll('data-cc8-image-input=', 'data-cc13-page-image-input=');
+    return markup;
+  };
+
+  renderSectionMediaCover=function(kind,item){
+    const copy=ccFinalCopy(kind),media=item.headerImage||null,src=ccFinalSrc(media),ref=`${kind}:cover:${item.id}`;
+    if(!src)return `<div class="cc-final-cover"><label class="cc-final-media-empty"><span><strong>${esc(copy.cover)}</strong>${esc(copy.coverHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc13-fixed-media-input="${esc(ref)}"></label></div>`;
+    return `<div class="cc-final-cover" data-cc-final-media-box="${esc(ref)}"><img src="${esc(src)}" alt="${esc(media?.alt||item.name+' cover')}" style="${ccFinalMediaCss(media,'cover')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${esc(ref)}">Edit cover</button></div>`;
+  };
+
+  renderSectionMediaPortrait=function(kind,item){
+    const copy=ccFinalCopy(kind),media=item.profileImage||null,src=ccFinalSrc(media),ref=`${kind}:profile:${item.id}`;
+    const body=!src
+      ?`<label class="cc-final-media-empty"><span><strong>${esc(copy.image)}</strong>${esc(copy.imageHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc13-fixed-media-input="${esc(ref)}"></label>`
+      :`<img src="${esc(src)}" alt="${esc(media?.alt||item.name+' image')}" style="${ccFinalMediaCss(media,'profile')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${esc(ref)}">Edit image</button>`;
+    return `<section class="panel section-media-portrait-card cc-final-profile-card"><div class="section-media-portrait-label">${esc(copy.label)}</div><div class="cc-final-profile" data-cc-final-media-box="${esc(ref)}">${body}</div></section>`;
+  };
+
+  document.addEventListener('change',async event=>{
+    const pageInput=event.target.closest('[data-cc13-page-image-input]');
+    if(pageInput){
+      event.stopImmediatePropagation();
+      const file=pageInput.files?.[0];
+      if(file){
+        const ref=pageInput.dataset.cc13PageImageInput;
+        const cut=ref.indexOf(':');
+        const kind=ref.slice(0,cut),itemId=ref.slice(cut+1);
+        try{await ccFinalAddPageImage(kind,itemId,file);}catch(error){console.error(error);toast(`Image could not be added: ${error?.message||error}`);}
+      }
+      pageInput.value='';
+      return;
+    }
+
+    const fixedInput=event.target.closest('[data-cc13-fixed-media-input]');
+    if(fixedInput){
+      event.stopImmediatePropagation();
+      const file=fixedInput.files?.[0];
+      if(file){
+        const ref=fixedInput.dataset.cc13FixedMediaInput;
+        const info=ccFinalParseMediaRef(ref);
+        try{await setSectionMedia(info.kind,info.itemId,info.slot,file);}catch(error){console.error(error);toast(`Image could not be added: ${error?.message||error}`);}
+      }
+      fixedInput.value='';
+      return;
+    }
+  },true);
+
 })();
 
 </script>
