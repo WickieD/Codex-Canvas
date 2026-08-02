@@ -11451,6 +11451,70 @@ initFirebase();
     }
     if (event.key === 'Escape') clearCharacterMediaSelection();
   });
+
+  /* Species-only media channel copied from the confirmed working Location path. */
+  const cc14BaseEditor=cc4Editor;
+  cc4Editor=function(kind,item,openCount=2){
+    let markup=cc14BaseEditor(kind,item,openCount);
+    if(kind!=='species')return markup;
+    return markup
+      .replaceAll('data-cc13-page-image-input=', 'data-cc14-species-page-input=')
+      .replaceAll('data-cc5-image-input=', 'data-cc14-species-page-input=')
+      .replaceAll('data-cc8-image-input=', 'data-cc14-species-page-input=');
+  };
+
+  const cc14LocationCoverRenderer=renderSectionMediaCover;
+  const cc14LocationPortraitRenderer=renderSectionMediaPortrait;
+  renderSectionMediaCover=function(kind,item){
+    if(kind!=='species')return cc14LocationCoverRenderer(kind,item);
+    const copy=ccFinalCopy('species'),media=item.headerImage||null,src=ccFinalSrc(media),ref=`species:cover:${item.id}`;
+    if(!src)return `<div class="cc-final-cover"><label class="cc-final-media-empty"><span><strong>${esc(copy.cover)}</strong>${esc(copy.coverHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc14-species-fixed-input="${esc(ref)}"></label></div>`;
+    return `<div class="cc-final-cover" data-cc-final-media-box="${esc(ref)}"><img src="${esc(src)}" alt="${esc(media?.alt||item.name+' cover')}" style="${ccFinalMediaCss(media,'cover')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${esc(ref)}">Edit cover</button></div>`;
+  };
+  renderSectionMediaPortrait=function(kind,item){
+    if(kind!=='species')return cc14LocationPortraitRenderer(kind,item);
+    const copy=ccFinalCopy('species'),media=item.profileImage||null,src=ccFinalSrc(media),ref=`species:profile:${item.id}`;
+    const body=!src
+      ?`<label class="cc-final-media-empty"><span><strong>${esc(copy.image)}</strong>${esc(copy.imageHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc14-species-fixed-input="${esc(ref)}"></label>`
+      :`<img src="${esc(src)}" alt="${esc(media?.alt||item.name+' image')}" style="${ccFinalMediaCss(media,'profile')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${esc(ref)}">Edit image</button>`;
+    return `<section class="panel section-media-portrait-card cc-final-profile-card"><div class="section-media-portrait-label">${esc(copy.label)}</div><div class="cc-final-profile" data-cc-final-media-box="${esc(ref)}">${body}</div></section>`;
+  };
+
+  async function cc14ReadSpeciesFile(file,item,slot){
+    const prepared=await imageFileToBlock(file,{name:item.name});
+    const field=slot==='cover'?'headerImage':'profileImage';
+    item[field]={src:prepared.src,assetId:prepared.assetId||'',alt:`${item.name} ${slot} image`,positionX:50,positionY:slot==='cover'?45:25,zoom:1,fit:'cover'};
+    item.updatedAt=nowISO();
+    scheduleSave('Saving image…');
+    renderEntity('species',item.id);
+    toast('Species image added.');
+  }
+
+  document.addEventListener('change',async event=>{
+    const fixed=event.target.closest('[data-cc14-species-fixed-input]');
+    if(fixed){
+      event.stopImmediatePropagation();
+      const file=fixed.files?.[0];
+      if(file){
+        const [,slot,itemId]=fixed.dataset.cc14SpeciesFixedInput.split(':');
+        const item=getItem('species',itemId);
+        if(item){try{await cc14ReadSpeciesFile(file,item,slot);}catch(error){console.error(error);toast(`Species image could not be added: ${error?.message||error}`,'error');}}
+      }
+      fixed.value='';return;
+    }
+    const page=event.target.closest('[data-cc14-species-page-input]');
+    if(page){
+      event.stopImmediatePropagation();
+      const file=page.files?.[0];
+      if(file){
+        const ref=page.dataset.cc14SpeciesPageInput;
+        const itemId=ref.startsWith('species:')?ref.slice(8):ref.split(':').slice(1).join(':');
+        try{await ccFinalAddPageImage('species',itemId,file);}catch(error){console.error(error);toast(`Species image could not be added: ${error?.message||error}`,'error');}
+      }
+      page.value='';return;
+    }
+  },true);
+
 })();
 </script>
 
