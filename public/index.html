@@ -3685,51 +3685,6 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .cc9-toolbar-upload{position:relative;display:inline-grid;place-items:center;cursor:pointer}
 </style>
 
-
-<style id="cc13-media-consolidated-style">
-/* One stable media system for Species and Locations. */
-.cc13-cover-frame{
-  position:relative;width:100%;aspect-ratio:16/5;min-height:180px;max-height:360px;
-  overflow:hidden;border:1px solid var(--border);border-radius:18px;background:var(--panel-soft)
-}
-.cc13-profile-card{border:1px solid var(--border);border-radius:14px;background:var(--panel);padding:12px}
-.cc13-profile-label{margin-bottom:8px;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
-.cc13-profile-frame{
-  position:relative;width:100%;aspect-ratio:4/3;min-height:220px;max-height:420px;
-  overflow:hidden;border:1px solid var(--border);border-radius:13px;background:var(--panel-soft)
-}
-.cc13-cover-frame img,.cc13-profile-frame img{width:100%;height:100%;display:block;object-fit:cover}
-.cc13-media-placeholder{width:100%;height:100%;display:grid;place-items:center;padding:24px;text-align:center;cursor:pointer}
-.cc13-media-placeholder strong{display:block;margin-bottom:8px}
-.cc13-media-placeholder span{display:block;color:var(--muted);font-size:13px;max-width:520px}
-.cc13-media-overlay{
-  position:absolute;inset:auto 10px 10px auto;display:flex;gap:7px;z-index:4
-}
-.cc13-media-overlay label,.cc13-media-overlay button{
-  min-height:34px;border:1px solid var(--border);border-radius:9px;background:color-mix(in srgb,var(--panel) 92%,transparent);
-  color:var(--text);padding:6px 10px;font-weight:750;cursor:pointer
-}
-.cc13-media-overlay input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
-.cc13-media-click{cursor:pointer}
-.cc13-media-click:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:3px}
-.cc13-media-editor{display:grid;grid-template-columns:minmax(220px,.9fr) minmax(260px,1.1fr);gap:16px;align-items:start}
-.cc13-media-preview{aspect-ratio:16/10;overflow:hidden;border:1px solid var(--border);border-radius:12px;background:var(--panel-soft)}
-.cc13-media-preview img{width:100%;height:100%;display:block;object-fit:cover}
-.cc13-media-controls{display:grid;gap:11px}
-.cc13-media-controls label{display:grid;gap:5px}
-.cc13-media-controls label>span{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:12px;font-weight:750}
-.cc13-media-controls input[type=range]{width:100%}
-.cc13-media-controls select{width:100%;min-height:38px;border:1px solid var(--border);border-radius:9px;background:var(--panel-strong);padding:7px 9px}
-.modal:has(.cc13-media-editor){width:min(780px,calc(100vw - 28px));max-height:90vh}
-.modal:has(.cc13-media-editor) .modal-body{overflow:auto}
-@media(max-width:760px){
- .cc13-cover-frame{aspect-ratio:16/7;min-height:150px}
- .cc13-profile-frame{min-height:190px}
- .cc13-media-editor{grid-template-columns:1fr}
- .cc13-media-overlay{left:8px;right:8px;justify-content:flex-end}
-}
-</style>
-
 </head>
 <body>
 
@@ -11272,6 +11227,133 @@ cleanCreateSaveOverlay();
 
 initFirebase();
 
+
+  /* === Final consolidated Species / Location media system === */
+  const ccFinalMediaKinds=new Set(['species','locations']);
+  function ccFinalSrc(media){
+    if(!media)return '';
+    if(typeof media.src==='string'&&media.src.trim())return media.src;
+    if(media.assetId&&cleanSync?.assetData?.has(media.assetId))return cleanSync.assetData.get(media.assetId)||'';
+    return '';
+  }
+  function ccFinalClamp(v,min,max,fallback){v=Number(v);return Number.isFinite(v)?Math.max(min,Math.min(max,v)):fallback;}
+  function ccFinalMediaCss(media,slot){
+    const x=ccFinalClamp(media?.positionX,0,100,50),y=ccFinalClamp(media?.positionY,0,100,slot==='cover'?45:35),zoom=ccFinalClamp(media?.zoom,1,3,1),fit=media?.fit==='contain'?'contain':'cover';
+    return `object-fit:${fit};object-position:${x}% ${y}%;transform:scale(${zoom});transform-origin:${x}% ${y}%;`;
+  }
+  function ccFinalCopy(kind){return SECTION_MEDIA_COPY[kind]||{cover:'Add cover',coverHelp:'Choose a cover image',image:'Add image',imageHelp:'Choose a reference image',label:'Image'};}
+
+  renderSectionMediaCover=function(kind,item){
+    const copy=ccFinalCopy(kind),media=item.headerImage||null,src=ccFinalSrc(media),ref=`${kind}:cover:${item.id}`;
+    if(!src)return `<div class="cc-final-cover"><label class="cc-final-media-empty"><span><strong>${esc(copy.cover)}</strong>${esc(copy.coverHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc-final-media-input="${esc(ref)}"></label></div>`;
+    return `<div class="cc-final-cover" data-cc-final-media-box="${esc(ref)}"><img src="${esc(src)}" alt="${esc(media?.alt||item.name+' cover')}" style="${ccFinalMediaCss(media,'cover')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${esc(ref)}">Edit cover</button></div>`;
+  };
+  renderSectionMediaPortrait=function(kind,item){
+    const copy=ccFinalCopy(kind),media=item.profileImage||null,src=ccFinalSrc(media),ref=`${kind}:profile:${item.id}`;
+    const body=!src?`<label class="cc-final-media-empty"><span><strong>${esc(copy.image)}</strong>${esc(copy.imageHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc-final-media-input="${esc(ref)}"></label>`:`<img src="${esc(src)}" alt="${esc(media?.alt||item.name+' image')}" style="${ccFinalMediaCss(media,'profile')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${esc(ref)}">Edit image</button>`;
+    return `<section class="panel section-media-portrait-card cc-final-profile-card"><div class="section-media-portrait-label">${esc(copy.label)}</div><div class="cc-final-profile" data-cc-final-media-box="${esc(ref)}">${body}</div></section>`;
+  };
+  const ccFinalOldEntityCover=sectionEntityCover;
+  sectionEntityCover=function(kind,item){return ccFinalMediaKinds.has(kind)?`<div class="section-media-hero">${renderSectionMediaCover(kind,item)}</div>`:ccFinalOldEntityCover(kind,item);};
+
+  function ccFinalParseMediaRef(ref){const [kind,slot,itemId]=String(ref||'').split(':');const item=getItem(kind,itemId);const field=slot==='cover'?'headerImage':'profileImage';return{kind,slot,itemId,item,field,media:item?.[field]};}
+  function ccFinalShowMediaEditor(ref){
+    const info=ccFinalParseMediaRef(ref);if(!info.item||!info.media)return;
+    const m=info.media,src=ccFinalSrc(m);if(!src)return;
+    showModal(`Edit ${info.slot==='cover'?'cover':'image'}`,`<div class="cc-final-media-modal" data-cc-final-media-ref="${esc(ref)}">
+      <div class="cc-final-media-preview"><img src="${esc(src)}" alt="${esc(m.alt||'Image')}" style="${ccFinalMediaCss(m,info.slot)}" data-cc-final-media-preview></div>
+      <div class="cc-final-media-fields">
+       <label><span>Fit</span><select class="select" data-cc-final-media-field="fit"><option value="cover" ${m.fit!=='contain'?'selected':''}>Fill the frame</option><option value="contain" ${m.fit==='contain'?'selected':''}>Show the whole image</option></select></label>
+       <label><span>Zoom <output>${ccFinalClamp(m.zoom,1,3,1).toFixed(2)}×</output></span><input type="range" min="1" max="3" step="0.05" value="${ccFinalClamp(m.zoom,1,3,1)}" data-cc-final-media-field="zoom"></label>
+       <label><span>Horizontal position <output>${ccFinalClamp(m.positionX,0,100,50)}%</output></span><input type="range" min="0" max="100" step="1" value="${ccFinalClamp(m.positionX,0,100,50)}" data-cc-final-media-field="positionX"></label>
+       <label><span>Vertical position <output>${ccFinalClamp(m.positionY,0,100,info.slot==='cover'?45:35)}%</output></span><input type="range" min="0" max="100" step="1" value="${ccFinalClamp(m.positionY,0,100,info.slot==='cover'?45:35)}" data-cc-final-media-field="positionY"></label>
+       <label><span>Description</span><input class="input" value="${esc(m.alt||'')}" data-cc-final-media-field="alt"></label>
+       <label class="button secondary">Replace image<input class="cc-final-native-input" type="file" accept="image/*" data-cc-final-media-replace="${esc(ref)}"></label>
+      </div></div>`,`<button class="button danger" type="button" data-cc-final-media-remove="${esc(ref)}">Remove</button><button class="button" type="button" data-close-modal>Done</button>`);
+  }
+  function ccFinalUpdateMediaPreview(ref){const info=ccFinalParseMediaRef(ref),img=el.modal.querySelector('[data-cc-final-media-preview]');if(info.media&&img)img.style.cssText=ccFinalMediaCss(info.media,info.slot);}
+
+  function ccFinalPageSource(block){return ccFinalSrc(block);}
+  function ccFinalPageBlock(kind,itemId,block,index){
+    const src=ccFinalPageSource(block),layout=['wrap','front','behind'].includes(block.layout)?block.layout:'wrap',side=['left','right','center'].includes(block.wrapSide)?block.wrapSide:'left';
+    const width=ccFinalClamp(block.width,120,1000,360),gap=ccFinalClamp(block.padding,0,100,18),opacity=ccFinalClamp(block.opacity,.1,1,1),x=ccFinalClamp(block.x,0,2400,20),y=ccFinalClamp(block.y,0,5000,120),ref=`${kind}:${itemId}:${index}`;
+    return `<figure class="cc-final-page-image mode-${layout} side-${side}" data-cc-final-page="${esc(ref)}" style="--img-width:${width}px;--img-gap:${gap}px;--img-opacity:${opacity};--img-x:${x}px;--img-y:${y}px">
+      <img src="${esc(src)}" alt="${esc(block.alt||'Page image')}">
+      <div class="cc-final-page-tools"><button class="cc-final-drag" type="button" data-cc-final-page-drag="${esc(ref)}">Move</button><button type="button" data-cc-final-page-edit="${esc(ref)}">Edit</button></div>
+      <button class="cc-final-resize" type="button" data-cc-final-page-resize="${esc(ref)}" aria-label="Resize image"></button>
+      ${block.caption?`<figcaption class="cc-final-caption">${esc(block.caption)}</figcaption>`:''}
+    </figure>`;
+  }
+  const ccFinalBaseRenderBlock=renderBlock;
+  renderBlock=function(kind,itemId,block,index){if(ccFinalMediaKinds.has(kind)&&block?.type==='image')return ccFinalPageBlock(kind,itemId,block,index);return ccFinalBaseRenderBlock(kind,itemId,block,index);};
+  const ccFinalBaseEditor=cc4Editor;
+  cc4Editor=function(kind,item,openCount=2){
+    let out=ccFinalBaseEditor(kind,item,openCount);
+    if(!ccFinalMediaKinds.has(kind))return out;
+    const maxY=(item.blocks||[]).filter(b=>b?.type==='image'&&['front','behind'].includes(b.layout)).reduce((m,b)=>Math.max(m,(Number(b.y)||0)+(Number(b.width)||360)/(Number(b.ratio)||1)+80),0);
+    return out.replace(/class="cc8-editor"/,`class="cc8-editor" style="min-height:${Math.max(500,Math.ceil(maxY))}px"`);
+  };
+  async function ccFinalAddPageImage(kind,itemId,file){
+    const item=getItem(kind,itemId);if(!item)return;
+    const block=await imageFileToBlock(file,item);block.alt=`${item.name} image`;block.layout='wrap';block.wrapSide='left';block.width=Math.min(420,block.width||360);block.padding=18;block.opacity=1;block.caption='';block.x=20;block.y=120;
+    item.blocks||=[];item.blocks.push(block);item.updatedAt=nowISO();scheduleSave('Saving image…');renderEntity(kind,itemId);toast('Image added.');
+  }
+  function ccFinalBlockInfo(ref){const parts=String(ref).split(':'),index=Number(parts.pop()),itemId=parts.pop(),kind=parts.join(':'),item=getItem(kind,itemId);return{kind,itemId,index,item,block:item?.blocks?.[index]};}
+  function ccFinalShowPageEditor(ref){
+    const info=ccFinalBlockInfo(ref);if(!info.block)return;const b=info.block,layout=['wrap','front','behind'].includes(b.layout)?b.layout:'wrap';
+    showModal('Edit page image',`<div class="cc-final-page-modal" data-cc-final-page-ref="${esc(ref)}">
+      <label><span>Placement</span><select class="select" data-cc-final-page-field="layout"><option value="wrap" ${layout==='wrap'?'selected':''}>Inline with text</option><option value="front" ${layout==='front'?'selected':''}>Free in front</option><option value="behind" ${layout==='behind'?'selected':''}>Free behind</option></select></label>
+      <label><span>Inline side</span><select class="select" data-cc-final-page-field="wrapSide"><option value="left" ${b.wrapSide==='left'?'selected':''}>Left</option><option value="right" ${b.wrapSide==='right'?'selected':''}>Right</option><option value="center" ${b.wrapSide==='center'?'selected':''}>Center</option></select></label>
+      <label><span>Width <output>${ccFinalClamp(b.width,120,1000,360)}px</output></span><input type="range" min="120" max="1000" step="5" value="${ccFinalClamp(b.width,120,1000,360)}" data-cc-final-page-field="width"></label>
+      <label><span>Text spacing <output>${ccFinalClamp(b.padding,0,100,18)}px</output></span><input type="range" min="0" max="100" step="2" value="${ccFinalClamp(b.padding,0,100,18)}" data-cc-final-page-field="padding"></label>
+      <label><span>Opacity <output>${Math.round(ccFinalClamp(b.opacity,.1,1,1)*100)}%</output></span><input type="range" min="10" max="100" step="1" value="${Math.round(ccFinalClamp(b.opacity,.1,1,1)*100)}" data-cc-final-page-field="opacity"></label>
+      <label><span>Caption</span><input class="input" value="${esc(b.caption||'')}" data-cc-final-page-field="caption"></label>
+      <label class="button secondary">Replace image<input class="cc-final-native-input" type="file" accept="image/*" data-cc-final-page-replace="${esc(ref)}"></label>
+    </div>`,`<button class="button danger" type="button" data-cc-final-page-remove="${esc(ref)}">Delete image</button><button class="button" type="button" data-close-modal>Done</button>`);
+  }
+  function ccFinalSyncFigure(ref){const info=ccFinalBlockInfo(ref),fig=document.querySelector(`[data-cc-final-page="${CSS.escape(ref)}"]`);if(!info.block||!fig)return;const b=info.block;fig.className=`cc-final-page-image mode-${b.layout||'wrap'} side-${b.wrapSide||'left'} selected`;fig.style.setProperty('--img-width',`${ccFinalClamp(b.width,120,1000,360)}px`);fig.style.setProperty('--img-gap',`${ccFinalClamp(b.padding,0,100,18)}px`);fig.style.setProperty('--img-opacity',ccFinalClamp(b.opacity,.1,1,1));fig.style.setProperty('--img-x',`${ccFinalClamp(b.x,0,2400,20)}px`);fig.style.setProperty('--img-y',`${ccFinalClamp(b.y,0,5000,120)}px`);}
+
+  document.addEventListener('click',event=>{
+    const mediaEdit=event.target.closest('[data-cc-final-media-edit]');if(mediaEdit){event.preventDefault();event.stopImmediatePropagation();ccFinalShowMediaEditor(mediaEdit.dataset.ccFinalMediaEdit);return;}
+    const pageEdit=event.target.closest('[data-cc-final-page-edit]');if(pageEdit){event.preventDefault();event.stopImmediatePropagation();ccFinalShowPageEditor(pageEdit.dataset.ccFinalPageEdit);return;}
+    const fig=event.target.closest('[data-cc-final-page]');if(fig&&!event.target.closest('button')){document.querySelectorAll('.cc-final-page-image.selected').forEach(x=>x.classList.remove('selected'));fig.classList.add('selected');}
+    const mediaRemove=event.target.closest('[data-cc-final-media-remove]');if(mediaRemove){event.preventDefault();event.stopImmediatePropagation();const info=ccFinalParseMediaRef(mediaRemove.dataset.ccFinalMediaRemove);if(info.item&&confirm('Remove this image?')){info.item[info.field]=null;info.item.updatedAt=nowISO();scheduleSave();closeModal();renderEntity(info.kind,info.itemId);}return;}
+    const pageRemove=event.target.closest('[data-cc-final-page-remove]');if(pageRemove){event.preventDefault();event.stopImmediatePropagation();const info=ccFinalBlockInfo(pageRemove.dataset.ccFinalPageRemove);if(info.block&&confirm('Delete this image?')){info.item.blocks.splice(info.index,1);info.item.updatedAt=nowISO();scheduleSave();closeModal();renderEntity(info.kind,info.itemId);}return;}
+  },true);
+
+  document.addEventListener('change',async event=>{
+    const mediaInput=event.target.closest('[data-cc-final-media-input],[data-cc-final-media-replace]');
+    if(mediaInput&&mediaInput.files?.[0]){event.stopImmediatePropagation();const ref=mediaInput.dataset.ccFinalMediaInput||mediaInput.dataset.ccFinalMediaReplace,info=ccFinalParseMediaRef(ref);await setSectionMedia(info.kind,info.itemId,info.slot,mediaInput.files[0]);mediaInput.value='';return;}
+    const pageInput=event.target.closest('[data-cc5-image-input],[data-cc8-image-input]');
+    if(pageInput&&pageInput.files?.[0]){event.stopImmediatePropagation();const ref=pageInput.dataset.cc5ImageInput||pageInput.dataset.cc8ImageInput;const [kind,itemId]=ref.split(':');await ccFinalAddPageImage(kind,itemId,pageInput.files[0]);pageInput.value='';return;}
+    const pageReplace=event.target.closest('[data-cc-final-page-replace]');
+    if(pageReplace&&pageReplace.files?.[0]){event.stopImmediatePropagation();const info=ccFinalBlockInfo(pageReplace.dataset.ccFinalPageReplace),fresh=await imageFileToBlock(pageReplace.files[0],info.item);if(info.block){info.block.src=fresh.src;info.block.assetId='';info.block.ratio=fresh.ratio;info.item.updatedAt=nowISO();scheduleSave();closeModal();renderEntity(info.kind,info.itemId);}return;}
+  },true);
+
+  document.addEventListener('input',event=>{
+    const mediaField=event.target.closest('[data-cc-final-media-field]');if(mediaField){const wrap=mediaField.closest('[data-cc-final-media-ref]'),info=ccFinalParseMediaRef(wrap?.dataset.ccFinalMediaRef);if(!info.media)return;const field=mediaField.dataset.ccFinalMediaField;info.media[field]=['zoom','positionX','positionY'].includes(field)?Number(mediaField.value):mediaField.value;info.item.updatedAt=nowISO();const out=mediaField.closest('label')?.querySelector('output');if(out)out.textContent=field==='zoom'?`${Number(mediaField.value).toFixed(2)}×`:`${mediaField.value}%`;ccFinalUpdateMediaPreview(wrap.dataset.ccFinalMediaRef);scheduleSave();return;}
+    const pageField=event.target.closest('[data-cc-final-page-field]');if(pageField){const wrap=pageField.closest('[data-cc-final-page-ref]'),info=ccFinalBlockInfo(wrap?.dataset.ccFinalPageRef);if(!info.block)return;const field=pageField.dataset.ccFinalPageField;let value=pageField.value;if(field==='width'||field==='padding')value=Number(value);if(field==='opacity')value=Number(value)/100;info.block[field]=value;info.item.updatedAt=nowISO();const out=pageField.closest('label')?.querySelector('output');if(out)out.textContent=field==='opacity'?`${pageField.value}%`:`${pageField.value}px`;scheduleSave();return;}
+  },true);
+
+  function ccFinalPointerStart(event,mode){
+    const button=event.target.closest(mode==='move'?'[data-cc-final-page-drag]':'[data-cc-final-page-resize]');if(!button)return;event.preventDefault();event.stopImmediatePropagation();const ref=button.dataset.ccFinalPageDrag||button.dataset.ccFinalPageResize,info=ccFinalBlockInfo(ref),fig=document.querySelector(`[data-cc-final-page="${CSS.escape(ref)}"]`);if(!info.block||!fig)return;
+    if(mode==='move'&&info.block.layout==='wrap'){info.block.layout='front';const editor=fig.closest('.cc8-editor'),er=editor.getBoundingClientRect(),fr=fig.getBoundingClientRect();info.block.x=Math.max(0,fr.left-er.left);info.block.y=Math.max(0,fr.top-er.top);}
+    const startX=event.clientX,startY=event.clientY,startBX=Number(info.block.x)||20,startBY=Number(info.block.y)||120,startW=Number(info.block.width)||360;
+    document.querySelectorAll('.cc-final-page-image.selected').forEach(x=>x.classList.remove('selected'));fig.classList.add('selected');
+    const move=e=>{if(mode==='move'){info.block.x=Math.max(0,startBX+e.clientX-startX);info.block.y=Math.max(0,startBY+e.clientY-startY);}else{info.block.width=Math.max(120,Math.min(1000,startW+e.clientX-startX));}ccFinalSyncFigure(ref);};
+    const end=()=>{document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',end);info.item.updatedAt=nowISO();scheduleSave();};
+    document.addEventListener('pointermove',move);document.addEventListener('pointerup',end,{once:true});
+  }
+  document.addEventListener('pointerdown',e=>ccFinalPointerStart(e,'move'),true);
+  document.addEventListener('pointerdown',e=>ccFinalPointerStart(e,'resize'),true);
+
+  /* Re-render when Firestore image assets are hydrated. */
+  const ccFinalOldHydrate=cleanHydrateImages;
+  cleanHydrateImages=function(value){const result=ccFinalOldHydrate(value);return result;};
+
+  /* Test hooks are removed from the production package after browser verification. */
+  
+
 })();
 
 </script>
@@ -11623,383 +11705,6 @@ initFirebase();
 }
 </style>
 
-<script id="cc6-editing-behavior-fix">
-(function(){
-  const originalRenderBlock = renderBlock;
-  renderBlock = function(kind,itemId,block,index){
-    let html = originalRenderBlock(kind,itemId,block,index);
-    if(!['species','locations'].includes(kind) || !block || block.type==='h2') return html;
-    if(block.type==='image') return html;
-    const ref = `${kind}:${itemId}:${index}`;
-    const controls = `<span class="cc6-block-actions">
-      <button type="button" data-cc6-block-edit="${esc(ref)}" title="Edit this part">✎</button>
-      <button type="button" data-cc6-block-up="${esc(ref)}" title="Move up">↑</button>
-      <button type="button" data-cc6-block-down="${esc(ref)}" title="Move down">↓</button>
-      <button class="danger" type="button" data-cc6-block-delete="${esc(ref)}" title="Delete this part">×</button>
-    </span>`;
-    return html.replace(/(<div class="block-row[^"]*"[^>]*>)/, `$1${controls}`);
-  };
-
-  function cc6Info(ref){
-    const [kind,itemId,indexRaw]=String(ref||'').split(':');
-    const target=resolveBlockTarget(kind,itemId), index=Number(indexRaw);
-    return {kind,itemId,index,target,block:target?.blocks?.[index]};
-  }
-  function cc6Render(kind,itemId){ kind==='world'?renderWorld():renderEntity(kind,itemId); }
-
-  function cc6ShowBlockEditor(ref){
-    const info=cc6Info(ref); if(!info.block) return;
-    showModal('Edit section content', `<div class="cc6-edit-block-modal">
-      <label class="property-row"><span>Content</span>
-        <textarea class="textarea" data-cc6-block-text="${esc(ref)}">${esc(info.block.content||'')}</textarea>
-      </label>
-      <p class="property-help">Use Backspace normally here. Save when finished, or delete this individual part.</p>
-    </div>`,
-    `<button class="button danger" type="button" data-cc6-block-delete="${esc(ref)}">Delete this part</button>
-     <button class="button secondary" type="button" data-close-modal>Cancel</button>
-     <button class="button" type="button" data-cc6-block-save="${esc(ref)}">Save</button>`);
-  }
-
-  function cc6UpdateSectionState(node){
-    const section=node?.closest?.('.cc5-section,.cc4-section'); if(!section) return;
-    const values=[...section.querySelectorAll('.block-content,[data-cc5-section-title]')]
-      .map(el=>('value' in el?el.value:el.innerText).trim())
-      .filter(v=>v && !/^new heading$/i.test(v) && !/^start writing here/i.test(v));
-    const empty=values.length===0;
-    section.classList.toggle('is-empty',empty);
-    const label=section.querySelector('.cc5-section-summary small,.cc4-section>summary small');
-    if(label) label.textContent=empty?'Not filled in':'Open section';
-  }
-
-  function cc6AutoGrow(el){
-    if(!el || el.tagName!=='TEXTAREA') return;
-    el.style.height='auto';
-    el.style.height=Math.max(el.scrollHeight,92)+'px';
-  }
-  function cc6GrowAll(root=document){
-    root.querySelectorAll('.properties-panel textarea,.cc3-properties-panel textarea,.cc4-mini-panel textarea')
-      .forEach(cc6AutoGrow);
-  }
-
-  // Location quick facts: parent first, type second, display-only until clicked.
-  const baseRenderProperties = renderProperties;
-  renderProperties = function(kind,item){
-    if(kind!=='locations') return baseRenderProperties(kind,item);
-    const parent=getItem('locations',item.parentLocationId);
-    const fact=(label,value,field,help='')=>`<button class="cc6-fact-row" type="button" data-cc6-edit-location-field="${esc(item.id)}:${esc(field)}">
-      <label>${esc(label)}</label><span class="cc6-fact-value">${esc(value||'Not set')}</span>
-      ${help?`<small class="cc6-fact-help">${esc(help)}</small>`:''}
-    </button>`;
-    return `<div class="property-list cc6-quick-facts">
-      ${fact('Inside / parent location',parent?.name||'No parent selected','parentLocationId','Click to choose where this location is physically inside.')}
-      ${fact('Type',item.type||'Location','type','Click to choose a location type.')}
-      ${fact('Atmosphere',item.atmosphere||'Not set','atmosphere')}
-      ${fact('Description',item.description||'Not set','description')}
-      ${fact('Controlled by',item.controlledBy||'Not set','controlledBy')}
-      <div class="property-row"><label>Key characters</label>${linkedPills('characters',item.keyCharacterIds)}</div>
-    </div>`;
-  };
-
-  function cc6LocationFieldEditor(itemId,field){
-    const item=getItem('locations',itemId); if(!item) return;
-    let body='';
-    if(field==='parentLocationId'){
-      body=`<label class="property-row"><span>Inside / parent location</span>
-        <select class="select" data-cc6-location-edit-value>
-          <option value="">No parent selected</option>
-          ${state.locations.filter(x=>x.id!==item.id&&!isDescendant(item.id,x.id))
-            .map(x=>`<option value="${esc(x.id)}" ${item.parentLocationId===x.id?'selected':''}>${esc(x.name)}</option>`).join('')}
-        </select></label>`;
-    }else if(field==='type'){
-      const types=['Region','Realm','Territory','Settlement','City','Urban District','District','Transit Point','Building','Room','Landmark'];
-      body=`<label class="property-row"><span>Type</span><select class="select" data-cc6-location-edit-value>
-        ${types.map(x=>`<option ${item.type===x?'selected':''}>${esc(x)}</option>`).join('')}
-      </select></label>`;
-    }else{
-      const isLong=['atmosphere','description'].includes(field);
-      body=`<label class="property-row"><span>${esc(field==='controlledBy'?'Controlled by':field[0].toUpperCase()+field.slice(1))}</span>
-        ${isLong?`<textarea class="textarea" data-cc6-location-edit-value>${esc(item[field]||'')}</textarea>`:
-        `<input class="input" data-cc6-location-edit-value value="${esc(item[field]||'')}">`}
-      </label>`;
-    }
-    showModal('Edit location detail',body,
-      `<button class="button secondary" type="button" data-close-modal>Cancel</button>
-       <button class="button" type="button" data-cc6-location-edit-save="${esc(itemId)}:${esc(field)}">Save</button>`);
-    requestAnimationFrame(()=>{const t=el.modal.querySelector('textarea');if(t)cc6AutoGrow(t);});
-  }
-
-  // Contains and Connected To are linked-location controls, not writing boxes.
-  cc4LocationLinks=function(item){
-    const children=childrenOf(item.id);
-    const connected=(item.relatedLocationIds||[]).map(x=>getItem('locations',x)).filter(Boolean);
-    const list=(items,empty)=>items.map(x=>`<button type="button" data-open="locations:${esc(x.id)}">${esc(x.name)}</button>`).join('')||`<span>${esc(empty)}</span>`;
-    return `<div class="cc4-link-grid">
-      <section><div class="cc6-location-links-head"><h3>Contains</h3><button class="cc6-manage-link" type="button" data-cc6-manage-contains="${esc(item.id)}">Manage</button></div>${list(children,'No places inside yet')}</section>
-      <section><div class="cc6-location-links-head"><h3>Connected To</h3><button class="cc6-manage-link" type="button" data-cc6-manage-connected="${esc(item.id)}">Manage</button></div>${list(connected,'No connected places yet')}</section>
-      <section><h3>Travel Routes</h3><p>${esc(item.travelConnections||item.notes||'Add routes and travel notes in a writing section.')}</p></section>
-    </div>`;
-  };
-
-  function cc6ShowLocationChecklist(itemId,mode){
-    const item=getItem('locations',itemId); if(!item) return;
-    const selected=new Set(mode==='contains'?childrenOf(item.id).map(x=>x.id):(item.relatedLocationIds||[]));
-    const rows=state.locations.filter(x=>x.id!==item.id).map(x=>`<label class="cc6-check-row">
-      <input type="checkbox" value="${esc(x.id)}" data-cc6-location-check ${selected.has(x.id)?'checked':''}>
-      <span>${esc(x.name)}</span>
-    </label>`).join('');
-    showModal(mode==='contains'?'Manage places inside':'Manage connected locations',
-      `<div class="cc6-check-list">${rows||'<p>No other locations exist yet.</p>'}</div>`,
-      `<button class="button secondary" type="button" data-close-modal>Cancel</button>
-       <button class="button" type="button" data-cc6-location-links-save="${esc(itemId)}:${esc(mode)}">Save links</button>`);
-  }
-
-  // Make empty cover/profile placeholders open their file picker.
-  document.addEventListener('click',event=>{
-    const emptySlot=event.target.closest('[data-section-media-select]:not(.has-image)');
-    if(emptySlot){
-      event.preventDefault();event.stopImmediatePropagation();
-      document.querySelector(`[data-section-media-input="${CSS.escape(emptySlot.dataset.sectionMediaSelect)}"]`)?.click();
-      return;
-    }
-
-    const editBlock=event.target.closest('[data-cc6-block-edit]');
-    if(editBlock){event.preventDefault();event.stopImmediatePropagation();cc6ShowBlockEditor(editBlock.dataset.cc6BlockEdit);return;}
-
-    const saveBlock=event.target.closest('[data-cc6-block-save]');
-    if(saveBlock){
-      event.preventDefault();event.stopImmediatePropagation();
-      const info=cc6Info(saveBlock.dataset.cc6BlockSave),ta=el.modal.querySelector(`[data-cc6-block-text="${CSS.escape(saveBlock.dataset.cc6BlockSave)}"]`);
-      if(info.block&&ta){info.block.content=ta.value;info.target.updatedAt=nowISO();scheduleSave();closeModal();cc6Render(info.kind,info.itemId);}
-      return;
-    }
-
-    const blockAction=event.target.closest('[data-cc6-block-delete],[data-cc6-block-up],[data-cc6-block-down]');
-    if(blockAction){
-      event.preventDefault();event.stopImmediatePropagation();
-      const ref=blockAction.dataset.cc6BlockDelete||blockAction.dataset.cc6BlockUp||blockAction.dataset.cc6BlockDown;
-      const info=cc6Info(ref);if(!info.block)return;
-      if(blockAction.hasAttribute('data-cc6-block-delete')){
-        if(confirm('Delete this individual part?')){info.target.blocks.splice(info.index,1);info.target.updatedAt=nowISO();scheduleSave();closeModal();cc6Render(info.kind,info.itemId);}
-      }else{
-        const delta=blockAction.hasAttribute('data-cc6-block-up')?-1:1,next=info.index+delta;
-        if(next>=0&&next<info.target.blocks.length){
-          const [moved]=info.target.blocks.splice(info.index,1);info.target.blocks.splice(next,0,moved);
-          info.target.updatedAt=nowISO();scheduleSave();cc6Render(info.kind,info.itemId);
-        }
-      }
-      return;
-    }
-
-    const editLocation=event.target.closest('[data-cc6-edit-location-field]');
-    if(editLocation){event.preventDefault();event.stopImmediatePropagation();const [id,field]=editLocation.dataset.cc6EditLocationField.split(':');cc6LocationFieldEditor(id,field);return;}
-
-    const saveLocation=event.target.closest('[data-cc6-location-edit-save]');
-    if(saveLocation){
-      event.preventDefault();event.stopImmediatePropagation();
-      const [id,field]=saveLocation.dataset.cc6LocationEditSave.split(':'),item=getItem('locations',id),input=el.modal.querySelector('[data-cc6-location-edit-value]');
-      if(item&&input){
-        item[field]=input.value;
-        if(field==='type'&&isRegionType(input.value))item.parentLocationId='';
-        normalizeLocationHierarchy();item.updatedAt=nowISO();scheduleSave();closeModal();renderSidebar();renderEntity('locations',id);
-      }return;
-    }
-
-    const manageContains=event.target.closest('[data-cc6-manage-contains]');
-    if(manageContains){event.preventDefault();event.stopImmediatePropagation();cc6ShowLocationChecklist(manageContains.dataset.cc6ManageContains,'contains');return;}
-    const manageConnected=event.target.closest('[data-cc6-manage-connected]');
-    if(manageConnected){event.preventDefault();event.stopImmediatePropagation();cc6ShowLocationChecklist(manageConnected.dataset.cc6ManageConnected,'connected');return;}
-
-    const saveLinks=event.target.closest('[data-cc6-location-links-save]');
-    if(saveLinks){
-      event.preventDefault();event.stopImmediatePropagation();
-      const [id,mode]=saveLinks.dataset.cc6LocationLinksSave.split(':'),item=getItem('locations',id);
-      const chosen=[...el.modal.querySelectorAll('[data-cc6-location-check]:checked')].map(x=>x.value);
-      if(item){
-        if(mode==='contains'){
-          state.locations.forEach(loc=>{if(loc.parentLocationId===id&&!chosen.includes(loc.id))loc.parentLocationId='';});
-          chosen.forEach(childId=>{const child=getItem('locations',childId);if(child&&!isDescendant(child.id,id))child.parentLocationId=id;});
-          normalizeLocationHierarchy();
-        }else{
-          const previous=new Set(item.relatedLocationIds||[]);
-          item.relatedLocationIds=[...new Set(chosen)];
-          state.locations.forEach(other=>{
-            if(other.id===id)return;
-            other.relatedLocationIds=other.relatedLocationIds||[];
-            const should=chosen.includes(other.id),has=other.relatedLocationIds.includes(id);
-            if(should&&!has)other.relatedLocationIds.push(id);
-            if(!should&&has)other.relatedLocationIds=other.relatedLocationIds.filter(x=>x!==id);
-          });
-        }
-        item.updatedAt=nowISO();scheduleSave();closeModal();renderSidebar();renderEntity('locations',id);
-      }return;
-    }
-  },true);
-
-  document.addEventListener('input',event=>{
-    const block=event.target.closest('[data-block]');
-    if(block){
-      // Let normal deletion and typing occur, then immediately update the faded state.
-      requestAnimationFrame(()=>cc6UpdateSectionState(block));
-    }
-    const title=event.target.closest('[data-cc5-section-title]');
-    if(title)requestAnimationFrame(()=>cc6UpdateSectionState(title));
-    if(event.target.matches('.properties-panel textarea,.cc3-properties-panel textarea,.cc4-mini-panel textarea,[data-cc6-location-edit-value]'))cc6AutoGrow(event.target);
-  },true);
-
-  // Improve page-image editor with ordering and offsets.
-  const baseImageEditor=cc5ShowImageEditor;
-  cc5ShowImageEditor=function(ref){
-    const info=blockFromRef(ref);if(!info.block||info.block.type!=='image')return;
-    const b=info.block;
-    baseImageEditor(ref);
-    const settings=el.modal.querySelector('.cc5-image-settings');
-    if(settings){
-      settings.insertAdjacentHTML('beforeend',`
-        <label class="property-row"><span>Horizontal position <output>${Number(b.offsetX)||0}px</output></span><input type="range" min="-300" max="300" step="5" value="${Number(b.offsetX)||0}" data-cc6-image-offset="offsetX" data-cc6-image-ref="${esc(ref)}"></label>
-        <label class="property-row"><span>Vertical position <output>${Number(b.offsetY)||0}px</output></span><input type="range" min="-300" max="300" step="5" value="${Number(b.offsetY)||0}" data-cc6-image-offset="offsetY" data-cc6-image-ref="${esc(ref)}"></label>
-        <div class="cc6-image-order-controls"><button class="button secondary small" type="button" data-cc6-image-move="${esc(ref)}:-1">Move earlier</button><button class="button secondary small" type="button" data-cc6-image-move="${esc(ref)}:1">Move later</button></div>`);
-    }
-  };
-
-  const basePageImageBlock=cc5PageImageBlock;
-  cc5PageImageBlock=function(kind,itemId,block,index){
-    let html=basePageImageBlock(kind,itemId,block,index);
-    const x=Number(block.offsetX)||0,y=Number(block.offsetY)||0;
-    return html.replace('style="',`style="--cc6-x:${x}px;--cc6-y:${y}px;`);
-  };
-
-  document.addEventListener('input',event=>{
-    const range=event.target.closest('[data-cc6-image-offset]');
-    if(!range)return;
-    const info=blockFromRef(range.dataset.cc6ImageRef);if(!info.block)return;
-    info.block[range.dataset.cc6ImageOffset]=Number(range.value);info.target.updatedAt=nowISO();
-    const out=range.closest('label')?.querySelector('output');if(out)out.textContent=`${range.value}px`;
-    scheduleSave();
-  },true);
-
-  document.addEventListener('click',event=>{
-    const move=event.target.closest('[data-cc6-image-move]');if(!move)return;
-    event.preventDefault();event.stopImmediatePropagation();
-    const parts=move.dataset.cc6ImageMove.split(':'),delta=Number(parts.pop()),ref=parts.join(':');
-    const info=blockFromRef(ref);if(!info.block)return;
-    const next=info.index+delta;if(next<0||next>=info.target.blocks.length)return;
-    const [block]=info.target.blocks.splice(info.index,1);info.target.blocks.splice(next,0,block);
-    info.target.updatedAt=nowISO();scheduleSave();closeModal();renderEntity(info.kind,info.itemId);
-  },true);
-
-  // Existing image controls need center as an inline option.
-  document.addEventListener('change',event=>{
-    const side=event.target.closest('select[data-cc5-image-field="wrapSide"]');
-    if(side && ![...side.options].some(o=>o.value==='center')){
-      // handled on the next open; no action needed here
-    }
-  },true);
-
-  // Run after every render cycle.
-  const baseRender=render;
-  render=function(){baseRender();requestAnimationFrame(()=>cc6GrowAll());};
-  requestAnimationFrame(()=>cc6GrowAll());
-
-  /* Final image-upload fallback for Species and Locations. */
-  document.addEventListener('click',event=>{
-    const add=event.target.closest('[data-cc8-add-image],[data-cc5-add-image]');
-    if(!add)return;
-    event.preventDefault();event.stopImmediatePropagation();
-    const ref=add.dataset.cc8AddImage||add.dataset.cc5AddImage;
-    const input=document.querySelector(
-      `[data-cc8-image-input="${CSS.escape(ref)}"],[data-cc5-image-input="${CSS.escape(ref)}"]`
-    );
-    if(input){input.value='';input.click();}
-  },true);
-
-  document.addEventListener('change',async event=>{
-    const input=event.target.closest('[data-cc8-image-input],[data-cc5-image-input]');
-    if(!input||!input.files?.[0])return;
-    event.stopImmediatePropagation();
-    const ref=input.dataset.cc8ImageInput||input.dataset.cc5ImageInput;
-    const split=ref.split(':');
-    const kind=split.shift();
-    const itemId=split.join(':');
-    await cc5AddPageImage(kind,itemId,input.files[0]);
-    input.value='';
-  },true);
-
-  function cc13Source(media){
-    if(!media)return '';
-    if(typeof media.src==='string'&&media.src.trim())return media.src;
-    if(media.assetId&&typeof cleanSync!=='undefined'&&cleanSync?.assetData?.has(media.assetId))return cleanSync.assetData.get(media.assetId)||'';
-    return '';
-  }
-  function cc13Style(media,slot){
-    const x=Math.max(0,Math.min(100,Number(media?.positionX??50)));
-    const y=Math.max(0,Math.min(100,Number(media?.positionY??(slot==='cover'?50:35))));
-    const zoom=Math.max(1,Math.min(3,Number(media?.zoom??1)));
-    const fit=media?.fit==='contain'?'contain':'cover';
-    return `object-position:${x}% ${y}%;transform:scale(${zoom});transform-origin:${x}% ${y}%;object-fit:${fit}`;
-  }
-  function cc13Copy(kind){
-    return SECTION_MEDIA_COPY?.[kind]||{cover:'Add cover image',coverHelp:'Choose a representative scene',image:'Add image',imageHelp:'Choose a reference image',label:'Image'};
-  }
-  renderSectionMediaCover=function(kind,item){
-    const copy=cc13Copy(kind),media=item.headerImage,src=cc13Source(media),ref=`${kind}:cover:${item.id}`;
-    if(!src)return `<div class="cc13-cover-frame"><label class="cc13-media-placeholder"><div><strong>${esc(copy.cover)}</strong><span>${esc(copy.coverHelp)}</span></div><input type="file" accept="image/*" hidden data-section-media-input="${esc(ref)}"></label></div>`;
-    return `<div class="cc13-cover-frame cc13-media-click" tabindex="0" role="button" data-cc13-media-edit="${esc(ref)}"><img src="${esc(src)}" alt="${esc(media?.alt||item.name+' cover')}" style="${cc13Style(media,'cover')}"><div class="cc13-media-overlay"><button type="button" data-cc13-media-edit="${esc(ref)}">Edit cover</button><label>Replace<input type="file" accept="image/*" data-section-media-input="${esc(ref)}"></label></div></div>`;
-  };
-  renderSectionMediaPortrait=function(kind,item){
-    const copy=cc13Copy(kind),media=item.profileImage,src=cc13Source(media),ref=`${kind}:profile:${item.id}`;
-    if(!src)return `<section class="cc13-profile-card"><div class="cc13-profile-label">${esc(copy.label)}</div><div class="cc13-profile-frame"><label class="cc13-media-placeholder"><div><strong>${esc(copy.image)}</strong><span>${esc(copy.imageHelp)}</span></div><input type="file" accept="image/*" hidden data-section-media-input="${esc(ref)}"></label></div></section>`;
-    return `<section class="cc13-profile-card"><div class="cc13-profile-label">${esc(copy.label)}</div><div class="cc13-profile-frame cc13-media-click" tabindex="0" role="button" data-cc13-media-edit="${esc(ref)}"><img src="${esc(src)}" alt="${esc(media?.alt||item.name+' image')}" style="${cc13Style(media,'profile')}"><div class="cc13-media-overlay"><button type="button" data-cc13-media-edit="${esc(ref)}">Edit image</button><label>Replace<input type="file" accept="image/*" data-section-media-input="${esc(ref)}"></label></div></div></section>`;
-  };
-
-  function cc13Info(ref){
-    const [kind,slot,itemId]=String(ref||'').split(':');
-    const item=getItem(kind,itemId);const field=slot==='cover'?'headerImage':'profileImage';
-    return {kind,slot,itemId,item,field,media:item?.[field]};
-  }
-  function cc13Open(ref){
-    const info=cc13Info(ref);if(!info.item||!info.media)return;
-    const src=cc13Source(info.media);if(!src)return;
-    const m=info.media;
-    showModal(info.slot==='cover'?'Edit cover image':'Edit image',`<div class="cc13-media-editor">
-      <div class="cc13-media-preview"><img data-cc13-preview src="${esc(src)}" alt="Image preview" style="${cc13Style(m,info.slot)}"></div>
-      <div class="cc13-media-controls">
-        <label><span>Fit</span><select data-cc13-field="fit"><option value="cover" ${m.fit!=='contain'?'selected':''}>Fill frame</option><option value="contain" ${m.fit==='contain'?'selected':''}>Show whole image</option></select></label>
-        <label><span>Zoom <output>${Number(m.zoom||1).toFixed(2)}×</output></span><input type="range" min="1" max="3" step="0.05" value="${Number(m.zoom||1)}" data-cc13-field="zoom"></label>
-        <label><span>Horizontal position <output>${Number(m.positionX??50)}%</output></span><input type="range" min="0" max="100" step="1" value="${Number(m.positionX??50)}" data-cc13-field="positionX"></label>
-        <label><span>Vertical position <output>${Number(m.positionY??(info.slot==='cover'?50:35))}%</output></span><input type="range" min="0" max="100" step="1" value="${Number(m.positionY??(info.slot==='cover'?50:35))}" data-cc13-field="positionY"></label>
-      </div></div>`,
-      `<button class="button danger" type="button" data-cc13-remove="${esc(ref)}">Remove image</button><button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-cc13-save="${esc(ref)}">Done</button>`);
-    el.modal.dataset.cc13Ref=ref;
-  }
-  function cc13Preview(){
-    const ref=el.modal?.dataset?.cc13Ref;if(!ref)return;
-    const info=cc13Info(ref),img=el.modal.querySelector('[data-cc13-preview]');if(!info.media||!img)return;
-    img.style.cssText=cc13Style(info.media,info.slot);
-  }
-  document.addEventListener('click',event=>{
-    const edit=event.target.closest('[data-cc13-media-edit]');
-    if(edit){event.preventDefault();event.stopImmediatePropagation();cc13Open(edit.dataset.cc13MediaEdit);return;}
-    const remove=event.target.closest('[data-cc13-remove]');
-    if(remove){event.preventDefault();event.stopImmediatePropagation();const info=cc13Info(remove.dataset.cc13Remove);if(info.item&&confirm('Remove this image?')){info.item[info.field]=null;info.item.updatedAt=nowISO();scheduleSave();closeModal();renderEntity(info.kind,info.itemId);}return;}
-    const save=event.target.closest('[data-cc13-save]');
-    if(save){event.preventDefault();event.stopImmediatePropagation();const info=cc13Info(save.dataset.cc13Save);if(info.item){info.item.updatedAt=nowISO();scheduleSave();closeModal();renderEntity(info.kind,info.itemId);}return;}
-  },true);
-  document.addEventListener('input',event=>{
-    const control=event.target.closest('[data-cc13-field]');if(!control)return;
-    const ref=el.modal?.dataset?.cc13Ref,info=cc13Info(ref);if(!info.media)return;
-    const field=control.dataset.cc13Field;
-    info.media[field]=field==='fit'?control.value:Number(control.value);
-    const output=control.closest('label')?.querySelector('output');
-    if(output)output.textContent=field==='zoom'?`${Number(control.value).toFixed(2)}×`:`${control.value}%`;
-    cc13Preview();
-  },true);
-  document.addEventListener('change',event=>{
-    const control=event.target.closest('select[data-cc13-field]');if(!control)return;
-    const ref=el.modal?.dataset?.cc13Ref,info=cc13Info(ref);if(!info.media)return;
-    info.media[control.dataset.cc13Field]=control.value;cc13Preview();
-  },true);
-})();
-</script>
 
 
 <style id="cc8-final-editor-controls">
@@ -12051,6 +11756,55 @@ initFirebase();
 }
 </style>
 
+
+
+<style id="cc-final-media-clean-css">
+/* One final media system for Species and Locations. */
+.cc-final-cover{position:relative;width:100%;aspect-ratio:16/5;min-height:180px;max-height:340px;overflow:hidden;border:1px solid var(--border);border-radius:18px;background:var(--panel-soft)}
+.cc-final-profile-card{overflow:visible}
+.cc-final-profile{position:relative;width:100%;aspect-ratio:4/5;min-height:250px;max-height:520px;overflow:hidden;border:1px solid var(--border);border-radius:15px;background:var(--panel-soft)}
+.cc-final-cover img,.cc-final-profile img{width:100%;height:100%;display:block;object-fit:cover;transform-origin:center}
+.cc-final-media-empty{width:100%;height:100%;display:grid;place-items:center;cursor:pointer;text-align:center;padding:24px;color:var(--muted)}
+.cc-final-media-empty strong{display:block;color:var(--text);margin-bottom:6px}
+.cc-final-media-edit{position:absolute;right:10px;bottom:10px;z-index:4;border:1px solid var(--border);border-radius:9px;background:color-mix(in srgb,var(--panel-strong) 92%,transparent);padding:7px 10px;font-weight:800}
+.cc-final-native-input{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
+.cc-final-media-modal{display:grid;grid-template-columns:minmax(220px,.95fr) minmax(250px,1.05fr);gap:16px;align-items:start}
+.cc-final-media-preview{aspect-ratio:16/10;overflow:hidden;border:1px solid var(--border);border-radius:12px;background:var(--panel-soft)}
+.cc-final-media-preview img{width:100%;height:100%;object-fit:cover;display:block;transform-origin:center}
+.cc-final-media-fields{display:grid;gap:11px}
+.cc-final-media-fields label{display:grid;gap:5px}
+.cc-final-media-fields label>span{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:12px;font-weight:750}
+.modal:has(.cc-final-media-modal){width:min(780px,calc(100vw - 28px));max-height:calc(100vh - 28px)}
+.modal:has(.cc-final-media-modal) .modal-body{overflow:auto}
+
+.cc8-editor,.cc4-approved .cc8-editor{position:relative;isolation:isolate;overflow:visible}
+.cc-final-page-image{--img-width:360px;--img-gap:18px;--img-opacity:1;width:min(var(--img-width),100%);margin:12px 0;position:relative;z-index:3;clear:both}
+.cc-final-page-image img{display:block;width:100%;height:auto;border-radius:12px;opacity:var(--img-opacity);border:1px solid var(--border)}
+.cc-final-page-image.mode-wrap.side-left{float:left;margin-right:var(--img-gap);margin-bottom:var(--img-gap)}
+.cc-final-page-image.mode-wrap.side-right{float:right;margin-left:var(--img-gap);margin-bottom:var(--img-gap)}
+.cc-final-page-image.mode-wrap.side-center{float:none;margin:var(--img-gap) auto;clear:both}
+.cc-final-page-image.mode-front,.cc-final-page-image.mode-behind{position:absolute;left:var(--img-x,20px);top:var(--img-y,120px);margin:0;clear:none;touch-action:none}
+.cc-final-page-image.mode-front{z-index:20}
+.cc-final-page-image.mode-behind{z-index:0}
+.cc-final-page-image.selected{outline:3px solid color-mix(in srgb,var(--accent) 70%,transparent);outline-offset:3px}
+.cc-final-page-tools{position:absolute;left:7px;right:7px;top:7px;display:flex;justify-content:space-between;gap:6px;z-index:25;opacity:0;transition:opacity .15s}
+.cc-final-page-image:hover .cc-final-page-tools,.cc-final-page-image.selected .cc-final-page-tools{opacity:1}
+.cc-final-page-tools button{border:1px solid var(--border);border-radius:8px;background:color-mix(in srgb,var(--panel-strong) 94%,transparent);padding:5px 8px;font-size:11px;font-weight:800}
+.cc-final-drag{cursor:grab;touch-action:none}.cc-final-drag:active{cursor:grabbing}
+.cc-final-resize{position:absolute;right:-8px;bottom:-8px;width:34px;height:34px;border:2px solid var(--accent);border-radius:50%;background:var(--panel-strong);z-index:30;cursor:nwse-resize;touch-action:none;display:none}
+.cc-final-page-image.selected .cc-final-resize{display:block}
+.cc-final-caption{margin-top:5px;text-align:center;color:var(--muted);font-size:12px}
+.cc-final-page-modal{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cc-final-page-modal label{display:grid;gap:5px}.cc-final-page-modal label>span{color:var(--muted);font-size:12px;font-weight:750}
+.modal:has(.cc-final-page-modal){width:min(620px,calc(100vw - 28px));max-height:calc(100vh - 28px)}
+.modal:has(.cc-final-page-modal) .modal-body{overflow:auto}
+@media(max-width:760px){
+ .cc-final-cover{aspect-ratio:16/7;min-height:150px}.cc-final-profile{min-height:220px;max-height:420px}
+ .cc-final-media-modal,.cc-final-page-modal{grid-template-columns:1fr}
+ .cc-final-page-tools{opacity:1}
+ .cc-final-page-image.mode-wrap.side-left,.cc-final-page-image.mode-wrap.side-right{float:none;margin:var(--img-gap) auto;clear:both}
+}
+</style>
 
 </body>
 </html>
