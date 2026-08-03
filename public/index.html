@@ -4176,6 +4176,21 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 </style>
 
+
+<style id="ccrh-follow-roleplay-style">
+[data-ccrh-follow].active{
+  border-color:var(--success);
+  background:color-mix(in srgb,var(--success) 16%,var(--panel));
+  color:var(--text);
+}
+[data-ccrh-follow].active::before{
+  content:"✓";
+  margin-right:6px;
+  color:var(--success);
+  font-weight:900;
+}
+</style>
+
 </head>
 <body>
 
@@ -4262,7 +4277,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "timeline-character-avatars-2026-08-03";
+window.CODEX_BUILD = "follow-roleplay-fixed-2026-08-03";
 </script>
   <script>
 (() => {
@@ -12604,6 +12619,7 @@ initFirebase();
   };
 
   document.addEventListener('click',async event=>{
+    const followRoleplay=event.target.closest('[data-ccrh-follow]'); if(followRoleplay){event.preventDefault();ccrhToggleFollow();return;}
     const profile=event.target.closest('[data-profile-member]');
     if(profile){event.preventDefault();navigate('profile',profile.dataset.profileMember);return;}
     if(event.target.closest('[data-ccp-edit]')){event.preventDefault();navigate('profile-edit');return;}
@@ -12681,6 +12697,43 @@ initFirebase();
   let ccrhEditingPostId='';
 
   function ccrhStoryFromRoute(){ return storyPointContext(route.id); }
+
+  function ccrhFollowerEmail(){
+    return normalizeMemberEmail(firebase.user?.email||'');
+  }
+  function ccrhFollowers(story){
+    if(!Array.isArray(story.followers))story.followers=[];
+    story.followers=[...new Set(story.followers.map(normalizeMemberEmail).filter(Boolean))];
+    return story.followers;
+  }
+  function ccrhIsFollowing(story){
+    const email=ccrhFollowerEmail();
+    return Boolean(email&&ccrhFollowers(story).includes(email));
+  }
+  function ccrhToggleFollow(){
+    const {story}=ccrhStoryFromRoute();
+    if(!story)return;
+    const email=ccrhFollowerEmail();
+    if(!email){
+      toast('Sign in before following a roleplay.','error');
+      return;
+    }
+    const followers=ccrhFollowers(story);
+    const index=followers.indexOf(email);
+    if(index>=0){
+      followers.splice(index,1);
+      toast('You are no longer following this roleplay.');
+      logActivity(`Stopped following ${story.name}`);
+    }else{
+      followers.push(email);
+      toast('You are now following this roleplay.');
+      logActivity(`Started following ${story.name}`);
+    }
+    story.followers=followers;
+    scheduleSave('Saving follow preference…');
+    ccrhRenderReader();
+  }
+
   function ccrhTurnDate(turn){
     const value=turn.createdAt||turn.updatedAt||'';
     const date=value?.toDate?value.toDate():new Date(value);
@@ -12754,7 +12807,7 @@ initFirebase();
       return `<button class="ccrh-anchor-chip ${node?.id===point.id?'active':''}" type="button" ${anchor?`data-ccrh-jump-post="${esc(anchor==='__start__'?(turns[0]?.id||''):anchor)}"`:`data-story-point="${esc(storyRouteValue(story.id,point.id))}"`}>${esc(storyPointTitle(story,point))}</button>`;
     }).join('');
     el.main.innerHTML=`
-      <div class="ccrh-thread-head"><div>${pageHead('Roleplay Hub',story.name,story.description||'Write together directly in this thread.')}</div><div class="ccrh-thread-tools"><button class="button secondary" type="button" data-nav="graph">Open graph</button><button class="button secondary" type="button" data-ccrh-follow>Follow roleplay</button></div></div>
+      <div class="ccrh-thread-head"><div>${pageHead('Roleplay Hub',story.name,story.description||'Write together directly in this thread.')}</div><div class="ccrh-thread-tools"><button class="button secondary" type="button" data-nav="graph">Open graph</button><button class="button secondary ${ccrhIsFollowing(story)?'active':''}" type="button" data-ccrh-follow aria-pressed="${ccrhIsFollowing(story)}">${ccrhIsFollowing(story)?'Following':'Follow roleplay'}</button></div></div>
       <div class="ccrh-thread-bar"><strong>${turns.length} post${turns.length===1?'':'s'}</strong><span class="muted">Anchors mark where graph chapters begin.</span></div>
       <div class="ccrh-anchor-strip">${anchorChips}</div>
       <section class="ccrh-posts">${turns.length?turns.map((turn,index)=>ccrhPostHtml(turn,index,story)).join(''):'<div class="ccrh-thread-empty"><h3>No posts yet</h3><p>Use the reply editor below to begin this roleplay.</p></div>'}</section>
