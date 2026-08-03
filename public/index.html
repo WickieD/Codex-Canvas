@@ -4140,6 +4140,42 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .ccrh-post-content-head-empty>div:first-child:empty{display:block}
 </style>
 
+
+<style id="cc-timeline-character-avatar-style">
+.cc2-entity-chip.has-avatar{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  padding:3px 9px 3px 4px;
+  min-height:32px;
+}
+.cc2-entity-avatar{
+  width:25px;
+  height:25px;
+  flex:0 0 25px;
+  overflow:hidden;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  background:var(--accent-soft);
+  color:var(--accent-strong);
+  font-size:9px;
+  font-weight:900;
+  border:1px solid color-mix(in srgb,var(--accent) 45%,var(--border));
+}
+.cc2-entity-avatar img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.cc2-entity-name{
+  white-space:nowrap;
+}
+.cc2-entity-chip.has-avatar small{
+  margin-left:0;
+}
+</style>
+
 </head>
 <body>
 
@@ -4226,7 +4262,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "rp-post-title-removed-2026-08-03";
+window.CODEX_BUILD = "timeline-character-avatars-2026-08-03";
 </script>
   <script>
 (() => {
@@ -10613,7 +10649,10 @@ const CC2_VERSION = 'story-timeline-2026-08';
 
   function cc2EntityChip(kind,idValue,role=''){
     const item=getItem(kind,idValue); if(!item) return '';
-    return `<button class="cc2-entity-chip" type="button" data-open="${kind}:${cc2EscapeAttr(idValue)}">${esc(item.name)}${role?`<small>${esc(role)}</small>`:''}</button>`;
+    const isCharacter=kind==='characters';
+    const image=isCharacter?ccrhCharacterImage(item):'';
+    const avatar=isCharacter?`<span class="cc2-entity-avatar">${image?`<img src="${esc(image)}" alt="">`:esc(initials(item.name||'?'))}</span>`:'';
+    return `<button class="cc2-entity-chip ${isCharacter?'has-avatar':''}" type="button" data-open="${kind}:${cc2EscapeAttr(idValue)}">${avatar}<span class="cc2-entity-name">${esc(item.name)}</span>${role?`<small>${esc(role)}</small>`:''}</button>`;
   }
 
   function cc2PointSideChips(point,side,prefs){
@@ -12117,8 +12156,9 @@ initFirebase();
     if(!character)return '';
     const reaction=cc14Reaction(point,characterId);
     const ref=`${story.id}|${node.id}|${characterId}`;
-    return `<button class="cc2-entity-chip cc14-character-chip ${reaction.text?'has-reaction':''}" type="button"
-      data-cc14-reaction="${cc2EscapeAttr(ref)}">${esc(character.name)}${role?`<small>${esc(role)}</small>`:''}</button>`;
+    const image=cc14CharacterImage(character);
+    return `<button class="cc2-entity-chip cc14-character-chip has-avatar ${reaction.text?'has-reaction':''}" type="button"
+      data-cc14-reaction="${cc2EscapeAttr(ref)}"><span class="cc2-entity-avatar">${image?`<img src="${esc(image)}" alt="">`:esc(initials(character.name||'?'))}</span><span class="cc2-entity-name">${esc(character.name)}</span>${role?`<small>${esc(role)}</small>`:''}</button>`;
   };
 
   function cc14Close(){
