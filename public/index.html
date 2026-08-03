@@ -4009,6 +4009,54 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 </style>
 
+
+<style id="ccrh-live-roleplay-style">
+.ccrh-thread-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:16px}
+.ccrh-thread-tools{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.ccrh-thread-bar{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:var(--panel);margin-bottom:16px}
+.ccrh-anchor-strip{display:flex;gap:8px;overflow:auto;padding:2px 0 10px;scrollbar-width:thin}
+.ccrh-anchor-chip{flex:0 0 auto;border:1px solid var(--border);border-radius:999px;background:var(--panel);color:var(--text);padding:7px 11px;font:inherit;font-size:12px;cursor:pointer}
+.ccrh-anchor-chip.active{border-color:var(--accent);background:var(--accent-soft)}
+.ccrh-posts{display:grid;gap:18px}
+.ccrh-post{border:1px solid var(--border);border-radius:15px;background:var(--panel);overflow:hidden;scroll-margin-top:82px}
+.ccrh-post.is-anchor{box-shadow:inset 4px 0 0 var(--accent)}
+.ccrh-post-head{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:13px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--panel-soft)}
+.ccrh-char-avatar{width:58px;height:58px;border-radius:12px;overflow:hidden;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-strong);font-weight:900;font-size:18px}
+.ccrh-char-avatar img{width:100%;height:100%;object-fit:cover}
+.ccrh-post-name{font-family:var(--display-font);font-size:20px;font-weight:850}
+.ccrh-post-meta{font-size:11px;color:var(--muted);margin-top:4px}
+.ccrh-post-number{font-size:12px;color:var(--muted);font-weight:800}
+.ccrh-post-body{padding:24px 25px;line-height:1.78;font-size:15px;overflow-wrap:anywhere}
+.ccrh-post-body img{display:block;max-width:100%;height:auto;border-radius:10px;margin:16px auto}
+.ccrh-post-body .ccrh-float-left{float:left;max-width:45%;margin:5px 18px 12px 0}
+.ccrh-post-body .ccrh-float-right{float:right;max-width:45%;margin:5px 0 12px 18px}
+.ccrh-post-body blockquote{margin:16px 0;padding:13px 15px;border-left:3px solid var(--accent);background:var(--panel-soft);border-radius:0 9px 9px 0}
+.ccrh-post-body .ccrh-quote-author{display:block;color:var(--accent-strong);font-size:12px;font-weight:850;margin-bottom:7px}
+.ccrh-post-body .ccrh-ooc{padding:11px 13px;border:1px dashed var(--border);border-radius:9px;color:var(--muted);background:var(--panel-soft)}
+.ccrh-post-body details{margin:12px 0;border:1px solid var(--border);border-radius:9px;padding:9px 11px;background:var(--panel-soft)}
+.ccrh-post-actions{display:flex;gap:6px;flex-wrap:wrap;padding:10px 14px;border-top:1px solid var(--border)}
+.ccrh-composer{margin-top:24px;border:1px solid var(--border);border-radius:15px;background:var(--panel);overflow:hidden}
+.ccrh-composer-title{padding:15px 17px;border-bottom:1px solid var(--border);font-family:var(--display-font);font-size:20px;font-weight:850}
+.ccrh-compose-controls{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;padding:14px 17px;border-bottom:1px solid var(--border)}
+.ccrh-compose-controls label{display:grid;gap:5px;font-size:11px;font-weight:800;color:var(--muted)}
+.ccrh-compose-controls select,.ccrh-compose-controls input{min-width:220px}
+.ccrh-bb-toolbar{display:flex;gap:5px;flex-wrap:wrap;padding:10px 17px;border-bottom:1px solid var(--border);background:var(--panel-soft)}
+.ccrh-bb-toolbar button{min-width:34px;border:1px solid var(--border);border-radius:7px;background:var(--panel);color:var(--text);padding:7px 9px;font:inherit;cursor:pointer}
+.ccrh-editor-tabs{display:flex;justify-content:flex-end;gap:6px;padding:10px 17px 0}
+.ccrh-editor-tabs button{border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);padding:8px 12px;font:inherit;font-weight:800;cursor:pointer}
+.ccrh-editor-tabs button.active{color:var(--text);border-color:var(--accent)}
+.ccrh-editor-wrap{padding:10px 17px 17px}
+.ccrh-editor{width:100%;min-height:360px;resize:vertical;border:1px solid var(--border);border-radius:10px;background:var(--panel-soft);color:var(--text);padding:15px;font:14px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace}
+.ccrh-preview{min-height:360px;border:1px solid var(--border);border-radius:10px;background:var(--panel-soft);padding:20px}
+.ccrh-compose-foot{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:13px 17px;border-top:1px solid var(--border)}
+.ccrh-char-count{font-size:11px;color:var(--muted)}
+.ccrh-compose-actions{display:flex;gap:8px}
+.ccrh-anchor-modal-grid{display:grid;gap:12px}
+.ccrh-anchor-modal-grid label{display:grid;gap:6px;font-weight:800;font-size:12px}
+.ccrh-thread-empty{padding:35px;text-align:center;border:1px dashed var(--border);border-radius:14px;color:var(--muted)}
+@media(max-width:760px){.ccrh-post-body{padding:18px}.ccrh-post-head{grid-template-columns:auto 1fr}.ccrh-post-number{grid-column:2}.ccrh-compose-foot{align-items:stretch;flex-direction:column}.ccrh-compose-actions{display:grid;grid-template-columns:1fr 1fr}.ccrh-thread-head{display:block}.ccrh-thread-tools{justify-content:flex-start;margin-top:12px}}
+</style>
+
 </head>
 <body>
 
@@ -4038,7 +4086,7 @@ button:disabled { cursor: not-allowed; opacity: .48; }
             <input id="globalSearch" type="search" placeholder="Search the codex" autocomplete="off">
           </label>
           <span id="saveStatus" class="save-status">Saved</span>
-          <button class="button secondary" type="button" data-nav="share">Share</button>
+          
           <button id="accountButton" class="avatar-button" type="button" title="Account">DO</button>
         </div>
       </header>
@@ -4524,6 +4572,7 @@ window.CODEX_BUILD = "shared-world-login-repair-2026-07-31";
         <div class="nav-group">
           <div class="nav-label">Workspace</div>
           ${navButton('share','Members','members',state.workspace.members.length)}
+          ${navButton('profile','User Profile','person')}
           ${navButton('settings','Settings','settings')}
         </div>
       </div>
@@ -12639,6 +12688,138 @@ initFirebase();
     }
     ccpBreadcrumbBase();
   };
+
+
+  /* === Live Roleplay Hub === */
+  let ccrhPreviewMode=false;
+  let ccrhDraftTimer=null;
+
+  function ccrhStoryFromRoute(){ return storyPointContext(route.id); }
+  function ccrhTurnDate(turn){
+    const value=turn.createdAt||turn.updatedAt||'';
+    const date=value?.toDate?value.toDate():new Date(value);
+    return Number.isNaN(date.getTime())?'Previous post':date.toLocaleString(undefined,{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+  }
+  function ccrhCharacterImage(character){ return ccpCharacterImage(character); }
+  function ccrhEscapeAttr(value){ return esc(String(value||'')); }
+  function ccrhBbcode(raw){
+    let text=esc(String(raw||''));
+    text=text.replace(/\r\n?/g,'\n');
+    text=text.replace(/\[code\]([\s\S]*?)\[\/code\]/gi,'<pre><code>$1</code></pre>');
+    text=text.replace(/\[quote(?:=&quot;([^&]*)&quot;|=([^\]]+))?\]([\s\S]*?)\[\/quote\]/gi,(m,a,b,body)=>`<blockquote>${a||b?`<span class="ccrh-quote-author">${a||b} wrote:</span>`:''}${body}</blockquote>`);
+    text=text.replace(/\[spoiler(?:=([^\]]+))?\]([\s\S]*?)\[\/spoiler\]/gi,(m,label,body)=>`<details><summary>${label||'Spoiler'}</summary><div>${body}</div></details>`);
+    text=text.replace(/\[ooc\]([\s\S]*?)\[\/ooc\]/gi,'<div class="ccrh-ooc"><strong>OOC:</strong> $1</div>');
+    text=text.replace(/\[img(?:=(left|right|center|full))?\]((?:https?:\/\/|data:image\/)[^\[]+?)\[\/img\]/gi,(m,align,url)=>`<img class="${align==='left'?'ccrh-float-left':align==='right'?'ccrh-float-right':''}" src="${url.trim()}" alt="Roleplay image" loading="lazy">`);
+    text=text.replace(/\[url=([^\]]+)\]([\s\S]*?)\[\/url\]/gi,(m,url,label)=>/^https?:\/\//i.test(url)?`<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`:label);
+    text=text.replace(/\[color=(#[0-9a-f]{3,8}|[a-z]+)\]([\s\S]*?)\[\/color\]/gi,'<span style="color:$1">$2</span>');
+    text=text.replace(/\[size=(\d{1,2})\]([\s\S]*?)\[\/size\]/gi,(m,size,body)=>`<span style="font-size:${Math.max(8,Math.min(40,Number(size)))}px">${body}</span>`);
+    text=text.replace(/\[center\]([\s\S]*?)\[\/center\]/gi,'<div style="text-align:center">$1</div>');
+    text=text.replace(/\[right\]([\s\S]*?)\[\/right\]/gi,'<div style="text-align:right">$1</div>');
+    text=text.replace(/\[left\]([\s\S]*?)\[\/left\]/gi,'<div style="text-align:left">$1</div>');
+    text=text.replace(/\[b\]([\s\S]*?)\[\/b\]/gi,'<strong>$1</strong>');
+    text=text.replace(/\[i\]([\s\S]*?)\[\/i\]/gi,'<em>$1</em>');
+    text=text.replace(/\[u\]([\s\S]*?)\[\/u\]/gi,'<u>$1</u>');
+    text=text.replace(/\[s\]([\s\S]*?)\[\/s\]/gi,'<s>$1</s>');
+    text=text.replace(/\[hr\s*\]/gi,'<hr>');
+    text=text.replace(/\[list\]([\s\S]*?)\[\/list\]/gi,(m,body)=>`<ul>${body.replace(/\[\*\]([^\[]*)/g,'<li>$1</li>')}</ul>`);
+    text=text.replace(/\n/g,'<br>');
+    return text;
+  }
+  function ccrhDraftKey(story){ return `cc-rp-draft:${state.workspace.id||'main'}:${story.id}:${normalizeMemberEmail(firebase.user?.email||'local')}`; }
+  function ccrhLoadDraft(story){ try{return localStorage.getItem(ccrhDraftKey(story))||'';}catch{return '';} }
+  function ccrhSaveDraft(story,value){ try{localStorage.setItem(ccrhDraftKey(story),value);}catch{} }
+  function ccrhClearDraft(story){ try{localStorage.removeItem(ccrhDraftKey(story));}catch{} }
+  function ccrhSpeakerOptions(story){ return storySpeakerOptions(story,'narrator'); }
+  function ccrhAnchorNodesForTurn(story,turnId){ return (story.nodes||[]).filter(node=>ensureStoryPassage(node).anchorTurnId===turnId); }
+  function ccrhPostHtml(turn,index,story){
+    const speaker=storySpeakerMeta(turn), image=speaker.character?ccrhCharacterImage(speaker.character):'';
+    const anchors=ccrhAnchorNodesForTurn(story,turn.id);
+    return `<article class="ccrh-post ${anchors.length?'is-anchor':''}" id="rp-post-${esc(turn.id)}" data-rp-post="${esc(turn.id)}">
+      <header class="ccrh-post-head">
+        <button class="ccrh-char-avatar" type="button" ${speaker.character?`data-open="characters:${esc(speaker.character.id)}"`:''}>${image?`<img src="${esc(image)}" alt="">`:esc(speaker.initials)}</button>
+        <div><div class="ccrh-post-name">${esc(speaker.name)}</div><div class="ccrh-post-meta">${esc(ccrhTurnDate(turn))}${anchors.length?` · Anchor: ${anchors.map(node=>esc(storyPointTitle(story,node))).join(', ')}`:''}</div></div>
+        <div class="ccrh-post-number">Post ${index+1}</div>
+      </header>
+      <div class="ccrh-post-body">${ccrhBbcode(turn.text||'')}</div>
+      <footer class="ccrh-post-actions">
+        <button class="button ghost small" type="button" data-ccrh-quote="${esc(turn.id)}">Quote</button>
+        <button class="button ghost small" type="button" data-ccrh-anchor="${esc(turn.id)}">Create anchor here</button>
+        ${normalizeMemberEmail(turn.authorEmail||'')===normalizeMemberEmail(firebase.user?.email||'')?`<button class="button ghost small" type="button" data-ccrh-edit-post="${esc(turn.id)}">Edit post</button>`:''}
+      </footer>
+    </article>`;
+  }
+  function ccrhRenderReader(){
+    const {story,node,ordered}=ccrhStoryFromRoute();
+    if(!story){el.main.innerHTML=pageHead('Roleplay Hub','No roleplays yet','Create a story graph to begin a live roleplay thread.','<button class="button" type="button" data-nav="graph">Open graphs</button>');return;}
+    const turns=ensureStoryDocument(story);
+    const draft=ccrhLoadDraft(story);
+    const anchorChips=(ordered||[]).map(point=>{
+      const anchor=ensureStoryPassage(point).anchorTurnId;
+      return `<button class="ccrh-anchor-chip ${node?.id===point.id?'active':''}" type="button" ${anchor?`data-ccrh-jump-post="${esc(anchor==='__start__'?(turns[0]?.id||''):anchor)}"`:`data-story-point="${esc(storyRouteValue(story.id,point.id))}"`}>${esc(storyPointTitle(story,point))}</button>`;
+    }).join('');
+    el.main.innerHTML=`
+      <div class="ccrh-thread-head"><div>${pageHead('Roleplay Hub',story.name,story.description||'Write together directly in this thread.')}</div><div class="ccrh-thread-tools"><button class="button secondary" type="button" data-nav="graph">Open graph</button><button class="button secondary" type="button" data-ccrh-follow>Follow roleplay</button></div></div>
+      <div class="ccrh-thread-bar"><strong>${turns.length} post${turns.length===1?'':'s'}</strong><span class="muted">Anchors mark where graph chapters begin.</span></div>
+      <div class="ccrh-anchor-strip">${anchorChips}</div>
+      <section class="ccrh-posts">${turns.length?turns.map((turn,index)=>ccrhPostHtml(turn,index,story)).join(''):'<div class="ccrh-thread-empty"><h3>No posts yet</h3><p>Use the reply editor below to begin this roleplay.</p></div>'}</section>
+      <section class="ccrh-composer" id="rp-composer">
+        <div class="ccrh-composer-title">Post a reply</div>
+        <div class="ccrh-compose-controls"><label>Posting as<select class="select" data-ccrh-speaker>${ccrhSpeakerOptions(story)}</select></label><label data-ccrh-custom-wrap hidden>Custom name<input class="input" data-ccrh-custom-name placeholder="Speaker name"></label></div>
+        <div class="ccrh-bb-toolbar">
+          <button type="button" data-ccrh-tag="b">B</button><button type="button" data-ccrh-tag="i"><i>I</i></button><button type="button" data-ccrh-tag="u"><u>U</u></button><button type="button" data-ccrh-tag="s"><s>S</s></button>
+          <button type="button" data-ccrh-wrap="[size=18]|[/size]">Size</button><button type="button" data-ccrh-wrap="[color=#8f6aae]|[/color]">Color</button><button type="button" data-ccrh-wrap="[quote]|[/quote]">Quote</button><button type="button" data-ccrh-wrap="[list]\n[*]|\n[/list]">List</button>
+          <button type="button" data-ccrh-wrap="[url=https://]|[/url]">Link</button><button type="button" data-ccrh-wrap="[img=center]|[/img]">Image/GIF</button><button type="button" data-ccrh-wrap="[center]|[/center]">Center</button><button type="button" data-ccrh-wrap="[spoiler=Hidden]|[/spoiler]">Spoiler</button><button type="button" data-ccrh-wrap="[ooc]|[/ooc]">OOC</button>
+        </div>
+        <div class="ccrh-editor-tabs"><button class="${ccrhPreviewMode?'':'active'}" type="button" data-ccrh-tab="write">Write (BBCode)</button><button class="${ccrhPreviewMode?'active':''}" type="button" data-ccrh-tab="preview">Preview</button></div>
+        <div class="ccrh-editor-wrap"><textarea class="ccrh-editor" data-ccrh-editor maxlength="50000" ${ccrhPreviewMode?'hidden':''} placeholder="Write your roleplay post here. BBCode and images or GIF URLs are supported.">${esc(draft)}</textarea><div class="ccrh-preview ccrh-post-body" data-ccrh-preview ${ccrhPreviewMode?'':'hidden'}>${ccrhBbcode(draft)||'<span class="muted">Your preview will appear here.</span>'}</div></div>
+        <div class="ccrh-compose-foot"><span class="ccrh-char-count"><span data-ccrh-count>${draft.length.toLocaleString()}</span> / 50,000 characters · Auto-saved locally</span><div class="ccrh-compose-actions"><button class="button secondary" type="button" data-ccrh-save-draft>Save draft</button><button class="button" type="button" data-ccrh-submit>Submit post</button></div></div>
+      </section>`;
+  }
+  function ccrhInsert(open,close=''){
+    const area=document.querySelector('[data-ccrh-editor]'); if(!area)return;
+    const start=area.selectionStart,end=area.selectionEnd,selected=area.value.slice(start,end);
+    area.setRangeText(open+selected+close,start,end,'end');
+    area.focus(); area.dispatchEvent(new Event('input',{bubbles:true}));
+  }
+  function ccrhOpenAnchorModal(turnId){
+    const {story,node}=ccrhStoryFromRoute(); if(!story)return;
+    const choices=(story.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0));
+    el.modal.innerHTML=`<div class="modal-backdrop" data-modal-close></div><section class="modal-card" role="dialog" aria-modal="true"><header class="modal-head"><div><span class="eyebrow">Graph anchor</span><h2>Create anchor at this post</h2></div><button class="icon-button" type="button" data-modal-close>×</button></header><div class="modal-body ccrh-anchor-modal-grid"><label>Story point<select class="select" data-ccrh-anchor-node>${choices.map(point=>`<option value="${esc(point.id)}" ${point.id===node?.id?'selected':''}>${esc(storyPointTitle(story,point))}</option>`).join('')}</select></label><label>Anchor title<input class="input" data-ccrh-anchor-title placeholder="Chapter or scene title"></label><label>Summary<textarea class="textarea" rows="4" data-ccrh-anchor-summary placeholder="What begins at this post?"></textarea></label></div><footer class="modal-actions"><button class="button secondary" type="button" data-modal-close>Cancel</button><button class="button" type="button" data-ccrh-save-anchor="${esc(turnId)}">Create anchor</button></footer></section>`;
+  }
+  async function ccrhSubmit(){
+    const {story}=ccrhStoryFromRoute(); if(!story)return;
+    const area=document.querySelector('[data-ccrh-editor]'),text=area?.value.trim()||'';
+    if(!text){toast('Write something before submitting.','error');return;}
+    const selected=document.querySelector('[data-ccrh-speaker]')?.value||'narrator';
+    const turn={id:id('turn'),type:'roleplay',characterId:'',speakerName:'Narrator',text,authorEmail:normalizeMemberEmail(firebase.user?.email||''),createdAt:nowISO(),updatedAt:nowISO()};
+    if(selected.startsWith('character:')){turn.characterId=selected.split(':')[1];turn.speakerName=getItem('characters',turn.characterId)?.name||'Character';}
+    else if(selected==='custom'){turn.speakerName=document.querySelector('[data-ccrh-custom-name]')?.value.trim()||'Guest character';}
+    ensureStoryDocument(story).push(turn); ccrhClearDraft(story); scheduleSave('Posting…'); ccrhPreviewMode=false; render();
+    requestAnimationFrame(()=>document.getElementById(`rp-post-${CSS.escape(turn.id)}`)?.scrollIntoView({behavior:'smooth',block:'center'}));
+  }
+
+  const ccrhRenderStoryBase=renderStoryReader;
+  renderStoryReader=function(){ccrhRenderReader();};
+
+  document.addEventListener('click',async event=>{
+    const tag=event.target.closest('[data-ccrh-tag]'); if(tag){event.preventDefault();const t=tag.dataset.ccrhTag;ccrhInsert(`[${t}]`,`[/${t}]`);return;}
+    const wrap=event.target.closest('[data-ccrh-wrap]'); if(wrap){event.preventDefault();const [a,b='']=wrap.dataset.ccrhWrap.split('|');ccrhInsert(a,b);return;}
+    const tab=event.target.closest('[data-ccrh-tab]'); if(tab){event.preventDefault();ccrhPreviewMode=tab.dataset.ccrhTab==='preview';const area=document.querySelector('[data-ccrh-editor]');if(area)ccrhSaveDraft(ccrhStoryFromRoute().story,area.value);ccrhRenderReader();return;}
+    if(event.target.closest('[data-ccrh-save-draft]')){event.preventDefault();const {story}=ccrhStoryFromRoute();const area=document.querySelector('[data-ccrh-editor]');ccrhSaveDraft(story,area?.value||'');toast('Draft saved.');return;}
+    if(event.target.closest('[data-ccrh-submit]')){event.preventDefault();await ccrhSubmit();return;}
+    const quote=event.target.closest('[data-ccrh-quote]'); if(quote){event.preventDefault();const {story}=ccrhStoryFromRoute();const turn=ensureStoryDocument(story).find(x=>x.id===quote.dataset.ccrhQuote);if(turn){const speaker=storySpeakerMeta(turn);document.getElementById('rp-composer')?.scrollIntoView({behavior:'smooth'});setTimeout(()=>ccrhInsert(`[quote="${speaker.name}"]\n${turn.text}\n[/quote]\n\n`,''),250);}return;}
+    const anchor=event.target.closest('[data-ccrh-anchor]'); if(anchor){event.preventDefault();ccrhOpenAnchorModal(anchor.dataset.ccrhAnchor);return;}
+    const saveAnchor=event.target.closest('[data-ccrh-save-anchor]'); if(saveAnchor){event.preventDefault();const {story}=ccrhStoryFromRoute();const nodeId=document.querySelector('[data-ccrh-anchor-node]')?.value;const point=(story.nodes||[]).find(x=>x.id===nodeId);if(point){const passage=ensureStoryPassage(point);passage.anchorTurnId=saveAnchor.dataset.ccrhSaveAnchor;const title=document.querySelector('[data-ccrh-anchor-title]')?.value.trim();const summary=document.querySelector('[data-ccrh-anchor-summary]')?.value.trim();if(title)passage.title=title;if(summary)passage.summary=summary;scheduleSave('Saving anchor…');closeModal();render();toast('Anchor created.');}return;}
+    const jump=event.target.closest('[data-ccrh-jump-post]'); if(jump){event.preventDefault();document.getElementById(`rp-post-${CSS.escape(jump.dataset.ccrhJumpPost)}`)?.scrollIntoView({behavior:'smooth',block:'start'});return;}
+    const edit=event.target.closest('[data-ccrh-edit-post]'); if(edit){event.preventDefault();const {story}=ccrhStoryFromRoute();const turn=ensureStoryDocument(story).find(x=>x.id===edit.dataset.ccrhEditPost);if(turn){ccrhSaveDraft(story,turn.text);turn._editing=true;document.getElementById('rp-composer')?.scrollIntoView({behavior:'smooth'});toast('The post was copied into the editor. Submit creates a new post; delete the old one only from owner tools.');}return;}
+  },true);
+  document.addEventListener('input',event=>{
+    const area=event.target.closest('[data-ccrh-editor]'); if(!area)return;
+    const {story}=ccrhStoryFromRoute();document.querySelector('[data-ccrh-count]').textContent=area.value.length.toLocaleString();clearTimeout(ccrhDraftTimer);ccrhDraftTimer=setTimeout(()=>ccrhSaveDraft(story,area.value),400);
+  },true);
+  document.addEventListener('change',event=>{
+    const speaker=event.target.closest('[data-ccrh-speaker]');if(speaker){const wrap=document.querySelector('[data-ccrh-custom-wrap]');if(wrap)wrap.hidden=speaker.value!=='custom';}
+  },true);
 
 })();
 </script>
