@@ -4429,6 +4429,79 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 </style>
 
+
+<style id="cc-emoji-library-and-post-controls-style">
+/* Clean roleplay post controls */
+.ccrh-post{position:relative}
+.ccrh-post-control-toggle{
+  position:absolute;right:12px;top:9px;z-index:3;width:34px;height:34px;border-radius:50%;
+  border:1px solid var(--border);background:var(--panel-strong);color:var(--text);
+  display:grid;place-items:center;cursor:pointer;font-size:17px
+}
+.ccrh-post-control-toggle:hover,.ccrh-post-control-toggle.active{
+  border-color:var(--accent);background:var(--accent-soft);color:var(--accent-strong)
+}
+.ccrh-post-actions{display:none}
+.ccrh-post.controls-open .ccrh-post-actions{display:flex}
+.ccrh-post.controls-open .ccrh-post-content-head{padding-right:54px}
+
+/* Emoji picker */
+.cc-emoji-picker{
+  position:fixed;z-index:13000;width:min(430px,calc(100vw - 24px));max-height:min(620px,calc(100vh - 24px));
+  display:flex;flex-direction:column;border:1px solid var(--border);border-radius:16px;
+  background:var(--panel);box-shadow:0 24px 70px rgba(0,0,0,.5);overflow:hidden
+}
+.cc-emoji-picker-head{display:flex;align-items:center;gap:8px;padding:11px;border-bottom:1px solid var(--border)}
+.cc-emoji-search{flex:1;border:1px solid var(--border);border-radius:9px;background:var(--panel-soft);color:var(--text);padding:9px 10px;font:inherit}
+.cc-emoji-picker-close{width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer}
+.cc-emoji-tabs{display:flex;gap:5px;padding:8px 10px;border-bottom:1px solid var(--border);overflow:auto}
+.cc-emoji-tab{white-space:nowrap;border:1px solid transparent;border-radius:999px;background:transparent;color:var(--muted);padding:6px 10px;cursor:pointer}
+.cc-emoji-tab.active{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-strong)}
+.cc-emoji-skin-row{display:flex;align-items:center;gap:7px;padding:8px 11px;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted)}
+.cc-emoji-skin{width:27px;height:27px;border:1px solid var(--border);border-radius:50%;background:var(--panel-soft);cursor:pointer}
+.cc-emoji-skin.active{outline:2px solid var(--accent)}
+.cc-emoji-grid{display:grid;grid-template-columns:repeat(8,minmax(36px,1fr));gap:5px;padding:10px;overflow:auto}
+.cc-emoji-item{
+  min-height:42px;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--text);
+  display:grid;place-items:center;cursor:pointer;font-size:25px;overflow:hidden
+}
+.cc-emoji-item:hover{border-color:var(--accent);background:var(--panel-soft)}
+.cc-emoji-item img{width:32px;height:32px;object-fit:contain}
+.cc-emoji-empty{grid-column:1/-1;padding:28px;text-align:center;color:var(--muted)}
+.cc-emoji-picker-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 11px;border-top:1px solid var(--border)}
+.cc-emoji-manage-note{font-size:11px;color:var(--muted)}
+
+/* Emoji library page */
+.cc-emoji-library-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap}
+.cc-emoji-library-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:18px}
+.cc-emoji-card{border:1px solid var(--border);border-radius:13px;background:var(--panel);padding:12px;display:grid;gap:8px}
+.cc-emoji-card-preview{height:82px;display:grid;place-items:center;border-radius:10px;background:var(--panel-soft)}
+.cc-emoji-card-preview img{max-width:68px;max-height:68px;object-fit:contain}
+.cc-emoji-card strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cc-emoji-card small{color:var(--muted)}
+.cc-emoji-card-actions{display:flex;gap:6px;flex-wrap:wrap}
+.cc-emoji-transparency{display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)}
+.cc-emoji-transparency.yes::before{content:"✓";color:var(--success);font-weight:900}
+.cc-emoji-transparency.no::before{content:"●";color:var(--warning)}
+.cc-emoji-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cc-emoji-form-grid .wide{grid-column:1/-1}
+.cc-emoji-preview-box{height:120px;border:1px dashed var(--border);border-radius:12px;background:var(--panel-soft);display:grid;place-items:center}
+.cc-emoji-preview-box img{max-width:96px;max-height:96px;object-fit:contain}
+@media(max-width:640px){
+  .cc-emoji-grid{grid-template-columns:repeat(6,minmax(36px,1fr))}
+  .cc-emoji-form-grid{grid-template-columns:1fr}
+  .cc-emoji-form-grid .wide{grid-column:auto}
+}
+</style>
+
+
+<style id="cc-inline-custom-emoji-style">
+.cc-inline-custom-emoji{
+  display:inline-block;width:32px;height:32px;object-fit:contain;vertical-align:middle;
+  margin:0 2px
+}
+</style>
+
 </head>
 <body>
 
@@ -4515,7 +4588,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "member-preview-exact-fix-2026-08-03";
+window.CODEX_BUILD = "emoji-library-post-controls-2026-08-03";
 </script>
   <script>
 (() => {
@@ -13157,6 +13230,7 @@ initFirebase();
     const authorEmail=author?ccpMemberId(author):'';
     const authorAvatar=author?ccpSafeUrl(ccpProfile(author).avatar):'';
     return `<article class="ccrh-post ${anchors.length?'is-anchor':''}" id="rp-post-${esc(turn.id)}" data-rp-post="${esc(turn.id)}">
+      <button class="ccrh-post-control-toggle" type="button" data-ccrh-post-controls title="Post controls" aria-label="Open post controls">✎</button>
       <aside class="ccrh-post-character">
         <button class="ccrh-char-avatar" type="button" ${speaker.character?`data-open="characters:${esc(speaker.character.id)}"`:''}>${image?`<img src="${esc(image)}" alt="${esc(speaker.name)}">`:esc(speaker.initials)}</button>
         <div class="ccrh-post-name">${esc(speaker.name)}</div>
@@ -13212,7 +13286,7 @@ initFirebase();
         <div class="ccrh-bb-toolbar">
           <button type="button" data-ccrh-tag="b">B</button><button type="button" data-ccrh-tag="i"><i>I</i></button><button type="button" data-ccrh-tag="u"><u>U</u></button><button type="button" data-ccrh-tag="s"><s>S</s></button>
           <button type="button" data-ccrh-wrap="[size=18]|[/size]">Size</button><button type="button" data-ccrh-wrap="[color=#8f6aae]|[/color]">Color</button><button type="button" data-ccrh-wrap="[quote]|[/quote]">Quote</button><button type="button" data-ccrh-wrap="[list]\n[*]|\n[/list]">List</button>
-          <button type="button" data-ccrh-wrap="[url=https://]|[/url]">Link</button><button type="button" data-ccrh-wrap="[img=center]|[/img]">Image/GIF</button><button type="button" data-ccrh-wrap="[center]|[/center]">Center</button><button type="button" data-ccrh-wrap="[spoiler=Hidden]|[/spoiler]">Spoiler</button><button type="button" data-ccrh-wrap="[ooc]|[/ooc]">OOC</button>
+          <button type="button" data-ccrh-wrap="[url=https://]|[/url]">Link</button><button type="button" data-ccrh-wrap="[img=center]|[/img]">Image/GIF</button><button type="button" data-cc-emoji-picker>😊 Emoji</button><button type="button" data-ccrh-wrap="[center]|[/center]">Center</button><button type="button" data-ccrh-wrap="[spoiler=Hidden]|[/spoiler]">Spoiler</button><button type="button" data-ccrh-wrap="[ooc]|[/ooc]">OOC</button>
         </div>
         <div class="ccrh-editor-tabs"><button class="${ccrhPreviewMode?'':'active'}" type="button" data-ccrh-tab="write">Write (BBCode)</button><button class="${ccrhPreviewMode?'active':''}" type="button" data-ccrh-tab="preview">Preview</button></div>
         <div class="ccrh-editor-wrap"><textarea class="ccrh-editor" data-ccrh-editor maxlength="50000" ${ccrhPreviewMode?'hidden':''} placeholder="Write your roleplay post here. BBCode and images or GIF URLs are supported.">${esc(draft)}</textarea><div class="ccrh-preview ccrh-post-body" data-ccrh-preview ${ccrhPreviewMode?'':'hidden'}>${ccrhBbcode(draft)||'<span class="muted">Your preview will appear here.</span>'}</div></div>
@@ -13643,6 +13717,351 @@ initFirebase();
     });
   }
 
+
+
+
+  /* === Shared Emoji Library and clean post controls === */
+  const CC_EMOJI_STANDARD=[
+    ['😀','grinning face'],['😃','smiling face'],['😄','happy face'],['😁','beaming face'],
+    ['😂','tears of joy'],['🤣','rolling laughing'],['😊','blushing smile'],['😍','heart eyes'],
+    ['🥰','smiling hearts'],['😘','kiss'],['😋','yum'],['😎','cool'],['🤔','thinking'],
+    ['🙄','eye roll'],['😒','unamused'],['😤','frustrated'],['😡','angry'],['🤬','swearing'],
+    ['😭','crying'],['😱','screaming'],['😴','sleeping'],['🤨','raised eyebrow'],['😏','smirk'],
+    ['🥺','pleading'],['😈','devil'],['👿','angry devil'],['💀','skull'],['👻','ghost'],
+    ['👍','thumbs up'],['👎','thumbs down'],['👏','clapping'],['🙌','raised hands'],
+    ['🙏','prayer hands'],['🤝','handshake'],['💪','strong'],['👀','eyes'],['🫶','heart hands'],
+    ['❤️','red heart'],['🧡','orange heart'],['💛','yellow heart'],['💚','green heart'],
+    ['💙','blue heart'],['💜','purple heart'],['🖤','black heart'],['🤍','white heart'],
+    ['✨','sparkles'],['⭐','star'],['🌙','moon'],['☀️','sun'],['🔥','fire'],['🌹','rose'],
+    ['🌿','herb'],['🍄','mushroom'],['🐉','dragon'],['🦇','bat'],['🐺','wolf'],['🦊','fox'],
+    ['⚔️','crossed swords'],['🛡️','shield'],['🏹','bow'],['🗡️','dagger'],['🔮','crystal ball'],
+    ['📜','scroll'],['📖','book'],['🕯️','candle'],['🪄','magic wand'],['🧪','potion'],
+    ['❗','exclamation'],['❓','question'],['✅','check'],['❌','cross'],['💬','speech bubble']
+  ];
+  const CC_EMOJI_SKINS=['','🏻','🏼','🏽','🏾','🏿'];
+  let ccEmojiPicker=null;
+  let ccEmojiPickerTab='recent';
+  let ccEmojiSkin='';
+  let ccEmojiSearch='';
+  let ccEmojiEditor=null;
+  let ccOpenPostControlsId='';
+
+  function ccEmojiLibrary(){
+    if(!Array.isArray(state.workspace.customEmojiLibrary))state.workspace.customEmojiLibrary=[];
+    return state.workspace.customEmojiLibrary;
+  }
+  function ccEmojiUsage(){
+    if(!state.workspace.emojiUsage||typeof state.workspace.emojiUsage!=='object')state.workspace.emojiUsage={};
+    return state.workspace.emojiUsage;
+  }
+  function ccEmojiRecent(){
+    if(!Array.isArray(state.workspace.emojiRecent))state.workspace.emojiRecent=[];
+    return state.workspace.emojiRecent;
+  }
+  function ccCanManageEmoji(){
+    const member=ccpCurrentMember?.()||firebase.currentMember;
+    const role=String(member?.role||'Member').toLowerCase();
+    return ['owner','admin','staff'].includes(role);
+  }
+  function ccEmojiApplySkin(emoji,skin){
+    if(!skin)return emoji;
+    return emoji.replace(/[\u{1F44A}-\u{1F64F}\u{1F90C}-\u{1F9FF}]/u,match=>match+skin);
+  }
+  function ccEmojiRecord(key){
+    const usage=ccEmojiUsage();
+    usage[key]=(usage[key]||0)+1;
+    const recent=ccEmojiRecent();
+    state.workspace.emojiRecent=[key,...recent.filter(item=>item!==key)].slice(0,40);
+  }
+  function ccEmojiInsert(value,key,isCustom=false){
+    const editor=ccEmojiEditor&&document.body.contains(ccEmojiEditor)?ccEmojiEditor:document.querySelector('[data-ccrh-editor]');
+    if(!editor){toast('Open a roleplay editor before inserting an emoji.','error');return;}
+    const insertion=isCustom?`[emoji=${key}]`:value;
+    const start=editor.selectionStart??editor.value.length;
+    const end=editor.selectionEnd??start;
+    editor.setRangeText(insertion,start,end,'end');
+    editor.dispatchEvent(new Event('input',{bubbles:true}));
+    editor.focus();
+    ccEmojiRecord(isCustom?`custom:${key}`:`standard:${value}`);
+    ccCloseEmojiPicker();
+  }
+  function ccEmojiMatches(label,value){
+    const q=ccEmojiSearch.trim().toLowerCase();
+    return !q||label.toLowerCase().includes(q)||value.includes(q);
+  }
+  function ccEmojiPickerItems(){
+    const library=ccEmojiLibrary();
+    const recent=ccEmojiRecent();
+    const usage=ccEmojiUsage();
+    if(ccEmojiPickerTab==='custom'){
+      return library.filter(item=>ccEmojiMatches(`${item.name} ${(item.tags||[]).join(' ')}`,item.name))
+        .map(item=>({type:'custom',key:item.name,label:item.name,src:item.src}));
+    }
+    let standard=CC_EMOJI_STANDARD.map(([value,label])=>({type:'standard',key:value,value:ccEmojiApplySkin(value,ccEmojiSkin),label}));
+    if(ccEmojiPickerTab==='recent'){
+      const map=new Map(standard.map(item=>[`standard:${item.key}`,item]));
+      for(const item of library)map.set(`custom:${item.name}`,{type:'custom',key:item.name,label:item.name,src:item.src});
+      return recent.map(key=>map.get(key)).filter(Boolean).filter(item=>ccEmojiMatches(item.label,item.value||item.key));
+    }
+    if(ccEmojiPickerTab==='frequent'){
+      standard.sort((a,b)=>(usage[`standard:${b.key}`]||0)-(usage[`standard:${a.key}`]||0));
+      const custom=library.map(item=>({type:'custom',key:item.name,label:item.name,src:item.src,score:usage[`custom:${item.name}`]||0}));
+      return [...custom,...standard.map(item=>({...item,score:usage[`standard:${item.key}`]||0}))]
+        .sort((a,b)=>(b.score||0)-(a.score||0))
+        .filter(item=>(item.score||0)>0)
+        .filter(item=>ccEmojiMatches(item.label,item.value||item.key));
+    }
+    return standard.filter(item=>ccEmojiMatches(item.label,item.value));
+  }
+  function ccRenderEmojiPicker(){
+    if(!ccEmojiPicker)return;
+    const items=ccEmojiPickerItems();
+    ccEmojiPicker.innerHTML=`
+      <div class="cc-emoji-picker-head">
+        <input class="cc-emoji-search" data-cc-emoji-search placeholder="Search emojis" value="${esc(ccEmojiSearch)}">
+        <button class="cc-emoji-picker-close" type="button" data-cc-emoji-close>×</button>
+      </div>
+      <div class="cc-emoji-tabs">
+        ${[['recent','Recent'],['frequent','Frequently Used'],['standard','Standard'],['custom','Custom Library']].map(([key,label])=>`<button class="cc-emoji-tab ${ccEmojiPickerTab===key?'active':''}" type="button" data-cc-emoji-tab="${key}">${label}</button>`).join('')}
+      </div>
+      ${ccEmojiPickerTab==='standard'?`<div class="cc-emoji-skin-row"><span>Skin tone</span>${CC_EMOJI_SKINS.map((skin,index)=>`<button class="cc-emoji-skin ${ccEmojiSkin===skin?'active':''}" type="button" data-cc-emoji-skin="${index}">${skin?`👍${skin}`:'👍'}</button>`).join('')}</div>`:''}
+      <div class="cc-emoji-grid">
+        ${items.length?items.map(item=>item.type==='custom'
+          ?`<button class="cc-emoji-item" type="button" title=":${esc(item.label)}:" data-cc-custom-emoji="${esc(item.key)}"><img src="${esc(item.src)}" alt=":${esc(item.label)}:"></button>`
+          :`<button class="cc-emoji-item" type="button" title="${esc(item.label)}" data-cc-standard-emoji="${esc(item.value)}" data-cc-standard-key="${esc(item.key)}">${item.value}</button>`
+        ).join(''):'<div class="cc-emoji-empty">No matching emojis.</div>'}
+      </div>
+      <div class="cc-emoji-picker-foot">
+        <span class="cc-emoji-manage-note">${ccCanManageEmoji()?'You can manage the shared library.':'All members can use the shared library.'}</span>
+        <button class="button ghost small" type="button" data-nav="emoji-library">${ccCanManageEmoji()?'Manage Library':'View Library'}</button>
+      </div>`;
+    requestAnimationFrame(()=>ccEmojiPicker.querySelector('[data-cc-emoji-search]')?.focus());
+  }
+  function ccOpenEmojiPicker(anchor){
+    ccCloseEmojiPicker();
+    ccEmojiEditor=document.querySelector('[data-ccrh-editor]');
+    ccEmojiPicker=document.createElement('section');
+    ccEmojiPicker.className='cc-emoji-picker';
+    document.body.append(ccEmojiPicker);
+    const rect=anchor.getBoundingClientRect();
+    const width=Math.min(430,window.innerWidth-24);
+    ccEmojiPicker.style.width=`${width}px`;
+    ccEmojiPicker.style.left=`${Math.min(window.innerWidth-width-12,Math.max(12,rect.left))}px`;
+    ccEmojiPicker.style.top=`${Math.min(window.innerHeight-300,rect.bottom+8)}px`;
+    ccRenderEmojiPicker();
+    requestAnimationFrame(()=>{
+      const box=ccEmojiPicker.getBoundingClientRect();
+      if(box.bottom>window.innerHeight-12)ccEmojiPicker.style.top=`${Math.max(12,rect.top-box.height-8)}px`;
+    });
+  }
+  function ccCloseEmojiPicker(){ccEmojiPicker?.remove();ccEmojiPicker=null;}
+  function ccEmojiRenderTag(name){
+    const item=ccEmojiLibrary().find(entry=>entry.name===name);
+    return item?`<img class="cc-inline-custom-emoji" src="${esc(item.src)}" alt=":${esc(name)}:" title=":${esc(name)}:">`:`:${esc(name)}:`;
+  }
+
+  const ccEmojiBbcodeBase=ccrhBbcode;
+  ccrhBbcode=function(raw){
+    let rendered=ccEmojiBbcodeBase(raw);
+    rendered=rendered.replace(/\[emoji=([a-z0-9_-]{1,40})\]/gi,(match,name)=>ccEmojiRenderTag(name.toLowerCase()));
+    return rendered;
+  };
+
+  function ccEmojiTransparency(file){
+    return new Promise(resolve=>{
+      const url=URL.createObjectURL(file);
+      const image=new Image();
+      image.onload=()=>{
+        try{
+          const canvas=document.createElement('canvas');
+          canvas.width=Math.min(image.naturalWidth,256);
+          canvas.height=Math.min(image.naturalHeight,256);
+          const context=canvas.getContext('2d',{willReadFrequently:true});
+          context.drawImage(image,0,0,canvas.width,canvas.height);
+          const data=context.getImageData(0,0,canvas.width,canvas.height).data;
+          let transparent=false;
+          for(let i=3;i<data.length;i+=4){if(data[i]<250){transparent=true;break;}}
+          URL.revokeObjectURL(url);resolve(transparent);
+        }catch{URL.revokeObjectURL(url);resolve(null);}
+      };
+      image.onerror=()=>{URL.revokeObjectURL(url);resolve(null);};
+      image.src=url;
+    });
+  }
+  function ccEmojiReadFile(file){
+    return new Promise((resolve,reject)=>{
+      if(!file)return reject(new Error('Choose an image first.'));
+      if(!/image\/(png|gif|webp)/i.test(file.type))return reject(new Error('Use PNG, GIF, or WebP.'));
+      if(file.size>850*1024)return reject(new Error('Emoji rejected. Use 128 × 128 px and keep it under 850 KB, or paste a hosted URL.'));
+      const reader=new FileReader();
+      reader.onload=()=>resolve(String(reader.result||''));
+      reader.onerror=()=>reject(new Error('The emoji could not be read.'));
+      reader.readAsDataURL(file);
+    });
+  }
+  function ccEmojiNormalizeName(value){
+    return String(value||'').trim().toLowerCase().replace(/[^a-z0-9_-]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40);
+  }
+  function ccEmojiOpenForm(existingName=''){
+    if(!ccCanManageEmoji()){toast('Only Owner, Admin, and Staff can manage the Emoji Library.','error');return;}
+    const existing=ccEmojiLibrary().find(item=>item.name===existingName)||null;
+    el.modal.innerHTML=`<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true"><header class="modal-head"><div><span class="eyebrow">${existing?'Edit':'Add'} custom emoji</span><h2>${existing?'Update emoji':'Add to Emoji Library'}</h2></div><button class="icon-button" type="button" data-modal-close>×</button></header><div class="modal-body"><div class="cc-emoji-form-grid">
+      <label>Name<input class="input" data-cc-emoji-name value="${esc(existing?.name||'')}" placeholder="angry_bat"></label>
+      <label>Tags<input class="input" data-cc-emoji-tags value="${esc((existing?.tags||[]).join(', '))}" placeholder="angry, bat, reaction"></label>
+      <label class="wide">Discord or hosted image URL<input class="input" data-cc-emoji-url value="${esc(existing?.externalUrl||'')}" placeholder="https://cdn.discordapp.com/emojis/...webp?animated=true"></label>
+      <label class="wide">Or upload PNG, GIF, or WebP<input type="file" accept="image/png,image/gif,image/webp" data-cc-emoji-file></label>
+      <div class="wide muted">Recommended: 128 × 128 px · Maximum 850 KB for direct upload · Transparent background recommended</div>
+      <div class="wide cc-emoji-preview-box" data-cc-emoji-preview>${existing?`<img src="${esc(existing.src)}" alt="">`:'Preview'}</div>
+      <div class="wide" data-cc-emoji-transparency>${existing?`<span class="cc-emoji-transparency ${existing.transparent?'yes':'no'}">${existing.transparent?'Transparent background detected':'Background transparency unknown or not detected'}</span>`:''}</div>
+    </div></div><footer class="modal-actions"><button class="button secondary" type="button" data-modal-close>Cancel</button><button class="button" type="button" data-cc-emoji-save data-existing-name="${esc(existing?.name||'')}">Save emoji</button></footer></section></div>`;
+  }
+  async function ccEmojiSaveForm(button){
+    const name=ccEmojiNormalizeName(document.querySelector('[data-cc-emoji-name]')?.value);
+    const tags=String(document.querySelector('[data-cc-emoji-tags]')?.value||'').split(',').map(item=>item.trim().toLowerCase()).filter(Boolean).slice(0,20);
+    const url=String(document.querySelector('[data-cc-emoji-url]')?.value||'').trim();
+    const file=document.querySelector('[data-cc-emoji-file]')?.files?.[0];
+    if(!name){toast('Give the emoji a short name.','error');return;}
+    if(!/^[a-z0-9_-]+$/.test(name)){toast('Emoji names can use letters, numbers, underscores, and dashes.','error');return;}
+    let src=url,transparent=null;
+    try{
+      if(file){src=await ccEmojiReadFile(file);transparent=await ccEmojiTransparency(file);}
+    }catch(error){toast(error.message||String(error),'error');return;}
+    if(!src||!(/^(https?:\/\/|data:image\/)/i.test(src))){toast('Upload an image or paste a valid image URL.','error');return;}
+    const library=ccEmojiLibrary();
+    const existingName=button.dataset.existingName||'';
+    const duplicate=library.find(item=>item.name===name&&item.name!==existingName);
+    if(duplicate){toast(`:${name}: already exists.`,'error');return;}
+    const oldIndex=library.findIndex(item=>item.name===existingName);
+    const old=oldIndex>=0?library[oldIndex]:null;
+    const item={
+      id:old?.id||id('emoji'),name,tags,src,externalUrl:url,
+      transparent:transparent===null?(old?.transparent??null):transparent,
+      animated:/(\.gif|animated=true)/i.test(src)||file?.type==='image/gif',
+      uploadedBy:normalizeMemberEmail(firebase.user?.email||''),
+      createdAt:old?.createdAt||nowISO(),updatedAt:nowISO()
+    };
+    if(oldIndex>=0)library.splice(oldIndex,1,item);else library.unshift(item);
+    scheduleSave('Saving emoji library…');
+    closeModal();render();toast(`:${name}: saved to the Emoji Library.`);
+  }
+  function ccEmojiDelete(name){
+    if(!ccCanManageEmoji())return;
+    if(!window.confirm(`Delete :${name}: from the shared Emoji Library?`))return;
+    const library=ccEmojiLibrary();
+    const index=library.findIndex(item=>item.name===name);
+    if(index>=0)library.splice(index,1);
+    scheduleSave('Deleting emoji…');render();toast(`:${name}: deleted.`);
+  }
+  function ccRenderEmojiLibrary(){
+    const library=ccEmojiLibrary();
+    const manage=ccCanManageEmoji();
+    el.main.innerHTML=`${pageHead('Workspace','Emoji Library','A shared collection available to every member.',manage?'<button class="button" type="button" data-cc-emoji-add>Add emoji</button>':'')}
+      <div class="cc-emoji-library-head"><div><strong>${library.length} custom emoji${library.length===1?'':'s'}</strong><p class="muted">Click an emoji while a Roleplay Hub editor is open to insert it at the cursor.</p></div><input class="input" style="max-width:280px" data-cc-emoji-library-search placeholder="Search library"></div>
+      <div class="cc-emoji-library-grid" data-cc-emoji-library-grid>${library.length?library.map(item=>ccEmojiLibraryCard(item,manage)).join(''):'<div class="panel empty-state">The shared Emoji Library is empty.</div>'}</div>`;
+  }
+  function ccEmojiLibraryCard(item,manage){
+    return `<article class="cc-emoji-card" data-emoji-card data-search="${esc(`${item.name} ${(item.tags||[]).join(' ')}`)}">
+      <button class="cc-emoji-card-preview" type="button" data-cc-library-insert="${esc(item.name)}"><img src="${esc(item.src)}" alt=":${esc(item.name)}:"></button>
+      <strong>:${esc(item.name)}:</strong>
+      <small>${esc((item.tags||[]).join(', ')||'No tags')}</small>
+      <span class="cc-emoji-transparency ${item.transparent?'yes':'no'}">${item.transparent?'Transparent':'Transparency not detected'}</span>
+      ${manage?`<div class="cc-emoji-card-actions"><button class="button ghost small" type="button" data-cc-emoji-edit="${esc(item.name)}">Edit</button><button class="button ghost small danger" type="button" data-cc-emoji-delete="${esc(item.name)}">Delete</button></div>`:''}
+    </article>`;
+  }
+
+  const ccEmojiRenderBase=render;
+  render=function(){
+    if(route.view==='emoji-library'){
+      renderSidebar();renderBreadcrumbs();ccRenderEmojiLibrary();ccpEnhanceChrome?.();return;
+    }
+    ccEmojiRenderBase();
+  };
+
+  const ccEmojiSidebarBase=renderSidebar;
+  renderSidebar=function(){
+    ccEmojiSidebarBase();
+    const settingsButton=el.sidebar.querySelector('[data-nav="settings"]');
+    if(settingsButton&&!el.sidebar.querySelector('[data-nav="emoji-library"]')){
+      const button=document.createElement('button');
+      button.className=`nav-item ${route.view==='emoji-library'?'active':''}`;
+      button.type='button';button.dataset.nav='emoji-library';
+      button.innerHTML=`<span class="nav-icon">😊</span><span>Emoji Library</span><span class="nav-count">${ccEmojiLibrary().length}</span>`;
+      settingsButton.parentElement.insertBefore(button,settingsButton);
+    }
+  };
+
+  document.addEventListener('click',event=>{
+    const postToggle=event.target.closest('[data-ccrh-post-controls]');
+    if(postToggle){
+      event.preventDefault();event.stopImmediatePropagation();
+      const post=postToggle.closest('.ccrh-post');
+      const idValue=post?.dataset.rpPost||'';
+      const opening=ccOpenPostControlsId!==idValue;
+      document.querySelectorAll('.ccrh-post.controls-open').forEach(item=>item.classList.remove('controls-open'));
+      document.querySelectorAll('[data-ccrh-post-controls].active').forEach(item=>item.classList.remove('active'));
+      ccOpenPostControlsId=opening?idValue:'';
+      if(opening){post?.classList.add('controls-open');postToggle.classList.add('active');}
+      return;
+    }
+    const emojiButton=event.target.closest('[data-cc-emoji-picker]');
+    if(emojiButton){event.preventDefault();ccOpenEmojiPicker(emojiButton);return;}
+    const close=event.target.closest('[data-cc-emoji-close]');
+    if(close){event.preventDefault();ccCloseEmojiPicker();return;}
+    const tab=event.target.closest('[data-cc-emoji-tab]');
+    if(tab){event.preventDefault();ccEmojiPickerTab=tab.dataset.ccEmojiTab;ccRenderEmojiPicker();return;}
+    const skin=event.target.closest('[data-cc-emoji-skin]');
+    if(skin){event.preventDefault();ccEmojiSkin=CC_EMOJI_SKINS[Number(skin.dataset.ccEmojiSkin)]||'';ccRenderEmojiPicker();return;}
+    const standard=event.target.closest('[data-cc-standard-emoji]');
+    if(standard){event.preventDefault();ccEmojiInsert(standard.dataset.ccStandardEmoji,standard.dataset.ccStandardKey,false);return;}
+    const custom=event.target.closest('[data-cc-custom-emoji]');
+    if(custom){event.preventDefault();const item=ccEmojiLibrary().find(entry=>entry.name===custom.dataset.ccCustomEmoji);if(item)ccEmojiInsert('',item.name,true);return;}
+    const add=event.target.closest('[data-cc-emoji-add]');
+    if(add){event.preventDefault();ccEmojiOpenForm();return;}
+    const edit=event.target.closest('[data-cc-emoji-edit]');
+    if(edit){event.preventDefault();ccEmojiOpenForm(edit.dataset.ccEmojiEdit);return;}
+    const del=event.target.closest('[data-cc-emoji-delete]');
+    if(del){event.preventDefault();ccEmojiDelete(del.dataset.ccEmojiDelete);return;}
+    const save=event.target.closest('[data-cc-emoji-save]');
+    if(save){event.preventDefault();ccEmojiSaveForm(save);return;}
+    const libraryInsert=event.target.closest('[data-cc-library-insert]');
+    if(libraryInsert){
+      event.preventDefault();
+      const editor=document.querySelector('[data-ccrh-editor]');
+      if(editor){ccEmojiEditor=editor;ccEmojiInsert('',libraryInsert.dataset.ccLibraryInsert,true);}
+      else toast('Open a Roleplay Hub reply editor to insert this emoji.');
+      return;
+    }
+    if(ccEmojiPicker&&!event.target.closest('.cc-emoji-picker'))ccCloseEmojiPicker();
+    if(ccOpenPostControlsId&&!event.target.closest('.ccrh-post')){
+      document.querySelectorAll('.ccrh-post.controls-open').forEach(item=>item.classList.remove('controls-open'));
+      ccOpenPostControlsId='';
+    }
+  },true);
+
+  document.addEventListener('input',event=>{
+    const search=event.target.closest('[data-cc-emoji-search]');
+    if(search){ccEmojiSearch=search.value;ccRenderEmojiPicker();return;}
+    const librarySearch=event.target.closest('[data-cc-emoji-library-search]');
+    if(librarySearch){
+      const q=librarySearch.value.trim().toLowerCase();
+      document.querySelectorAll('[data-emoji-card]').forEach(card=>card.hidden=Boolean(q&&!card.dataset.search.includes(q)));
+    }
+  },true);
+
+  document.addEventListener('change',async event=>{
+    const fileInput=event.target.closest('[data-cc-emoji-file]');
+    if(!fileInput)return;
+    const file=fileInput.files?.[0];
+    if(!file)return;
+    const preview=document.querySelector('[data-cc-emoji-preview]');
+    const transparency=document.querySelector('[data-cc-emoji-transparency]');
+    try{
+      const src=await ccEmojiReadFile(file);
+      if(preview)preview.innerHTML=`<img src="${esc(src)}" alt="">`;
+      const detected=await ccEmojiTransparency(file);
+      if(transparency)transparency.innerHTML=`<span class="cc-emoji-transparency ${detected?'yes':'no'}">${detected?'Transparent background detected':'Background is not transparent or could not be detected'}</span>`;
+    }catch(error){toast(error.message||String(error),'error');fileInput.value='';}
+  },true);
 
 })();
 </script>
