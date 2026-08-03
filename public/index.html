@@ -4057,6 +4057,12 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 @media(max-width:760px){.ccrh-post-body{padding:18px}.ccrh-post-head{grid-template-columns:auto 1fr}.ccrh-post-number{grid-column:2}.ccrh-compose-foot{align-items:stretch;flex-direction:column}.ccrh-compose-actions{display:grid;grid-template-columns:1fr 1fr}.ccrh-thread-head{display:block}.ccrh-thread-tools{justify-content:flex-start;margin-top:12px}}
 </style>
 
+
+<style id="ccrh-post-edit-delete-style">
+.ccrh-editing-notice{margin:0 0 12px;padding:10px 12px;border:1px solid color-mix(in srgb,var(--accent) 55%,var(--border));border-radius:10px;background:color-mix(in srgb,var(--accent) 12%,var(--panel));font-size:13px}
+.ccrh-post-actions .danger{color:var(--danger)}
+</style>
+
 </head>
 <body>
 
@@ -4143,7 +4149,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "profile-live-rp-integrated-2026-08-03";
+window.CODEX_BUILD = "rp-edit-delete-image-help-2026-08-03";
 </script>
   <script>
 (() => {
@@ -12354,9 +12360,9 @@ initFirebase();
             <label class="wide">Tagline<input maxlength="120" data-ccp-field="tagline" value="${esc(p.tagline)}" placeholder="Weaver of inconvenient plot twists"></label>
             <label class="wide">About me<textarea maxlength="5000" data-ccp-field="about">${esc(p.about)}</textarea></label>
             <label class="wide">Profile image URL<input data-ccp-field="avatar" value="${esc(p.avatar)}" placeholder="https://... or upload below"></label>
-            <div class="wide ccp-upload-row"><label class="button secondary small">Upload profile image<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" data-ccp-upload="avatar" hidden></label></div>
+            <div class="wide ccp-upload-row"><label class="button secondary small">Upload profile image<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" data-ccp-upload="avatar" hidden></label><span class="muted">Recommended: 512 × 512 px · Maximum 850 KB</span></div>
             <label class="wide">Banner URL<input data-ccp-field="banner" value="${esc(p.banner)}" placeholder="https://... or upload below"></label>
-            <div class="wide ccp-upload-row"><label class="button secondary small">Upload banner<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" data-ccp-upload="banner" hidden></label></div>
+            <div class="wide ccp-upload-row"><label class="button secondary small">Upload banner<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" data-ccp-upload="banner" hidden></label><span class="muted">Recommended: 1600 × 500 px · Maximum 850 KB</span></div>
             <label class="wide">Wallpaper URL<input data-ccp-field="wallpaper" value="${esc(p.wallpaper)}" placeholder="Repeating GIFs and images are supported"></label>
           </div>
         </section>
@@ -12427,13 +12433,33 @@ initFirebase();
     route={view:'profile',id:ccpMemberId(member)};
     render();
   }
-  async function ccpReadImage(file){
+  function ccpImageRecommendation(type){
+    if(type==='avatar')return 'Profile images should be 512 × 512 px and under 850 KB.';
+    if(type==='banner')return 'Profile banners should be 1600 × 500 px and under 850 KB.';
+    if(type==='wallpaper')return 'Profile wallpapers should be 1920 × 1080 px and under 850 KB.';
+    return 'Please resize the image and keep it under 850 KB.';
+  }
+  async function ccpImageDimensions(file){
+    return await new Promise((resolve,reject)=>{
+      const url=URL.createObjectURL(file);
+      const image=new Image();
+      image.onload=()=>{const dimensions={width:image.naturalWidth,height:image.naturalHeight};URL.revokeObjectURL(url);resolve(dimensions);};
+      image.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('The image could not be opened.'));};
+      image.src=url;
+    });
+  }
+  async function ccpReadImage(file,type='avatar'){
     if(!file)return '';
-    if(file.size>850*1024)throw new Error('Profile uploads must be under 850 KB so they fit safely in Firestore. GIFs can also be added by URL.');
+    const recommendation=ccpImageRecommendation(type);
+    if(file.size>850*1024)throw new Error(`Image rejected. ${recommendation}`);
+    let dimensions;
+    try{dimensions=await ccpImageDimensions(file);}catch{throw new Error(`Image rejected. ${recommendation}`);}
+    if(type==='avatar'&&(dimensions.width<256||dimensions.height<256))throw new Error(`Image rejected. ${recommendation}`);
+    if(type==='banner'&&(dimensions.width<800||dimensions.height<250))throw new Error(`Image rejected. ${recommendation}`);
     return await new Promise((resolve,reject)=>{
       const reader=new FileReader();
       reader.onload=()=>resolve(String(reader.result||''));
-      reader.onerror=()=>reject(new Error('The image could not be read.'));
+      reader.onerror=()=>reject(new Error(`Image rejected. ${recommendation}`));
       reader.readAsDataURL(file);
     });
   }
@@ -12489,7 +12515,7 @@ initFirebase();
     const input=event.target.closest('[data-ccp-upload]');
     if(!input)return;
     try{
-      const data=await ccpReadImage(input.files?.[0]);
+      const data=await ccpReadImage(input.files?.[0],input.dataset.ccpUpload||'avatar');
       const field=document.querySelector(`[data-ccp-field="${input.dataset.ccpUpload}"]`);
       if(field)field.value=data;
       toast('Image loaded. Save the profile to keep it.');
@@ -12535,6 +12561,7 @@ initFirebase();
   /* === Live Roleplay Hub === */
   let ccrhPreviewMode=false;
   let ccrhDraftTimer=null;
+  let ccrhEditingPostId='';
 
   function ccrhStoryFromRoute(){ return storyPointContext(route.id); }
   function ccrhTurnDate(turn){
@@ -12586,7 +12613,7 @@ initFirebase();
       <footer class="ccrh-post-actions">
         <button class="button ghost small" type="button" data-ccrh-quote="${esc(turn.id)}">Quote</button>
         <button class="button ghost small" type="button" data-ccrh-anchor="${esc(turn.id)}">Create anchor here</button>
-        ${normalizeMemberEmail(turn.authorEmail||'')===normalizeMemberEmail(firebase.user?.email||'')?`<button class="button ghost small" type="button" data-ccrh-edit-post="${esc(turn.id)}">Edit post</button>`:''}
+        ${(normalizeMemberEmail(turn.authorEmail||'')===normalizeMemberEmail(firebase.user?.email||'')||isWorkspaceOwner())?`<button class="button ghost small" type="button" data-ccrh-edit-post="${esc(turn.id)}">Edit post</button><button class="button ghost small danger" type="button" data-ccrh-delete-post="${esc(turn.id)}">Delete post</button>`:''}
       </footer>
     </article>`;
   }
@@ -12594,7 +12621,8 @@ initFirebase();
     const {story,node,ordered}=ccrhStoryFromRoute();
     if(!story){el.main.innerHTML=pageHead('Roleplay Hub','No roleplays yet','Create a story graph to begin a live roleplay thread.','<button class="button" type="button" data-nav="graph">Open graphs</button>');return;}
     const turns=ensureStoryDocument(story);
-    const draft=ccrhLoadDraft(story);
+    const editingTurn=ccrhEditingPostId?turns.find(turn=>turn.id===ccrhEditingPostId):null;
+    const draft=editingTurn?String(editingTurn.text||''):ccrhLoadDraft(story);
     const anchorChips=(ordered||[]).map(point=>{
       const anchor=ensureStoryPassage(point).anchorTurnId;
       return `<button class="ccrh-anchor-chip ${node?.id===point.id?'active':''}" type="button" ${anchor?`data-ccrh-jump-post="${esc(anchor==='__start__'?(turns[0]?.id||''):anchor)}"`:`data-story-point="${esc(storyRouteValue(story.id,point.id))}"`}>${esc(storyPointTitle(story,point))}</button>`;
@@ -12605,7 +12633,8 @@ initFirebase();
       <div class="ccrh-anchor-strip">${anchorChips}</div>
       <section class="ccrh-posts">${turns.length?turns.map((turn,index)=>ccrhPostHtml(turn,index,story)).join(''):'<div class="ccrh-thread-empty"><h3>No posts yet</h3><p>Use the reply editor below to begin this roleplay.</p></div>'}</section>
       <section class="ccrh-composer" id="rp-composer">
-        <div class="ccrh-composer-title">Post a reply</div>
+        <div class="ccrh-composer-title">${editingTurn?'Edit post':'Post a reply'}</div>
+        ${editingTurn?`<div class="ccrh-editing-notice"><strong>Editing ${esc(storySpeakerMeta(editingTurn).name)}’s post.</strong> Saving will update this exact post and will not create a new one.</div>`:''}
         <div class="ccrh-compose-controls"><label>Posting as<select class="select" data-ccrh-speaker>${ccrhSpeakerOptions(story)}</select></label><label data-ccrh-custom-wrap hidden>Custom name<input class="input" data-ccrh-custom-name placeholder="Speaker name"></label></div>
         <div class="ccrh-bb-toolbar">
           <button type="button" data-ccrh-tag="b">B</button><button type="button" data-ccrh-tag="i"><i>I</i></button><button type="button" data-ccrh-tag="u"><u>U</u></button><button type="button" data-ccrh-tag="s"><s>S</s></button>
@@ -12614,8 +12643,20 @@ initFirebase();
         </div>
         <div class="ccrh-editor-tabs"><button class="${ccrhPreviewMode?'':'active'}" type="button" data-ccrh-tab="write">Write (BBCode)</button><button class="${ccrhPreviewMode?'active':''}" type="button" data-ccrh-tab="preview">Preview</button></div>
         <div class="ccrh-editor-wrap"><textarea class="ccrh-editor" data-ccrh-editor maxlength="50000" ${ccrhPreviewMode?'hidden':''} placeholder="Write your roleplay post here. BBCode and images or GIF URLs are supported.">${esc(draft)}</textarea><div class="ccrh-preview ccrh-post-body" data-ccrh-preview ${ccrhPreviewMode?'':'hidden'}>${ccrhBbcode(draft)||'<span class="muted">Your preview will appear here.</span>'}</div></div>
-        <div class="ccrh-compose-foot"><span class="ccrh-char-count"><span data-ccrh-count>${draft.length.toLocaleString()}</span> / 50,000 characters · Auto-saved locally</span><div class="ccrh-compose-actions"><button class="button secondary" type="button" data-ccrh-save-draft>Save draft</button><button class="button" type="button" data-ccrh-submit>Submit post</button></div></div>
+        <div class="ccrh-compose-foot"><span class="ccrh-char-count"><span data-ccrh-count>${draft.length.toLocaleString()}</span> / 50,000 characters · Auto-saved locally</span><div class="ccrh-compose-actions">${editingTurn?`<button class="button secondary" type="button" data-ccrh-cancel-edit>Cancel edit</button>`:`<button class="button secondary" type="button" data-ccrh-save-draft>Save draft</button>`}<button class="button" type="button" data-ccrh-submit>${editingTurn?'Save changes':'Submit post'}</button></div></div>
       </section>`;
+    if(editingTurn){
+      requestAnimationFrame(()=>{
+        const speakerSelect=document.querySelector('[data-ccrh-speaker]');
+        if(!speakerSelect)return;
+        const desired=editingTurn.characterId?`character:${editingTurn.characterId}`:(editingTurn.speakerName&&editingTurn.speakerName!=='Narrator'?'custom':'narrator');
+        speakerSelect.value=desired;
+        const customWrap=document.querySelector('[data-ccrh-custom-wrap]');
+        const customName=document.querySelector('[data-ccrh-custom-name]');
+        if(customWrap)customWrap.hidden=desired!=='custom';
+        if(customName&&desired==='custom')customName.value=editingTurn.speakerName||'';
+      });
+    }
   }
   function ccrhInsert(open,close=''){
     const area=document.querySelector('[data-ccrh-editor]'); if(!area)return;
@@ -12631,13 +12672,54 @@ initFirebase();
   async function ccrhSubmit(){
     const {story}=ccrhStoryFromRoute(); if(!story)return;
     const area=document.querySelector('[data-ccrh-editor]'),text=area?.value.trim()||'';
-    if(!text){toast('Write something before submitting.','error');return;}
+    if(!text){toast('Write something before saving.','error');return;}
     const selected=document.querySelector('[data-ccrh-speaker]')?.value||'narrator';
-    const turn={id:id('turn'),type:'roleplay',characterId:'',speakerName:'Narrator',text,authorEmail:normalizeMemberEmail(firebase.user?.email||''),createdAt:nowISO(),updatedAt:nowISO()};
+    const turns=ensureStoryDocument(story);
+    const existing=ccrhEditingPostId?turns.find(turn=>turn.id===ccrhEditingPostId):null;
+    const turn=existing||{id:id('turn'),type:'roleplay',characterId:'',speakerName:'Narrator',authorEmail:normalizeMemberEmail(firebase.user?.email||''),createdAt:nowISO()};
+    turn.text=text;
+    turn.characterId='';
+    turn.speakerName='Narrator';
+    turn.updatedAt=nowISO();
     if(selected.startsWith('character:')){turn.characterId=selected.split(':')[1];turn.speakerName=getItem('characters',turn.characterId)?.name||'Character';}
     else if(selected==='custom'){turn.speakerName=document.querySelector('[data-ccrh-custom-name]')?.value.trim()||'Guest character';}
-    ensureStoryDocument(story).push(turn); ccrhClearDraft(story); scheduleSave('Posting…'); ccrhPreviewMode=false; render();
+    if(existing){
+      ccrhEditingPostId='';
+      scheduleSave('Saving post changes…');
+      toast('Post updated.');
+    }else{
+      turns.push(turn);
+      ccrhClearDraft(story);
+      scheduleSave('Posting…');
+    }
+    ccrhPreviewMode=false;
+    render();
     requestAnimationFrame(()=>document.getElementById(`rp-post-${CSS.escape(turn.id)}`)?.scrollIntoView({behavior:'smooth',block:'center'}));
+  }
+
+  function ccrhOpenDeletePostModal(turnId){
+    const {story}=ccrhStoryFromRoute();
+    const turn=story?ensureStoryDocument(story).find(item=>item.id===turnId):null;
+    if(!turn)return;
+    const speaker=storySpeakerMeta(turn);
+    el.modal.innerHTML=`<div class="modal-backdrop" data-modal-close></div><section class="modal-card" role="dialog" aria-modal="true"><header class="modal-head"><div><span class="eyebrow">Delete roleplay post</span><h2>Delete ${esc(speaker.name)}’s post?</h2></div><button class="icon-button" type="button" data-modal-close>×</button></header><div class="modal-body"><p>This permanently removes this exact post. Any graph anchor attached to it will be unlinked so it does not point to a missing post.</p></div><footer class="modal-actions"><button class="button secondary" type="button" data-modal-close>Cancel</button><button class="button danger" type="button" data-ccrh-confirm-delete-post="${esc(turnId)}">Delete post</button></footer></section>`;
+  }
+
+  function ccrhDeletePost(turnId){
+    const {story}=ccrhStoryFromRoute(); if(!story)return;
+    const turns=ensureStoryDocument(story);
+    const index=turns.findIndex(turn=>turn.id===turnId);
+    if(index<0)return;
+    turns.splice(index,1);
+    for(const point of story.nodes||[]){
+      const passage=ensureStoryPassage(point);
+      if(passage.anchorTurnId===turnId)passage.anchorTurnId='';
+    }
+    if(ccrhEditingPostId===turnId)ccrhEditingPostId='';
+    scheduleSave('Deleting post…');
+    closeModal();
+    render();
+    toast('Post deleted.');
   }
 
   const ccrhRenderStoryBase=renderStoryReader;
@@ -12659,7 +12741,10 @@ initFirebase();
     const anchor=event.target.closest('[data-ccrh-anchor]'); if(anchor){event.preventDefault();ccrhOpenAnchorModal(anchor.dataset.ccrhAnchor);return;}
     const saveAnchor=event.target.closest('[data-ccrh-save-anchor]'); if(saveAnchor){event.preventDefault();const {story}=ccrhStoryFromRoute();const nodeId=document.querySelector('[data-ccrh-anchor-node]')?.value;const point=(story.nodes||[]).find(x=>x.id===nodeId);if(point){const passage=ensureStoryPassage(point);passage.anchorTurnId=saveAnchor.dataset.ccrhSaveAnchor;const title=document.querySelector('[data-ccrh-anchor-title]')?.value.trim();const summary=document.querySelector('[data-ccrh-anchor-summary]')?.value.trim();if(title)passage.title=title;if(summary)passage.summary=summary;scheduleSave('Saving anchor…');closeModal();render();toast('Anchor created.');}return;}
     const jump=event.target.closest('[data-ccrh-jump-post]'); if(jump){event.preventDefault();document.getElementById(`rp-post-${CSS.escape(jump.dataset.ccrhJumpPost)}`)?.scrollIntoView({behavior:'smooth',block:'start'});return;}
-    const edit=event.target.closest('[data-ccrh-edit-post]'); if(edit){event.preventDefault();const {story}=ccrhStoryFromRoute();const turn=ensureStoryDocument(story).find(x=>x.id===edit.dataset.ccrhEditPost);if(turn){ccrhSaveDraft(story,turn.text);turn._editing=true;document.getElementById('rp-composer')?.scrollIntoView({behavior:'smooth'});toast('The post was copied into the editor. Submit creates a new post; delete the old one only from owner tools.');}return;}
+    const edit=event.target.closest('[data-ccrh-edit-post]'); if(edit){event.preventDefault();const {story}=ccrhStoryFromRoute();const turn=ensureStoryDocument(story).find(x=>x.id===edit.dataset.ccrhEditPost);if(turn){ccrhEditingPostId=turn.id;ccrhPreviewMode=false;ccrhRenderReader();requestAnimationFrame(()=>document.getElementById('rp-composer')?.scrollIntoView({behavior:'smooth',block:'start'}));toast('Editing this exact post.');}return;}
+    const cancelEdit=event.target.closest('[data-ccrh-cancel-edit]'); if(cancelEdit){event.preventDefault();ccrhEditingPostId='';ccrhPreviewMode=false;ccrhRenderReader();toast('Edit cancelled.');return;}
+    const deletePost=event.target.closest('[data-ccrh-delete-post]'); if(deletePost){event.preventDefault();ccrhOpenDeletePostModal(deletePost.dataset.ccrhDeletePost);return;}
+    const confirmDelete=event.target.closest('[data-ccrh-confirm-delete-post]'); if(confirmDelete){event.preventDefault();ccrhDeletePost(confirmDelete.dataset.ccrhConfirmDeletePost);return;}
   },true);
   document.addEventListener('input',event=>{
     const area=event.target.closest('[data-ccrh-editor]'); if(!area)return;
