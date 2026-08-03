@@ -4599,6 +4599,22 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 
 
 
+
+<style id="cc-hosted-media-render-fix-style">
+.ccrh-post-media{
+  display:block;
+  width:auto;
+  height:auto;
+  clear:both;
+  border-radius:10px;
+}
+.ccrh-post-body::after{
+  content:"";
+  display:block;
+  clear:both;
+}
+</style>
+
 </head>
 <body>
 
@@ -4685,7 +4701,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "hosted-giphy-post-media-2026-08-03";
+window.CODEX_BUILD = "hosted-media-render-fixed-2026-08-03";
 </script>
   <script>
 (() => {
@@ -14115,11 +14131,20 @@ initFirebase();
 
   const ccPostMediaBbcodeBase=ccrhBbcode;
   ccrhBbcode=function(raw){
-    let rendered=ccPostMediaBbcodeBase(raw);
-    rendered=rendered.replace(
-      /\[media url="([^"]+)" align=(left|right|center|full) width=([0-9]+|100%)\]/gi,
-      (match,url,align,width)=>ccPostMediaRender(url,align,width)
+    const mediaBlocks=[];
+    const prepared=String(raw||'').replace(
+      /\[media\s+url="([^"]+)"\s+align=(left|right|center|full)\s+width=([0-9]+|100%)\s*\]/gi,
+      (match,url,align,width)=>{
+        const token=`CCPOSTMEDIA${mediaBlocks.length}TOKEN`;
+        mediaBlocks.push(ccPostMediaRender(url,align,width));
+        return token;
+      }
     );
+    let rendered=ccPostMediaBbcodeBase(prepared);
+    mediaBlocks.forEach((markup,index)=>{
+      const token=`CCPOSTMEDIA${index}TOKEN`;
+      rendered=rendered.replaceAll(token,markup);
+    });
     return rendered;
   };
 
