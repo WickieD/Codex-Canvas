@@ -4597,11 +4597,7 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 </style>
 
 
-<style id="cc-storage-upload-progress-style">
-.cc-post-media-progress-wrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.cc-post-media-progress-wrap progress{flex:1;min-width:180px;height:12px}
-.cc-post-media-progress-wrap[hidden]{display:none}
-</style>
+
 
 </head>
 <body>
@@ -4689,7 +4685,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "firebase-storage-post-media-2026-08-03";
+window.CODEX_BUILD = "hosted-giphy-post-media-2026-08-03";
 </script>
   <script>
 (() => {
@@ -9873,9 +9869,8 @@ initFirebase=async function(){
     const appMod=await import('https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js');
     const authMod=await import('https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js');
     const fsMod=await import('https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js');
-    const storageMod=await import('https://www.gstatic.com/firebasejs/12.17.0/firebase-storage.js');
-    const app=appMod.initializeApp(window.FIREBASE_CONFIG),auth=authMod.getAuth(app),db=fsMod.getFirestore(app),storage=storageMod.getStorage(app);
-    await authMod.setPersistence(auth,authMod.browserLocalPersistence);firebase.api={...authMod,...fsMod,...storageMod,auth,db,storage};
+    const app=appMod.initializeApp(window.FIREBASE_CONFIG),auth=authMod.getAuth(app),db=fsMod.getFirestore(app);
+    await authMod.setPersistence(auth,authMod.browserLocalPersistence);firebase.api={...authMod,...fsMod,auth,db};
     authMod.onAuthStateChanged(auth,async user=>{
       firebase.user=user;firebase.connected=Boolean(user);firebase.currentMember=null;firebase.currentRole='';detachFirestoreListeners();
       if(!user){
@@ -13425,7 +13420,7 @@ initFirebase();
         <div class="ccrh-bb-toolbar">
           <button type="button" data-ccrh-tag="b">B</button><button type="button" data-ccrh-tag="i"><i>I</i></button><button type="button" data-ccrh-tag="u"><u>U</u></button><button type="button" data-ccrh-tag="s"><s>S</s></button>
           <button type="button" data-ccrh-wrap="[size=18]|[/size]">Size</button><button type="button" data-ccrh-wrap="[color=#8f6aae]|[/color]">Color</button><button type="button" data-ccrh-wrap="[quote]|[/quote]">Quote</button><button type="button" data-ccrh-wrap="[list]\n[*]|\n[/list]">List</button>
-          <button type="button" data-ccrh-wrap="[url=https://]|[/url]">Link</button><button type="button" data-cc-post-media-open aria-label="Insert image or GIF">Image/GIF</button><button type="button" data-cc-emoji-picker>😊 Emoji</button><button type="button" data-ccrh-wrap="[center]|[/center]">Center</button><button type="button" data-ccrh-wrap="[spoiler=Hidden]|[/spoiler]">Spoiler</button><button type="button" data-ccrh-wrap="[ooc]|[/ooc]">OOC</button>
+          <button type="button" data-ccrh-wrap="[url=https://]|[/url]">Link</button><button type="button" data-cc-post-media-open aria-label="Insert hosted image or GIF">Image/GIF</button><button type="button" data-cc-emoji-picker>😊 Emoji</button><button type="button" data-ccrh-wrap="[center]|[/center]">Center</button><button type="button" data-ccrh-wrap="[spoiler=Hidden]|[/spoiler]">Spoiler</button><button type="button" data-ccrh-wrap="[ooc]|[/ooc]">OOC</button>
         </div>
         <div class="ccrh-editor-tabs"><button class="${ccrhPreviewMode?'':'active'}" type="button" data-ccrh-tab="write">Write (BBCode)</button><button class="${ccrhPreviewMode?'active':''}" type="button" data-ccrh-tab="preview">Preview</button></div>
         <div class="ccrh-editor-wrap"><textarea class="ccrh-editor" data-ccrh-editor maxlength="50000" ${ccrhPreviewMode?'hidden':''} placeholder="Write your roleplay post here. BBCode and images or GIF URLs are supported.">${esc(draft)}</textarea><div class="ccrh-preview ccrh-post-body" data-ccrh-preview ${ccrhPreviewMode?'':'hidden'}>${ccrhBbcode(draft)||'<span class="muted">Your preview will appear here.</span>'}</div></div>
@@ -13994,189 +13989,194 @@ initFirebase();
 
 
 
-  /* === Firebase Storage roleplay media === */
+  /* === Hosted-link roleplay post media === */
   let ccPostMediaEditor=null;
-  let ccPostMediaSource=null;
-  let ccPostMediaUploadTask=null;
-  const CC_POST_IMAGE_MAX_BYTES=25*1024*1024;
-  const CC_POST_ANIMATED_MAX_BYTES=75*1024*1024;
+  let ccPostMediaUrl='';
 
-  function ccPostMediaWorkspaceId(){
-    return String(window.FIREBASE_WORKSPACE_ID||state.workspace?.worldId||'riftbound-world').replace(/[^a-z0-9_-]/gi,'_');
+  function ccPostMediaNormalizeUrl(value){
+    let url=String(value||'').trim();
+    if(!url)return '';
+
+    // Convert common GIPHY page URLs into direct media URLs.
+    try{
+      const parsed=new URL(url);
+      const host=parsed.hostname.toLowerCase();
+
+      if(host==='giphy.com'||host==='www.giphy.com'){
+        const parts=parsed.pathname.split('/').filter(Boolean);
+        const gifsIndex=parts.indexOf('gifs');
+        if(gifsIndex>=0&&parts[gifsIndex+1]){
+          const slug=parts[gifsIndex+1];
+          const id=slug.includes('-')?slug.split('-').pop():slug;
+          if(id)return `https://media.giphy.com/media/${id}/giphy.gif`;
+        }
+      }
+
+      // Normalize GIPHY media pages to the GIF rendition.
+      if(host==='media.giphy.com'||host==='i.giphy.com'){
+        const match=parsed.pathname.match(/\/media\/([^/]+)/i);
+        if(match?.[1])return `https://media.giphy.com/media/${match[1]}/giphy.gif`;
+      }
+    }catch{}
+
+    return url;
   }
-  function ccPostMediaAllowedSize(file){
-    const animated=file?.type==='image/gif'||file?.type==='image/webp';
-    return animated?CC_POST_ANIMATED_MAX_BYTES:CC_POST_IMAGE_MAX_BYTES;
-  }
-  function ccPostMediaValidateFile(file){
-    if(!file)throw new Error('Choose an image or GIF first.');
-    if(!/^image\/(jpeg|png|gif|webp)$/i.test(file.type))throw new Error('Use JPG, PNG, GIF, or WebP.');
-    const limit=ccPostMediaAllowedSize(file);
-    if(file.size>limit){
-      const type=(file.type==='image/gif'||file.type==='image/webp')?'animated media':'images';
-      throw new Error(`${type} can be up to ${(limit/1024/1024).toFixed(0)} MB. This file is ${(file.size/1024/1024).toFixed(1)} MB.`);
-    }
-  }
+
   function ccPostMediaOpen(){
     ccPostMediaEditor=document.querySelector('[data-ccrh-editor]');
-    if(!ccPostMediaEditor){toast('Open a roleplay editor before adding media.','error');return;}
-    ccPostMediaSource=null;
+    if(!ccPostMediaEditor){
+      toast('Open a roleplay editor before adding an image or GIF.','error');
+      return;
+    }
+    ccPostMediaUrl='';
     el.modal.innerHTML=`<div class="modal-backdrop"><section class="modal cc-post-media-modal" role="dialog" aria-modal="true">
-      <header class="modal-head"><div><span class="eyebrow">Roleplay post media</span><h2>Insert an image or GIF</h2></div><button class="icon-button" type="button" data-modal-close>×</button></header>
-      <div class="modal-body"><div class="cc-post-media-grid">
-        <label class="wide">Paste image or GIF link<input class="input" data-cc-post-media-url placeholder="https://..."></label>
-        <div class="wide cc-post-media-warning" data-cc-post-media-warning hidden></div>
-        <div class="wide cc-post-media-actions"><button class="button secondary" type="button" data-cc-post-media-preview-url>Preview link</button><button class="button" type="button" data-cc-post-media-import-url>Import and save to Codex</button></div>
-        <div class="wide cc-post-media-separator"><span>or</span></div>
-        <label class="wide">Upload from your device<input class="input cc-post-media-file-input" type="file" accept="image/jpeg,image/png,image/gif,image/webp" data-cc-post-media-file></label>
-        <div class="wide muted">Images: maximum 25 MB · GIF or animated WebP: maximum 75 MB</div>
-        <label>Alignment<select class="select" data-cc-post-media-align><option value="center">Center</option><option value="left">Left</option><option value="right">Right</option><option value="full">Full width</option></select></label>
-        <label>Display width<select class="select" data-cc-post-media-width><option value="320">Small · 320 px</option><option value="500">Medium · 500 px</option><option value="700" selected>Large · 700 px</option><option value="1000">Extra large · 1000 px</option><option value="100%">Full available width</option></select></label>
-        <div class="wide cc-post-media-preview" data-cc-post-media-preview>Preview appears here.</div>
-        <div class="wide cc-post-media-progress-wrap" data-cc-post-media-progress-wrap hidden><progress max="100" value="0" data-cc-post-media-progress></progress><span data-cc-post-media-progress-text>0%</span><button class="button ghost small" type="button" data-cc-post-media-cancel>Cancel upload</button></div>
-        <div class="wide cc-post-media-status" data-cc-post-media-status></div>
-      </div></div>
-      <footer class="modal-actions"><button class="button secondary" type="button" data-modal-close>Close</button><button class="button" type="button" data-cc-post-media-upload disabled>Upload and insert</button></footer>
+      <header class="modal-head">
+        <div><span class="eyebrow">Roleplay post media</span><h2>Insert an image or GIF</h2></div>
+        <button class="icon-button" type="button" data-modal-close>×</button>
+      </header>
+      <div class="modal-body">
+        <div class="cc-post-media-grid">
+          <label class="wide">Paste a hosted image or GIF link
+            <input class="input" data-cc-post-media-url placeholder="GIPHY page link or direct JPG, PNG, GIF, or WebP URL">
+          </label>
+          <div class="wide muted">
+            GIPHY page links are converted automatically. Other hosts should use a direct image or GIF URL.
+          </div>
+          <div class="wide cc-post-media-actions">
+            <button class="button" type="button" data-cc-post-media-preview-url>Preview link</button>
+          </div>
+          <label>Alignment
+            <select class="select" data-cc-post-media-align>
+              <option value="center">Center</option>
+              <option value="left">Left</option>
+              <option value="right">Right</option>
+              <option value="full">Full width</option>
+            </select>
+          </label>
+          <label>Display width
+            <select class="select" data-cc-post-media-width>
+              <option value="320">Small · 320 px</option>
+              <option value="500">Medium · 500 px</option>
+              <option value="700" selected>Large · 700 px</option>
+              <option value="1000">Extra large · 1000 px</option>
+              <option value="100%">Full available width</option>
+            </select>
+          </label>
+          <div class="wide cc-post-media-preview" data-cc-post-media-preview>Preview appears here.</div>
+          <div class="wide cc-post-media-status" data-cc-post-media-status></div>
+        </div>
+      </div>
+      <footer class="modal-actions">
+        <button class="button secondary" type="button" data-modal-close>Cancel</button>
+        <button class="button" type="button" data-cc-post-media-insert disabled>Insert into post</button>
+      </footer>
     </section></div>`;
   }
-  function ccPostMediaPreview(src,label=''){
-    const area=document.querySelector('[data-cc-post-media-preview]');
-    if(area)area.innerHTML=src?`<img src="${esc(src)}" alt="${esc(label||'Roleplay media preview')}">`:'Preview appears here.';
+
+  function ccPostMediaPreview(url){
+    const preview=document.querySelector('[data-cc-post-media-preview]');
+    const insert=document.querySelector('[data-cc-post-media-insert]');
+    if(preview){
+      preview.innerHTML=url
+        ? `<img src="${esc(url)}" alt="Roleplay media preview" data-cc-post-media-preview-image>`
+        : 'Preview appears here.';
+    }
+    if(insert)insert.disabled=!url;
   }
-  function ccPostMediaSetSource(source){
-    ccPostMediaSource=source;
-    const button=document.querySelector('[data-cc-post-media-upload]');
-    if(button)button.disabled=!source;
-  }
-  function ccPostMediaInsert(url,align,width,name='Roleplay media'){
-    const editor=ccPostMediaEditor&&document.body.contains(ccPostMediaEditor)?ccPostMediaEditor:document.querySelector('[data-ccrh-editor]');
-    if(!editor){toast('The roleplay editor is no longer open.','error');return;}
-    const tag=`[media url="${url}" align=${align} width=${width} alt="${String(name).replace(/"/g,'')}"]`;
+
+  function ccPostMediaInsert(url,align,width){
+    const editor=ccPostMediaEditor&&document.body.contains(ccPostMediaEditor)
+      ? ccPostMediaEditor
+      : document.querySelector('[data-ccrh-editor]');
+    if(!editor){
+      toast('The roleplay editor is no longer open.','error');
+      return;
+    }
+    const tag=`[media url="${url}" align=${align} width=${width}]`;
     const start=editor.selectionStart??editor.value.length;
     const end=editor.selectionEnd??start;
     editor.setRangeText(tag,start,end,'end');
     editor.dispatchEvent(new Event('input',{bubbles:true}));
     editor.focus();
   }
-  async function ccPostMediaUploadBlob(blob,name,type){
-    if(!firebase.api?.storage)throw new Error('Firebase Storage is not connected. Enable Storage in Firebase, publish storage.rules, then refresh.');
-    const file=blob instanceof File?blob:new File([blob],name,{type});
-    ccPostMediaValidateFile(file);
-    const safeName=String(file.name||name||'media').replace(/[^a-z0-9._-]/gi,'_');
-    const path=`workspaces/${ccPostMediaWorkspaceId()}/roleplay-media/${Date.now()}-${id('media')}-${safeName}`;
-    const storageRef=firebase.api.ref(firebase.api.storage,path);
-    const metadata={contentType:file.type,customMetadata:{uploadedBy:normalizeMemberEmail(firebase.user?.email||''),workspaceId:ccPostMediaWorkspaceId()}};
-    const task=firebase.api.uploadBytesResumable(storageRef,file,metadata);
-    ccPostMediaUploadTask=task;
-    const wrap=document.querySelector('[data-cc-post-media-progress-wrap]');
-    const progress=document.querySelector('[data-cc-post-media-progress]');
-    const text=document.querySelector('[data-cc-post-media-progress-text]');
-    const status=document.querySelector('[data-cc-post-media-status]');
-    if(wrap)wrap.hidden=false;
-    return await new Promise((resolve,reject)=>{
-      task.on('state_changed',snapshot=>{
-        const percent=Math.round((snapshot.bytesTransferred/snapshot.totalBytes)*100);
-        if(progress)progress.value=percent;
-        if(text)text.textContent=`${percent}%`;
-        if(status)status.textContent=`Uploading ${(snapshot.totalBytes/1024/1024).toFixed(1)} MB…`;
-      },error=>{
-        ccPostMediaUploadTask=null;
-        reject(new Error(error.code==='storage/unauthorized'?'Storage denied this upload. Publish the included storage.rules file.':error.message||'Upload failed.'));
-      },async()=>{
-        try{
-          const url=await firebase.api.getDownloadURL(task.snapshot.ref);
-          ccPostMediaUploadTask=null;
-          resolve({url,name:file.name,type:file.type,size:file.size});
-        }catch(error){reject(error);}
-      });
-    });
-  }
-  async function ccPostMediaFetchLink(url){
-    let response;
-    try{response=await fetch(url,{mode:'cors',cache:'no-store'});}
-    catch{throw new Error('The host blocked automatic importing. Download the file and upload it from your device instead.');}
-    if(!response.ok)throw new Error(`The link returned ${response.status}.`);
-    const blob=await response.blob();
-    if(!blob.type.startsWith('image/'))throw new Error('That link did not return an image or GIF.');
-    const extension=blob.type.split('/')[1]?.replace('jpeg','jpg')||'img';
-    return new File([blob],`imported-${Date.now()}.${extension}`,{type:blob.type});
-  }
-  function ccPostMediaRender(url,align,width,alt){
+
+  function ccPostMediaRender(url,align,width){
     const numeric=width==='100%'?'100%':`${Math.max(80,Math.min(1600,Number(width)||700))}px`;
-    const cls=align==='left'?'ccrh-float-left':align==='right'?'ccrh-float-right':align==='full'?'ccrh-media-full':'ccrh-media-center';
-    return `<img class="ccrh-post-media ${cls}" src="${esc(url)}" alt="${esc(alt||'Roleplay media')}" style="max-width:${esc(numeric)}">`;
+    const cls=align==='left'
+      ?'ccrh-float-left'
+      :align==='right'
+        ?'ccrh-float-right'
+        :align==='full'
+          ?'ccrh-media-full'
+          :'ccrh-media-center';
+
+    return `<img class="ccrh-post-media ${cls}" src="${esc(url)}" alt="Roleplay media" style="max-width:${esc(numeric)}">`;
   }
+
   const ccPostMediaBbcodeBase=ccrhBbcode;
   ccrhBbcode=function(raw){
     let rendered=ccPostMediaBbcodeBase(raw);
-    rendered=rendered.replace(/\[media url="([^"]+)" align=(left|right|center|full) width=([0-9]+|100%) alt="([^"]*)"\]/gi,(m,url,align,width,alt)=>ccPostMediaRender(url,align,width,alt));
+    rendered=rendered.replace(
+      /\[media url="([^"]+)" align=(left|right|center|full) width=([0-9]+|100%)\]/gi,
+      (match,url,align,width)=>ccPostMediaRender(url,align,width)
+    );
     return rendered;
   };
 
-  document.addEventListener('click',async event=>{
+  document.addEventListener('click',event=>{
     const open=event.target.closest('[data-cc-post-media-open]');
-    if(open){event.preventDefault();event.stopImmediatePropagation();ccPostMediaOpen();return;}
-    const preview=event.target.closest('[data-cc-post-media-preview-url]');
-    if(preview){
+    if(open){
       event.preventDefault();
-      const url=String(document.querySelector('[data-cc-post-media-url]')?.value||'').trim();
-      if(!/^https?:\/\//i.test(url)){toast('Paste a valid image or GIF link.','error');return;}
-      ccPostMediaSetSource({kind:'url',url});
-      ccPostMediaPreview(url,'Linked roleplay media');
-      const warning=document.querySelector('[data-cc-post-media-warning]');
-      if(warning){
-        const temporary=/(discordapp\.(com|net)|cdn\.discordapp\.com)/i.test(url)&&/[?&](ex|is|hm)=/i.test(url);
-        warning.hidden=!temporary;
-        warning.textContent=temporary?'This Discord link is temporary. Use Import and save to Codex.':'';
+      event.stopImmediatePropagation();
+      ccPostMediaOpen();
+      return;
+    }
+
+    const previewButton=event.target.closest('[data-cc-post-media-preview-url]');
+    if(previewButton){
+      event.preventDefault();
+      const input=document.querySelector('[data-cc-post-media-url]');
+      const status=document.querySelector('[data-cc-post-media-status]');
+      const normalized=ccPostMediaNormalizeUrl(input?.value);
+
+      if(!/^https?:\/\//i.test(normalized)){
+        toast('Paste a valid hosted image or GIF link.','error');
+        return;
+      }
+
+      ccPostMediaUrl=normalized;
+      if(input)input.value=normalized;
+      ccPostMediaPreview(normalized);
+
+      const image=document.querySelector('[data-cc-post-media-preview-image]');
+      if(image){
+        image.addEventListener('load',()=>{
+          if(status)status.textContent='Preview loaded. Ready to insert.';
+        },{once:true});
+        image.addEventListener('error',()=>{
+          ccPostMediaUrl='';
+          ccPostMediaPreview('');
+          if(status)status.textContent='That host did not allow the image to load. Try a direct GIPHY media URL.';
+          toast('The hosted image could not be loaded.','error');
+        },{once:true});
       }
       return;
     }
-    const importLink=event.target.closest('[data-cc-post-media-import-url]');
-    if(importLink){
+
+    const insert=event.target.closest('[data-cc-post-media-insert]');
+    if(insert){
       event.preventDefault();
-      const url=String(document.querySelector('[data-cc-post-media-url]')?.value||'').trim();
-      const status=document.querySelector('[data-cc-post-media-status]');
-      try{
-        if(status)status.textContent='Downloading linked media…';
-        const file=await ccPostMediaFetchLink(url);
-        ccPostMediaSetSource({kind:'file',file});
-        ccPostMediaPreview(URL.createObjectURL(file),file.name);
-        if(status)status.textContent=`Ready to upload: ${(file.size/1024/1024).toFixed(1)} MB`;
-      }catch(error){if(status)status.textContent=error.message;toast(error.message,'error');}
-      return;
-    }
-    const upload=event.target.closest('[data-cc-post-media-upload]');
-    if(upload){
-      event.preventDefault();
-      if(!ccPostMediaSource){toast('Choose or import media first.','error');return;}
+      if(!ccPostMediaUrl){
+        toast('Preview a hosted image or GIF first.','error');
+        return;
+      }
+
       const align=document.querySelector('[data-cc-post-media-align]')?.value||'center';
       const width=document.querySelector('[data-cc-post-media-width]')?.value||'700';
-      const status=document.querySelector('[data-cc-post-media-status]');
-      try{
-        let file=ccPostMediaSource.file;
-        if(ccPostMediaSource.kind==='url')file=await ccPostMediaFetchLink(ccPostMediaSource.url);
-        const result=await ccPostMediaUploadBlob(file,file.name,file.type);
-        ccPostMediaInsert(result.url,align,width,result.name);
-        closeModal();
-        toast('Image or GIF uploaded and inserted.');
-      }catch(error){if(status)status.textContent=error.message;toast(error.message,'error');}
-      return;
+      ccPostMediaInsert(ccPostMediaUrl,align,width);
+      closeModal();
+      toast('Image or GIF inserted into the post.');
     }
-    const cancel=event.target.closest('[data-cc-post-media-cancel]');
-    if(cancel){event.preventDefault();ccPostMediaUploadTask?.cancel();ccPostMediaUploadTask=null;toast('Upload cancelled.');return;}
-  },true);
-
-  document.addEventListener('change',event=>{
-    const input=event.target.closest('[data-cc-post-media-file]');
-    if(!input)return;
-    const file=input.files?.[0];
-    const status=document.querySelector('[data-cc-post-media-status]');
-    try{
-      ccPostMediaValidateFile(file);
-      ccPostMediaSetSource({kind:'file',file});
-      ccPostMediaPreview(URL.createObjectURL(file),file.name);
-      if(status)status.textContent=`Ready: ${file.name} · ${(file.size/1024/1024).toFixed(1)} MB`;
-    }catch(error){ccPostMediaSetSource(null);if(status)status.textContent=error.message;toast(error.message,'error');input.value='';}
   },true);
 })();
 
