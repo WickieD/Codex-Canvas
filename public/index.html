@@ -3891,6 +3891,124 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 </style>
 
+
+<style id="ccp-profile-system-style">
+.ccp-profile-shell{
+  --profile-accent:#a98a58;
+  --profile-bg:#17191d;
+  --profile-card:rgba(28,31,37,.92);
+  --profile-text:#f4efe5;
+  --profile-muted:#b9b2a5;
+  --profile-border:rgba(255,255,255,.13);
+  position:relative;min-height:calc(100vh - 132px);overflow:hidden;
+  color:var(--profile-text);background:var(--profile-bg);
+  border:1px solid var(--profile-border);border-radius:18px
+}
+.ccp-profile-shell *{box-sizing:border-box}
+.ccp-profile-wallpaper{
+  position:absolute;inset:0;background-position:center;background-size:cover;
+  background-repeat:repeat;opacity:.34;pointer-events:none
+}
+.ccp-profile-content{position:relative;z-index:1}
+.ccp-profile-banner{
+  min-height:250px;background:linear-gradient(135deg,color-mix(in srgb,var(--profile-accent) 32%,#111),#111);
+  background-size:cover;background-position:center;position:relative;border-radius:17px 17px 0 0
+}
+.ccp-profile-banner::after{
+  content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,rgba(0,0,0,.68))
+}
+.ccp-profile-identity{
+  position:relative;margin-top:-78px;padding:0 34px 24px;display:flex;align-items:flex-end;gap:20px;z-index:2
+}
+.ccp-profile-avatar{
+  width:148px;height:148px;border-radius:50%;border:5px solid var(--profile-bg);
+  background:var(--profile-card);display:grid;place-items:center;overflow:hidden;
+  font-size:38px;font-weight:900;box-shadow:0 12px 30px rgba(0,0,0,.34)
+}
+.ccp-profile-avatar img{width:100%;height:100%;object-fit:cover}
+.ccp-profile-heading{min-width:0;flex:1;padding-bottom:8px}
+.ccp-profile-heading h1{margin:0;font-size:clamp(30px,4vw,52px);line-height:1}
+.ccp-profile-tagline{margin:8px 0;color:var(--profile-muted);font-size:16px;font-style:italic}
+.ccp-profile-meta{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:13px;font-weight:750}
+.ccp-profile-role{
+  display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;
+  border:1px solid color-mix(in srgb,var(--profile-accent) 65%,transparent);
+  background:color-mix(in srgb,var(--profile-accent) 20%,transparent)
+}
+.ccp-profile-actions{display:flex;gap:8px;align-items:center;padding-bottom:10px}
+.ccp-profile-grid{
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(250px,340px);
+  gap:18px;padding:0 28px 30px
+}
+.ccp-profile-section{
+  border:1px solid var(--profile-border);border-radius:15px;background:var(--profile-card);
+  padding:18px;backdrop-filter:blur(8px);box-shadow:0 10px 28px rgba(0,0,0,.18)
+}
+.ccp-profile-section h2{margin:0 0 12px;font-size:18px;color:var(--profile-accent)}
+.ccp-profile-section p{line-height:1.7}
+.ccp-profile-main,.ccp-profile-side{display:grid;gap:18px;align-content:start}
+.ccp-profile-character-grid,.ccp-profile-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
+.ccp-profile-character{
+  border:1px solid var(--profile-border);border-radius:12px;overflow:hidden;background:rgba(0,0,0,.16);
+  color:inherit;text-align:left;cursor:pointer
+}
+.ccp-profile-character img,.ccp-profile-gallery img{width:100%;aspect-ratio:1.2/1;object-fit:cover;display:block}
+.ccp-profile-character span{display:block;padding:10px;font-weight:800}
+.ccp-profile-gallery img{border-radius:10px;border:1px solid var(--profile-border)}
+.ccp-featured-item{
+  padding:11px;border:1px solid var(--profile-border);border-radius:11px;margin-top:8px;background:rgba(0,0,0,.14)
+}
+.ccp-decoration-strip{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.ccp-decoration-strip img{max-width:180px;max-height:130px;object-fit:contain}
+.ccp-empty{color:var(--profile-muted);font-style:italic}
+.ccp-profile-editor{
+  display:grid;grid-template-columns:minmax(260px,.75fr) minmax(0,1.25fr);gap:18px
+}
+.ccp-editor-panel{
+  border:1px solid var(--border);border-radius:15px;background:var(--panel);padding:17px
+}
+.ccp-editor-panel h2{margin-top:0}
+.ccp-editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ccp-editor-grid .wide{grid-column:1/-1}
+.ccp-editor-panel label{display:grid;gap:6px;font-size:12px;font-weight:800;color:var(--muted)}
+.ccp-editor-panel input,.ccp-editor-panel textarea,.ccp-editor-panel select{
+  width:100%;border:1px solid var(--border);border-radius:9px;background:var(--panel-soft);
+  color:var(--text);padding:10px;font:inherit
+}
+.ccp-editor-panel textarea{min-height:110px;resize:vertical}
+.ccp-upload-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ccp-section-order{display:grid;gap:7px}
+.ccp-order-row{
+  display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center;
+  border:1px solid var(--border);border-radius:10px;padding:8px 10px;background:var(--panel-soft)
+}
+.ccp-css-help{font-size:11px;color:var(--muted);line-height:1.5}
+.ccp-profile-footer-button{
+  width:100%;border:0;background:transparent;color:inherit;text-align:left;padding:0;cursor:pointer
+}
+.ccp-profile-footer-button .sidebar-user{width:100%}
+.ccp-profile-footer-button:hover .sidebar-user{background:var(--panel-soft)}
+.ccp-member-card{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;
+  border:1px solid var(--border);border-radius:13px;padding:12px;background:var(--panel);margin-bottom:9px
+}
+.ccp-member-card button{min-width:0;text-align:left}
+.ccp-member-copy{min-width:0}
+.ccp-member-copy strong,.ccp-member-copy span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ccp-member-copy span{font-size:12px;color:var(--muted);margin-top:3px}
+.ccp-profile-nav-avatar{overflow:hidden}
+.ccp-profile-nav-avatar img{width:100%;height:100%;object-fit:cover}
+.ccp-simple .ccp-profile-wallpaper,.ccp-simple .ccp-decoration-strip{display:none}
+.ccp-simple .ccp-profile-shell{--profile-bg:var(--bg);--profile-card:var(--panel);--profile-text:var(--text);--profile-muted:var(--muted);--profile-border:var(--border)}
+.ccp-paused *{animation-play-state:paused!important}
+@media(max-width:900px){
+  .ccp-profile-grid,.ccp-profile-editor{grid-template-columns:1fr}
+  .ccp-profile-identity{align-items:center;flex-wrap:wrap;padding-left:20px;padding-right:20px}
+  .ccp-profile-avatar{width:112px;height:112px}
+  .ccp-profile-grid{padding:0 16px 22px}
+}
+</style>
+
 </head>
 <body>
 
@@ -4388,7 +4506,7 @@ window.CODEX_BUILD = "shared-world-login-repair-2026-07-31";
           ${navButton('dashboard','Home','home')}
           ${navButton('world','World Overview','world')}
           ${navButton('graph','Graphs','graph')}
-          ${navButton('story','Story Reader','story',state.storyGraphs.length)}
+          ${navButton('story','Roleplay Hub','story',state.storyGraphs.length)}
           ${navButton('search','All Search','search')}
         </div>
         <div class="nav-group">
@@ -4424,7 +4542,7 @@ window.CODEX_BUILD = "shared-world-login-repair-2026-07-31";
       crumbs.push({label:'Graphs'});
     } else if (route.view === 'story') {
       const context = storyPointContext(route.id);
-      crumbs.push({label:'Story Reader', view:'story'});
+      crumbs.push({label:'Roleplay Hub', view:'story'});
       if (context.story) crumbs.push({label:context.story.name});
       if (context.node) crumbs.push({label:storyPointTitle(context.story, context.node)});
     } else if (route.view === 'share') {
@@ -12161,6 +12279,366 @@ initFirebase();
     return `<div class="ccf-collection">${ccfTop(items)}<div class="ccf-grid-layout"><div class="ccf-card-grid">${items.map(item=>`<button class="ccf-grid-card" type="button" data-open="factions:${esc(item.id)}">${ccfBadge(item,'large')}<span><small class="cell-muted">${esc(ccfFactionType(item))}</small><h3>${esc(item.name)}</h3><p>${esc(shortText(item.goal||item.notes,105)||'No description yet.')}</p><span class="ccf-grid-meta">${cc3Tag(item.power||'Unspecified')}${cc3Tag(`${item.keyMemberIds?.length||0} members`)}</span></span></button>`).join('')||'<div class="empty-state">No factions yet.</div>'}</div><aside class="ccf-overview"><h3>Faction overview</h3><div class="ccf-overview-list"><div><span>Recorded</span><strong>${items.length}</strong></div><div><span>Major powers</span><strong>${items.filter(x=>['Major','Dominant'].includes(x.power)).length}</strong></div><div><span>Linked members</span><strong>${items.reduce((s,x)=>s+(x.keyMemberIds?.length||0),0)}</strong></div></div><h3>By type</h3><div class="ccf-overview-list">${Object.entries(types).slice(0,7).map(([k,v])=>`<div><span>${esc(k)}</span><strong>${v}</strong></div>`).join('')||'<span class="cell-muted">No types yet.</span>'}</div><h3>By region</h3><div class="ccf-overview-list">${Object.entries(regions).slice(0,6).map(([k,v])=>`<div><span>${esc(k)}</span><strong>${v}</strong></div>`).join('')||'<span class="cell-muted">No regions yet.</span>'}</div></aside></div></div>`;
   };
 
+
+
+
+  /* === Custom member profiles === */
+  const CCP_DEFAULT_ORDER=['about','characters','featured','gallery','decorations'];
+  let ccpSimpleView=false;
+  let ccpPauseAnimations=false;
+
+  function ccpMemberId(member){
+    return normalizeMemberEmail(member?.email || member?.id || '');
+  }
+  function ccpCurrentMember(){
+    return (state.workspace.members||[]).find(m=>ccpMemberId(m)===normalizeMemberEmail(firebase.user?.email))
+      || firebase.currentMember || null;
+  }
+  function ccpDisplayName(member){
+    return String(member?.displayName || member?.name || 'Codex Member').trim() || 'Codex Member';
+  }
+  function ccpJoined(member){
+    const value=member?.joinedAt || member?.createdAt || member?.addedAt || '';
+    if(!value)return 'Joined recently';
+    const date=typeof value?.toDate==='function'?value.toDate():new Date(value);
+    if(Number.isNaN(date.getTime()))return 'Joined recently';
+    return `Joined ${date.toLocaleDateString(undefined,{month:'long',year:'numeric'})}`;
+  }
+  function ccpProfile(member){
+    const p=member?.profile||{};
+    return {
+      tagline:p.tagline||'',
+      about:p.about||'',
+      banner:p.banner||'',
+      avatar:p.avatar||member?.photoURL||member?.photoUrl||'',
+      wallpaper:p.wallpaper||'',
+      accent:p.accent||'#a98a58',
+      background:p.background||'#17191d',
+      card:p.card||'rgba(28,31,37,.92)',
+      text:p.text||'#f4efe5',
+      muted:p.muted||'#b9b2a5',
+      border:p.border||'rgba(255,255,255,.13)',
+      font:p.font||'inherit',
+      sectionOrder:Array.isArray(p.sectionOrder)&&p.sectionOrder.length?p.sectionOrder:CCP_DEFAULT_ORDER,
+      featuredRoleplays:Array.isArray(p.featuredRoleplays)?p.featuredRoleplays:[],
+      gallery:Array.isArray(p.gallery)?p.gallery:[],
+      decorations:Array.isArray(p.decorations)?p.decorations:[],
+      customCss:p.customCss||''
+    };
+  }
+  function ccpRoleplayPostCount(member){
+    if(Number.isFinite(Number(member?.roleplayPostCount)))return Number(member.roleplayPostCount);
+    let count=0;
+    for(const story of state.storyGraphs||[]){
+      for(const node of story.nodes||[]){
+        for(const post of node.posts||node.turns||[]){
+          const email=normalizeMemberEmail(post.authorEmail||post.createdBy||post.userEmail||'');
+          if(email&&email===ccpMemberId(member))count++;
+        }
+      }
+    }
+    return count;
+  }
+  function ccpCharacterImage(character){
+    const candidates=[character?.profileImage,character?.dossierProfileImage,character?.dossierMainImage,character?.headerImage];
+    for(const value of candidates){
+      if(typeof value==='string'&&value)return value;
+      if(value?.src)return value.src;
+    }
+    return '';
+  }
+  function ccpControlledCharacters(member){
+    const id=ccpMemberId(member);
+    const name=ccpDisplayName(member).toLowerCase();
+    return (state.characters||[]).filter(character=>{
+      const fields=[
+        character.controlledByEmail,character.writerEmail,character.ownerEmail,
+        character.controlledBy,character.writtenBy,character.writer
+      ].filter(Boolean).map(String);
+      return fields.some(value=>normalizeMemberEmail(value)===id||value.toLowerCase()===name);
+    });
+  }
+  function ccpSafeUrl(value){
+    const url=String(value||'').trim();
+    return /^(https?:|data:image\/)/i.test(url)?url:'';
+  }
+  function ccpScopeCss(css,profileId){
+    let clean=String(css||'')
+      .replace(/@import[^;]+;/gi,'')
+      .replace(/<\/?script[^>]*>/gi,'')
+      .replace(/expression\s*\(/gi,'')
+      .replace(/javascript\s*:/gi,'')
+      .replace(/behavior\s*:/gi,'')
+      .replace(/-moz-binding\s*:/gi,'')
+      .replace(/position\s*:\s*fixed/gi,'position: absolute');
+    const scope=`.ccp-profile-shell[data-profile-id="${CSS.escape(profileId)}"]`;
+    return clean.replace(/(^|})\s*([^@}{][^{]*)\{/g,(match,start,selectors)=>{
+      const scoped=selectors.split(',').map(sel=>{
+        sel=sel.trim();
+        if(!sel)return '';
+        if(sel===':root'||sel==='body'||sel==='html')return scope;
+        if(sel.startsWith(scope))return sel;
+        return `${scope} ${sel}`;
+      }).filter(Boolean).join(',');
+      return `${start}${scoped}{`;
+    });
+  }
+  function ccpApplyCustomCss(member){
+    document.getElementById('ccp-dynamic-profile-css')?.remove();
+    const css=ccpProfile(member).customCss;
+    if(!css)return;
+    const style=document.createElement('style');
+    style.id='ccp-dynamic-profile-css';
+    style.textContent=ccpScopeCss(css,ccpMemberId(member));
+    document.head.append(style);
+  }
+  function ccpSection(member,key){
+    const p=ccpProfile(member);
+    if(key==='about')return `<section class="ccp-profile-section"><h2>About me</h2>${p.about?`<p>${esc(p.about).replace(/\n/g,'<br>')}</p>`:'<div class="ccp-empty">This member has not written an About section yet.</div>'}</section>`;
+    if(key==='characters'){
+      const chars=ccpControlledCharacters(member);
+      return `<section class="ccp-profile-section"><h2>Characters controlled</h2>${chars.length?`<div class="ccp-profile-character-grid">${chars.map(character=>{
+        const image=ccpCharacterImage(character);
+        return `<button class="ccp-profile-character" type="button" data-open="characters:${character.id}">${image?`<img src="${esc(image)}" alt="">`:''}<span>${esc(character.name)}</span></button>`;
+      }).join('')}</div>`:'<div class="ccp-empty">No characters are connected to this profile yet.</div>'}</section>`;
+    }
+    if(key==='featured'){
+      const items=p.featuredRoleplays.map(id=>(state.storyGraphs||[]).find(story=>story.id===id)).filter(Boolean);
+      return `<section class="ccp-profile-section"><h2>Featured roleplays</h2>${items.length?items.map(story=>`<button class="ccp-featured-item" type="button" data-nav="story" data-profile-story="${story.id}"><strong>${esc(story.name||'Untitled roleplay')}</strong></button>`).join(''):'<div class="ccp-empty">No roleplays have been featured yet.</div>'}</section>`;
+    }
+    if(key==='gallery')return `<section class="ccp-profile-section"><h2>Gallery</h2>${p.gallery.length?`<div class="ccp-profile-gallery">${p.gallery.map(url=>`<img src="${esc(url)}" alt="Profile gallery image" loading="lazy">`).join('')}</div>`:'<div class="ccp-empty">No gallery images yet.</div>'}</section>`;
+    if(key==='decorations')return `<section class="ccp-profile-section"><h2>Decorations</h2>${p.decorations.length?`<div class="ccp-decoration-strip">${p.decorations.map(url=>`<img src="${esc(url)}" alt="" loading="lazy">`).join('')}</div>`:'<div class="ccp-empty">No decorations yet.</div>'}</section>`;
+    return '';
+  }
+  function ccpRenderProfile(member){
+    if(!member){el.main.innerHTML=`${pageHead('Members','Profile','This profile could not be found.')}<div class="panel empty-state">Profile unavailable.</div>`;return;}
+    const p=ccpProfile(member);
+    const mine=ccpMemberId(member)===normalizeMemberEmail(firebase.user?.email);
+    const profileId=ccpMemberId(member);
+    ccpApplyCustomCss(member);
+    const mainKeys=p.sectionOrder.filter(key=>['about','characters','featured'].includes(key));
+    const sideKeys=p.sectionOrder.filter(key=>['gallery','decorations'].includes(key));
+    const banner=ccpSafeUrl(p.banner);
+    const wallpaper=ccpSafeUrl(p.wallpaper);
+    const avatar=ccpSafeUrl(p.avatar);
+    el.main.innerHTML=`${pageHead('Member profile',ccpDisplayName(member),'A personal corner of Codex Canvas.',mine?'<button class="button" type="button" data-ccp-edit>Edit profile</button>':'')}
+      <div class="${ccpSimpleView?'ccp-simple ':''}${ccpPauseAnimations?'ccp-paused ':''}">
+        <article class="ccp-profile-shell" data-profile-id="${esc(profileId)}" style="--profile-accent:${esc(p.accent)};--profile-bg:${esc(p.background)};--profile-card:${esc(p.card)};--profile-text:${esc(p.text)};--profile-muted:${esc(p.muted)};--profile-border:${esc(p.border)};font-family:${esc(p.font)}">
+          ${wallpaper?`<div class="ccp-profile-wallpaper" style="background-image:url('${esc(wallpaper)}')"></div>`:''}
+          <div class="ccp-profile-content">
+            <div class="ccp-profile-banner"${banner?` style="background-image:url('${esc(banner)}')"`:''}></div>
+            <div class="ccp-profile-identity">
+              <div class="ccp-profile-avatar">${avatar?`<img src="${esc(avatar)}" alt="${esc(ccpDisplayName(member))}">`:esc(initials(ccpDisplayName(member)))}</div>
+              <div class="ccp-profile-heading">
+                <h1>${esc(ccpDisplayName(member))}</h1>
+                ${p.tagline?`<div class="ccp-profile-tagline">${esc(p.tagline)}</div>`:''}
+                <div class="ccp-profile-meta">
+                  <span>${ccpRoleplayPostCount(member).toLocaleString()} posts</span>
+                  <span>·</span><span>${esc(ccpJoined(member))}</span>
+                  <span class="ccp-profile-role">Membership: ${esc(member.role||'Member')}</span>
+                </div>
+              </div>
+              <div class="ccp-profile-actions">
+                <button class="button secondary small" type="button" data-ccp-simple>${ccpSimpleView?'Decorated view':'Simplified view'}</button>
+                <button class="button ghost small" type="button" data-ccp-pause>${ccpPauseAnimations?'Resume animations':'Pause animations'}</button>
+              </div>
+            </div>
+            <div class="ccp-profile-grid">
+              <div class="ccp-profile-main">${mainKeys.map(key=>ccpSection(member,key)).join('')}</div>
+              <aside class="ccp-profile-side">${sideKeys.map(key=>ccpSection(member,key)).join('')}</aside>
+            </div>
+          </div>
+        </article>
+      </div>`;
+  }
+  function ccpRenderEditor(member){
+    const p=ccpProfile(member);
+    const stories=state.storyGraphs||[];
+    el.main.innerHTML=`${pageHead('Profile decorator','Customize your profile','Make this page look completely different while keeping it safely contained inside Codex Canvas.','<button class="button" type="button" data-ccp-save>Save profile</button>')}
+      <div class="ccp-profile-editor">
+        <section class="ccp-editor-panel">
+          <h2>Identity</h2>
+          <div class="ccp-editor-grid">
+            <label class="wide">Display name<input maxlength="50" data-ccp-field="displayName" value="${esc(ccpDisplayName(member))}"></label>
+            <label class="wide">Tagline<input maxlength="120" data-ccp-field="tagline" value="${esc(p.tagline)}" placeholder="Weaver of inconvenient plot twists"></label>
+            <label class="wide">About me<textarea maxlength="5000" data-ccp-field="about">${esc(p.about)}</textarea></label>
+            <label class="wide">Profile image URL<input data-ccp-field="avatar" value="${esc(p.avatar)}" placeholder="https://... or upload below"></label>
+            <div class="wide ccp-upload-row"><label class="button secondary small">Upload profile image<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" data-ccp-upload="avatar" hidden></label></div>
+            <label class="wide">Banner URL<input data-ccp-field="banner" value="${esc(p.banner)}" placeholder="https://... or upload below"></label>
+            <div class="wide ccp-upload-row"><label class="button secondary small">Upload banner<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" data-ccp-upload="banner" hidden></label></div>
+            <label class="wide">Wallpaper URL<input data-ccp-field="wallpaper" value="${esc(p.wallpaper)}" placeholder="Repeating GIFs and images are supported"></label>
+          </div>
+        </section>
+        <section class="ccp-editor-panel">
+          <h2>Page design</h2>
+          <div class="ccp-editor-grid">
+            <label>Accent<input type="color" data-ccp-field="accent" value="${esc(p.accent)}"></label>
+            <label>Background<input type="color" data-ccp-field="background" value="${/^#[0-9a-f]{6}$/i.test(p.background)?esc(p.background):'#17191d'}"></label>
+            <label>Text<input type="color" data-ccp-field="text" value="${/^#[0-9a-f]{6}$/i.test(p.text)?esc(p.text):'#f4efe5'}"></label>
+            <label>Muted text<input type="color" data-ccp-field="muted" value="${/^#[0-9a-f]{6}$/i.test(p.muted)?esc(p.muted):'#b9b2a5'}"></label>
+            <label class="wide">Font family<select data-ccp-field="font">
+              ${['inherit','Georgia, serif','"Trebuchet MS", sans-serif','"Courier New", monospace','Verdana, sans-serif'].map(font=>`<option value="${esc(font)}" ${p.font===font?'selected':''}>${esc(font)}</option>`).join('')}
+            </select></label>
+            <label class="wide">Gallery image or GIF URLs<textarea data-ccp-field="gallery" placeholder="One URL per line">${esc(p.gallery.join('\n'))}</textarea></label>
+            <label class="wide">Decoration image or GIF URLs<textarea data-ccp-field="decorations" placeholder="One URL per line">${esc(p.decorations.join('\n'))}</textarea></label>
+            <label class="wide">Featured roleplays<select multiple size="5" data-ccp-field="featuredRoleplays">${stories.map(story=>`<option value="${story.id}" ${p.featuredRoleplays.includes(story.id)?'selected':''}>${esc(story.name||'Untitled roleplay')}</option>`).join('')}</select></label>
+          </div>
+        </section>
+        <section class="ccp-editor-panel">
+          <h2>Section order</h2>
+          <div class="ccp-section-order">${p.sectionOrder.map((key,index)=>`<div class="ccp-order-row" data-ccp-order="${key}"><strong>${esc({about:'About me',characters:'Characters controlled',featured:'Featured roleplays',gallery:'Gallery',decorations:'Decorations'}[key]||key)}</strong><button class="button ghost small" type="button" data-ccp-up="${key}" ${index===0?'disabled':''}>↑</button><button class="button ghost small" type="button" data-ccp-down="${key}" ${index===p.sectionOrder.length-1?'disabled':''}>↓</button></div>`).join('')}</div>
+        </section>
+        <section class="ccp-editor-panel">
+          <h2>Advanced profile CSS</h2>
+          <p class="ccp-css-help">CSS is automatically restricted to your profile. JavaScript, imports, fixed-position overlays, and unsafe expressions are removed.</p>
+          <textarea data-ccp-field="customCss" style="min-height:260px" placeholder=".ccp-profile-section { border-radius: 0; }&#10;.ccp-profile-heading h1 { text-shadow: 0 0 12px purple; }">${esc(p.customCss)}</textarea>
+          <div class="page-actions" style="margin-top:12px"><button class="button secondary" type="button" data-ccp-preview>Preview</button><button class="button ghost" type="button" data-ccp-cancel>Cancel</button></div>
+        </section>
+      </div>`;
+  }
+  function ccpEditorValues(){
+    const value=name=>document.querySelector(`[data-ccp-field="${name}"]`)?.value||'';
+    const selected=[...document.querySelector('[data-ccp-field="featuredRoleplays"]')?.selectedOptions||[]].map(option=>option.value);
+    const order=[...document.querySelectorAll('[data-ccp-order]')].map(row=>row.dataset.ccpOrder);
+    return {
+      displayName:value('displayName').trim(),
+      profile:{
+        tagline:value('tagline').trim(),about:value('about'),avatar:value('avatar').trim(),
+        banner:value('banner').trim(),wallpaper:value('wallpaper').trim(),accent:value('accent'),
+        background:value('background'),text:value('text'),muted:value('muted'),
+        card:'rgba(28,31,37,.92)',border:'rgba(255,255,255,.13)',font:value('font'),
+        gallery:value('gallery').split(/\n+/).map(x=>x.trim()).filter(ccpSafeUrl).slice(0,30),
+        decorations:value('decorations').split(/\n+/).map(x=>x.trim()).filter(ccpSafeUrl).slice(0,30),
+        featuredRoleplays:selected.slice(0,12),sectionOrder:order.length?order:CCP_DEFAULT_ORDER,
+        customCss:value('customCss').slice(0,20000)
+      }
+    };
+  }
+  async function ccpSaveProfile(preview=false){
+    const member=ccpCurrentMember();
+    if(!member)return;
+    const values=ccpEditorValues();
+    if(!values.displayName){toast('Enter a display name.','error');return;}
+    member.displayName=values.displayName;
+    member.profile=values.profile;
+    member.joinedAt ||= nowISO();
+    firebase.currentMember=member;
+    if(!preview&&firebase.connected){
+      try{
+        await firebase.api.setDoc(firebaseMemberRef(ccpMemberId(member)),{
+          displayName:member.displayName,profile:member.profile,joinedAt:member.joinedAt,updatedAt:nowISO()
+        },{merge:true});
+        toast('Profile saved.');
+      }catch(error){
+        console.error(error);toast('Profile could not save. Update the included Firestore rules first.','error');return;
+      }
+    }
+    route={view:'profile',id:ccpMemberId(member)};
+    render();
+  }
+  async function ccpReadImage(file){
+    if(!file)return '';
+    if(file.size>850*1024)throw new Error('Profile uploads must be under 850 KB so they fit safely in Firestore. GIFs can also be added by URL.');
+    return await new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(String(reader.result||''));
+      reader.onerror=()=>reject(new Error('The image could not be read.'));
+      reader.readAsDataURL(file);
+    });
+  }
+  function ccpEnhanceChrome(){
+    const member=ccpCurrentMember();
+    if(!member)return;
+    const p=ccpProfile(member), avatar=ccpSafeUrl(p.avatar);
+    const foot=el.sidebar?.querySelector('.sidebar-foot');
+    if(foot)foot.innerHTML=`<button class="ccp-profile-footer-button" type="button" data-profile-member="${esc(ccpMemberId(member))}"><div class="sidebar-user"><span class="avatar ccp-profile-nav-avatar">${avatar?`<img src="${esc(avatar)}" alt="">`:esc(initials(ccpDisplayName(member)))}</span><span class="user-copy"><span class="user-name">${esc(ccpDisplayName(member))}</span><span class="user-mode">${firebase.connected?'Shared mode':'Local demo mode'}</span></span></div></button>`;
+  }
+
+  const ccpRenderBase=render;
+  render=function(){
+    if(route.view==='profile'){
+      renderSidebar();renderBreadcrumbs();
+      const member=(state.workspace.members||[]).find(m=>ccpMemberId(m)===normalizeMemberEmail(route.id))||ccpCurrentMember();
+      ccpRenderProfile(member);
+    }else if(route.view==='profile-edit'){
+      renderSidebar();renderBreadcrumbs();
+      ccpRenderEditor(ccpCurrentMember());
+    }else{
+      ccpRenderBase();
+    }
+    ccpEnhanceChrome();
+  };
+
+  document.addEventListener('click',async event=>{
+    const profile=event.target.closest('[data-profile-member]');
+    if(profile){event.preventDefault();navigate('profile',profile.dataset.profileMember);return;}
+    if(event.target.closest('[data-ccp-edit]')){event.preventDefault();navigate('profile-edit');return;}
+    if(event.target.closest('[data-ccp-save]')){event.preventDefault();await ccpSaveProfile(false);return;}
+    if(event.target.closest('[data-ccp-preview]')){event.preventDefault();await ccpSaveProfile(true);return;}
+    if(event.target.closest('[data-ccp-cancel]')){event.preventDefault();navigate('profile',ccpMemberId(ccpCurrentMember()));return;}
+    if(event.target.closest('[data-ccp-simple]')){event.preventDefault();ccpSimpleView=!ccpSimpleView;render();return;}
+    if(event.target.closest('[data-ccp-pause]')){event.preventDefault();ccpPauseAnimations=!ccpPauseAnimations;render();return;}
+    const up=event.target.closest('[data-ccp-up]');
+    const down=event.target.closest('[data-ccp-down]');
+    if(up||down){
+      event.preventDefault();
+      const row=(up||down).closest('[data-ccp-order]');
+      const parent=row.parentElement;
+      if(up&&row.previousElementSibling)parent.insertBefore(row,row.previousElementSibling);
+      if(down&&row.nextElementSibling)parent.insertBefore(row.nextElementSibling,row);
+      [...parent.children].forEach((child,index)=>{
+        child.querySelector('[data-ccp-up]').disabled=index===0;
+        child.querySelector('[data-ccp-down]').disabled=index===parent.children.length-1;
+      });
+      return;
+    }
+  },true);
+
+  document.addEventListener('change',async event=>{
+    const input=event.target.closest('[data-ccp-upload]');
+    if(!input)return;
+    try{
+      const data=await ccpReadImage(input.files?.[0]);
+      const field=document.querySelector(`[data-ccp-field="${input.dataset.ccpUpload}"]`);
+      if(field)field.value=data;
+      toast('Image loaded. Save the profile to keep it.');
+    }catch(error){toast(error.message||String(error),'error');}
+    input.value='';
+  },true);
+
+  ccpEnhanceChrome();
+
+
+
+  const ccpRenderShareBase=renderShare;
+  renderShare=function(){
+    if(!isWorkspaceOwner()){
+      el.main.innerHTML=`${pageHead('Collaboration','Members','Browse the people sharing this world. Email addresses remain private.')}
+        <div class="member-list">${(state.workspace.members||[]).map(member=>{
+          const p=ccpProfile(member),avatar=ccpSafeUrl(p.avatar);
+          return `<div class="ccp-member-card"><span class="avatar ccp-profile-nav-avatar">${avatar?`<img src="${esc(avatar)}" alt="">`:esc(initials(ccpDisplayName(member)))}</span><button class="button ghost ccp-member-copy" type="button" data-profile-member="${esc(ccpMemberId(member))}"><strong>${esc(ccpDisplayName(member))}</strong><span>${esc(p.tagline||`${member.role||'Member'} · ${ccpJoined(member)}`)}</span></button><span class="ccp-profile-role">${esc(member.role||'Member')}</span></div>`;
+        }).join('')}</div>`;
+      return;
+    }
+    ccpRenderShareBase();
+    const list=el.main.querySelector('.member-list');
+    if(list)list.innerHTML=(state.workspace.members||[]).map(member=>{
+      const p=ccpProfile(member),avatar=ccpSafeUrl(p.avatar);
+      return `<div class="member-row"><div class="member-person"><button class="button ghost" type="button" data-profile-member="${esc(ccpMemberId(member))}"><span class="avatar ccp-profile-nav-avatar">${avatar?`<img src="${esc(avatar)}" alt="">`:esc(initials(ccpDisplayName(member)))}</span></button><span><strong>${esc(ccpDisplayName(member))}</strong><div class="member-email">${esc(member.email)}</div></span></div><select class="select" data-member-role="${member.id}" ${member.role==='Owner'?'disabled':''}>${['Owner','Admin','Editor','Commenter','Viewer'].map(role=>`<option ${member.role===role?'selected':''}>${role}</option>`).join('')}</select><button class="button ghost small" type="button" data-remove-member="${member.id}" ${member.role==='Owner'?'disabled':''}>Remove</button></div>`;
+    }).join('');
+  };
+
+
+
+  const ccpBreadcrumbBase=renderBreadcrumbs;
+  renderBreadcrumbs=function(){
+    if(route.view==='profile'||route.view==='profile-edit'){
+      const member=route.view==='profile-edit'?ccpCurrentMember():(state.workspace.members||[]).find(m=>ccpMemberId(m)===normalizeMemberEmail(route.id));
+      el.breadcrumbs.innerHTML=`<button class="crumb crumb-button" type="button" data-nav="dashboard">${esc(state.workspace.name)}</button><span class="crumb-separator">/</span><button class="crumb crumb-button" type="button" data-nav="share">Members</button><span class="crumb-separator">/</span><span class="crumb">${esc(route.view==='profile-edit'?'Edit profile':ccpDisplayName(member))}</span>`;
+      return;
+    }
+    ccpBreadcrumbBase();
+  };
 
 })();
 </script>
