@@ -4063,6 +4063,77 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .ccrh-post-actions .danger{color:var(--danger)}
 </style>
 
+
+<style id="ccrh-left-character-layout">
+.ccrh-post{
+  display:grid;
+  grid-template-columns:190px minmax(0,1fr);
+}
+.ccrh-post-character{
+  padding:20px 18px;
+  border-right:1px solid var(--border);
+  background:var(--panel-soft);
+  text-align:center;
+}
+.ccrh-post-character .ccrh-char-avatar{
+  width:118px;
+  height:118px;
+  margin:0 auto 13px;
+  border-radius:16px;
+}
+.ccrh-post-character .ccrh-post-name{
+  font-size:19px;
+  line-height:1.2;
+}
+.ccrh-post-character .ccrh-post-meta{
+  margin-top:7px;
+}
+.ccrh-post-content{min-width:0}
+.ccrh-post-content-head{
+  display:flex;
+  justify-content:space-between;
+  gap:18px;
+  align-items:flex-start;
+  padding:16px 20px;
+  border-bottom:1px solid var(--border);
+  background:var(--panel-soft);
+}
+.ccrh-post-content-head strong{font-size:15px}
+.ccrh-post-anchor-meta{
+  margin-top:5px;
+  color:var(--muted);
+  font-size:11px;
+}
+.ccrh-post-attribution{
+  padding:11px 16px;
+  border-top:1px solid var(--border);
+  color:var(--muted);
+  font-size:12px;
+  text-align:right;
+}
+@media(max-width:760px){
+  .ccrh-post{grid-template-columns:1fr}
+  .ccrh-post-character{
+    display:grid;
+    grid-template-columns:62px minmax(0,1fr);
+    grid-template-rows:auto auto;
+    column-gap:12px;
+    align-items:center;
+    text-align:left;
+    border-right:0;
+    border-bottom:1px solid var(--border);
+    padding:13px 15px;
+  }
+  .ccrh-post-character .ccrh-char-avatar{
+    width:62px;height:62px;margin:0;grid-row:1/3;border-radius:12px;
+  }
+  .ccrh-post-character .ccrh-post-name{font-size:17px}
+  .ccrh-post-character .ccrh-post-meta{margin-top:2px}
+  .ccrh-post-content-head{padding:13px 15px}
+  .ccrh-post-attribution{text-align:left}
+}
+</style>
+
 </head>
 <body>
 
@@ -4149,7 +4220,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "delete-confirmation-fix-2026-08-03";
+window.CODEX_BUILD = "rp-left-character-layout-2026-08-03";
 </script>
   <script>
 (() => {
@@ -12603,18 +12674,30 @@ initFirebase();
   function ccrhPostHtml(turn,index,story){
     const speaker=storySpeakerMeta(turn), image=speaker.character?ccrhCharacterImage(speaker.character):'';
     const anchors=ccrhAnchorNodesForTurn(story,turn.id);
+    const author=(state.workspace.members||[]).find(member=>ccpMemberId(member)===normalizeMemberEmail(turn.authorEmail||''));
+    const authorName=author?ccpDisplayName(author):'Codex Member';
     return `<article class="ccrh-post ${anchors.length?'is-anchor':''}" id="rp-post-${esc(turn.id)}" data-rp-post="${esc(turn.id)}">
-      <header class="ccrh-post-head">
-        <button class="ccrh-char-avatar" type="button" ${speaker.character?`data-open="characters:${esc(speaker.character.id)}"`:''}>${image?`<img src="${esc(image)}" alt="">`:esc(speaker.initials)}</button>
-        <div><div class="ccrh-post-name">${esc(speaker.name)}</div><div class="ccrh-post-meta">${esc(ccrhTurnDate(turn))}${anchors.length?` · Anchor: ${anchors.map(node=>esc(storyPointTitle(story,node))).join(', ')}`:''}</div></div>
-        <div class="ccrh-post-number">Post ${index+1}</div>
-      </header>
-      <div class="ccrh-post-body">${ccrhBbcode(turn.text||'')}</div>
-      <footer class="ccrh-post-actions">
-        <button class="button ghost small" type="button" data-ccrh-quote="${esc(turn.id)}">Quote</button>
-        <button class="button ghost small" type="button" data-ccrh-anchor="${esc(turn.id)}">Create anchor here</button>
-        ${(normalizeMemberEmail(turn.authorEmail||'')===normalizeMemberEmail(firebase.user?.email||'')||isWorkspaceOwner())?`<button class="button ghost small" type="button" data-ccrh-edit-post="${esc(turn.id)}">Edit post</button><button class="button ghost small danger" type="button" data-ccrh-delete-post="${esc(turn.id)}">Delete post</button>`:''}
-      </footer>
+      <aside class="ccrh-post-character">
+        <button class="ccrh-char-avatar" type="button" ${speaker.character?`data-open="characters:${esc(speaker.character.id)}"`:''}>${image?`<img src="${esc(image)}" alt="${esc(speaker.name)}">`:esc(speaker.initials)}</button>
+        <div class="ccrh-post-name">${esc(speaker.name)}</div>
+        <div class="ccrh-post-meta">${esc(ccrhTurnDate(turn))}</div>
+      </aside>
+      <div class="ccrh-post-content">
+        <header class="ccrh-post-content-head">
+          <div>
+            <strong>${esc(speaker.name)} posted in “${esc(story.name||'Untitled roleplay')}”</strong>
+            ${anchors.length?`<div class="ccrh-post-anchor-meta">Anchor: ${anchors.map(node=>esc(storyPointTitle(story,node))).join(', ')}</div>`:''}
+          </div>
+          <div class="ccrh-post-number">Post ${index+1}</div>
+        </header>
+        <div class="ccrh-post-body">${ccrhBbcode(turn.text||'')}</div>
+        <footer class="ccrh-post-actions">
+          <button class="button ghost small" type="button" data-ccrh-quote="${esc(turn.id)}">Quote</button>
+          <button class="button ghost small" type="button" data-ccrh-anchor="${esc(turn.id)}">Create anchor here</button>
+          ${(normalizeMemberEmail(turn.authorEmail||'')===normalizeMemberEmail(firebase.user?.email||'')||isWorkspaceOwner())?`<button class="button ghost small" type="button" data-ccrh-edit-post="${esc(turn.id)}">Edit post</button><button class="button ghost small danger" type="button" data-ccrh-delete-post="${esc(turn.id)}">Delete post</button>`:''}
+        </footer>
+        <div class="ccrh-post-attribution">Posted by ${esc(authorName)}</div>
+      </div>
     </article>`;
   }
   function ccrhRenderReader(){
