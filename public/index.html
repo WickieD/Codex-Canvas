@@ -4134,6 +4134,12 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 </style>
 
+
+<style id="ccrh-empty-post-header-style">
+.ccrh-post-content-head-empty{min-height:44px}
+.ccrh-post-content-head-empty>div:first-child:empty{display:block}
+</style>
+
 </head>
 <body>
 
@@ -4220,7 +4226,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "rp-left-character-layout-2026-08-03";
+window.CODEX_BUILD = "rp-post-title-removed-2026-08-03";
 </script>
   <script>
 (() => {
@@ -12683,11 +12689,8 @@ initFirebase();
         <div class="ccrh-post-meta">${esc(ccrhTurnDate(turn))}</div>
       </aside>
       <div class="ccrh-post-content">
-        <header class="ccrh-post-content-head">
-          <div>
-            <strong>${esc(speaker.name)} posted in “${esc(story.name||'Untitled roleplay')}”</strong>
-            ${anchors.length?`<div class="ccrh-post-anchor-meta">Anchor: ${anchors.map(node=>esc(storyPointTitle(story,node))).join(', ')}</div>`:''}
-          </div>
+        <header class="ccrh-post-content-head ccrh-post-content-head-empty">
+          <div>${anchors.length?`<div class="ccrh-post-anchor-meta">Anchor: ${anchors.map(node=>esc(storyPointTitle(story,node))).join(', ')}</div>`:''}</div>
           <div class="ccrh-post-number">Post ${index+1}</div>
         </header>
         <div class="ccrh-post-body">${ccrhBbcode(turn.text||'')}</div>
