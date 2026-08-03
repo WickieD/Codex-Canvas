@@ -3685,6 +3685,62 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .cc9-toolbar-upload{position:relative;display:inline-grid;place-items:center;cursor:pointer}
 </style>
 
+
+<style id="cc13-structured-timeline-style">
+/* Structured Story Timeline */
+.cc13-structured-timeline{zoom:var(--cc2-scale);max-width:1180px;margin:0 auto}
+.cc13-timeline-heading{display:flex;justify-content:space-between;gap:16px;align-items:end;border-bottom:1px solid var(--border);padding:2px 4px 16px;margin-bottom:8px}
+.cc13-timeline-heading h2{margin:3px 0 0;color:var(--accent-strong);font-family:var(--serif);font-size:clamp(22px,3vw,32px);letter-spacing:.03em}
+.cc13-timeline-heading p{margin:5px 0 0;color:var(--muted)}
+.cc13-column-headings{display:grid;grid-template-columns:minmax(170px,.9fr) 48px minmax(300px,1.6fr) minmax(170px,.9fr);gap:14px;padding:8px 12px;color:var(--muted);font-size:11px;font-weight:850;letter-spacing:.12em;text-transform:uppercase;text-align:center}
+.cc13-column-headings span:first-child{text-align:left}
+.cc13-column-headings span:last-child{text-align:center}
+.cc13-flow-list{position:relative;display:grid;gap:0;padding:0 0 16px}
+.cc13-flow-list:before{content:"";position:absolute;left:calc((100% - 76px) * .9 / 3.4 + 194px);top:24px;bottom:22px;width:3px;border-radius:999px;background:linear-gradient(var(--accent),var(--accent-strong));opacity:.85}
+.cc13-flow-row{display:grid!important;grid-template-columns:minmax(170px,.9fr) 48px minmax(300px,1.6fr) minmax(170px,.9fr)!important;gap:14px!important;align-items:stretch!important;min-height:116px!important;padding:6px 0!important;border-bottom:1px solid color-mix(in srgb,var(--border) 65%,transparent)}
+.cc13-people-cell,.cc13-location-cell{display:flex;flex-wrap:wrap;align-content:center;align-items:center;gap:6px;padding:12px;border:1px solid var(--border);border-radius:12px;background:color-mix(in srgb,var(--panel-strong) 72%,transparent);min-width:0}
+.cc13-people-cell{justify-content:flex-start}
+.cc13-location-cell{justify-content:center;text-align:center}
+.cc13-spine-cell{display:grid;place-items:center;position:relative;z-index:4}
+.cc13-flow-number{width:38px;height:38px;display:grid;place-items:center;border:2px solid var(--accent);border-radius:50%;background:var(--panel);color:var(--text);font-weight:900;box-shadow:0 0 0 4px var(--panel)}
+.cc13-story-card{grid-column:auto!important;display:block!important;border-radius:12px!important;padding:15px 16px!important;background:var(--panel-strong)!important}
+.cc13-story-card:hover,.cc13-story-card.selected{border-color:var(--accent)!important;box-shadow:0 0 0 1px var(--accent)}
+.cc13-story-card .cc2-flow-title{font-family:var(--serif);font-size:18px}
+.cc13-written-dot{width:8px;height:8px;border-radius:50%;background:var(--success);display:inline-block}
+.cc13-add-chip{width:28px;height:28px;border:1px solid var(--border);border-radius:50%;background:transparent;color:var(--muted);font-weight:800}
+.cc13-add-chip:hover{border-color:var(--accent);color:var(--accent-strong)}
+.cc13-empty-cell{color:var(--muted);font-size:12px}
+.cc13-arc-divider{display:grid;grid-template-columns:minmax(170px,.9fr) 48px minmax(300px,1.6fr) minmax(170px,.9fr);gap:14px;margin:14px 0 2px}
+.cc13-arc-divider span{grid-column:3;border-top:1px solid var(--border);padding-top:9px;color:var(--accent-strong);font-size:12px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
+.cc13-inspector-head{padding-bottom:13px;border-bottom:1px solid var(--border)}
+.cc13-inspector-title-row{display:flex;gap:10px;align-items:center;margin-top:8px}
+.cc13-inspector-title-row h2{margin:0}
+.cc13-inspector-number{width:31px;height:31px;display:grid;place-items:center;border:1px solid var(--accent);border-radius:50%;color:var(--accent-strong);font-weight:900}
+.cc13-inspector-badges{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+.cc13-status{display:inline-flex;align-items:center;gap:5px;border-radius:999px;background:color-mix(in srgb,var(--success) 16%,var(--panel));padding:4px 8px;color:var(--success);font-size:11px;font-weight:800}
+.cc13-status:before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.cc13-status.planned{color:var(--warning);background:color-mix(in srgb,var(--warning) 15%,var(--panel))}
+.cc13-inspector-actions{display:grid;grid-template-columns:1fr;gap:8px}
+.cc13-inspector-actions .button{width:100%}
+.graph-visual-grid{grid-template-columns:minmax(0,1fr) minmax(260px,310px)!important;align-items:start}
+.graph-inspector{position:sticky;top:82px}
+@media(max-width:980px){
+ .graph-visual-grid{grid-template-columns:1fr!important}
+ .graph-inspector{position:static}
+}
+@media(max-width:760px){
+ .cc13-column-headings{display:none}
+ .cc13-flow-list:before{left:19px}
+ .cc13-flow-row{grid-template-columns:40px minmax(0,1fr)!important;gap:8px!important;padding:10px 0!important}
+ .cc13-spine-cell{grid-column:1;grid-row:1}
+ .cc13-story-card{grid-column:2!important;grid-row:1}
+ .cc13-people-cell{grid-column:2;grid-row:2}
+ .cc13-location-cell{grid-column:2;grid-row:3;justify-content:flex-start;text-align:left}
+ .cc13-arc-divider{grid-template-columns:40px 1fr}
+ .cc13-arc-divider span{grid-column:2}
+}
+</style>
+
 </head>
 <body>
 
@@ -10214,25 +10270,49 @@ const CC2_VERSION = 'story-timeline-2026-08';
   }
 
   function cc2InspectorHtml(story,node){
-    if(!node) return `<div class="cc2-story-inspector-empty"><span class="eyebrow">Story timeline</span><h2>Choose a story point</h2><p>Open a point to edit its people, locations, timing, consequences, and RP bookmark.</p></div>`;
+    if(!node) return `<div class="cc2-story-inspector-empty"><span class="eyebrow">Story point</span><h2>Choose a story point</h2><p>Select a card to view its people, location, timing, summary, and RP bookmark.</p></div>`;
     const p=cc2Point(story,node),passage=ensureStoryPassage(node),range=storyPointRange(story,node);
-    const people=cc2AllPeople(p).map(idValue=>cc2EntityChip('characters',idValue)).join('');
+    const people=cc2AllPeople(p).map(idValue=>cc2EntityChip('characters',idValue,p.roles?.[idValue]||'')).join('');
     const places=p.locationIds.map(idValue=>cc2EntityChip('locations',idValue)).join('');
     const typeInfo=cc2TypeInfo(p.type);
-    return `<span class="eyebrow cc2-inspector-type"><span class="cc2-type-marker" style="--cc2-type-color:${esc(typeInfo.color)}">${esc(typeInfo.symbol)}</span>${esc(typeInfo.label)}</span><h2>${esc(p.title)}</h2><p class="graph-inspector-copy">${esc(p.summary || 'No summary yet.')}</p><div class="cc2-inspector-section"><strong>Time</strong><p>${esc(cc2TimeLabel(story,node))}${p.chapter?` · ${esc(p.chapter)}`:''}${p.arc?` · ${esc(p.arc)}`:''}</p></div><div class="cc2-inspector-section"><strong>People</strong><div class="cc2-inspector-chips">${people || '<span class="cc2-empty">None connected</span>'}</div></div><div class="cc2-inspector-section"><strong>Locations</strong><div class="cc2-inspector-chips">${places || '<span class="cc2-empty">None connected</span>'}</div></div><div class="cc2-inspector-section"><strong>RP link</strong><p>${passage.anchorTurnId?`${esc(storyAnchorDescription(story,node))} · ${range.turns.length} post${range.turns.length===1?'':'s'}`:'Not linked yet'}</p></div>${p.consequences?`<div class="cc2-inspector-section"><strong>Consequences</strong><p>${esc(p.consequences)}</p></div>`:''}<div class="graph-inspector-actions"><button class="button small" type="button" data-cc2-edit-point="${esc(story.id)}|${esc(node.id)}">Edit point</button><button class="button secondary small" type="button" data-cc2-open-rp="${esc(story.id)}|${esc(node.id)}">Read from here</button></div>${p.updatedAt?`<p class="cc2-last-edited">Last edited ${esc(fmtTime(p.updatedAt))}${p.updatedBy?` by ${esc(p.updatedBy)}`:''}</p>`:''}`;
+    return `<div class="cc13-inspector-head">
+      <span class="eyebrow">Story point</span>
+      <div class="cc13-inspector-title-row"><span class="cc13-inspector-number">${node.order||1}</span><h2>${esc(p.title)}</h2></div>
+      <div class="cc13-inspector-badges"><span class="cc2-flow-type-badge" style="--cc2-type-color:${esc(typeInfo.color)}"><b>${esc(typeInfo.symbol)}</b>${esc(typeInfo.label)}</span><span class="cc13-status ${p.status==='planned'?'planned':''}">${p.status==='planned'?'Planned':'Written'}</span></div>
+    </div>
+    <div class="cc2-inspector-section"><strong>Summary</strong><p>${esc(p.summary || 'No summary yet.')}</p>${!p.summary?`<button class="button ghost small" type="button" data-cc2-edit-point="${esc(story.id)}|${esc(node.id)}">Add summary</button>`:''}</div>
+    <div class="cc2-inspector-section"><strong>Time</strong><p>${esc(cc2TimeLabel(story,node))}${p.chapter?` · ${esc(p.chapter)}`:''}${p.arc?` · ${esc(p.arc)}`:''}</p></div>
+    <div class="cc2-inspector-section"><strong>People</strong><div class="cc2-inspector-chips">${people || '<span class="cc2-empty">None connected</span>'}</div></div>
+    <div class="cc2-inspector-section"><strong>Locations</strong><div class="cc2-inspector-chips">${places || '<span class="cc2-empty">None connected</span>'}</div></div>
+    <div class="cc2-inspector-section"><strong>RP link</strong><p>${passage.anchorTurnId?`${esc(storyAnchorDescription(story,node))} · ${range.turns.length} post${range.turns.length===1?'':'s'}`:'Not linked yet'}</p></div>
+    ${p.consequences?`<div class="cc2-inspector-section"><strong>Consequences</strong><p>${esc(p.consequences)}</p></div>`:''}
+    <div class="graph-inspector-actions cc13-inspector-actions"><button class="button small" type="button" data-cc2-edit-point="${esc(story.id)}|${esc(node.id)}">Edit Story Point</button><button class="button secondary small" type="button" data-cc2-open-rp="${esc(story.id)}|${esc(node.id)}">Open in Roleplay</button></div>
+    ${p.updatedAt?`<p class="cc2-last-edited">Last edited ${esc(fmtTime(p.updatedAt))}${p.updatedBy?` by ${esc(p.updatedBy)}`:''}</p>`:''}`;
   }
 
   function cc2FlowRow(story,node,prefs,index,previousArc){
     const p=cc2Point(story,node),time=cc2TimeLabel(story,node);
     const rowPrefs=prefs.mode==='scene'?{...prefs,showPeople:false,showDetails:false}:prefs;
-    const left=cc2PointSideChips(p,'left',rowPrefs),right=cc2PointSideChips(p,'right',rowPrefs);
-    const arcDivider=p.arc && p.arc!==previousArc ? `<div class="cc2-arc-divider"><span>${esc(p.arc)}${p.chapter?` · ${esc(p.chapter)}`:''}</span></div>` : '';
+    const peopleIds=cc2Unique([...p.participantIds,...p.povIds]);
+    const locationIds=p.locationIds || [];
+    const arcDivider=p.arc && p.arc!==previousArc ? `<div class="cc13-arc-divider"><span>${esc(p.arc)}${p.chapter?` · ${esc(p.chapter)}`:''}</span></div>` : '';
     const summary=rowPrefs.showDetails && p.summary ? `<span class="cc2-flow-summary">${esc(shortText(p.summary,180))}</span>` : '';
     const typeInfo=cc2TypeInfo(p.type);
-    const meta=[p.status==='planned'?'Planned':'Written',p.branch!=='main'?p.branch:''].filter(Boolean);
     const typeBadge=`<span class="cc2-flow-type-badge" style="--cc2-type-color:${esc(typeInfo.color)}"><b>${esc(typeInfo.symbol)}</b>${esc(typeInfo.label)}</span>`;
-    const card=`<button class="cc2-flow-card status-${esc(p.status)} ${p.branch!=='main'?'branch-point':''}" type="button" data-cc2-select-point="${esc(node.id)}" data-time="${esc(time)}"><span class="cc2-flow-order">${node.order || index+1}</span><span class="cc2-flow-title">${esc(p.title)}</span><span class="cc2-flow-meta">${typeBadge}${meta.map(value=>p.branch!=='main'&&value===p.branch?`<span class="cc2-branch-label">${esc(value)}</span>`:`<span>${esc(value)}</span>`).join('')}</span>${summary}<span class="cc2-point-actions"><span class="button ghost small" data-cc2-edit-point="${esc(story.id)}|${esc(node.id)}">Edit</span><span class="button ghost small" data-cc2-open-rp="${esc(story.id)}|${esc(node.id)}">Open RP</span></span></button>`;
-    return `${arcDivider}<article class="cc2-flow-row" draggable="true" data-cc2-drag-point="${esc(node.id)}"><div class="cc2-flow-left"><span class="cc2-flow-time">${esc(time)}</span>${left}</div><div class="cc2-flow-spine"><span class="cc2-flow-time">${esc(time)}</span><span class="cc2-flow-dot type-${esc(p.type)} status-${esc(p.status)}" style="--cc2-type-color:${esc(typeInfo.color)}" data-symbol="${esc(typeInfo.symbol)}"></span></div>${card}<div class="cc2-flow-right"><span class="cc2-flow-time">${esc(time)}</span>${right}</div></article>`;
+    const people=peopleIds.map(idValue=>cc2EntityChip('characters',idValue,p.roles?.[idValue]||'present')).join('');
+    const locations=locationIds.map(idValue=>cc2EntityChip('locations',idValue)).join('');
+    const card=`<button class="cc13-story-card cc2-flow-card status-${esc(p.status)} ${p.branch!=='main'?'branch-point':''}" type="button" data-cc2-select-point="${esc(node.id)}" data-time="${esc(time)}">
+      <span class="cc2-flow-title">${esc(p.title)}</span>
+      <span class="cc2-flow-meta">${typeBadge}<span class="cc13-written-dot"></span><span>${p.status==='planned'?'Planned':'Written'}</span>${p.branch!=='main'?`<span class="cc2-branch-label">${esc(p.branch)}</span>`:''}</span>
+      ${summary}
+      <span class="cc2-point-actions"><span class="button ghost small" data-cc2-select-point="${esc(node.id)}">View</span><span class="button ghost small" data-cc2-edit-point="${esc(story.id)}|${esc(node.id)}">Edit</span><span class="button ghost small" data-cc2-open-rp="${esc(story.id)}|${esc(node.id)}">Open RP</span></span>
+    </button>`;
+    return `${arcDivider}<article class="cc13-flow-row cc2-flow-row" draggable="true" data-cc2-drag-point="${esc(node.id)}">
+      <div class="cc13-people-cell">${people || '<span class="cc13-empty-cell">No people</span>'}<button class="cc13-add-chip" type="button" data-cc2-edit-point="${esc(story.id)}|${esc(node.id)}" aria-label="Add people">+</button></div>
+      <div class="cc13-spine-cell"><span class="cc13-flow-number">${node.order || index+1}</span></div>
+      ${card}
+      <div class="cc13-location-cell">${locations || '<span class="cc13-empty-cell">No location</span>'}</div>
+    </article>`;
   }
 
   function cc2CompareHtml(story,nodes){
@@ -10246,9 +10326,15 @@ const CC2_VERSION = 'story-timeline-2026-08';
   function cc2StoryMapHtml(story,nodes,prefs){
     if(!nodes.length) return `<div class="empty-state">No story points match these filters.</div>`;
     if(prefs.mode==='compare') return cc2CompareHtml(story,nodes);
+    const first=nodes[0]?cc2Point(story,nodes[0]):null;
+    const heading=[first?.arc,first?.chapter].filter(Boolean).join(' · ') || story.name;
     let previousArc='';
-    const rows=nodes.map((node,index)=>{const html=cc2FlowRow(story,node,prefs,index,previousArc);previousArc=cc2Point(story,node).arc || previousArc;return html;}).join('');
-    return `<div class="cc2-story-map cc2-timeline-${esc(prefs.timeline)}" style="--cc2-scale:${Number(prefs.scale)||1}"><div class="cc2-flow-list">${rows}</div></div>`;
+    const rows=nodes.map((node,index)=>{const output=cc2FlowRow(story,node,prefs,index,previousArc);previousArc=cc2Point(story,node).arc || previousArc;return output;}).join('');
+    return `<div class="cc2-story-map cc13-structured-timeline" style="--cc2-scale:${Number(prefs.scale)||1}">
+      <header class="cc13-timeline-heading"><div><span class="eyebrow">Timeline</span><h2>${esc(heading)}</h2>${story.description?`<p>${esc(shortText(story.description,180))}</p>`:''}</div></header>
+      <div class="cc13-column-headings"><span>People</span><span></span><span>Story Point</span><span>Location</span></div>
+      <div class="cc2-flow-list cc13-flow-list">${rows}</div>
+    </div>`;
   }
 
   function cc2TypeFilterHtml(story,prefs){
@@ -11515,6 +11601,61 @@ initFirebase();
     }
   },true);
 
+
+  Object.assign(SECTION_TEMPLATE_CONFIG.factions.templates,{
+    'heraldic-registry':{name:'Lore Ledger',description:'A detailed ledger with a list of factions and a rich detail panel for each selection.',preview:'ccf-lore-ledger'},
+    'influence-board':{name:'Banner Board',description:'A vibrant board with at-a-glance stats, grouped faction cards, and a contextual sidebar.',preview:'ccf-banner-board'},
+    'intelligence-files':{name:'Codex Grid',description:'A clean grid of faction cards with key details and a compact overview panel.',preview:'ccf-codex-grid'}
+  });
+
+  const ccfBasePicker=showSectionTemplatePicker;
+  function ccfPreview(id){
+    if(id==='heraldic-registry')return `<div class="ccf-shell ccf-shell-ledger"><div class="ccf-shell-top"></div><div class="ccf-shell-nav"></div><div class="ccf-shell-row"><div class="list">${'<i></i>'.repeat(7)}</div><div class="detail"><b></b>${'<span></span>'.repeat(4)}</div></div></div>`;
+    if(id==='influence-board')return `<div class="ccf-shell ccf-shell-board"><div class="ccf-shell-top"></div><div class="stats">${'<i></i>'.repeat(4)}</div><div class="columns">${'<div class="column"><b></b><i></i><i></i><i></i></div>'.repeat(3)}</div></div>`;
+    return `<div class="ccf-shell ccf-shell-grid"><div class="ccf-shell-top"></div><div class="ccf-shell-nav"></div><div class="ccf-shell-row"><div class="cards">${'<i></i>'.repeat(9)}</div><div class="side"><b></b>${'<span></span>'.repeat(5)}</div></div></div>`;
+  }
+  showSectionTemplatePicker=function(kind){
+    if(kind!=='factions')return ccfBasePicker(kind);
+    const config=sectionTemplateConfig(kind),active=sectionDesign(kind).template;
+    const cards=Object.entries(config.templates).map(([id,item],index)=>`<article class="ccf-picker-card ${active===id?'is-active':''}"><div class="ccf-picker-head"><span class="ccf-picker-num">${index+1}</span><h3>${esc(item.name)}</h3></div><div class="ccf-picker-preview">${ccfPreview(id)}</div><p>${esc(item.description)}</p><button class="button ${active===id?'secondary':''}" type="button" data-section-template-apply="factions:${esc(id)}">${active===id?'✓ Currently applied':'Use this layout'}</button></article>`).join('');
+    showModal('Change faction layout',`<p class="ccf-picker-intro">Choose how the faction collection is organized and displayed.</p><div class="ccf-picker-grid">${cards}</div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button>`);
+    el.modal.classList.add('ccf-picker-modal');
+  };
+
+  function ccfBadge(item,size=''){return `<span class="ccf-mini-badge">${renderFactionBadge(item,size)}</span>`;}
+  function ccfPowerScore(item){return ({Hidden:20,Minor:35,Moderate:55,Major:78,Dominant:96})[item.power]||48;}
+  function ccfFactionType(item){return item.type||item.category||item.power||'Faction';}
+  function ccfRegion(item){const loc=getItem('locations',item.locationId||item.regionId);return loc?.name||item.region||'Unassigned';}
+  function ccfRelations(item){return String(item.alliesEnemies||'').split(/[,;\n]/).map(x=>x.trim()).filter(Boolean).length;}
+  function ccfStats(items){
+    const major=items.filter(x=>['Major','Dominant'].includes(x.power)).length;
+    const members=items.reduce((sum,x)=>sum+(x.keyMemberIds?.length||0),0);
+    const relations=items.reduce((sum,x)=>sum+ccfRelations(x),0);
+    return `<div class="ccf-summary-row"><div class="ccf-summary-card"><strong>${items.length}</strong><span>Total factions</span></div><div class="ccf-summary-card"><strong>${major}</strong><span>Major powers</span></div><div class="ccf-summary-card"><strong>${members}</strong><span>Linked members</span></div><div class="ccf-summary-card"><strong>${relations}</strong><span>Recorded relationships</span></div></div>`;
+  }
+  function ccfTop(items){return `<div class="ccf-topbar"><input class="input" placeholder="Search factions…" value="${esc(collectionFilters.factions||'')}" data-filter="factions"><button class="button secondary" type="button" data-section-layout="factions">Change layout</button><button class="button" type="button" data-add="factions">New faction</button></div>${ccfStats(items)}`;}
+
+  renderFactionHeraldic=function(items){
+    const selected=items[0];
+    const rows=items.map((item,index)=>`<button class="ccf-ledger-entry ${index===0?'is-selected':''}" type="button" data-open="factions:${esc(item.id)}"><span class="ccf-ledger-name">${ccfBadge(item)}<strong>${esc(item.name)}</strong></span><span>${esc(ccfFactionType(item))}</span><span>${esc(ccfRegion(item))}</span><span>${esc(item.power||'Unspecified')}</span></button>`).join('');
+    const detail=selected?`<aside class="ccf-ledger-detail"><div class="ccf-ledger-emblem">${renderFactionBadge(selected,'large')}</div><div><small class="cell-muted">${esc(ccfFactionType(selected))}</small><h2>${esc(selected.name)}</h2></div><p>${esc(selected.goal||selected.notes||'No faction summary has been added yet.')}</p><div class="tag-row">${cc3Tag(selected.power||'Unspecified')}${cc3Tag(`${selected.keyMemberIds?.length||0} members`)}${cc3Tag(ccfRegion(selected))}</div><div class="ccf-bars"><div class="ccf-bar"><span>Influence</span><div class="ccf-bar-track"><i style="width:${ccfPowerScore(selected)}%"></i></div><b>${ccfPowerScore(selected)}</b></div><div class="ccf-bar"><span>Membership</span><div class="ccf-bar-track"><i style="width:${Math.min(100,(selected.keyMemberIds?.length||0)*12)}%"></i></div><b>${selected.keyMemberIds?.length||0}</b></div><div class="ccf-bar"><span>Connections</span><div class="ccf-bar-track"><i style="width:${Math.min(100,ccfRelations(selected)*16)}%"></i></div><b>${ccfRelations(selected)}</b></div></div><button class="button" type="button" data-open="factions:${esc(selected.id)}">Open full faction</button></aside>`:'<aside class="ccf-ledger-detail"><p>No factions yet.</p></aside>';
+    return `<div class="ccf-collection">${ccfTop(items)}<div class="ccf-ledger"><section class="ccf-ledger-list"><div class="ccf-ledger-header"><span>Faction</span><span>Type</span><span>Region</span><span>Influence</span></div>${rows||'<div class="empty-state">No factions yet.</div>'}</section>${detail}</div></div>`;
+  };
+
+  renderFactionInfluence=function(items){
+    const powers=['Dominant','Major','Moderate','Minor','Hidden','Unspecified'];
+    const nonempty=powers.map(p=>({p,items:items.filter(x=>(x.power||'Unspecified')===p)})).filter(g=>g.items.length);
+    const groups=(nonempty.length?nonempty:[{p:'All factions',items}]).slice(0,3);
+    return `<div class="ccf-collection">${ccfTop(items)}<div class="ccf-board-groups">${groups.map(group=>`<section class="ccf-board-column"><div class="ccf-board-ribbon">${esc(group.p)}</div>${group.items.map(item=>`<button class="ccf-board-card" type="button" data-open="factions:${esc(item.id)}">${ccfBadge(item,'large')}<span><h3>${esc(item.name)}</h3><p>${esc(shortText(item.goal||item.notes,110)||'No description yet.')}</p><span class="ccf-board-meta">${cc3Tag(ccfFactionType(item))}${cc3Tag(`${item.keyMemberIds?.length||0} members`)}${cc3Tag(ccfRegion(item))}</span></span></button>`).join('')||'<p class="cell-muted">No factions in this group.</p>'}</section>`).join('')}</div></div>`;
+  };
+
+  renderFactionIntel=function(items){
+    const types={};items.forEach(x=>{const k=ccfFactionType(x);types[k]=(types[k]||0)+1;});
+    const regions={};items.forEach(x=>{const k=ccfRegion(x);regions[k]=(regions[k]||0)+1;});
+    return `<div class="ccf-collection">${ccfTop(items)}<div class="ccf-grid-layout"><div class="ccf-card-grid">${items.map(item=>`<button class="ccf-grid-card" type="button" data-open="factions:${esc(item.id)}">${ccfBadge(item,'large')}<span><small class="cell-muted">${esc(ccfFactionType(item))}</small><h3>${esc(item.name)}</h3><p>${esc(shortText(item.goal||item.notes,105)||'No description yet.')}</p><span class="ccf-grid-meta">${cc3Tag(item.power||'Unspecified')}${cc3Tag(`${item.keyMemberIds?.length||0} members`)}</span></span></button>`).join('')||'<div class="empty-state">No factions yet.</div>'}</div><aside class="ccf-overview"><h3>Faction overview</h3><div class="ccf-overview-list"><div><span>Recorded</span><strong>${items.length}</strong></div><div><span>Major powers</span><strong>${items.filter(x=>['Major','Dominant'].includes(x.power)).length}</strong></div><div><span>Linked members</span><strong>${items.reduce((s,x)=>s+(x.keyMemberIds?.length||0),0)}</strong></div></div><h3>By type</h3><div class="ccf-overview-list">${Object.entries(types).slice(0,7).map(([k,v])=>`<div><span>${esc(k)}</span><strong>${v}</strong></div>`).join('')||'<span class="cell-muted">No types yet.</span>'}</div><h3>By region</h3><div class="ccf-overview-list">${Object.entries(regions).slice(0,6).map(([k,v])=>`<div><span>${esc(k)}</span><strong>${v}</strong></div>`).join('')||'<span class="cell-muted">No regions yet.</span>'}</div></aside></div></div>`;
+  };
+
+
 })();
 </script>
 
@@ -11925,6 +12066,88 @@ initFirebase();
  .cc-final-media-modal,.cc-final-page-modal{grid-template-columns:1fr}
  .cc-final-page-tools{opacity:1}
  .cc-final-page-image.mode-wrap.side-left,.cc-final-page-image.mode-wrap.side-right{float:none;margin:var(--img-gap) auto;clear:both}
+}
+</style>
+
+
+<style id="cc-faction-layouts-final">
+/* Faction collection layouts and picker */
+.ccf-picker-modal{width:min(1180px,calc(100vw - 40px));max-width:none!important}
+.ccf-picker-intro{margin:0 0 18px;color:var(--muted)}
+.ccf-picker-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.ccf-picker-card{display:flex;flex-direction:column;min-width:0;border:1px solid var(--border);border-radius:16px;padding:14px;background:var(--panel);overflow:hidden}
+.ccf-picker-card.is-active{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 22%,transparent)}
+.ccf-picker-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.ccf-picker-num{display:grid;place-items:center;width:36px;height:36px;border-radius:9px;background:var(--accent-soft);color:var(--accent-strong);font-weight:900}
+.ccf-picker-head h3{margin:0;font-size:18px}
+.ccf-picker-preview{aspect-ratio:4/5;border:1px solid var(--border);border-radius:12px;background:var(--panel-strong);padding:10px;overflow:hidden;margin-bottom:12px}
+.ccf-picker-card p{min-height:54px;color:var(--muted);line-height:1.45}
+.ccf-picker-card .button{margin-top:auto;width:100%}
+.ccf-shell{height:100%;display:flex;flex-direction:column;gap:7px}
+.ccf-shell-top{height:12%;border-radius:7px;background:var(--accent-soft)}
+.ccf-shell-nav{height:7%;border-radius:6px;background:var(--panel-soft)}
+.ccf-shell-row{display:grid;gap:7px;flex:1;min-height:0}
+.ccf-shell i,.ccf-shell b,.ccf-shell span{display:block;border-radius:5px;background:color-mix(in srgb,var(--text) 15%,transparent)}
+.ccf-shell-ledger .ccf-shell-row{grid-template-columns:1.55fr .8fr}
+.ccf-shell-ledger .list{display:grid;grid-template-rows:repeat(7,1fr);gap:5px;padding:7px;border-radius:8px;background:var(--panel-soft)}
+.ccf-shell-ledger .detail{display:grid;grid-template-rows:28% 8% 12% 12% 12%;gap:7px;padding:7px;border-radius:8px;background:var(--panel-soft)}
+.ccf-shell-ledger .list i{background:linear-gradient(90deg,var(--accent-soft) 18%,color-mix(in srgb,var(--text) 12%,transparent) 18%)}
+.ccf-shell-board .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;height:13%}
+.ccf-shell-board .stats i:nth-child(1){background:var(--accent-soft)}
+.ccf-shell-board .columns{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;flex:1}
+.ccf-shell-board .column{display:grid;grid-template-rows:10% repeat(3,1fr);gap:5px}
+.ccf-shell-board .column b{background:var(--accent-soft)}
+.ccf-shell-board .column i{background:var(--panel-soft);border:1px solid var(--border)}
+.ccf-shell-grid .ccf-shell-row{grid-template-columns:1fr .35fr}
+.ccf-shell-grid .cards{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:6px}
+.ccf-shell-grid .cards i{background:var(--panel-soft);border:1px solid var(--border)}
+.ccf-shell-grid .side{display:grid;grid-template-rows:25% repeat(5,1fr);gap:7px;padding:7px;border-radius:8px;background:var(--panel-soft)}
+
+/* Shared faction collection shell */
+.ccf-collection{display:grid;gap:18px}
+.ccf-topbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ccf-topbar .input{flex:1;min-width:220px}
+.ccf-summary-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.ccf-summary-card{border:1px solid var(--border);border-radius:14px;padding:14px;background:var(--panel);display:grid;gap:4px}
+.ccf-summary-card strong{font-size:28px}.ccf-summary-card span{color:var(--muted);font-size:12px}
+
+/* Lore Ledger */
+.ccf-ledger{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,.8fr);gap:16px;align-items:start}
+.ccf-ledger-list,.ccf-ledger-detail{border:1px solid var(--border);border-radius:16px;background:var(--panel);overflow:hidden}
+.ccf-ledger-header,.ccf-ledger-entry{display:grid;grid-template-columns:minmax(180px,1.3fr) .65fr .65fr .8fr;gap:10px;align-items:center;padding:12px 14px}
+.ccf-ledger-header{background:var(--panel-soft);color:var(--muted);font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.05em}
+.ccf-ledger-entry{width:100%;border:0;border-top:1px solid var(--border);background:transparent;color:inherit;text-align:left}
+.ccf-ledger-entry:hover,.ccf-ledger-entry.is-selected{background:var(--accent-soft)}
+.ccf-ledger-name{display:flex;align-items:center;gap:10px;min-width:0}.ccf-ledger-name strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ccf-mini-badge{width:38px;height:38px;flex:0 0 auto}.ccf-mini-badge .faction-badge{transform:scale(.62);transform-origin:center}
+.ccf-ledger-detail{padding:18px;position:sticky;top:82px;display:grid;gap:14px}
+.ccf-ledger-emblem{display:grid;place-items:center;min-height:150px;background:var(--panel-soft);border-radius:12px}
+.ccf-ledger-detail h2{margin:0}.ccf-ledger-detail p{margin:0;color:var(--muted);line-height:1.55}
+.ccf-bars{display:grid;gap:10px}.ccf-bar{display:grid;grid-template-columns:120px 1fr 42px;gap:8px;align-items:center;font-size:12px}.ccf-bar-track{height:8px;border-radius:999px;background:var(--panel-soft);overflow:hidden}.ccf-bar-track i{display:block;height:100%;background:var(--accent)}
+
+/* Banner Board */
+.ccf-board-groups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+.ccf-board-column{border:1px solid var(--border);border-radius:16px;padding:12px;background:var(--panel);display:grid;gap:10px}
+.ccf-board-ribbon{margin:-4px auto 2px;padding:8px 18px;border-radius:8px;background:var(--accent-soft);font-weight:900;text-align:center}
+.ccf-board-card{display:grid;grid-template-columns:64px 1fr;gap:11px;align-items:center;border:1px solid var(--border);border-radius:12px;padding:11px;background:var(--panel-strong);color:inherit;text-align:left}
+.ccf-board-card:hover{border-color:var(--accent)}.ccf-board-card h3{margin:0 0 4px;font-size:16px}.ccf-board-card p{margin:0;color:var(--muted);font-size:12px;line-height:1.4}.ccf-board-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:7px}
+
+/* Codex Grid */
+.ccf-grid-layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:16px;align-items:start}
+.ccf-card-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.ccf-grid-card{display:grid;grid-template-columns:72px 1fr;gap:12px;min-height:150px;border:1px solid var(--border);border-radius:16px;padding:14px;background:var(--panel);color:inherit;text-align:left}
+.ccf-grid-card:hover{border-color:var(--accent);transform:translateY(-1px)}.ccf-grid-card h3{margin:0 0 5px}.ccf-grid-card p{margin:0;color:var(--muted);font-size:12px;line-height:1.45}.ccf-grid-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.ccf-overview{position:sticky;top:82px;border:1px solid var(--border);border-radius:16px;padding:16px;background:var(--panel);display:grid;gap:14px}.ccf-overview h3{margin:0}.ccf-overview-list{display:grid;gap:9px}.ccf-overview-list div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);padding-bottom:7px}.ccf-overview-list span{color:var(--muted)}
+
+@media(max-width:980px){
+ .ccf-picker-grid{grid-template-columns:1fr}.ccf-picker-preview{aspect-ratio:16/7}
+ .ccf-ledger,.ccf-grid-layout{grid-template-columns:1fr}.ccf-ledger-detail,.ccf-overview{position:static}
+ .ccf-board-groups{grid-template-columns:1fr}.ccf-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:640px){
+ .ccf-summary-row{grid-template-columns:repeat(2,1fr)}.ccf-card-grid{grid-template-columns:1fr}
+ .ccf-ledger-header{display:none}.ccf-ledger-entry{grid-template-columns:1fr}.ccf-ledger-entry>span:not(.ccf-ledger-name){display:none}
+ .ccf-picker-modal{width:calc(100vw - 18px)}
 }
 </style>
 
