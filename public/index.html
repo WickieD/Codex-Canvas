@@ -4639,7 +4639,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "post-reactions-footer-fixed-2026-08-03";
+window.CODEX_BUILD = "startup-reaction-fixed-2026-08-03";
 </script>
   <script>
 (() => {
@@ -13263,6 +13263,42 @@ initFirebase();
   function ccrhClearDraft(story){ try{localStorage.removeItem(ccrhDraftKey(story));}catch{} }
   function ccrhSpeakerOptions(story){ return storySpeakerOptions(story,'narrator'); }
   function ccrhAnchorNodesForTurn(story,turnId){ return (story.nodes||[]).filter(node=>ensureStoryPassage(node).anchorTurnId===turnId); }
+
+  function ccrhSafeReactionLibrary(){
+    return Array.isArray(state.workspace?.customEmojiLibrary)
+      ? state.workspace.customEmojiLibrary
+      : [];
+  }
+  function ccrhSafeReactionMarkup(key){
+    key=String(key||'');
+    if(key.startsWith('custom:')){
+      const name=key.slice(7);
+      const item=ccrhSafeReactionLibrary().find(entry=>entry?.name===name);
+      return item?.src
+        ? `<img src="${esc(item.src)}" alt=":${esc(name)}:">`
+        : `:${esc(name)}:`;
+    }
+    if(key.startsWith('standard:'))return esc(key.slice(9));
+    return esc(key);
+  }
+  function ccrhSafePostReactions(turn){
+    const reactions=turn?.reactions;
+    const email=normalizeMemberEmail(firebase.user?.email||'');
+    const entries=(reactions&&typeof reactions==='object'&&!Array.isArray(reactions))
+      ? Object.entries(reactions).filter(([,users])=>Array.isArray(users)&&users.length)
+      : [];
+    return `<div class="ccrh-reaction-row">
+      ${entries.map(([key,users])=>{
+        const cleanUsers=[...new Set(users.map(normalizeMemberEmail).filter(Boolean))];
+        const active=cleanUsers.includes(email);
+        return `<button class="ccrh-reaction-chip ${active?'active':''}" type="button"
+          data-ccrh-toggle-reaction="${esc(turn.id)}" data-reaction-key="${esc(key)}"
+          title="${active?'Remove reaction':'Add reaction'}">${ccrhSafeReactionMarkup(key)}<span>${cleanUsers.length}</span></button>`;
+      }).join('')}
+      <button class="ccrh-add-reaction" type="button" data-ccrh-add-reaction="${esc(turn.id)}">＋ Add reaction</button>
+    </div>`;
+  }
+
   function ccrhPostHtml(turn,index,story){
     const speaker=storySpeakerMeta(turn), image=speaker.character?ccrhCharacterImage(speaker.character):'';
     const anchors=ccrhAnchorNodesForTurn(story,turn.id);
@@ -13298,7 +13334,7 @@ initFirebase();
           <button class="button ghost small" type="button" data-ccrh-anchor="${esc(turn.id)}">Create anchor here</button>
           ${(normalizeMemberEmail(turn.authorEmail||'')===normalizeMemberEmail(firebase.user?.email||'')||isWorkspaceOwner())?`<button class="button ghost small" type="button" data-ccrh-edit-post="${esc(turn.id)}">Edit post</button><button class="button ghost small danger" type="button" data-ccrh-delete-post="${esc(turn.id)}">Delete post</button>`:''}
         </footer>
-        ${ccRenderPostReactions(turn)}
+        ${ccrhSafePostReactions(turn)}
         <div class="ccrh-post-attribution">
           ${authorEmail?`<button class="cc-member-inline" type="button" data-cc-member-preview="${esc(authorEmail)}">
             <span class="cc-member-inline-avatar">${authorAvatar?`<img src="${esc(authorAvatar)}" alt="">`:esc(initials(authorName))}</span>
@@ -13824,6 +13860,87 @@ initFirebase();
     }catch(error){toast(error.message||String(error),'error');fileInput.value='';}
   },true);
 
+
+
+  /* === Roleplay post emoji reactions === */
+  let ccReactionTargetPostId='';
+
+  function ccPostReactions(turn){
+    if(!turn||Array.isArray(turn.reactions)||!turn.reactions||typeof turn.reactions!=='object')turn.reactions={};
+    return turn.reactions;
+  }
+  function ccReactionCurrentEmail(){
+    return normalizeMemberEmail(firebase.user?.email||'');
+  }
+  function ccReactionUsers(turn,key){
+    const reactions=ccPostReactions(turn);
+    if(!Array.isArray(reactions[key]))reactions[key]=[];
+    reactions[key]=[...new Set(reactions[key].map(normalizeMemberEmail).filter(Boolean))];
+    return reactions[key];
+  }
+  function ccReactionDisplay(key){
+    key=String(key||'');
+    if(key.startsWith('custom:')){
+      const name=key.slice(7);
+      const item=ccEmojiLibrary().find(entry=>entry.name===name);
+      return item?`<img src="${esc(item.src)}" alt=":${esc(name)}:">`:`:${esc(name)}:`;
+    }
+    return esc(key.slice(9));
+  }
+  function ccrhSafePostReactions(turn){
+    const email=ccReactionCurrentEmail();
+    const reactions=ccPostReactions(turn);
+    const entries=Object.entries(reactions).filter(([,users])=>Array.isArray(users)&&users.length);
+    return `<div class="ccrh-reaction-row">
+      ${entries.map(([key,users])=>{
+        const active=users.map(normalizeMemberEmail).includes(email);
+        return `<button class="ccrh-reaction-chip ${active?'active':''}" type="button" data-ccrh-toggle-reaction="${esc(turn.id)}" data-reaction-key="${esc(key)}" title="${active?'Remove reaction':'Add reaction'}">${ccReactionDisplay(key)}<span>${users.length}</span></button>`;
+      }).join('')}
+      <button class="ccrh-add-reaction" type="button" data-ccrh-add-reaction="${esc(turn.id)}">＋ Add reaction</button>
+    </div>`;
+  }
+  function ccTogglePostReaction(postId,key){
+    const {story}=ccrhStoryFromRoute();
+    const turn=story?ensureStoryDocument(story).find(item=>item.id===postId):null;
+    if(!turn)return;
+    const email=ccReactionCurrentEmail();
+    if(!email){toast('Sign in before reacting.','error');return;}
+    const users=ccReactionUsers(turn,key);
+    const index=users.indexOf(email);
+    if(index>=0)users.splice(index,1);else users.push(email);
+    if(!users.length)delete turn.reactions[key];
+    scheduleSave('Saving reaction…');
+    ccrhRenderReader();
+  }
+  function ccOpenReactionPicker(postId,anchor){
+    ccReactionTargetPostId=postId;
+    ccEmojiEditor=null;
+    ccOpenEmojiPicker(anchor);
+  }
+  function ccAddReactionFromPicker(key){
+    const postId=ccReactionTargetPostId;
+    ccReactionTargetPostId='';
+    if(postId)ccTogglePostReaction(postId,key);
+    ccCloseEmojiPicker();
+  }
+
+  document.addEventListener('click',event=>{
+    const add=event.target.closest('[data-ccrh-add-reaction]');
+    if(add){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      ccOpenReactionPicker(add.dataset.ccrhAddReaction,add);
+      return;
+    }
+    const toggle=event.target.closest('[data-ccrh-toggle-reaction]');
+    if(toggle){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      ccTogglePostReaction(toggle.dataset.ccrhToggleReaction,toggle.dataset.reactionKey);
+      return;
+    }
+  },true);
+
 })();
 
 </script>
@@ -14135,83 +14252,6 @@ initFirebase();
 
 
 
-  /* === Roleplay post emoji reactions === */
-  let ccReactionTargetPostId='';
-
-  function ccPostReactions(turn){
-    if(!turn.reactions||typeof turn.reactions!=='object')turn.reactions={};
-    return turn.reactions;
-  }
-  function ccReactionCurrentEmail(){
-    return normalizeMemberEmail(firebase.user?.email||'');
-  }
-  function ccReactionUsers(turn,key){
-    const reactions=ccPostReactions(turn);
-    if(!Array.isArray(reactions[key]))reactions[key]=[];
-    reactions[key]=[...new Set(reactions[key].map(normalizeMemberEmail).filter(Boolean))];
-    return reactions[key];
-  }
-  function ccReactionDisplay(key){
-    if(key.startsWith('custom:')){
-      const name=key.slice(7);
-      const item=ccEmojiLibrary().find(entry=>entry.name===name);
-      return item?`<img src="${esc(item.src)}" alt=":${esc(name)}:">`:`:${esc(name)}:`;
-    }
-    return esc(key.slice(9));
-  }
-  function ccRenderPostReactions(turn){
-    const email=ccReactionCurrentEmail();
-    const reactions=ccPostReactions(turn);
-    const entries=Object.entries(reactions).filter(([,users])=>Array.isArray(users)&&users.length);
-    return `<div class="ccrh-reaction-row">
-      ${entries.map(([key,users])=>{
-        const active=users.map(normalizeMemberEmail).includes(email);
-        return `<button class="ccrh-reaction-chip ${active?'active':''}" type="button" data-ccrh-toggle-reaction="${esc(turn.id)}" data-reaction-key="${esc(key)}" title="${active?'Remove reaction':'Add reaction'}">${ccReactionDisplay(key)}<span>${users.length}</span></button>`;
-      }).join('')}
-      <button class="ccrh-add-reaction" type="button" data-ccrh-add-reaction="${esc(turn.id)}">＋ Add reaction</button>
-    </div>`;
-  }
-  function ccTogglePostReaction(postId,key){
-    const {story}=ccrhStoryFromRoute();
-    const turn=story?ensureStoryDocument(story).find(item=>item.id===postId):null;
-    if(!turn)return;
-    const email=ccReactionCurrentEmail();
-    if(!email){toast('Sign in before reacting.','error');return;}
-    const users=ccReactionUsers(turn,key);
-    const index=users.indexOf(email);
-    if(index>=0)users.splice(index,1);else users.push(email);
-    if(!users.length)delete turn.reactions[key];
-    scheduleSave('Saving reaction…');
-    ccrhRenderReader();
-  }
-  function ccOpenReactionPicker(postId,anchor){
-    ccReactionTargetPostId=postId;
-    ccEmojiEditor=null;
-    ccOpenEmojiPicker(anchor);
-  }
-  function ccAddReactionFromPicker(key){
-    const postId=ccReactionTargetPostId;
-    ccReactionTargetPostId='';
-    if(postId)ccTogglePostReaction(postId,key);
-    ccCloseEmojiPicker();
-  }
-
-  document.addEventListener('click',event=>{
-    const add=event.target.closest('[data-ccrh-add-reaction]');
-    if(add){
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      ccOpenReactionPicker(add.dataset.ccrhAddReaction,add);
-      return;
-    }
-    const toggle=event.target.closest('[data-ccrh-toggle-reaction]');
-    if(toggle){
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      ccTogglePostReaction(toggle.dataset.ccrhToggleReaction,toggle.dataset.reactionKey);
-      return;
-    }
-  },true);
 
 })();
 </script>
