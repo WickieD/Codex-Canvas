@@ -4588,7 +4588,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "emoji-library-post-controls-2026-08-03";
+window.CODEX_BUILD = "emoji-picker-library-fixed-2026-08-03";
 </script>
   <script>
 (() => {
@@ -5018,6 +5018,7 @@ window.CODEX_BUILD = "emoji-library-post-controls-2026-08-03";
           <div class="nav-label">Workspace</div>
           ${navButton('share','Members','members',state.workspace.members.length)}
           <button class="nav-item ${route.view==='profile'||route.view==='profile-edit'?'active':''}" type="button" data-profile-member="${esc(normalizeMemberEmail(firebase.user?.email||''))}" aria-label="Open User Profile"><span class="nav-icon">${uiIcon('person')}</span><span>User Profile</span></button>
+          <button class="nav-item ${route.view==='emoji-library'?'active':''}" type="button" data-nav="emoji-library"><span class="nav-icon">😊</span><span>Emoji Library</span><span class="nav-count">${(state.workspace.customEmojiLibrary||[]).length}</span></button>
           ${navButton('settings','Settings','settings')}
         </div>
       </div>
@@ -11978,8 +11979,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-cc4-jump]'
     ccrhSaveDraft(story,editor.value);
     clearTimeout(ccrhDraftTimer);
     ccrhDraftTimer=setTimeout(()=>ccrhSaveDraft(story,editor.value),250);
-    const counter=document.querySelector('[data-ccrh-count]');
-    if(counter)counter.textContent=`${editor.value.length.toLocaleString()} / 50,000`;
+
   },true);
 
   document.addEventListener('click',async event=>{
@@ -13412,315 +13412,18 @@ initFirebase();
     const speaker=event.target.closest('[data-ccrh-speaker]');if(speaker){const wrap=document.querySelector('[data-ccrh-custom-wrap]');if(wrap)wrap.hidden=speaker.value!=='custom';}
   },true);
 
-})();
-
-</script>
-
-<script id="character-media-click-controls">
-(() => {
-  function clearCharacterMediaSelection(except = null) {
-    document.querySelectorAll('.is-media-selected[data-character-media-select]').forEach(slot => {
-      if (slot !== except) slot.classList.remove('is-media-selected');
-    });
-  }
-
-  document.addEventListener('click', event => {
-    const control = event.target.closest('[data-character-media-trigger],[data-character-media-edit],[data-character-media-remove]');
-    const slot = event.target.closest('[data-character-media-select]');
-
-    if (slot && slot.classList.contains('has-image')) {
-      clearCharacterMediaSelection(slot);
-      if (!control) {
-        event.preventDefault();
-        slot.classList.toggle('is-media-selected');
-      }
-      return;
-    }
-
-    if (!event.target.closest('.character-cover-slot,.character-portrait-slot,.dossier-media-slot')) {
-      clearCharacterMediaSelection();
-    }
-  }, true);
-
-  document.addEventListener('keydown', event => {
-    const slot = event.target.closest?.('[data-character-media-select].has-image');
-    if (slot && (event.key === 'Enter' || event.key === ' ')) {
-      event.preventDefault();
-      clearCharacterMediaSelection(slot);
-      slot.classList.toggle('is-media-selected');
-    }
-    if (event.key === 'Escape') clearCharacterMediaSelection();
-  });
-
-  /* Species-only media channel copied from the confirmed working Location path. */
-  const cc14BaseEditor=cc4Editor;
-  cc4Editor=function(kind,item,openCount=2){
-    let markup=cc14BaseEditor(kind,item,openCount);
-    if(kind!=='species')return markup;
-    return markup
-      .replaceAll('data-cc13-page-image-input=', 'data-cc14-species-page-input=')
-      .replaceAll('data-cc5-image-input=', 'data-cc14-species-page-input=')
-      .replaceAll('data-cc8-image-input=', 'data-cc14-species-page-input=');
-  };
-
-  const cc14LocationCoverRenderer=renderSectionMediaCover;
-  const cc14LocationPortraitRenderer=renderSectionMediaPortrait;
-  renderSectionMediaCover=function(kind,item){
-    if(kind!=='species')return cc14LocationCoverRenderer(kind,item);
-    const copy=ccFinalCopy('species'),media=item.headerImage||null,src=ccFinalSrc(media),ref=`species:cover:${item.id}`;
-    if(!src)return `<div class="cc-final-cover"><label class="cc-final-media-empty"><span><strong>${esc(copy.cover)}</strong>${esc(copy.coverHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc14-species-fixed-input="${esc(ref)}"></label></div>`;
-    return `<div class="cc-final-cover" data-cc-final-media-box="${esc(ref)}"><img src="${esc(src)}" alt="${esc(media?.alt||item.name+' cover')}" style="${ccFinalMediaCss(media,'cover')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${esc(ref)}">Edit cover</button></div>`;
-  };
-  renderSectionMediaPortrait=function(kind,item){
-    if(kind!=='species')return cc14LocationPortraitRenderer(kind,item);
-    const copy=ccFinalCopy('species'),media=item.profileImage||null,src=ccFinalSrc(media),ref=`species:profile:${item.id}`;
-    const body=!src
-      ?`<label class="cc-final-media-empty"><span><strong>${esc(copy.image)}</strong>${esc(copy.imageHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc14-species-fixed-input="${esc(ref)}"></label>`
-      :`<img src="${esc(src)}" alt="${esc(media?.alt||item.name+' image')}" style="${ccFinalMediaCss(media,'profile')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${esc(ref)}">Edit image</button>`;
-    return `<section class="panel section-media-portrait-card cc-final-profile-card"><div class="section-media-portrait-label">${esc(copy.label)}</div><div class="cc-final-profile" data-cc-final-media-box="${esc(ref)}">${body}</div></section>`;
-  };
-
-  async function cc14ReadSpeciesFile(file,item,slot){
-    const prepared=await imageFileToBlock(file,{name:item.name});
-    const field=slot==='cover'?'headerImage':'profileImage';
-    item[field]={src:prepared.src,assetId:prepared.assetId||'',alt:`${item.name} ${slot} image`,positionX:50,positionY:slot==='cover'?45:25,zoom:1,fit:'cover'};
-    item.updatedAt=nowISO();
-    scheduleSave('Saving image…');
-    renderEntity('species',item.id);
-    toast('Species image added.');
-  }
-
-  document.addEventListener('change',async event=>{
-    const fixed=event.target.closest('[data-cc14-species-fixed-input]');
-    if(fixed){
-      event.stopImmediatePropagation();
-      const file=fixed.files?.[0];
-      if(file){
-        const [,slot,itemId]=fixed.dataset.cc14SpeciesFixedInput.split(':');
-        const item=getItem('species',itemId);
-        if(item){try{await cc14ReadSpeciesFile(file,item,slot);}catch(error){console.error(error);toast(`Species image could not be added: ${error?.message||error}`,'error');}}
-      }
-      fixed.value='';return;
-    }
-    const page=event.target.closest('[data-cc14-species-page-input]');
-    if(page){
-      event.stopImmediatePropagation();
-      const file=page.files?.[0];
-      if(file){
-        const ref=page.dataset.cc14SpeciesPageInput;
-        const itemId=ref.startsWith('species:')?ref.slice(8):ref.split(':').slice(1).join(':');
-        try{await ccFinalAddPageImage('species',itemId,file);}catch(error){console.error(error);toast(`Species image could not be added: ${error?.message||error}`,'error');}
-      }
-      page.value='';return;
-    }
-  },true);
-
-
-  Object.assign(SECTION_TEMPLATE_CONFIG.factions.templates,{
-    'heraldic-registry':{name:'Lore Ledger',description:'A detailed ledger with a list of factions and a rich detail panel for each selection.',preview:'ccf-lore-ledger'},
-    'influence-board':{name:'Banner Board',description:'A vibrant board with at-a-glance stats, grouped faction cards, and a contextual sidebar.',preview:'ccf-banner-board'},
-    'intelligence-files':{name:'Codex Grid',description:'A clean grid of faction cards with key details and a compact overview panel.',preview:'ccf-codex-grid'}
-  });
-
-  const ccfBasePicker=showSectionTemplatePicker;
-  function ccfPreview(id){
-    if(id==='heraldic-registry')return `<div class="ccf-shell ccf-shell-ledger"><div class="ccf-shell-top"></div><div class="ccf-shell-nav"></div><div class="ccf-shell-row"><div class="list">${'<i></i>'.repeat(7)}</div><div class="detail"><b></b>${'<span></span>'.repeat(4)}</div></div></div>`;
-    if(id==='influence-board')return `<div class="ccf-shell ccf-shell-board"><div class="ccf-shell-top"></div><div class="stats">${'<i></i>'.repeat(4)}</div><div class="columns">${'<div class="column"><b></b><i></i><i></i><i></i></div>'.repeat(3)}</div></div>`;
-    return `<div class="ccf-shell ccf-shell-grid"><div class="ccf-shell-top"></div><div class="ccf-shell-nav"></div><div class="ccf-shell-row"><div class="cards">${'<i></i>'.repeat(9)}</div><div class="side"><b></b>${'<span></span>'.repeat(5)}</div></div></div>`;
-  }
-  showSectionTemplatePicker=function(kind){
-    if(kind!=='factions')return ccfBasePicker(kind);
-    const config=sectionTemplateConfig(kind),active=sectionDesign(kind).template;
-    const cards=Object.entries(config.templates).map(([id,item],index)=>`<article class="ccf-picker-card ${active===id?'is-active':''}"><div class="ccf-picker-head"><span class="ccf-picker-num">${index+1}</span><h3>${esc(item.name)}</h3></div><div class="ccf-picker-preview">${ccfPreview(id)}</div><p>${esc(item.description)}</p><button class="button ${active===id?'secondary':''}" type="button" data-section-template-apply="factions:${esc(id)}">${active===id?'✓ Currently applied':'Use this layout'}</button></article>`).join('');
-    showModal('Change faction layout',`<p class="ccf-picker-intro">Choose how the faction collection is organized and displayed.</p><div class="ccf-picker-grid">${cards}</div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button>`);
-    el.modal.classList.add('ccf-picker-modal');
-  };
-
-  function ccfBadge(item,size=''){return `<span class="ccf-mini-badge">${renderFactionBadge(item,size)}</span>`;}
-  function ccfPowerScore(item){return ({Hidden:20,Minor:35,Moderate:55,Major:78,Dominant:96})[item.power]||48;}
-  function ccfFactionType(item){return item.type||item.category||item.power||'Faction';}
-  function ccfRegion(item){const loc=getItem('locations',item.locationId||item.regionId);return loc?.name||item.region||'Unassigned';}
-  function ccfRelations(item){return String(item.alliesEnemies||'').split(/[,;\n]/).map(x=>x.trim()).filter(Boolean).length;}
-  function ccfStats(items){
-    const major=items.filter(x=>['Major','Dominant'].includes(x.power)).length;
-    const members=items.reduce((sum,x)=>sum+(x.keyMemberIds?.length||0),0);
-    const relations=items.reduce((sum,x)=>sum+ccfRelations(x),0);
-    return `<div class="ccf-summary-row"><div class="ccf-summary-card"><strong>${items.length}</strong><span>Total factions</span></div><div class="ccf-summary-card"><strong>${major}</strong><span>Major powers</span></div><div class="ccf-summary-card"><strong>${members}</strong><span>Linked members</span></div><div class="ccf-summary-card"><strong>${relations}</strong><span>Recorded relationships</span></div></div>`;
-  }
-  function ccfTop(items){return `<div class="ccf-topbar"><input class="input" placeholder="Search factions…" value="${esc(collectionFilters.factions||'')}" data-filter="factions"><button class="button secondary" type="button" data-section-layout="factions">Change layout</button><button class="button" type="button" data-add="factions">New faction</button></div>${ccfStats(items)}`;}
-
-  renderFactionHeraldic=function(items){
-    const selected=items[0];
-    const rows=items.map((item,index)=>`<button class="ccf-ledger-entry ${index===0?'is-selected':''}" type="button" data-open="factions:${esc(item.id)}"><span class="ccf-ledger-name">${ccfBadge(item)}<strong>${esc(item.name)}</strong></span><span>${esc(ccfFactionType(item))}</span><span>${esc(ccfRegion(item))}</span><span>${esc(item.power||'Unspecified')}</span></button>`).join('');
-    const detail=selected?`<aside class="ccf-ledger-detail"><div class="ccf-ledger-emblem">${renderFactionBadge(selected,'large')}</div><div><small class="cell-muted">${esc(ccfFactionType(selected))}</small><h2>${esc(selected.name)}</h2></div><p>${esc(selected.goal||selected.notes||'No faction summary has been added yet.')}</p><div class="tag-row">${cc3Tag(selected.power||'Unspecified')}${cc3Tag(`${selected.keyMemberIds?.length||0} members`)}${cc3Tag(ccfRegion(selected))}</div><div class="ccf-bars"><div class="ccf-bar"><span>Influence</span><div class="ccf-bar-track"><i style="width:${ccfPowerScore(selected)}%"></i></div><b>${ccfPowerScore(selected)}</b></div><div class="ccf-bar"><span>Membership</span><div class="ccf-bar-track"><i style="width:${Math.min(100,(selected.keyMemberIds?.length||0)*12)}%"></i></div><b>${selected.keyMemberIds?.length||0}</b></div><div class="ccf-bar"><span>Connections</span><div class="ccf-bar-track"><i style="width:${Math.min(100,ccfRelations(selected)*16)}%"></i></div><b>${ccfRelations(selected)}</b></div></div><button class="button" type="button" data-open="factions:${esc(selected.id)}">Open full faction</button></aside>`:'<aside class="ccf-ledger-detail"><p>No factions yet.</p></aside>';
-    return `<div class="ccf-collection">${ccfTop(items)}<div class="ccf-ledger"><section class="ccf-ledger-list"><div class="ccf-ledger-header"><span>Faction</span><span>Type</span><span>Region</span><span>Influence</span></div>${rows||'<div class="empty-state">No factions yet.</div>'}</section>${detail}</div></div>`;
-  };
-
-  renderFactionInfluence=function(items){
-    const powers=['Dominant','Major','Moderate','Minor','Hidden','Unspecified'];
-    const nonempty=powers.map(p=>({p,items:items.filter(x=>(x.power||'Unspecified')===p)})).filter(g=>g.items.length);
-    const groups=(nonempty.length?nonempty:[{p:'All factions',items}]).slice(0,3);
-    return `<div class="ccf-collection">${ccfTop(items)}<div class="ccf-board-groups">${groups.map(group=>`<section class="ccf-board-column"><div class="ccf-board-ribbon">${esc(group.p)}</div>${group.items.map(item=>`<button class="ccf-board-card" type="button" data-open="factions:${esc(item.id)}">${ccfBadge(item,'large')}<span><h3>${esc(item.name)}</h3><p>${esc(shortText(item.goal||item.notes,110)||'No description yet.')}</p><span class="ccf-board-meta">${cc3Tag(ccfFactionType(item))}${cc3Tag(`${item.keyMemberIds?.length||0} members`)}${cc3Tag(ccfRegion(item))}</span></span></button>`).join('')||'<p class="cell-muted">No factions in this group.</p>'}</section>`).join('')}</div></div>`;
-  };
-
-  renderFactionIntel=function(items){
-    const types={};items.forEach(x=>{const k=ccfFactionType(x);types[k]=(types[k]||0)+1;});
-    const regions={};items.forEach(x=>{const k=ccfRegion(x);regions[k]=(regions[k]||0)+1;});
-    return `<div class="ccf-collection">${ccfTop(items)}<div class="ccf-grid-layout"><div class="ccf-card-grid">${items.map(item=>`<button class="ccf-grid-card" type="button" data-open="factions:${esc(item.id)}">${ccfBadge(item,'large')}<span><small class="cell-muted">${esc(ccfFactionType(item))}</small><h3>${esc(item.name)}</h3><p>${esc(shortText(item.goal||item.notes,105)||'No description yet.')}</p><span class="ccf-grid-meta">${cc3Tag(item.power||'Unspecified')}${cc3Tag(`${item.keyMemberIds?.length||0} members`)}</span></span></button>`).join('')||'<div class="empty-state">No factions yet.</div>'}</div><aside class="ccf-overview"><h3>Faction overview</h3><div class="ccf-overview-list"><div><span>Recorded</span><strong>${items.length}</strong></div><div><span>Major powers</span><strong>${items.filter(x=>['Major','Dominant'].includes(x.power)).length}</strong></div><div><span>Linked members</span><strong>${items.reduce((s,x)=>s+(x.keyMemberIds?.length||0),0)}</strong></div></div><h3>By type</h3><div class="ccf-overview-list">${Object.entries(types).slice(0,7).map(([k,v])=>`<div><span>${esc(k)}</span><strong>${v}</strong></div>`).join('')||'<span class="cell-muted">No types yet.</span>'}</div><h3>By region</h3><div class="ccf-overview-list">${Object.entries(regions).slice(0,6).map(([k,v])=>`<div><span>${esc(k)}</span><strong>${v}</strong></div>`).join('')||'<span class="cell-muted">No regions yet.</span>'}</div></aside></div></div>`;
-  };
-
-
-
-
-
-
-
-  /* === Compact member profile previews === */
-  function ccMemberByEmail(email){
-    const normalized=normalizeMemberEmail(email||'');
-    return (state.workspace.members||[]).find(member=>ccpMemberId(member)===normalized)||null;
-  }
-  function ccMemberLastPost(member){
-    const email=ccpMemberId(member);
-    let latest=null;
-    for(const story of state.storyGraphs||[]){
-      for(const turn of ensureStoryDocument(story)){
-        if(normalizeMemberEmail(turn.authorEmail||'')!==email)continue;
-        const raw=turn.updatedAt||turn.createdAt||'';
-        const date=raw?.toDate?raw.toDate():new Date(raw);
-        const stamp=Number.isNaN(date.getTime())?0:date.getTime();
-        if(!latest||stamp>latest.stamp){
-          latest={storyId:story.id,title:story.name||'Untitled roleplay',postId:turn.id,stamp,raw};
-        }
-      }
-    }
-    return latest;
-  }
-  function ccCloseMemberPreview(){
-    document.getElementById('cc-member-profile-preview')?.remove();
-  }
-
-  function ccOpenMemberPreviewModal(email){
-    const member=ccMemberByEmail(email);
-    if(!member){
-      toast('That member profile could not be found.','error');
-      return;
-    }
-
-    const profile=ccpProfile(member);
-    const avatar=ccpSafeUrl(profile.avatar);
-    const banner=ccpSafeUrl(profile.banner);
-    const lastPost=ccMemberLastPost(member);
-    const role=member.role||'Member';
-
-    cc16PresenceOpen=false;
-    const onlineMenu=document.querySelector('.cc16-menu');
-    if(onlineMenu)onlineMenu.hidden=true;
-    const onlineToggle=document.querySelector('[data-cc16-toggle]');
-    if(onlineToggle)onlineToggle.setAttribute('aria-expanded','false');
-
-    const body=`
-      <div class="cc-member-modal-profile">
-        <div class="cc-member-modal-banner"${banner?` style="background-image:url('${esc(banner)}')"`:''}></div>
-        <div class="cc-member-modal-body">
-          <div class="cc-member-modal-avatar">${avatar?`<img src="${esc(avatar)}" alt="">`:esc(initials(ccpDisplayName(member)))}</div>
-          <div class="cc-member-modal-identity">
-            <h2>${esc(ccpDisplayName(member))}</h2>
-            ${profile.tagline?`<p>${esc(profile.tagline)}</p>`:''}
-            <div class="cc-member-modal-meta">
-              <span>${ccpRoleplayPostCount(member).toLocaleString()} posts</span>
-              <span>·</span>
-              <span>${esc(ccpJoined(member))}</span>
-              ${role==='Owner'?`<span class="ccp-profile-role">Owner</span>`:''}
-            </div>
-          </div>
-          <div class="cc-member-modal-last-post">
-            <span>Last posted in</span>
-            ${lastPost
-              ? `<strong>${esc(lastPost.title)}</strong><small>${esc(ccrhNotificationTime(lastPost.raw))}</small>`
-              : `<strong>No roleplay posts yet</strong>`}
-          </div>
-        </div>
-      </div>`;
-
-    showModal(
-      ccpDisplayName(member),
-      body,
-      `<button class="button secondary" type="button" data-close-modal>Close</button>
-       <button class="button" type="button" data-cc-visit-member-profile="${esc(ccpMemberId(member))}">Visit Member Profile</button>`
-    );
-
-    const modal=el.modal.querySelector('.modal');
-    if(modal)modal.classList.add('cc-member-native-modal');
-  }
-
-  document.addEventListener('click',event=>{
-    const preview=event.target.closest('[data-cc-member-preview]');
-    if(preview){
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      ccOpenMemberPreviewModal(preview.dataset.ccMemberPreview);
-      return;
-    }
-    const visit=event.target.closest('[data-cc-visit-member-profile]');
-    if(visit){
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      const memberId=visit.dataset.ccVisitMemberProfile;
-      closeModal();
-      navigate('profile',memberId);
-      return;
-    }
-  },true);
-
-  function ccOpenMemberPreview(email,anchor){
-    const member=ccMemberByEmail(email);
-    if(!member)return;
-    ccCloseMemberPreview();
-    const profile=ccpProfile(member);
-    const avatar=ccpSafeUrl(profile.avatar);
-    const banner=ccpSafeUrl(profile.banner);
-    const lastPost=ccMemberLastPost(member);
-    const card=document.createElement('section');
-    card.id='cc-member-profile-preview';
-    card.className='cc-member-profile-preview';
-    card.setAttribute('role','dialog');
-    card.setAttribute('aria-label',`${ccpDisplayName(member)} profile preview`);
-    card.innerHTML=`
-      <button class="cc-member-preview-close" type="button" data-member-preview-close aria-label="Close">×</button>
-      <div class="cc-member-preview-banner"${banner?` style="background-image:url('${esc(banner)}')"`:''}></div>
-      <div class="cc-member-preview-body">
-        <div class="cc-member-preview-avatar">${avatar?`<img src="${esc(avatar)}" alt="">`:esc(initials(ccpDisplayName(member)))}</div>
-        <h3>${esc(ccpDisplayName(member))}</h3>
-        ${profile.tagline?`<p class="cc-member-preview-tagline">${esc(profile.tagline)}</p>`:''}
-        <div class="cc-member-preview-stats">${ccpRoleplayPostCount(member).toLocaleString()} posts · ${esc(ccpJoined(member))}</div>
-        <div class="cc-member-preview-last">
-          <span>Last posted in</span>
-          ${lastPost?`<strong>${esc(lastPost.title)}</strong><small>${esc(ccrhNotificationTime(lastPost.raw))}</small>`:'<strong>No roleplay posts yet</strong>'}
-        </div>
-        <button class="button cc-member-preview-visit" type="button" data-profile-member="${esc(ccpMemberId(member))}">Visit Member Profile</button>
-      </div>`;
-    document.body.append(card);
-    const rect=anchor.getBoundingClientRect();
-    const width=Math.min(340,window.innerWidth-24);
-    card.style.width=`${width}px`;
-    let left=Math.min(window.innerWidth-width-12,Math.max(12,rect.left));
-    let top=rect.bottom+10;
-    card.style.left=`${left}px`;
-    card.style.top=`${top}px`;
-    requestAnimationFrame(()=>{
-      const cardRect=card.getBoundingClientRect();
-      if(cardRect.bottom>window.innerHeight-12){
-        top=Math.max(12,rect.top-cardRect.height-10);
-        card.style.top=`${top}px`;
-      }
-    });
-  }
-
-
 
 
   /* === Shared Emoji Library and clean post controls === */
+
+  document.addEventListener('click',event=>{
+    const emojiButton=event.target.closest('[data-cc-emoji-picker]');
+    if(!emojiButton)return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    ccOpenEmojiPicker(emojiButton);
+  },true);
+
   const CC_EMOJI_STANDARD=[
     ['😀','grinning face'],['😃','smiling face'],['😄','happy face'],['😁','beaming face'],
     ['😂','tears of joy'],['🤣','rolling laughing'],['😊','blushing smile'],['😍','heart eyes'],
@@ -14062,6 +13765,315 @@ initFirebase();
       if(transparency)transparency.innerHTML=`<span class="cc-emoji-transparency ${detected?'yes':'no'}">${detected?'Transparent background detected':'Background is not transparent or could not be detected'}</span>`;
     }catch(error){toast(error.message||String(error),'error');fileInput.value='';}
   },true);
+
+})();
+
+</script>
+
+<script id="character-media-click-controls">
+(() => {
+  function clearCharacterMediaSelection(except = null) {
+    document.querySelectorAll('.is-media-selected[data-character-media-select]').forEach(slot => {
+      if (slot !== except) slot.classList.remove('is-media-selected');
+    });
+  }
+
+  document.addEventListener('click', event => {
+    const control = event.target.closest('[data-character-media-trigger],[data-character-media-edit],[data-character-media-remove]');
+    const slot = event.target.closest('[data-character-media-select]');
+
+    if (slot && slot.classList.contains('has-image')) {
+      clearCharacterMediaSelection(slot);
+      if (!control) {
+        event.preventDefault();
+        slot.classList.toggle('is-media-selected');
+      }
+      return;
+    }
+
+    if (!event.target.closest('.character-cover-slot,.character-portrait-slot,.dossier-media-slot')) {
+      clearCharacterMediaSelection();
+    }
+  }, true);
+
+  document.addEventListener('keydown', event => {
+    const slot = event.target.closest?.('[data-character-media-select].has-image');
+    if (slot && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault();
+      clearCharacterMediaSelection(slot);
+      slot.classList.toggle('is-media-selected');
+    }
+    if (event.key === 'Escape') clearCharacterMediaSelection();
+  });
+
+  /* Species-only media channel copied from the confirmed working Location path. */
+  const cc14BaseEditor=cc4Editor;
+  cc4Editor=function(kind,item,openCount=2){
+    let markup=cc14BaseEditor(kind,item,openCount);
+    if(kind!=='species')return markup;
+    return markup
+      .replaceAll('data-cc13-page-image-input=', 'data-cc14-species-page-input=')
+      .replaceAll('data-cc5-image-input=', 'data-cc14-species-page-input=')
+      .replaceAll('data-cc8-image-input=', 'data-cc14-species-page-input=');
+  };
+
+  const cc14LocationCoverRenderer=renderSectionMediaCover;
+  const cc14LocationPortraitRenderer=renderSectionMediaPortrait;
+  renderSectionMediaCover=function(kind,item){
+    if(kind!=='species')return cc14LocationCoverRenderer(kind,item);
+    const copy=ccFinalCopy('species'),media=item.headerImage||null,src=ccFinalSrc(media),ref=`species:cover:${item.id}`;
+    if(!src)return `<div class="cc-final-cover"><label class="cc-final-media-empty"><span><strong>${esc(copy.cover)}</strong>${esc(copy.coverHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc14-species-fixed-input="${esc(ref)}"></label></div>`;
+    return `<div class="cc-final-cover" data-cc-final-media-box="${esc(ref)}"><img src="${esc(src)}" alt="${esc(media?.alt||item.name+' cover')}" style="${ccFinalMediaCss(media,'cover')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${esc(ref)}">Edit cover</button></div>`;
+  };
+  renderSectionMediaPortrait=function(kind,item){
+    if(kind!=='species')return cc14LocationPortraitRenderer(kind,item);
+    const copy=ccFinalCopy('species'),media=item.profileImage||null,src=ccFinalSrc(media),ref=`species:profile:${item.id}`;
+    const body=!src
+      ?`<label class="cc-final-media-empty"><span><strong>${esc(copy.image)}</strong>${esc(copy.imageHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc14-species-fixed-input="${esc(ref)}"></label>`
+      :`<img src="${esc(src)}" alt="${esc(media?.alt||item.name+' image')}" style="${ccFinalMediaCss(media,'profile')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${esc(ref)}">Edit image</button>`;
+    return `<section class="panel section-media-portrait-card cc-final-profile-card"><div class="section-media-portrait-label">${esc(copy.label)}</div><div class="cc-final-profile" data-cc-final-media-box="${esc(ref)}">${body}</div></section>`;
+  };
+
+  async function cc14ReadSpeciesFile(file,item,slot){
+    const prepared=await imageFileToBlock(file,{name:item.name});
+    const field=slot==='cover'?'headerImage':'profileImage';
+    item[field]={src:prepared.src,assetId:prepared.assetId||'',alt:`${item.name} ${slot} image`,positionX:50,positionY:slot==='cover'?45:25,zoom:1,fit:'cover'};
+    item.updatedAt=nowISO();
+    scheduleSave('Saving image…');
+    renderEntity('species',item.id);
+    toast('Species image added.');
+  }
+
+  document.addEventListener('change',async event=>{
+    const fixed=event.target.closest('[data-cc14-species-fixed-input]');
+    if(fixed){
+      event.stopImmediatePropagation();
+      const file=fixed.files?.[0];
+      if(file){
+        const [,slot,itemId]=fixed.dataset.cc14SpeciesFixedInput.split(':');
+        const item=getItem('species',itemId);
+        if(item){try{await cc14ReadSpeciesFile(file,item,slot);}catch(error){console.error(error);toast(`Species image could not be added: ${error?.message||error}`,'error');}}
+      }
+      fixed.value='';return;
+    }
+    const page=event.target.closest('[data-cc14-species-page-input]');
+    if(page){
+      event.stopImmediatePropagation();
+      const file=page.files?.[0];
+      if(file){
+        const ref=page.dataset.cc14SpeciesPageInput;
+        const itemId=ref.startsWith('species:')?ref.slice(8):ref.split(':').slice(1).join(':');
+        try{await ccFinalAddPageImage('species',itemId,file);}catch(error){console.error(error);toast(`Species image could not be added: ${error?.message||error}`,'error');}
+      }
+      page.value='';return;
+    }
+  },true);
+
+
+  Object.assign(SECTION_TEMPLATE_CONFIG.factions.templates,{
+    'heraldic-registry':{name:'Lore Ledger',description:'A detailed ledger with a list of factions and a rich detail panel for each selection.',preview:'ccf-lore-ledger'},
+    'influence-board':{name:'Banner Board',description:'A vibrant board with at-a-glance stats, grouped faction cards, and a contextual sidebar.',preview:'ccf-banner-board'},
+    'intelligence-files':{name:'Codex Grid',description:'A clean grid of faction cards with key details and a compact overview panel.',preview:'ccf-codex-grid'}
+  });
+
+  const ccfBasePicker=showSectionTemplatePicker;
+  function ccfPreview(id){
+    if(id==='heraldic-registry')return `<div class="ccf-shell ccf-shell-ledger"><div class="ccf-shell-top"></div><div class="ccf-shell-nav"></div><div class="ccf-shell-row"><div class="list">${'<i></i>'.repeat(7)}</div><div class="detail"><b></b>${'<span></span>'.repeat(4)}</div></div></div>`;
+    if(id==='influence-board')return `<div class="ccf-shell ccf-shell-board"><div class="ccf-shell-top"></div><div class="stats">${'<i></i>'.repeat(4)}</div><div class="columns">${'<div class="column"><b></b><i></i><i></i><i></i></div>'.repeat(3)}</div></div>`;
+    return `<div class="ccf-shell ccf-shell-grid"><div class="ccf-shell-top"></div><div class="ccf-shell-nav"></div><div class="ccf-shell-row"><div class="cards">${'<i></i>'.repeat(9)}</div><div class="side"><b></b>${'<span></span>'.repeat(5)}</div></div></div>`;
+  }
+  showSectionTemplatePicker=function(kind){
+    if(kind!=='factions')return ccfBasePicker(kind);
+    const config=sectionTemplateConfig(kind),active=sectionDesign(kind).template;
+    const cards=Object.entries(config.templates).map(([id,item],index)=>`<article class="ccf-picker-card ${active===id?'is-active':''}"><div class="ccf-picker-head"><span class="ccf-picker-num">${index+1}</span><h3>${esc(item.name)}</h3></div><div class="ccf-picker-preview">${ccfPreview(id)}</div><p>${esc(item.description)}</p><button class="button ${active===id?'secondary':''}" type="button" data-section-template-apply="factions:${esc(id)}">${active===id?'✓ Currently applied':'Use this layout'}</button></article>`).join('');
+    showModal('Change faction layout',`<p class="ccf-picker-intro">Choose how the faction collection is organized and displayed.</p><div class="ccf-picker-grid">${cards}</div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button>`);
+    el.modal.classList.add('ccf-picker-modal');
+  };
+
+  function ccfBadge(item,size=''){return `<span class="ccf-mini-badge">${renderFactionBadge(item,size)}</span>`;}
+  function ccfPowerScore(item){return ({Hidden:20,Minor:35,Moderate:55,Major:78,Dominant:96})[item.power]||48;}
+  function ccfFactionType(item){return item.type||item.category||item.power||'Faction';}
+  function ccfRegion(item){const loc=getItem('locations',item.locationId||item.regionId);return loc?.name||item.region||'Unassigned';}
+  function ccfRelations(item){return String(item.alliesEnemies||'').split(/[,;\n]/).map(x=>x.trim()).filter(Boolean).length;}
+  function ccfStats(items){
+    const major=items.filter(x=>['Major','Dominant'].includes(x.power)).length;
+    const members=items.reduce((sum,x)=>sum+(x.keyMemberIds?.length||0),0);
+    const relations=items.reduce((sum,x)=>sum+ccfRelations(x),0);
+    return `<div class="ccf-summary-row"><div class="ccf-summary-card"><strong>${items.length}</strong><span>Total factions</span></div><div class="ccf-summary-card"><strong>${major}</strong><span>Major powers</span></div><div class="ccf-summary-card"><strong>${members}</strong><span>Linked members</span></div><div class="ccf-summary-card"><strong>${relations}</strong><span>Recorded relationships</span></div></div>`;
+  }
+  function ccfTop(items){return `<div class="ccf-topbar"><input class="input" placeholder="Search factions…" value="${esc(collectionFilters.factions||'')}" data-filter="factions"><button class="button secondary" type="button" data-section-layout="factions">Change layout</button><button class="button" type="button" data-add="factions">New faction</button></div>${ccfStats(items)}`;}
+
+  renderFactionHeraldic=function(items){
+    const selected=items[0];
+    const rows=items.map((item,index)=>`<button class="ccf-ledger-entry ${index===0?'is-selected':''}" type="button" data-open="factions:${esc(item.id)}"><span class="ccf-ledger-name">${ccfBadge(item)}<strong>${esc(item.name)}</strong></span><span>${esc(ccfFactionType(item))}</span><span>${esc(ccfRegion(item))}</span><span>${esc(item.power||'Unspecified')}</span></button>`).join('');
+    const detail=selected?`<aside class="ccf-ledger-detail"><div class="ccf-ledger-emblem">${renderFactionBadge(selected,'large')}</div><div><small class="cell-muted">${esc(ccfFactionType(selected))}</small><h2>${esc(selected.name)}</h2></div><p>${esc(selected.goal||selected.notes||'No faction summary has been added yet.')}</p><div class="tag-row">${cc3Tag(selected.power||'Unspecified')}${cc3Tag(`${selected.keyMemberIds?.length||0} members`)}${cc3Tag(ccfRegion(selected))}</div><div class="ccf-bars"><div class="ccf-bar"><span>Influence</span><div class="ccf-bar-track"><i style="width:${ccfPowerScore(selected)}%"></i></div><b>${ccfPowerScore(selected)}</b></div><div class="ccf-bar"><span>Membership</span><div class="ccf-bar-track"><i style="width:${Math.min(100,(selected.keyMemberIds?.length||0)*12)}%"></i></div><b>${selected.keyMemberIds?.length||0}</b></div><div class="ccf-bar"><span>Connections</span><div class="ccf-bar-track"><i style="width:${Math.min(100,ccfRelations(selected)*16)}%"></i></div><b>${ccfRelations(selected)}</b></div></div><button class="button" type="button" data-open="factions:${esc(selected.id)}">Open full faction</button></aside>`:'<aside class="ccf-ledger-detail"><p>No factions yet.</p></aside>';
+    return `<div class="ccf-collection">${ccfTop(items)}<div class="ccf-ledger"><section class="ccf-ledger-list"><div class="ccf-ledger-header"><span>Faction</span><span>Type</span><span>Region</span><span>Influence</span></div>${rows||'<div class="empty-state">No factions yet.</div>'}</section>${detail}</div></div>`;
+  };
+
+  renderFactionInfluence=function(items){
+    const powers=['Dominant','Major','Moderate','Minor','Hidden','Unspecified'];
+    const nonempty=powers.map(p=>({p,items:items.filter(x=>(x.power||'Unspecified')===p)})).filter(g=>g.items.length);
+    const groups=(nonempty.length?nonempty:[{p:'All factions',items}]).slice(0,3);
+    return `<div class="ccf-collection">${ccfTop(items)}<div class="ccf-board-groups">${groups.map(group=>`<section class="ccf-board-column"><div class="ccf-board-ribbon">${esc(group.p)}</div>${group.items.map(item=>`<button class="ccf-board-card" type="button" data-open="factions:${esc(item.id)}">${ccfBadge(item,'large')}<span><h3>${esc(item.name)}</h3><p>${esc(shortText(item.goal||item.notes,110)||'No description yet.')}</p><span class="ccf-board-meta">${cc3Tag(ccfFactionType(item))}${cc3Tag(`${item.keyMemberIds?.length||0} members`)}${cc3Tag(ccfRegion(item))}</span></span></button>`).join('')||'<p class="cell-muted">No factions in this group.</p>'}</section>`).join('')}</div></div>`;
+  };
+
+  renderFactionIntel=function(items){
+    const types={};items.forEach(x=>{const k=ccfFactionType(x);types[k]=(types[k]||0)+1;});
+    const regions={};items.forEach(x=>{const k=ccfRegion(x);regions[k]=(regions[k]||0)+1;});
+    return `<div class="ccf-collection">${ccfTop(items)}<div class="ccf-grid-layout"><div class="ccf-card-grid">${items.map(item=>`<button class="ccf-grid-card" type="button" data-open="factions:${esc(item.id)}">${ccfBadge(item,'large')}<span><small class="cell-muted">${esc(ccfFactionType(item))}</small><h3>${esc(item.name)}</h3><p>${esc(shortText(item.goal||item.notes,105)||'No description yet.')}</p><span class="ccf-grid-meta">${cc3Tag(item.power||'Unspecified')}${cc3Tag(`${item.keyMemberIds?.length||0} members`)}</span></span></button>`).join('')||'<div class="empty-state">No factions yet.</div>'}</div><aside class="ccf-overview"><h3>Faction overview</h3><div class="ccf-overview-list"><div><span>Recorded</span><strong>${items.length}</strong></div><div><span>Major powers</span><strong>${items.filter(x=>['Major','Dominant'].includes(x.power)).length}</strong></div><div><span>Linked members</span><strong>${items.reduce((s,x)=>s+(x.keyMemberIds?.length||0),0)}</strong></div></div><h3>By type</h3><div class="ccf-overview-list">${Object.entries(types).slice(0,7).map(([k,v])=>`<div><span>${esc(k)}</span><strong>${v}</strong></div>`).join('')||'<span class="cell-muted">No types yet.</span>'}</div><h3>By region</h3><div class="ccf-overview-list">${Object.entries(regions).slice(0,6).map(([k,v])=>`<div><span>${esc(k)}</span><strong>${v}</strong></div>`).join('')||'<span class="cell-muted">No regions yet.</span>'}</div></aside></div></div>`;
+  };
+
+
+
+
+
+
+
+  /* === Compact member profile previews === */
+  function ccMemberByEmail(email){
+    const normalized=normalizeMemberEmail(email||'');
+    return (state.workspace.members||[]).find(member=>ccpMemberId(member)===normalized)||null;
+  }
+  function ccMemberLastPost(member){
+    const email=ccpMemberId(member);
+    let latest=null;
+    for(const story of state.storyGraphs||[]){
+      for(const turn of ensureStoryDocument(story)){
+        if(normalizeMemberEmail(turn.authorEmail||'')!==email)continue;
+        const raw=turn.updatedAt||turn.createdAt||'';
+        const date=raw?.toDate?raw.toDate():new Date(raw);
+        const stamp=Number.isNaN(date.getTime())?0:date.getTime();
+        if(!latest||stamp>latest.stamp){
+          latest={storyId:story.id,title:story.name||'Untitled roleplay',postId:turn.id,stamp,raw};
+        }
+      }
+    }
+    return latest;
+  }
+  function ccCloseMemberPreview(){
+    document.getElementById('cc-member-profile-preview')?.remove();
+  }
+
+  function ccOpenMemberPreviewModal(email){
+    const member=ccMemberByEmail(email);
+    if(!member){
+      toast('That member profile could not be found.','error');
+      return;
+    }
+
+    const profile=ccpProfile(member);
+    const avatar=ccpSafeUrl(profile.avatar);
+    const banner=ccpSafeUrl(profile.banner);
+    const lastPost=ccMemberLastPost(member);
+    const role=member.role||'Member';
+
+    cc16PresenceOpen=false;
+    const onlineMenu=document.querySelector('.cc16-menu');
+    if(onlineMenu)onlineMenu.hidden=true;
+    const onlineToggle=document.querySelector('[data-cc16-toggle]');
+    if(onlineToggle)onlineToggle.setAttribute('aria-expanded','false');
+
+    const body=`
+      <div class="cc-member-modal-profile">
+        <div class="cc-member-modal-banner"${banner?` style="background-image:url('${esc(banner)}')"`:''}></div>
+        <div class="cc-member-modal-body">
+          <div class="cc-member-modal-avatar">${avatar?`<img src="${esc(avatar)}" alt="">`:esc(initials(ccpDisplayName(member)))}</div>
+          <div class="cc-member-modal-identity">
+            <h2>${esc(ccpDisplayName(member))}</h2>
+            ${profile.tagline?`<p>${esc(profile.tagline)}</p>`:''}
+            <div class="cc-member-modal-meta">
+              <span>${ccpRoleplayPostCount(member).toLocaleString()} posts</span>
+              <span>·</span>
+              <span>${esc(ccpJoined(member))}</span>
+              ${role==='Owner'?`<span class="ccp-profile-role">Owner</span>`:''}
+            </div>
+          </div>
+          <div class="cc-member-modal-last-post">
+            <span>Last posted in</span>
+            ${lastPost
+              ? `<strong>${esc(lastPost.title)}</strong><small>${esc(ccrhNotificationTime(lastPost.raw))}</small>`
+              : `<strong>No roleplay posts yet</strong>`}
+          </div>
+        </div>
+      </div>`;
+
+    showModal(
+      ccpDisplayName(member),
+      body,
+      `<button class="button secondary" type="button" data-close-modal>Close</button>
+       <button class="button" type="button" data-cc-visit-member-profile="${esc(ccpMemberId(member))}">Visit Member Profile</button>`
+    );
+
+    const modal=el.modal.querySelector('.modal');
+    if(modal)modal.classList.add('cc-member-native-modal');
+  }
+
+  document.addEventListener('click',event=>{
+    const preview=event.target.closest('[data-cc-member-preview]');
+    if(preview){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      ccOpenMemberPreviewModal(preview.dataset.ccMemberPreview);
+      return;
+    }
+    const visit=event.target.closest('[data-cc-visit-member-profile]');
+    if(visit){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const memberId=visit.dataset.ccVisitMemberProfile;
+      closeModal();
+      navigate('profile',memberId);
+      return;
+    }
+  },true);
+
+  function ccOpenMemberPreview(email,anchor){
+    const member=ccMemberByEmail(email);
+    if(!member)return;
+    ccCloseMemberPreview();
+    const profile=ccpProfile(member);
+    const avatar=ccpSafeUrl(profile.avatar);
+    const banner=ccpSafeUrl(profile.banner);
+    const lastPost=ccMemberLastPost(member);
+    const card=document.createElement('section');
+    card.id='cc-member-profile-preview';
+    card.className='cc-member-profile-preview';
+    card.setAttribute('role','dialog');
+    card.setAttribute('aria-label',`${ccpDisplayName(member)} profile preview`);
+    card.innerHTML=`
+      <button class="cc-member-preview-close" type="button" data-member-preview-close aria-label="Close">×</button>
+      <div class="cc-member-preview-banner"${banner?` style="background-image:url('${esc(banner)}')"`:''}></div>
+      <div class="cc-member-preview-body">
+        <div class="cc-member-preview-avatar">${avatar?`<img src="${esc(avatar)}" alt="">`:esc(initials(ccpDisplayName(member)))}</div>
+        <h3>${esc(ccpDisplayName(member))}</h3>
+        ${profile.tagline?`<p class="cc-member-preview-tagline">${esc(profile.tagline)}</p>`:''}
+        <div class="cc-member-preview-stats">${ccpRoleplayPostCount(member).toLocaleString()} posts · ${esc(ccpJoined(member))}</div>
+        <div class="cc-member-preview-last">
+          <span>Last posted in</span>
+          ${lastPost?`<strong>${esc(lastPost.title)}</strong><small>${esc(ccrhNotificationTime(lastPost.raw))}</small>`:'<strong>No roleplay posts yet</strong>'}
+        </div>
+        <button class="button cc-member-preview-visit" type="button" data-profile-member="${esc(ccpMemberId(member))}">Visit Member Profile</button>
+      </div>`;
+    document.body.append(card);
+    const rect=anchor.getBoundingClientRect();
+    const width=Math.min(340,window.innerWidth-24);
+    card.style.width=`${width}px`;
+    let left=Math.min(window.innerWidth-width-12,Math.max(12,rect.left));
+    let top=rect.bottom+10;
+    card.style.left=`${left}px`;
+    card.style.top=`${top}px`;
+    requestAnimationFrame(()=>{
+      const cardRect=card.getBoundingClientRect();
+      if(cardRect.bottom>window.innerHeight-12){
+        top=Math.max(12,rect.top-cardRect.height-10);
+        card.style.top=`${top}px`;
+      }
+    });
+  }
+
+
+
+
 
 })();
 </script>
