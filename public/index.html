@@ -4149,7 +4149,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "rp-edit-delete-image-help-2026-08-03";
+window.CODEX_BUILD = "delete-confirmation-fix-2026-08-03";
 </script>
   <script>
 (() => {
@@ -12702,7 +12702,10 @@ initFirebase();
     const turn=story?ensureStoryDocument(story).find(item=>item.id===turnId):null;
     if(!turn)return;
     const speaker=storySpeakerMeta(turn);
-    el.modal.innerHTML=`<div class="modal-backdrop" data-modal-close></div><section class="modal-card" role="dialog" aria-modal="true"><header class="modal-head"><div><span class="eyebrow">Delete roleplay post</span><h2>Delete ${esc(speaker.name)}’s post?</h2></div><button class="icon-button" type="button" data-modal-close>×</button></header><div class="modal-body"><p>This permanently removes this exact post. Any graph anchor attached to it will be unlinked so it does not point to a missing post.</p></div><footer class="modal-actions"><button class="button secondary" type="button" data-modal-close>Cancel</button><button class="button danger" type="button" data-ccrh-confirm-delete-post="${esc(turnId)}">Delete post</button></footer></section>`;
+    const confirmed=window.confirm(
+      `Delete ${speaker.name}’s post?\n\nThis permanently removes this exact post. Any graph anchor attached to it will be unlinked.`
+    );
+    if(confirmed)ccrhDeletePost(turnId);
   }
 
   function ccrhDeletePost(turnId){
@@ -12717,7 +12720,7 @@ initFirebase();
     }
     if(ccrhEditingPostId===turnId)ccrhEditingPostId='';
     scheduleSave('Deleting post…');
-    closeModal();
+    try{closeModal();}catch{}
     render();
     toast('Post deleted.');
   }
@@ -12744,7 +12747,7 @@ initFirebase();
     const edit=event.target.closest('[data-ccrh-edit-post]'); if(edit){event.preventDefault();const {story}=ccrhStoryFromRoute();const turn=ensureStoryDocument(story).find(x=>x.id===edit.dataset.ccrhEditPost);if(turn){ccrhEditingPostId=turn.id;ccrhPreviewMode=false;ccrhRenderReader();requestAnimationFrame(()=>document.getElementById('rp-composer')?.scrollIntoView({behavior:'smooth',block:'start'}));toast('Editing this exact post.');}return;}
     const cancelEdit=event.target.closest('[data-ccrh-cancel-edit]'); if(cancelEdit){event.preventDefault();ccrhEditingPostId='';ccrhPreviewMode=false;ccrhRenderReader();toast('Edit cancelled.');return;}
     const deletePost=event.target.closest('[data-ccrh-delete-post]'); if(deletePost){event.preventDefault();ccrhOpenDeletePostModal(deletePost.dataset.ccrhDeletePost);return;}
-    const confirmDelete=event.target.closest('[data-ccrh-confirm-delete-post]'); if(confirmDelete){event.preventDefault();ccrhDeletePost(confirmDelete.dataset.ccrhConfirmDeletePost);return;}
+
   },true);
   document.addEventListener('input',event=>{
     const area=event.target.closest('[data-ccrh-editor]'); if(!area)return;
