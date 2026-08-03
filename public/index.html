@@ -4405,6 +4405,30 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 </style>
 
+
+<style id="cc-member-preview-native-modal-fix">
+.cc-member-native-modal{
+  width:min(560px,100%);
+  overflow:hidden;
+}
+.cc-member-native-modal .modal-head{
+  display:none;
+}
+.cc-member-native-modal .modal-body{
+  padding:0;
+}
+.cc-member-native-modal .modal-foot{
+  position:relative;
+  z-index:2;
+}
+.cc-member-modal-profile{
+  overflow:hidden;
+}
+.cc-member-inline-static{
+  cursor:default;
+}
+</style>
+
 </head>
 <body>
 
@@ -4491,7 +4515,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "member-preview-modal-fix-2026-08-03";
+window.CODEX_BUILD = "member-preview-exact-fix-2026-08-03";
 </script>
   <script>
 (() => {
@@ -13118,9 +13142,19 @@ initFirebase();
   function ccrhPostHtml(turn,index,story){
     const speaker=storySpeakerMeta(turn), image=speaker.character?ccrhCharacterImage(speaker.character):'';
     const anchors=ccrhAnchorNodesForTurn(story,turn.id);
-    const author=(state.workspace.members||[]).find(member=>ccpMemberId(member)===normalizeMemberEmail(turn.authorEmail||''));
+    const directAuthorEmail=normalizeMemberEmail(turn.authorEmail||turn.createdBy||turn.userEmail||'');
+    const controlledEmail=normalizeMemberEmail(
+      speaker.character?.controlledByEmail||
+      speaker.character?.writerEmail||
+      speaker.character?.ownerEmail||
+      ''
+    );
+    const author=(state.workspace.members||[]).find(member=>{
+      const memberEmail=ccpMemberId(member);
+      return memberEmail&&(memberEmail===directAuthorEmail||memberEmail===controlledEmail);
+    });
     const authorName=author?ccpDisplayName(author):'Codex Member';
-    const authorEmail=author?ccpMemberId(author):normalizeMemberEmail(turn.authorEmail||'');
+    const authorEmail=author?ccpMemberId(author):'';
     const authorAvatar=author?ccpSafeUrl(ccpProfile(author).avatar):'';
     return `<article class="ccrh-post ${anchors.length?'is-anchor':''}" id="rp-post-${esc(turn.id)}" data-rp-post="${esc(turn.id)}">
       <aside class="ccrh-post-character">
@@ -13140,10 +13174,13 @@ initFirebase();
           ${(normalizeMemberEmail(turn.authorEmail||'')===normalizeMemberEmail(firebase.user?.email||'')||isWorkspaceOwner())?`<button class="button ghost small" type="button" data-ccrh-edit-post="${esc(turn.id)}">Edit post</button><button class="button ghost small danger" type="button" data-ccrh-delete-post="${esc(turn.id)}">Delete post</button>`:''}
         </footer>
         <div class="ccrh-post-attribution">
-          <button class="cc-member-inline" type="button" data-cc-member-preview="${esc(authorEmail)}">
+          ${authorEmail?`<button class="cc-member-inline" type="button" data-cc-member-preview="${esc(authorEmail)}">
             <span class="cc-member-inline-avatar">${authorAvatar?`<img src="${esc(authorAvatar)}" alt="">`:esc(initials(authorName))}</span>
             <span>Posted by <strong>${esc(authorName)}</strong></span>
-          </button>
+          </button>`:`<span class="cc-member-inline cc-member-inline-static">
+            <span class="cc-member-inline-avatar">${esc(initials(authorName))}</span>
+            <span>Posted by <strong>${esc(authorName)}</strong></span>
+          </span>`}
         </div>
       </div>
     </article>`;
@@ -13495,6 +13532,7 @@ initFirebase();
       toast('That member profile could not be found.','error');
       return;
     }
+
     const profile=ccpProfile(member);
     const avatar=ccpSafeUrl(profile.avatar);
     const banner=ccpSafeUrl(profile.banner);
@@ -13507,10 +13545,8 @@ initFirebase();
     const onlineToggle=document.querySelector('[data-cc16-toggle]');
     if(onlineToggle)onlineToggle.setAttribute('aria-expanded','false');
 
-    el.modal.innerHTML=`
-      <div class="modal-backdrop" data-modal-close></div>
-      <section class="modal-card cc-member-modal-card" role="dialog" aria-modal="true" aria-label="${esc(ccpDisplayName(member))} profile preview">
-        <button class="cc-member-modal-close" type="button" data-modal-close aria-label="Close">×</button>
+    const body=`
+      <div class="cc-member-modal-profile">
         <div class="cc-member-modal-banner"${banner?` style="background-image:url('${esc(banner)}')"`:''}></div>
         <div class="cc-member-modal-body">
           <div class="cc-member-modal-avatar">${avatar?`<img src="${esc(avatar)}" alt="">`:esc(initials(ccpDisplayName(member)))}</div>
@@ -13531,11 +13567,17 @@ initFirebase();
               : `<strong>No roleplay posts yet</strong>`}
           </div>
         </div>
-        <footer class="modal-actions">
-          <button class="button secondary" type="button" data-modal-close>Close</button>
-          <button class="button" type="button" data-cc-visit-member-profile="${esc(ccpMemberId(member))}">Visit Member Profile</button>
-        </footer>
-      </section>`;
+      </div>`;
+
+    showModal(
+      ccpDisplayName(member),
+      body,
+      `<button class="button secondary" type="button" data-close-modal>Close</button>
+       <button class="button" type="button" data-cc-visit-member-profile="${esc(ccpMemberId(member))}">Visit Member Profile</button>`
+    );
+
+    const modal=el.modal.querySelector('.modal');
+    if(modal)modal.classList.add('cc-member-native-modal');
   }
 
   document.addEventListener('click',event=>{
@@ -13553,6 +13595,7 @@ initFirebase();
       const memberId=visit.dataset.ccVisitMemberProfile;
       closeModal();
       navigate('profile',memberId);
+      return;
     }
   },true);
 
