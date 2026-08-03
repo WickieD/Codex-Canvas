@@ -3741,6 +3741,66 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 </style>
 
+
+<style id="cc14-character-reaction-style">
+.cc14-character-chip{cursor:pointer}
+.cc14-character-chip.has-reaction{border-color:color-mix(in srgb,var(--accent) 48%,var(--border));background:color-mix(in srgb,var(--accent) 10%,var(--panel-strong))}
+.cc14-character-chip.has-reaction:before{content:"✦";color:var(--accent-strong);font-size:9px;margin-right:2px}
+
+.cc14-reaction-popover{
+  position:fixed;
+  z-index:10050;
+  width:min(370px,calc(100vw - 28px));
+  border:1px solid color-mix(in srgb,var(--accent) 52%,var(--border));
+  border-radius:16px;
+  background:var(--panel);
+  color:var(--text);
+  box-shadow:0 22px 60px rgba(0,0,0,.48);
+  overflow:hidden;
+  animation:cc14-pop .14s ease-out;
+}
+@keyframes cc14-pop{from{opacity:0;transform:translateY(5px) scale(.985)}to{opacity:1;transform:none}}
+.cc14-reaction-card{padding:13px}
+.cc14-reaction-top{display:grid;grid-template-columns:96px minmax(0,1fr);gap:13px;align-items:start}
+.cc14-reaction-portrait{
+  width:96px;aspect-ratio:4/5;border-radius:12px;overflow:hidden;
+  border:1px solid var(--border);background:var(--panel-strong);
+  display:grid;place-items:center;color:var(--muted);font-family:var(--serif);font-size:26px
+}
+.cc14-reaction-portrait img{width:100%;height:100%;object-fit:cover;display:block}
+.cc14-reaction-copy{min-width:0}
+.cc14-reaction-heading{display:flex;align-items:start;justify-content:space-between;gap:8px}
+.cc14-reaction-heading h3{margin:0;font-family:var(--serif);font-size:19px}
+.cc14-close{
+  width:30px;height:30px;border:1px solid var(--border);border-radius:8px;
+  background:transparent;color:var(--muted);font-size:18px;line-height:1
+}
+.cc14-close:hover{color:var(--text);border-color:var(--accent)}
+.cc14-reaction-quote{margin:8px 0 0;color:var(--text);font-family:var(--serif);font-size:15px;font-style:italic;line-height:1.5}
+.cc14-reaction-empty{color:var(--muted);font-style:normal}
+.cc14-mood{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.cc14-mood span{
+  display:inline-flex;border:1px solid color-mix(in srgb,var(--accent) 35%,var(--border));
+  border-radius:999px;padding:4px 8px;background:color-mix(in srgb,var(--accent) 10%,transparent);
+  color:var(--accent-strong);font-size:11px;font-weight:750
+}
+.cc14-reaction-context{
+  margin-top:12px;padding-top:10px;border-top:1px solid var(--border);
+  color:var(--muted);font-size:11px
+}
+.cc14-reaction-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.cc14-reaction-actions .button{width:100%}
+.cc14-reaction-actions .cc14-edit-wide{grid-column:1/-1}
+.cc14-reaction-editor{display:grid;gap:12px}
+.cc14-reaction-editor textarea{min-height:150px;resize:vertical}
+.cc14-reaction-editor .cc14-help{margin:0;color:var(--muted);font-size:11px}
+@media(max-width:620px){
+  .cc14-reaction-popover{left:14px!important;right:14px!important;bottom:14px!important;top:auto!important;width:auto}
+  .cc14-reaction-top{grid-template-columns:78px minmax(0,1fr)}
+  .cc14-reaction-portrait{width:78px}
+}
+</style>
+
 </head>
 <body>
 
@@ -10083,6 +10143,7 @@ const CC2_VERSION = 'story-timeline-2026-08';
     point.beforeState ||= '';
     point.afterState ||= '';
     point.comments ||= [];
+    point.characterReactions ||= {};
     point.revisions ||= [];
     point.updatedAt ||= node.updatedAt || '';
     point.updatedBy ||= node.updatedBy || '';
@@ -10272,7 +10333,7 @@ const CC2_VERSION = 'story-timeline-2026-08';
   function cc2InspectorHtml(story,node){
     if(!node) return `<div class="cc2-story-inspector-empty"><span class="eyebrow">Story point</span><h2>Choose a story point</h2><p>Select a card to view its people, location, timing, summary, and RP bookmark.</p></div>`;
     const p=cc2Point(story,node),passage=ensureStoryPassage(node),range=storyPointRange(story,node);
-    const people=cc2AllPeople(p).map(idValue=>cc2EntityChip('characters',idValue,p.roles?.[idValue]||'')).join('');
+    const people=cc2AllPeople(p).map(idValue=>cc14CharacterChip(story,node,p,idValue,p.roles?.[idValue]||'')).join('');
     const places=p.locationIds.map(idValue=>cc2EntityChip('locations',idValue)).join('');
     const typeInfo=cc2TypeInfo(p.type);
     return `<div class="cc13-inspector-head">
@@ -10299,7 +10360,7 @@ const CC2_VERSION = 'story-timeline-2026-08';
     const summary=rowPrefs.showDetails && p.summary ? `<span class="cc2-flow-summary">${esc(shortText(p.summary,180))}</span>` : '';
     const typeInfo=cc2TypeInfo(p.type);
     const typeBadge=`<span class="cc2-flow-type-badge" style="--cc2-type-color:${esc(typeInfo.color)}"><b>${esc(typeInfo.symbol)}</b>${esc(typeInfo.label)}</span>`;
-    const people=peopleIds.map(idValue=>cc2EntityChip('characters',idValue,p.roles?.[idValue]||'present')).join('');
+    const people=peopleIds.map(idValue=>cc14CharacterChip(story,node,p,idValue,p.roles?.[idValue]||'present')).join('');
     const locations=locationIds.map(idValue=>cc2EntityChip('locations',idValue)).join('');
     const card=`<button class="cc13-story-card cc2-flow-card status-${esc(p.status)} ${p.branch!=='main'?'branch-point':''}" type="button" data-cc2-select-point="${esc(node.id)}" data-time="${esc(time)}">
       <span class="cc2-flow-title">${esc(p.title)}</span>
@@ -12150,6 +12211,178 @@ initFirebase();
  .ccf-picker-modal{width:calc(100vw - 18px)}
 }
 </style>
+
+
+<script id="cc14-character-reaction-script">
+(function(){
+  let cc14Popover=null;
+  let cc14Anchor=null;
+
+  function cc14MediaSource(media){
+    if(!media)return '';
+    if(typeof media==='string')return media;
+    if(media.src)return media.src;
+    if(media.assetId && cleanSync?.assetData?.has(media.assetId))return cleanSync.assetData.get(media.assetId)||'';
+    return '';
+  }
+
+  function cc14CharacterImage(character){
+    return cc14MediaSource(character?.profileImage)
+      || cc14MediaSource(character?.dossierProfileImage)
+      || cc14MediaSource(character?.dossierMainImage)
+      || cc14MediaSource(character?.headerImage)
+      || '';
+  }
+
+  function cc14Reaction(point,characterId){
+    point.characterReactions ||= {};
+    point.characterReactions[characterId] ||= {text:'',mood:'',updatedAt:'',updatedBy:''};
+    return point.characterReactions[characterId];
+  }
+
+  window.cc14CharacterChip=function(story,node,point,characterId,role=''){
+    const character=getItem('characters',characterId);
+    if(!character)return '';
+    const reaction=cc14Reaction(point,characterId);
+    const ref=`${story.id}|${node.id}|${characterId}`;
+    return `<button class="cc2-entity-chip cc14-character-chip ${reaction.text?'has-reaction':''}" type="button"
+      data-cc14-reaction="${cc2EscapeAttr(ref)}">${esc(character.name)}${role?`<small>${esc(role)}</small>`:''}</button>`;
+  };
+
+  function cc14Close(){
+    cc14Popover?.remove();
+    cc14Popover=null;
+    cc14Anchor=null;
+  }
+
+  function cc14Position(popover,anchor){
+    const rect=anchor.getBoundingClientRect();
+    const width=Math.min(370,window.innerWidth-28);
+    const preferredLeft=rect.left;
+    let left=Math.max(14,Math.min(preferredLeft,window.innerWidth-width-14));
+    popover.style.width=`${width}px`;
+    popover.style.left=`${left}px`;
+    popover.style.top='14px';
+    const height=popover.offsetHeight;
+    let top=rect.bottom+10;
+    if(top+height>window.innerHeight-14)top=rect.top-height-10;
+    top=Math.max(14,Math.min(top,window.innerHeight-height-14));
+    popover.style.top=`${top}px`;
+  }
+
+  function cc14Open(anchor,storyId,nodeId,characterId){
+    const story=cc2Story(storyId);
+    const node=story?.nodes?.find(item=>item.id===nodeId);
+    const point=node?cc2Point(story,node):null;
+    const character=getItem('characters',characterId);
+    if(!story||!node||!point||!character)return;
+    cc14Close();
+    const reaction=cc14Reaction(point,characterId);
+    const image=cc14CharacterImage(character);
+    const mood=(reaction.mood||'').split(',').map(item=>item.trim()).filter(Boolean);
+    const popover=document.createElement('aside');
+    popover.className='cc14-reaction-popover';
+    popover.setAttribute('role','dialog');
+    popover.setAttribute('aria-label',`${character.name}'s perspective`);
+    popover.innerHTML=`<div class="cc14-reaction-card">
+      <div class="cc14-reaction-top">
+        <div class="cc14-reaction-portrait">${image?`<img src="${esc(image)}" alt="${esc(character.name)}">`:`<span>${esc(initials(character.name))}</span>`}</div>
+        <div class="cc14-reaction-copy">
+          <div class="cc14-reaction-heading"><h3>${esc(character.name)}</h3><button class="cc14-close" type="button" data-cc14-close aria-label="Close">×</button></div>
+          <p class="cc14-reaction-quote ${reaction.text?'':'cc14-reaction-empty'}">${reaction.text?`“${esc(reaction.text)}”`:'No perspective has been written for this part of the story yet.'}</p>
+          ${mood.length?`<div class="cc14-mood">${mood.map(item=>`<span>${esc(item)}</span>`).join('')}</div>`:''}
+        </div>
+      </div>
+      <div class="cc14-reaction-context">${esc(point.title)} · ${esc(cc2TimeLabel(story,node))}</div>
+      <div class="cc14-reaction-actions">
+        <button class="button secondary small" type="button" data-cc14-bio="${esc(characterId)}">Character Bio</button>
+        <button class="button secondary small" type="button" data-cc14-close>Close</button>
+        <button class="button small cc14-edit-wide" type="button" data-cc14-edit="${esc(storyId)}|${esc(nodeId)}|${esc(characterId)}">${reaction.text?'Edit reaction':'Add reaction'}</button>
+      </div>
+    </div>`;
+    document.body.appendChild(popover);
+    cc14Popover=popover;
+    cc14Anchor=anchor;
+    requestAnimationFrame(()=>cc14Position(popover,anchor));
+  }
+
+  function cc14Edit(storyId,nodeId,characterId){
+    const story=cc2Story(storyId);
+    const node=story?.nodes?.find(item=>item.id===nodeId);
+    const point=node?cc2Point(story,node):null;
+    const character=getItem('characters',characterId);
+    if(!story||!node||!point||!character)return;
+    const reaction=cc14Reaction(point,characterId);
+    cc14Close();
+    showModal(`${character.name}'s perspective`,
+      `<div class="cc14-reaction-editor">
+        <label class="property-row"><span>How they feel or what they would say</span>
+          <textarea class="textarea" data-cc14-reaction-text placeholder="Write a short in-character thought or feeling…">${esc(reaction.text||'')}</textarea>
+        </label>
+        <label class="property-row"><span>Mood or emotional tags</span>
+          <input class="input" data-cc14-reaction-mood value="${esc(reaction.mood||'')}" placeholder="Reflective, determined">
+        </label>
+        <p class="cc14-help">Separate multiple moods with commas. This perspective belongs only to this character at this story point.</p>
+      </div>`,
+      `<button class="button secondary" type="button" data-close-modal>Cancel</button>
+       <button class="button" type="button" data-cc14-save="${esc(storyId)}|${esc(nodeId)}|${esc(characterId)}">Save perspective</button>`);
+  }
+
+  function cc14Save(ref){
+    const [storyId,nodeId,characterId]=ref.split('|');
+    const story=cc2Story(storyId);
+    const node=story?.nodes?.find(item=>item.id===nodeId);
+    const point=node?cc2Point(story,node):null;
+    if(!point)return;
+    const reaction=cc14Reaction(point,characterId);
+    reaction.text=el.modal.querySelector('[data-cc14-reaction-text]')?.value?.trim()||'';
+    reaction.mood=el.modal.querySelector('[data-cc14-reaction-mood]')?.value?.trim()||'';
+    reaction.updatedAt=nowISO();
+    reaction.updatedBy=currentUserEmail();
+    point.updatedAt=reaction.updatedAt;
+    point.updatedBy=reaction.updatedBy;
+    scheduleSave('Saving character perspective…');
+    closeModal();
+    renderGraphPage();
+  }
+
+  document.addEventListener('click',event=>{
+    const trigger=event.target.closest('[data-cc14-reaction]');
+    if(trigger){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const [storyId,nodeId,characterId]=trigger.dataset.cc14Reaction.split('|');
+      cc14Open(trigger,storyId,nodeId,characterId);
+      return;
+    }
+    const close=event.target.closest('[data-cc14-close]');
+    if(close){event.preventDefault();event.stopImmediatePropagation();cc14Close();return;}
+    const bio=event.target.closest('[data-cc14-bio]');
+    if(bio){
+      event.preventDefault();event.stopImmediatePropagation();
+      const characterId=bio.dataset.cc14Bio;
+      cc14Close();
+      navigate('characters',characterId);
+      return;
+    }
+    const edit=event.target.closest('[data-cc14-edit]');
+    if(edit){event.preventDefault();event.stopImmediatePropagation();const [storyId,nodeId,characterId]=edit.dataset.cc14Edit.split('|');cc14Edit(storyId,nodeId,characterId);return;}
+    const save=event.target.closest('[data-cc14-save]');
+    if(save){event.preventDefault();event.stopImmediatePropagation();cc14Save(save.dataset.cc14Save);return;}
+
+    if(cc14Popover && !event.target.closest('.cc14-reaction-popover')){
+      cc14Close();
+    }
+  },true);
+
+  document.addEventListener('keydown',event=>{
+    if(event.key==='Escape'&&cc14Popover)cc14Close();
+  });
+
+  window.addEventListener('resize',()=>{if(cc14Popover&&cc14Anchor)cc14Position(cc14Popover,cc14Anchor)});
+  window.addEventListener('scroll',()=>{if(cc14Popover&&cc14Anchor)cc14Position(cc14Popover,cc14Anchor)},true);
+})();
+</script>
 
 </body>
 </html>
