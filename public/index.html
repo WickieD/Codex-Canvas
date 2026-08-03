@@ -3801,6 +3801,96 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 </style>
 
+
+<style id="cc15-presence-style">
+#cc15-presence-mount{display:flex;align-items:center;margin-left:auto}
+.cc15-presence{position:relative}
+.cc15-presence-button{
+  display:flex;align-items:center;gap:8px;min-height:38px;padding:5px 10px;
+  border:1px solid var(--border);border-radius:999px;background:var(--panel-strong);
+  color:var(--text);font:inherit;cursor:pointer
+}
+.cc15-live-dot{width:9px;height:9px;border-radius:50%;background:var(--success);box-shadow:0 0 0 3px color-mix(in srgb,var(--success) 18%,transparent)}
+.cc15-presence-avatars{display:flex;align-items:center}
+.cc15-avatar{
+  width:27px;height:27px;margin-left:-5px;border:2px solid var(--panel-strong);
+  border-radius:50%;display:grid;place-items:center;overflow:hidden;
+  background:var(--accent-soft);color:var(--accent-strong);font-size:10px;font-weight:850
+}
+.cc15-avatar:first-child{margin-left:0}
+.cc15-avatar img{width:100%;height:100%;object-fit:cover}
+.cc15-presence-count{font-size:12px;font-weight:800;white-space:nowrap}
+.cc15-presence-caret{color:var(--muted);font-size:11px}
+.cc15-presence-menu{
+  position:absolute;right:0;top:calc(100% + 8px);z-index:10020;
+  width:260px;border:1px solid var(--border);border-radius:13px;
+  background:var(--panel);box-shadow:0 18px 50px rgba(0,0,0,.4);overflow:hidden
+}
+.cc15-presence-menu[hidden]{display:none}
+.cc15-menu-title{padding:12px 13px 8px;color:var(--muted);font-size:11px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
+.cc15-person{display:flex;align-items:center;gap:10px;padding:8px 13px}
+.cc15-person:hover{background:var(--panel-soft)}
+.cc15-person-copy{min-width:0;flex:1}
+.cc15-person-name{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:750}
+.cc15-person-status{font-size:10px;color:var(--muted)}
+.cc15-person-dot{width:8px;height:8px;border-radius:50%;background:var(--success)}
+.cc15-view-members{
+  display:block;width:100%;border:0;border-top:1px solid var(--border);
+  background:transparent;color:var(--text);padding:11px 13px;text-align:left;font-weight:750
+}
+.cc15-view-members:hover{background:var(--panel-soft)}
+@media(max-width:800px){
+  .cc15-presence-count{display:none}
+  .cc15-presence-button{padding:5px 8px}
+  .cc15-presence-menu{right:-80px}
+}
+</style>
+
+
+<style id="cc16-integrated-graph-presence-style">
+#cc16-presence-mount{display:flex;align-items:center}
+.cc16-presence{position:relative}
+.cc16-presence-button{
+  min-height:38px;display:flex;align-items:center;gap:8px;padding:5px 10px;
+  border:1px solid var(--border);border-radius:999px;background:var(--panel-strong);
+  color:var(--text);font:inherit;cursor:pointer
+}
+.cc16-live-dot{width:9px;height:9px;border-radius:50%;background:var(--success);box-shadow:0 0 0 3px color-mix(in srgb,var(--success) 18%,transparent)}
+.cc16-avatars{display:flex;align-items:center}
+.cc16-avatar{
+  width:27px;height:27px;margin-left:-5px;border:2px solid var(--panel-strong);
+  border-radius:50%;display:grid;place-items:center;overflow:hidden;
+  background:var(--accent-soft);color:var(--accent-strong);font-size:10px;font-weight:850
+}
+.cc16-avatar:first-child{margin-left:0}
+.cc16-avatar img{width:100%;height:100%;object-fit:cover}
+.cc16-count{font-size:12px;font-weight:800;white-space:nowrap}
+.cc16-menu{
+  position:absolute;right:0;top:calc(100% + 8px);z-index:10050;width:270px;
+  border:1px solid var(--border);border-radius:13px;background:var(--panel);
+  box-shadow:0 18px 50px rgba(0,0,0,.42);overflow:hidden
+}
+.cc16-menu[hidden]{display:none}
+.cc16-menu-title{padding:12px 13px 8px;color:var(--muted);font-size:11px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
+.cc16-person{display:flex;align-items:center;gap:10px;padding:9px 13px}
+.cc16-person:hover{background:var(--panel-soft)}
+.cc16-person-copy{min-width:0;flex:1}
+.cc16-person-name{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:750}
+.cc16-person-status{display:block;color:var(--muted);font-size:10px}
+.cc16-person-dot{width:8px;height:8px;border-radius:50%;background:var(--success)}
+.cc16-members-link{
+  display:block;width:100%;border:0;border-top:1px solid var(--border);
+  background:transparent;color:var(--text);padding:11px 13px;text-align:left;font-weight:750
+}
+.cc16-members-link:hover{background:var(--panel-soft)}
+.cc16-graph-error{max-width:760px;margin:40px auto;padding:24px;border:1px solid var(--danger);border-radius:14px;background:var(--panel)}
+@media(max-width:820px){
+  .cc16-count{display:none}
+  .cc16-presence-button{padding:5px 8px}
+  .cc16-menu{right:-70px}
+}
+</style>
+
 </head>
 <body>
 
@@ -3824,6 +3914,7 @@ button:disabled { cursor: not-allowed; opacity: .48; }
         <button id="mobileMenuButton" class="icon-button mobile-only" type="button" aria-label="Open navigation">☰</button>
         <nav id="breadcrumbs" class="breadcrumbs" aria-label="Breadcrumb"></nav>
         <div class="topbar-actions">
+          <div id="cc16-presence-mount"></div>
           <label class="global-search">
             <span class="search-icon">⌕</span>
             <input id="globalSearch" type="search" placeholder="Search the codex" autocomplete="off">
@@ -11559,6 +11650,190 @@ initFirebase();
     }
   },true);
 
+
+  /* Integrated Graph route and Live Now presence. */
+  const CC16_ONLINE_WINDOW = 120000;
+  const CC16_HEARTBEAT = 30000;
+  let cc16PresenceOpen = false;
+
+  function cc16Email(){
+    return normalizeMemberEmail(firebase.user?.email || '');
+  }
+
+  function cc16Initials(value){
+    return String(value || '?')
+      .split(/[\s@._-]+/)
+      .filter(Boolean)
+      .slice(0,2)
+      .map(part => part[0]?.toUpperCase())
+      .join('') || '?';
+  }
+
+  function cc16Date(value){
+    if(!value) return 0;
+    if(typeof value?.toDate === 'function') return value.toDate().getTime();
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function cc16MemberName(member){
+    return member.displayName || member.name || member.email?.split('@')[0] || 'Member';
+  }
+
+  function cc16OnlineMembers(){
+    const members = [...(state.workspace.members || [])];
+    const me = cc16Email();
+    const current = members.find(member => normalizeMemberEmail(member.email) === me);
+    if(me && !current){
+      members.unshift({
+        email: me,
+        name: state.workspace.displayName || me.split('@')[0],
+        lastSeenAt: nowISO()
+      });
+    }else if(current && firebase.user){
+      current.lastSeenAt = current.lastSeenAt || nowISO();
+    }
+    const now = Date.now();
+    return members.filter(member => {
+      const email = normalizeMemberEmail(member.email);
+      if(email === me && !document.hidden) return true;
+      return now - cc16Date(member.lastSeenAt) <= CC16_ONLINE_WINDOW;
+    });
+  }
+
+  function cc16Avatar(member){
+    const source = member.photoURL || member.photoUrl || member.avatar || '';
+    return `<span class="cc16-avatar">${source
+      ? `<img src="${esc(source)}" alt="">`
+      : esc(cc16Initials(cc16MemberName(member)))}</span>`;
+  }
+
+  function cc16RenderPresence(){
+    const mount = document.getElementById('cc16-presence-mount');
+    if(!mount) return;
+    const online = cc16OnlineMembers();
+    const me = cc16Email();
+    mount.innerHTML = `<div class="cc16-presence">
+      <button class="cc16-presence-button" type="button" data-cc16-toggle aria-expanded="${cc16PresenceOpen}">
+        <span class="cc16-live-dot"></span>
+        <span>Live now</span>
+        <span class="cc16-avatars">${online.slice(0,3).map(cc16Avatar).join('')}</span>
+        <span class="cc16-count">${online.length} online</span>
+        <span aria-hidden="true">⌄</span>
+      </button>
+      <div class="cc16-menu" ${cc16PresenceOpen ? '' : 'hidden'}>
+        <div class="cc16-menu-title">Online now</div>
+        ${online.length ? online.map(member => {
+          const email = normalizeMemberEmail(member.email);
+          return `<div class="cc16-person">
+            ${cc16Avatar(member)}
+            <div class="cc16-person-copy">
+              <span class="cc16-person-name">${esc(cc16MemberName(member))}${email === me ? ' (You)' : ''}</span>
+              <span class="cc16-person-status">Browser open</span>
+            </div>
+            <span class="cc16-person-dot"></span>
+          </div>`;
+        }).join('') : `<div class="cc16-person"><span class="cc16-person-status">No one is currently online.</span></div>`}
+        <button class="cc16-members-link" type="button" data-cc16-members>View all members</button>
+      </div>
+    </div>`;
+  }
+
+  async function cc16Heartbeat(){
+    if(!firebase.connected || !firebase.user?.email) {
+      cc16RenderPresence();
+      return;
+    }
+    const email = cc16Email();
+    const stamp = nowISO();
+    const member = (state.workspace.members || []).find(
+      item => normalizeMemberEmail(item.email) === email
+    );
+    if(member) member.lastSeenAt = stamp;
+    try{
+      await firebase.api.setDoc(
+        firebaseMemberRef(email),
+        {uid: firebase.user.uid || '', lastSeenAt: stamp},
+        {merge:true}
+      );
+    }catch(error){
+      console.warn('Live presence update failed', error);
+    }
+    cc16RenderPresence();
+  }
+
+  function cc16RenderGraphRoute(){
+    renderSidebar();
+    renderBreadcrumbs();
+    try{
+      graphSettings.graphType = 'story';
+      if(typeof cc2RenderStoryMapPage === 'function'){
+        cc2RenderStoryMapPage();
+      }else{
+        renderGraphPage();
+      }
+    }catch(error){
+      console.error('Graph page failed to render', error);
+      el.main.innerHTML = `<div class="cc16-graph-error">
+        <h2>Graph could not open</h2>
+        <p>${esc(error?.message || 'An unknown graph error occurred.')}</p>
+        <button class="button" type="button" data-cc16-retry-graph>Try again</button>
+      </div>`;
+    }
+    el.main.focus({preventScroll:true});
+  }
+
+  const cc16BaseRender = render;
+  render = function(){
+    if(route.view === 'graph'){
+      cc16RenderGraphRoute();
+    }else{
+      cc16BaseRender();
+    }
+    requestAnimationFrame(cc16RenderPresence);
+  };
+
+  document.addEventListener('click', event => {
+    const toggle = event.target.closest('[data-cc16-toggle]');
+    if(toggle){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      cc16PresenceOpen = !cc16PresenceOpen;
+      cc16RenderPresence();
+      return;
+    }
+
+    const members = event.target.closest('[data-cc16-members]');
+    if(members){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      cc16PresenceOpen = false;
+      navigate('share');
+      return;
+    }
+
+    const retry = event.target.closest('[data-cc16-retry-graph]');
+    if(retry){
+      event.preventDefault();
+      graphSettings.graphType = 'story';
+      cc16RenderGraphRoute();
+      return;
+    }
+
+    if(cc16PresenceOpen && !event.target.closest('.cc16-presence')){
+      cc16PresenceOpen = false;
+      cc16RenderPresence();
+    }
+  }, true);
+
+  window.addEventListener('focus', cc16Heartbeat);
+  document.addEventListener('visibilitychange', () => {
+    if(!document.hidden) cc16Heartbeat();
+  });
+
+  cc16Heartbeat();
+  setInterval(cc16Heartbeat, CC16_HEARTBEAT);
+
 })();
 
 </script>
@@ -12383,6 +12658,5 @@ initFirebase();
   window.addEventListener('scroll',()=>{if(cc14Popover&&cc14Anchor)cc14Position(cc14Popover,cc14Anchor)},true);
 })();
 </script>
-
 </body>
 </html>
