@@ -4218,6 +4218,56 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .ccrh-mark-all{margin:10px}
 </style>
 
+
+<style id="cc-member-profile-preview-style">
+.cc16-person-button{
+  width:100%;border:0;color:inherit;background:transparent;text-align:left;font:inherit;cursor:pointer
+}
+.cc16-person-button:hover{background:var(--panel-soft)}
+.cc-member-inline{
+  display:inline-flex;align-items:center;gap:8px;border:0;background:transparent;
+  color:var(--muted);font:inherit;cursor:pointer;padding:3px 4px;border-radius:999px
+}
+.cc-member-inline:hover{background:var(--panel-soft);color:var(--text)}
+.cc-member-inline-avatar{
+  width:28px;height:28px;flex:0 0 28px;border-radius:50%;overflow:hidden;
+  display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-strong);
+  font-size:9px;font-weight:900;border:1px solid var(--border)
+}
+.cc-member-inline-avatar img{width:100%;height:100%;object-fit:cover}
+.cc-member-profile-preview{
+  position:fixed;z-index:12000;border:1px solid var(--border);border-radius:16px;
+  overflow:hidden;background:var(--panel);box-shadow:0 22px 65px rgba(0,0,0,.48);
+  color:var(--text)
+}
+.cc-member-preview-close{
+  position:absolute;right:9px;top:9px;z-index:2;width:30px;height:30px;border-radius:50%;
+  border:1px solid rgba(255,255,255,.22);background:rgba(0,0,0,.52);color:white;
+  cursor:pointer;font-size:19px;display:grid;place-items:center
+}
+.cc-member-preview-banner{
+  height:112px;background:linear-gradient(135deg,var(--accent-soft),var(--panel-strong));
+  background-size:cover;background-position:center
+}
+.cc-member-preview-body{position:relative;padding:54px 18px 18px}
+.cc-member-preview-avatar{
+  position:absolute;left:18px;top:-48px;width:92px;height:92px;border-radius:50%;
+  border:4px solid var(--panel);overflow:hidden;display:grid;place-items:center;
+  background:var(--accent-soft);color:var(--accent-strong);font-size:24px;font-weight:900
+}
+.cc-member-preview-avatar img{width:100%;height:100%;object-fit:cover}
+.cc-member-preview-body h3{margin:0;font-size:22px}
+.cc-member-preview-tagline{margin:6px 0 0;color:var(--muted);font-style:italic;line-height:1.45}
+.cc-member-preview-stats{margin-top:8px;color:var(--muted);font-size:12px}
+.cc-member-preview-last{
+  display:grid;gap:3px;margin:15px 0;padding:12px;border:1px solid var(--border);
+  border-radius:11px;background:var(--panel-soft)
+}
+.cc-member-preview-last span,.cc-member-preview-last small{color:var(--muted);font-size:11px}
+.cc-member-preview-last strong{font-size:13px}
+.cc-member-preview-visit{width:100%}
+</style>
+
 </head>
 <body>
 
@@ -4304,7 +4354,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "rp-follower-notifications-2026-08-03";
+window.CODEX_BUILD = "member-images-profile-previews-2026-08-03";
 </script>
   <script>
 (() => {
@@ -12033,7 +12083,7 @@ initFirebase();
   }
 
   function cc16Avatar(member){
-    const source = member.photoURL || member.photoUrl || member.avatar || '';
+    const source = member?.profile?.avatar || member.photoURL || member.photoUrl || member.avatar || '';
     return `<span class="cc16-avatar">${source
       ? `<img src="${esc(source)}" alt="">`
       : esc(cc16Initials(cc16MemberName(member)))}</span>`;
@@ -12056,14 +12106,14 @@ initFirebase();
         <div class="cc16-menu-title">Online now</div>
         ${online.length ? online.map(member => {
           const email = normalizeMemberEmail(member.email);
-          return `<div class="cc16-person">
+          return `<button class="cc16-person cc16-person-button" type="button" data-member-preview="${esc(email)}">
             ${cc16Avatar(member)}
-            <div class="cc16-person-copy">
+            <span class="cc16-person-copy">
               <span class="cc16-person-name">${esc(cc16MemberName(member))}${email === me ? ' (You)' : ''}</span>
               <span class="cc16-person-status">Browser open</span>
-            </div>
+            </span>
             <span class="cc16-person-dot"></span>
-          </div>`;
+          </button>`;
         }).join('') : `<div class="cc16-person"><span class="cc16-person-status">No one is currently online.</span></div>`}
         <button class="cc16-members-link" type="button" data-cc16-members>View all members</button>
       </div>
@@ -12902,6 +12952,8 @@ initFirebase();
     const anchors=ccrhAnchorNodesForTurn(story,turn.id);
     const author=(state.workspace.members||[]).find(member=>ccpMemberId(member)===normalizeMemberEmail(turn.authorEmail||''));
     const authorName=author?ccpDisplayName(author):'Codex Member';
+    const authorEmail=author?ccpMemberId(author):normalizeMemberEmail(turn.authorEmail||'');
+    const authorAvatar=author?ccpSafeUrl(ccpProfile(author).avatar):'';
     return `<article class="ccrh-post ${anchors.length?'is-anchor':''}" id="rp-post-${esc(turn.id)}" data-rp-post="${esc(turn.id)}">
       <aside class="ccrh-post-character">
         <button class="ccrh-char-avatar" type="button" ${speaker.character?`data-open="characters:${esc(speaker.character.id)}"`:''}>${image?`<img src="${esc(image)}" alt="${esc(speaker.name)}">`:esc(speaker.initials)}</button>
@@ -12919,7 +12971,12 @@ initFirebase();
           <button class="button ghost small" type="button" data-ccrh-anchor="${esc(turn.id)}">Create anchor here</button>
           ${(normalizeMemberEmail(turn.authorEmail||'')===normalizeMemberEmail(firebase.user?.email||'')||isWorkspaceOwner())?`<button class="button ghost small" type="button" data-ccrh-edit-post="${esc(turn.id)}">Edit post</button><button class="button ghost small danger" type="button" data-ccrh-delete-post="${esc(turn.id)}">Delete post</button>`:''}
         </footer>
-        <div class="ccrh-post-attribution">Posted by ${esc(authorName)}</div>
+        <div class="ccrh-post-attribution">
+          <button class="cc-member-inline" type="button" data-member-preview="${esc(authorEmail)}">
+            <span class="cc-member-inline-avatar">${authorAvatar?`<img src="${esc(authorAvatar)}" alt="">`:esc(initials(authorName))}</span>
+            <span>Posted by <strong>${esc(authorName)}</strong></span>
+          </button>
+        </div>
       </div>
     </article>`;
   }
@@ -13224,6 +13281,95 @@ initFirebase();
 
 
 
+
+
+
+  /* === Compact member profile previews === */
+  function ccMemberByEmail(email){
+    const normalized=normalizeMemberEmail(email||'');
+    return (state.workspace.members||[]).find(member=>ccpMemberId(member)===normalized)||null;
+  }
+  function ccMemberLastPost(member){
+    const email=ccpMemberId(member);
+    let latest=null;
+    for(const story of state.storyGraphs||[]){
+      for(const turn of ensureStoryDocument(story)){
+        if(normalizeMemberEmail(turn.authorEmail||'')!==email)continue;
+        const raw=turn.updatedAt||turn.createdAt||'';
+        const date=raw?.toDate?raw.toDate():new Date(raw);
+        const stamp=Number.isNaN(date.getTime())?0:date.getTime();
+        if(!latest||stamp>latest.stamp){
+          latest={storyId:story.id,title:story.name||'Untitled roleplay',postId:turn.id,stamp,raw};
+        }
+      }
+    }
+    return latest;
+  }
+  function ccCloseMemberPreview(){
+    document.getElementById('cc-member-profile-preview')?.remove();
+  }
+  function ccOpenMemberPreview(email,anchor){
+    const member=ccMemberByEmail(email);
+    if(!member)return;
+    ccCloseMemberPreview();
+    const profile=ccpProfile(member);
+    const avatar=ccpSafeUrl(profile.avatar);
+    const banner=ccpSafeUrl(profile.banner);
+    const lastPost=ccMemberLastPost(member);
+    const card=document.createElement('section');
+    card.id='cc-member-profile-preview';
+    card.className='cc-member-profile-preview';
+    card.setAttribute('role','dialog');
+    card.setAttribute('aria-label',`${ccpDisplayName(member)} profile preview`);
+    card.innerHTML=`
+      <button class="cc-member-preview-close" type="button" data-member-preview-close aria-label="Close">×</button>
+      <div class="cc-member-preview-banner"${banner?` style="background-image:url('${esc(banner)}')"`:''}></div>
+      <div class="cc-member-preview-body">
+        <div class="cc-member-preview-avatar">${avatar?`<img src="${esc(avatar)}" alt="">`:esc(initials(ccpDisplayName(member)))}</div>
+        <h3>${esc(ccpDisplayName(member))}</h3>
+        ${profile.tagline?`<p class="cc-member-preview-tagline">${esc(profile.tagline)}</p>`:''}
+        <div class="cc-member-preview-stats">${ccpRoleplayPostCount(member).toLocaleString()} posts · ${esc(ccpJoined(member))}</div>
+        <div class="cc-member-preview-last">
+          <span>Last posted in</span>
+          ${lastPost?`<strong>${esc(lastPost.title)}</strong><small>${esc(ccrhNotificationTime(lastPost.raw))}</small>`:'<strong>No roleplay posts yet</strong>'}
+        </div>
+        <button class="button cc-member-preview-visit" type="button" data-profile-member="${esc(ccpMemberId(member))}">Visit Member Profile</button>
+      </div>`;
+    document.body.append(card);
+    const rect=anchor.getBoundingClientRect();
+    const width=Math.min(340,window.innerWidth-24);
+    card.style.width=`${width}px`;
+    let left=Math.min(window.innerWidth-width-12,Math.max(12,rect.left));
+    let top=rect.bottom+10;
+    card.style.left=`${left}px`;
+    card.style.top=`${top}px`;
+    requestAnimationFrame(()=>{
+      const cardRect=card.getBoundingClientRect();
+      if(cardRect.bottom>window.innerHeight-12){
+        top=Math.max(12,rect.top-cardRect.height-10);
+        card.style.top=`${top}px`;
+      }
+    });
+  }
+
+  document.addEventListener('click',event=>{
+    const preview=event.target.closest('[data-member-preview]');
+    if(preview){
+      event.preventDefault();
+      event.stopPropagation();
+      ccOpenMemberPreview(preview.dataset.memberPreview,preview);
+      return;
+    }
+    if(event.target.closest('[data-member-preview-close]')){
+      event.preventDefault();
+      ccCloseMemberPreview();
+      return;
+    }
+    if(!event.target.closest('#cc-member-profile-preview'))ccCloseMemberPreview();
+  },true);
+
+  window.addEventListener('resize',ccCloseMemberPreview);
+  window.addEventListener('scroll',ccCloseMemberPreview,true);
 
 })();
 </script>
