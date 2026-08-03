@@ -4287,18 +4287,121 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 
 
 <style id="cc-member-preview-click-fix-style">
-.cc16-avatar[data-member-preview]{
+.cc16-avatar[data-cc-member-preview]{
   cursor:pointer;
   position:relative;
   z-index:2;
 }
-.cc16-avatar[data-member-preview]:hover{
+.cc16-avatar[data-cc-member-preview]:hover{
   outline:2px solid var(--accent);
   outline-offset:1px;
 }
 .cc-member-inline{
   position:relative;
   z-index:1;
+}
+</style>
+
+
+<style id="cc-member-profile-modal-style">
+.cc-member-modal-card{
+  width:min(560px,calc(100vw - 28px));
+  max-height:min(760px,calc(100vh - 28px));
+  padding:0;
+  overflow:auto;
+  border-radius:18px;
+}
+.cc-member-modal-close{
+  position:absolute;
+  z-index:3;
+  right:12px;
+  top:12px;
+  width:34px;
+  height:34px;
+  border-radius:50%;
+  border:1px solid rgba(255,255,255,.3);
+  background:rgba(0,0,0,.58);
+  color:white;
+  font-size:21px;
+  cursor:pointer;
+}
+.cc-member-modal-banner{
+  height:180px;
+  background:
+    linear-gradient(135deg,color-mix(in srgb,var(--accent) 32%,var(--panel)),var(--panel-strong));
+  background-position:center;
+  background-size:cover;
+}
+.cc-member-modal-body{
+  position:relative;
+  padding:68px 24px 22px;
+}
+.cc-member-modal-avatar{
+  position:absolute;
+  left:24px;
+  top:-62px;
+  width:124px;
+  height:124px;
+  border-radius:50%;
+  overflow:hidden;
+  display:grid;
+  place-items:center;
+  border:5px solid var(--panel);
+  background:var(--accent-soft);
+  color:var(--accent-strong);
+  font-size:32px;
+  font-weight:900;
+  box-shadow:0 10px 28px rgba(0,0,0,.34);
+}
+.cc-member-modal-avatar img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.cc-member-modal-identity h2{
+  margin:0;
+  font-size:29px;
+}
+.cc-member-modal-identity p{
+  margin:7px 0 0;
+  color:var(--muted);
+  font-style:italic;
+}
+.cc-member-modal-meta{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:7px;
+  margin-top:11px;
+  color:var(--muted);
+  font-size:12px;
+}
+.cc-member-modal-last-post{
+  display:grid;
+  gap:4px;
+  margin-top:20px;
+  padding:14px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--panel-soft);
+}
+.cc-member-modal-last-post span,
+.cc-member-modal-last-post small{
+  color:var(--muted);
+  font-size:11px;
+}
+.cc-member-modal-last-post strong{
+  font-size:14px;
+}
+.cc16-avatar[data-cc-member-preview],
+.cc16-person-button[data-cc-member-preview],
+.cc-member-inline[data-cc-member-preview]{
+  cursor:pointer;
+}
+.cc16-avatar[data-cc-member-preview]:hover,
+.cc-member-inline[data-cc-member-preview]:hover{
+  outline:2px solid var(--accent);
+  outline-offset:2px;
 }
 </style>
 
@@ -4388,7 +4491,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "member-preview-click-fix-2026-08-03";
+window.CODEX_BUILD = "member-preview-modal-fix-2026-08-03";
 </script>
   <script>
 (() => {
@@ -12133,7 +12236,7 @@ initFirebase();
   function cc16Avatar(member){
     const source = member?.profile?.avatar || member.photoURL || member.photoUrl || member.avatar || '';
     const email = normalizeMemberEmail(member?.email||'');
-    return `<span class="cc16-avatar" ${email?`data-member-preview="${esc(email)}" title="View ${esc(cc16MemberName(member))}'s profile"`:''}>${source
+    return `<span class="cc16-avatar" ${email?`data-cc-member-preview="${esc(email)}" title="View ${esc(cc16MemberName(member))}'s profile"`:''}>${source
       ? `<img src="${esc(source)}" alt="">`
       : esc(cc16Initials(cc16MemberName(member)))}</span>`;
   }
@@ -12155,7 +12258,7 @@ initFirebase();
         <div class="cc16-menu-title">Online now</div>
         ${online.length ? online.map(member => {
           const email = normalizeMemberEmail(member.email);
-          return `<button class="cc16-person cc16-person-button" type="button" data-member-preview="${esc(email)}">
+          return `<button class="cc16-person cc16-person-button" type="button" data-cc-member-preview="${esc(email)}">
             ${cc16Avatar(member)}
             <span class="cc16-person-copy">
               <span class="cc16-person-name">${esc(cc16MemberName(member))}${email === me ? ' (You)' : ''}</span>
@@ -12236,20 +12339,6 @@ initFirebase();
   };
 
   document.addEventListener('click', event => {
-    const memberPreview=event.target.closest('[data-member-preview]');
-    if(memberPreview){
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      const email=memberPreview.dataset.memberPreview;
-      ccOpenMemberPreview(email,memberPreview);
-      cc16PresenceOpen=false;
-      const menu=document.querySelector('.cc16-menu');
-      if(menu)menu.hidden=true;
-      const toggleButton=document.querySelector('[data-cc16-toggle]');
-      if(toggleButton)toggleButton.setAttribute('aria-expanded','false');
-      return;
-    }
-
     const toggle = event.target.closest('[data-cc16-toggle]');
     if(toggle){
       event.preventDefault();
@@ -13051,7 +13140,7 @@ initFirebase();
           ${(normalizeMemberEmail(turn.authorEmail||'')===normalizeMemberEmail(firebase.user?.email||'')||isWorkspaceOwner())?`<button class="button ghost small" type="button" data-ccrh-edit-post="${esc(turn.id)}">Edit post</button><button class="button ghost small danger" type="button" data-ccrh-delete-post="${esc(turn.id)}">Delete post</button>`:''}
         </footer>
         <div class="ccrh-post-attribution">
-          <button class="cc-member-inline" type="button" data-member-preview="${esc(authorEmail)}">
+          <button class="cc-member-inline" type="button" data-cc-member-preview="${esc(authorEmail)}">
             <span class="cc-member-inline-avatar">${authorAvatar?`<img src="${esc(authorAvatar)}" alt="">`:esc(initials(authorName))}</span>
             <span>Posted by <strong>${esc(authorName)}</strong></span>
           </button>
@@ -13399,6 +13488,74 @@ initFirebase();
   function ccCloseMemberPreview(){
     document.getElementById('cc-member-profile-preview')?.remove();
   }
+
+  function ccOpenMemberPreviewModal(email){
+    const member=ccMemberByEmail(email);
+    if(!member){
+      toast('That member profile could not be found.','error');
+      return;
+    }
+    const profile=ccpProfile(member);
+    const avatar=ccpSafeUrl(profile.avatar);
+    const banner=ccpSafeUrl(profile.banner);
+    const lastPost=ccMemberLastPost(member);
+    const role=member.role||'Member';
+
+    cc16PresenceOpen=false;
+    const onlineMenu=document.querySelector('.cc16-menu');
+    if(onlineMenu)onlineMenu.hidden=true;
+    const onlineToggle=document.querySelector('[data-cc16-toggle]');
+    if(onlineToggle)onlineToggle.setAttribute('aria-expanded','false');
+
+    el.modal.innerHTML=`
+      <div class="modal-backdrop" data-modal-close></div>
+      <section class="modal-card cc-member-modal-card" role="dialog" aria-modal="true" aria-label="${esc(ccpDisplayName(member))} profile preview">
+        <button class="cc-member-modal-close" type="button" data-modal-close aria-label="Close">×</button>
+        <div class="cc-member-modal-banner"${banner?` style="background-image:url('${esc(banner)}')"`:''}></div>
+        <div class="cc-member-modal-body">
+          <div class="cc-member-modal-avatar">${avatar?`<img src="${esc(avatar)}" alt="">`:esc(initials(ccpDisplayName(member)))}</div>
+          <div class="cc-member-modal-identity">
+            <h2>${esc(ccpDisplayName(member))}</h2>
+            ${profile.tagline?`<p>${esc(profile.tagline)}</p>`:''}
+            <div class="cc-member-modal-meta">
+              <span>${ccpRoleplayPostCount(member).toLocaleString()} posts</span>
+              <span>·</span>
+              <span>${esc(ccpJoined(member))}</span>
+              ${role==='Owner'?`<span class="ccp-profile-role">Owner</span>`:''}
+            </div>
+          </div>
+          <div class="cc-member-modal-last-post">
+            <span>Last posted in</span>
+            ${lastPost
+              ? `<strong>${esc(lastPost.title)}</strong><small>${esc(ccrhNotificationTime(lastPost.raw))}</small>`
+              : `<strong>No roleplay posts yet</strong>`}
+          </div>
+        </div>
+        <footer class="modal-actions">
+          <button class="button secondary" type="button" data-modal-close>Close</button>
+          <button class="button" type="button" data-cc-visit-member-profile="${esc(ccpMemberId(member))}">Visit Member Profile</button>
+        </footer>
+      </section>`;
+  }
+
+  document.addEventListener('click',event=>{
+    const preview=event.target.closest('[data-cc-member-preview]');
+    if(preview){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      ccOpenMemberPreviewModal(preview.dataset.ccMemberPreview);
+      return;
+    }
+    const visit=event.target.closest('[data-cc-visit-member-profile]');
+    if(visit){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const memberId=visit.dataset.ccVisitMemberProfile;
+      closeModal();
+      navigate('profile',memberId);
+    }
+  },true);
+
   function ccOpenMemberPreview(email,anchor){
     const member=ccMemberByEmail(email);
     if(!member)return;
@@ -13443,24 +13600,6 @@ initFirebase();
     });
   }
 
-  document.addEventListener('click',event=>{
-    const preview=event.target.closest('[data-member-preview]');
-    if(preview){
-      event.preventDefault();
-      event.stopPropagation();
-      ccOpenMemberPreview(preview.dataset.memberPreview,preview);
-      return;
-    }
-    if(event.target.closest('[data-member-preview-close]')){
-      event.preventDefault();
-      ccCloseMemberPreview();
-      return;
-    }
-    if(!event.target.closest('#cc-member-profile-preview'))ccCloseMemberPreview();
-  },true);
-
-  window.addEventListener('resize',ccCloseMemberPreview);
-  window.addEventListener('scroll',ccCloseMemberPreview,true);
 
 })();
 </script>
