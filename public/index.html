@@ -4268,6 +4268,23 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .cc-member-preview-visit{width:100%}
 </style>
 
+
+<style id="ccrh-private-draft-stability-style">
+.ccrh-new-post-notice{
+  margin:0 0 14px;
+  padding:12px 14px;
+  border:1px solid color-mix(in srgb,var(--accent) 58%,var(--border));
+  border-radius:12px;
+  background:color-mix(in srgb,var(--accent) 12%,var(--panel));
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap
+}
+.ccrh-new-post-notice strong{font-size:13px}
+.ccrh-new-post-notice span{color:var(--muted);font-size:12px;flex:1}
+</style>
+
 </head>
 <body>
 
@@ -4354,7 +4371,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "member-images-profile-previews-2026-08-03";
+window.CODEX_BUILD = "draft-stability-live-preview-post-counts-2026-08-03";
 </script>
   <script>
 (() => {
@@ -11734,6 +11751,20 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-cc4-jump]'
     </div></div>`;
   };
 
+  document.addEventListener('input',event=>{
+    const editor=event.target.closest('[data-ccrh-editor]');
+    if(!editor)return;
+    const {story}=ccrhStoryFromRoute();
+    if(!story)return;
+    ccrhTypingStoryId=story.id;
+    ccrhTypingValue=editor.value;
+    ccrhSaveDraft(story,editor.value);
+    clearTimeout(ccrhDraftTimer);
+    ccrhDraftTimer=setTimeout(()=>ccrhSaveDraft(story,editor.value),250);
+    const counter=document.querySelector('[data-ccrh-count]');
+    if(counter)counter.textContent=`${editor.value.length.toLocaleString()} / 50,000`;
+  },true);
+
   document.addEventListener('click',async event=>{
     const addImage=event.target.closest('[data-cc8-add-image]');
     if(addImage){
@@ -12166,6 +12197,18 @@ initFirebase();
 
   const cc16BaseRender = render;
   render = function(){
+    const activeEditor=document.querySelector('[data-ccrh-editor]');
+    const activelyTyping=route.view==='story'&&activeEditor&&document.activeElement===activeEditor&&ccrhTypingStoryId;
+    if(activelyTyping){
+      ccrhTypingValue=activeEditor.value;
+      ccrhSaveDraft(ccrhStoryFromRoute().story,activeEditor.value);
+      ccrhPendingRemoteRefresh=true;
+      requestAnimationFrame(()=>{
+        cc16RenderPresence();
+        ccrhRenderNotificationBell();
+      });
+      return;
+    }
     if(route.view === 'graph'){
       cc16RenderGraphRoute();
     }else{
@@ -12181,6 +12224,16 @@ initFirebase();
       event.stopImmediatePropagation();
       cc16PresenceOpen = !cc16PresenceOpen;
       cc16RenderPresence();
+      return;
+    }
+
+    const memberPreview=event.target.closest('[data-member-preview]');
+    if(memberPreview){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      cc16PresenceOpen=false;
+      cc16RenderPresence();
+      ccOpenMemberPreview(memberPreview.dataset.memberPreview,memberPreview);
       return;
     }
 
@@ -12433,14 +12486,13 @@ initFirebase();
     };
   }
   function ccpRoleplayPostCount(member){
-    if(Number.isFinite(Number(member?.roleplayPostCount)))return Number(member.roleplayPostCount);
+    const target=ccpMemberId(member);
     let count=0;
     for(const story of state.storyGraphs||[]){
-      for(const node of story.nodes||[]){
-        for(const post of node.posts||node.turns||[]){
-          const email=normalizeMemberEmail(post.authorEmail||post.createdBy||post.userEmail||'');
-          if(email&&email===ccpMemberId(member))count++;
-        }
+      const posts=ensureStoryDocument(story);
+      for(const post of posts){
+        const email=normalizeMemberEmail(post.authorEmail||post.createdBy||post.userEmail||'');
+        if(email&&email===target)count++;
       }
     }
     return count;
@@ -12700,6 +12752,7 @@ initFirebase();
     const notificationToggle=event.target.closest('[data-ccrh-notification-toggle]'); if(notificationToggle){event.preventDefault();event.stopImmediatePropagation();ccrhOpenNotificationMenu();return;}
     const openNotification=event.target.closest('[data-ccrh-open-notification]'); if(openNotification){event.preventDefault();ccrhOpenNotification(openNotification.dataset.ccrhOpenNotification);return;}
     const markAllNotifications=event.target.closest('[data-ccrh-mark-all-read]'); if(markAllNotifications){event.preventDefault();ccrhMarkAllNotificationsRead();return;}
+    const refreshPosts=event.target.closest('[data-ccrh-refresh-posts]'); if(refreshPosts){event.preventDefault();const {story}=ccrhStoryFromRoute();ccrhPendingRemoteRefresh=false;if(story)ccrhKnownPostCount=ensureStoryDocument(story).length;ccrhRenderReader();return;}
     const followRoleplay=event.target.closest('[data-ccrh-follow]'); if(followRoleplay){event.preventDefault();ccrhToggleFollow();return;}
     const profile=event.target.closest('[data-profile-member]');
     if(profile){event.preventDefault();navigate('profile',profile.dataset.profileMember);return;}
@@ -12776,6 +12829,10 @@ initFirebase();
   let ccrhPreviewMode=false;
   let ccrhDraftTimer=null;
   let ccrhEditingPostId='';
+  let ccrhTypingStoryId='';
+  let ccrhTypingValue='';
+  let ccrhPendingRemoteRefresh=false;
+  let ccrhKnownPostCount=0;
 
   function ccrhStoryFromRoute(){ return storyPointContext(route.id); }
 
@@ -12985,13 +13042,18 @@ initFirebase();
     if(!story){el.main.innerHTML=pageHead('Roleplay Hub','No roleplays yet','Create a story graph to begin a live roleplay thread.','<button class="button" type="button" data-nav="graph">Open graphs</button>');return;}
     const turns=ensureStoryDocument(story);
     const editingTurn=ccrhEditingPostId?turns.find(turn=>turn.id===ccrhEditingPostId):null;
-    const draft=editingTurn?String(editingTurn.text||''):ccrhLoadDraft(story);
+    const draft=editingTurn
+      ? String(editingTurn.text||'')
+      : (ccrhTypingStoryId===story.id ? ccrhTypingValue : ccrhLoadDraft(story));
+    const incomingPosts=ccrhKnownPostCount&&turns.length>ccrhKnownPostCount;
+    if(!ccrhTypingStoryId||ccrhTypingStoryId!==story.id)ccrhKnownPostCount=turns.length;
     const anchorChips=(ordered||[]).map(point=>{
       const anchor=ensureStoryPassage(point).anchorTurnId;
       return `<button class="ccrh-anchor-chip ${node?.id===point.id?'active':''}" type="button" ${anchor?`data-ccrh-jump-post="${esc(anchor==='__start__'?(turns[0]?.id||''):anchor)}"`:`data-story-point="${esc(storyRouteValue(story.id,point.id))}"`}>${esc(storyPointTitle(story,point))}</button>`;
     }).join('');
     el.main.innerHTML=`
       <div class="ccrh-thread-head"><div>${pageHead('Roleplay Hub',story.name,story.description||'Write together directly in this thread.')}</div><div class="ccrh-thread-tools"><button class="button secondary" type="button" data-nav="graph">Open graph</button><button class="button secondary ${ccrhIsFollowing(story)?'active':''}" type="button" data-ccrh-follow aria-pressed="${ccrhIsFollowing(story)}">${ccrhIsFollowing(story)?'Following':'Follow roleplay'}</button></div></div>
+      ${(ccrhPendingRemoteRefresh||incomingPosts)?`<div class="ccrh-new-post-notice"><strong>A new completed post is available.</strong><span>Your draft is still private and unchanged.</span><button class="button small" type="button" data-ccrh-refresh-posts>View new post</button></div>`:''}
       <div class="ccrh-thread-bar"><strong>${turns.length} post${turns.length===1?'':'s'}</strong><span class="muted">Anchors mark where graph chapters begin.</span></div>
       <div class="ccrh-anchor-strip">${anchorChips}</div>
       <section class="ccrh-posts">${turns.length?turns.map((turn,index)=>ccrhPostHtml(turn,index,story)).join(''):'<div class="ccrh-thread-empty"><h3>No posts yet</h3><p>Use the reply editor below to begin this roleplay.</p></div>'}</section>
@@ -13048,12 +13110,19 @@ initFirebase();
     else if(selected==='custom'){turn.speakerName=document.querySelector('[data-ccrh-custom-name]')?.value.trim()||'Guest character';}
     if(existing){
       ccrhEditingPostId='';
+      ccrhTypingStoryId='';
+      ccrhTypingValue='';
+      ccrhPendingRemoteRefresh=false;
       scheduleSave('Saving post changes…');
       toast('Post updated.');
     }else{
       turns.push(turn);
       ccrhCreatePostNotifications(story,turn);
       ccrhClearDraft(story);
+      ccrhTypingStoryId='';
+      ccrhTypingValue='';
+      ccrhPendingRemoteRefresh=false;
+      ccrhKnownPostCount=turns.length;
       scheduleSave('Posting…');
     }
     ccrhPreviewMode=false;
