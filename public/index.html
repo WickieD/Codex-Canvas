@@ -4285,6 +4285,23 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .ccrh-new-post-notice span{color:var(--muted);font-size:12px;flex:1}
 </style>
 
+
+<style id="cc-member-preview-click-fix-style">
+.cc16-avatar[data-member-preview]{
+  cursor:pointer;
+  position:relative;
+  z-index:2;
+}
+.cc16-avatar[data-member-preview]:hover{
+  outline:2px solid var(--accent);
+  outline-offset:1px;
+}
+.cc-member-inline{
+  position:relative;
+  z-index:1;
+}
+</style>
+
 </head>
 <body>
 
@@ -4371,7 +4388,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "draft-stability-live-preview-post-counts-2026-08-03";
+window.CODEX_BUILD = "member-preview-click-fix-2026-08-03";
 </script>
   <script>
 (() => {
@@ -12115,7 +12132,8 @@ initFirebase();
 
   function cc16Avatar(member){
     const source = member?.profile?.avatar || member.photoURL || member.photoUrl || member.avatar || '';
-    return `<span class="cc16-avatar">${source
+    const email = normalizeMemberEmail(member?.email||'');
+    return `<span class="cc16-avatar" ${email?`data-member-preview="${esc(email)}" title="View ${esc(cc16MemberName(member))}'s profile"`:''}>${source
       ? `<img src="${esc(source)}" alt="">`
       : esc(cc16Initials(cc16MemberName(member)))}</span>`;
   }
@@ -12218,22 +12236,26 @@ initFirebase();
   };
 
   document.addEventListener('click', event => {
+    const memberPreview=event.target.closest('[data-member-preview]');
+    if(memberPreview){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const email=memberPreview.dataset.memberPreview;
+      ccOpenMemberPreview(email,memberPreview);
+      cc16PresenceOpen=false;
+      const menu=document.querySelector('.cc16-menu');
+      if(menu)menu.hidden=true;
+      const toggleButton=document.querySelector('[data-cc16-toggle]');
+      if(toggleButton)toggleButton.setAttribute('aria-expanded','false');
+      return;
+    }
+
     const toggle = event.target.closest('[data-cc16-toggle]');
     if(toggle){
       event.preventDefault();
       event.stopImmediatePropagation();
       cc16PresenceOpen = !cc16PresenceOpen;
       cc16RenderPresence();
-      return;
-    }
-
-    const memberPreview=event.target.closest('[data-member-preview]');
-    if(memberPreview){
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      cc16PresenceOpen=false;
-      cc16RenderPresence();
-      ccOpenMemberPreview(memberPreview.dataset.memberPreview,memberPreview);
       return;
     }
 
