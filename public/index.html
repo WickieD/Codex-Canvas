@@ -4191,6 +4191,33 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 </style>
 
+
+<style id="ccrh-roleplay-notification-style">
+.ccrh-global-notifications{position:relative;display:flex;align-items:center}
+.ccrh-notification-button{
+  position:relative;width:38px;height:38px;border:1px solid var(--border);
+  border-radius:10px;background:var(--panel-strong);color:var(--text);cursor:pointer;
+  display:grid;place-items:center;font-size:16px
+}
+.ccrh-notification-count{
+  position:absolute;top:-6px;right:-6px;min-width:19px;height:19px;padding:0 5px;
+  border-radius:999px;background:var(--danger);color:white;font-size:10px;font-weight:900;
+  display:grid;place-items:center;border:2px solid var(--bg)
+}
+.ccrh-notification-menu{
+  position:absolute;right:0;top:calc(100% + 8px);z-index:11000;width:min(380px,calc(100vw - 28px));
+  max-height:520px;overflow:auto;border:1px solid var(--border);border-radius:14px;
+  background:var(--panel);box-shadow:0 20px 55px rgba(0,0,0,.42)
+}
+.ccrh-notification-title{padding:13px 14px;border-bottom:1px solid var(--border);font-weight:900}
+.ccrh-notification-item{padding:13px 14px;border-bottom:1px solid var(--border);display:grid;gap:6px}
+.ccrh-notification-item.unread{background:color-mix(in srgb,var(--accent) 12%,var(--panel))}
+.ccrh-notification-item strong{font-size:13px;line-height:1.4}
+.ccrh-notification-item span{font-size:11px;color:var(--muted)}
+.ccrh-notification-empty{padding:18px;color:var(--muted)}
+.ccrh-mark-all{margin:10px}
+</style>
+
 </head>
 <body>
 
@@ -4277,7 +4304,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "follow-roleplay-fixed-2026-08-03";
+window.CODEX_BUILD = "rp-follower-notifications-2026-08-03";
 </script>
   <script>
 (() => {
@@ -12616,9 +12643,13 @@ initFirebase();
       ccpRenderBase();
     }
     ccpEnhanceChrome();
+    requestAnimationFrame(ccrhRenderNotificationBell);
   };
 
   document.addEventListener('click',async event=>{
+    const notificationToggle=event.target.closest('[data-ccrh-notification-toggle]'); if(notificationToggle){event.preventDefault();event.stopImmediatePropagation();ccrhOpenNotificationMenu();return;}
+    const openNotification=event.target.closest('[data-ccrh-open-notification]'); if(openNotification){event.preventDefault();ccrhOpenNotification(openNotification.dataset.ccrhOpenNotification);return;}
+    const markAllNotifications=event.target.closest('[data-ccrh-mark-all-read]'); if(markAllNotifications){event.preventDefault();ccrhMarkAllNotificationsRead();return;}
     const followRoleplay=event.target.closest('[data-ccrh-follow]'); if(followRoleplay){event.preventDefault();ccrhToggleFollow();return;}
     const profile=event.target.closest('[data-profile-member]');
     if(profile){event.preventDefault();navigate('profile',profile.dataset.profileMember);return;}
@@ -12710,6 +12741,102 @@ initFirebase();
     const email=ccrhFollowerEmail();
     return Boolean(email&&ccrhFollowers(story).includes(email));
   }
+
+  function ccrhNotifications(){
+    if(!Array.isArray(state.workspace.roleplayNotifications))state.workspace.roleplayNotifications=[];
+    return state.workspace.roleplayNotifications;
+  }
+  function ccrhCreatePostNotifications(story,turn){
+    const author=normalizeMemberEmail(turn.authorEmail||'');
+    const speaker=storySpeakerMeta(turn).name||'A character';
+    const followers=ccrhFollowers(story).filter(email=>email&&email!==author);
+    const notifications=ccrhNotifications();
+    const createdAt=nowISO();
+    for(const recipientEmail of followers){
+      notifications.unshift({
+        id:id('rpnote'),
+        type:'roleplay-post',
+        recipientEmail,
+        storyId:story.id,
+        postId:turn.id,
+        characterName:speaker,
+        threadTitle:story.name||'Untitled roleplay',
+        createdAt,
+        readAt:''
+      });
+    }
+    state.workspace.roleplayNotifications=notifications.slice(0,500);
+  }
+  function ccrhUnreadNotifications(){
+    const email=normalizeMemberEmail(firebase.user?.email||'');
+    return ccrhNotifications().filter(note=>normalizeMemberEmail(note.recipientEmail)===email&&!note.readAt);
+  }
+  function ccrhNotificationTime(value){
+    const date=new Date(value);
+    if(Number.isNaN(date.getTime()))return 'Posted recently';
+    const minutes=Math.max(0,Math.floor((Date.now()-date.getTime())/60000));
+    if(minutes<1)return 'Posted just now';
+    if(minutes===1)return 'Posted 1 minute ago';
+    if(minutes<60)return `Posted ${minutes} minutes ago`;
+    const hours=Math.floor(minutes/60);
+    if(hours===1)return 'Posted 1 hour ago';
+    if(hours<24)return `Posted ${hours} hours ago`;
+    const days=Math.floor(hours/24);
+    return `Posted ${days} day${days===1?'':'s'} ago`;
+  }
+  function ccrhRenderNotificationBell(){
+    const existing=document.getElementById('ccrh-global-notifications');
+    const count=ccrhUnreadNotifications().length;
+    if(existing){
+      existing.innerHTML=`<button class="ccrh-notification-button" type="button" data-ccrh-notification-toggle aria-label="Roleplay notifications"><span>🔔</span>${count?`<span class="ccrh-notification-count">${count}</span>`:''}</button><div class="ccrh-notification-menu" data-ccrh-notification-menu hidden></div>`;
+      return;
+    }
+    const actions=document.querySelector('.topbar-actions');
+    if(!actions)return;
+    const wrap=document.createElement('div');
+    wrap.id='ccrh-global-notifications';
+    wrap.className='ccrh-global-notifications';
+    wrap.innerHTML=`<button class="ccrh-notification-button" type="button" data-ccrh-notification-toggle aria-label="Roleplay notifications"><span>🔔</span>${count?`<span class="ccrh-notification-count">${count}</span>`:''}</button><div class="ccrh-notification-menu" data-ccrh-notification-menu hidden></div>`;
+    actions.insertBefore(wrap,actions.firstChild);
+  }
+  function ccrhOpenNotificationMenu(){
+    const menu=document.querySelector('[data-ccrh-notification-menu]');
+    if(!menu)return;
+    const notes=ccrhNotifications()
+      .filter(note=>normalizeMemberEmail(note.recipientEmail)===normalizeMemberEmail(firebase.user?.email||''))
+      .slice(0,20);
+    menu.innerHTML=`<div class="ccrh-notification-title">Roleplay notifications</div>${notes.length?notes.map(note=>`
+      <article class="ccrh-notification-item ${note.readAt?'':'unread'}">
+        <strong>${esc(note.characterName)} posted in “${esc(note.threadTitle)}”</strong>
+        <span>${esc(ccrhNotificationTime(note.createdAt))}</span>
+        <button class="button ghost small" type="button" data-ccrh-open-notification="${esc(note.id)}">Read post</button>
+      </article>`).join(''):'<div class="ccrh-notification-empty">No roleplay notifications yet.</div>'}
+      ${notes.some(note=>!note.readAt)?'<button class="button ghost small ccrh-mark-all" type="button" data-ccrh-mark-all-read>Mark all as read</button>':''}`;
+    menu.hidden=!menu.hidden;
+  }
+  function ccrhOpenNotification(noteId){
+    const note=ccrhNotifications().find(item=>item.id===noteId);
+    if(!note)return;
+    note.readAt=nowISO();
+    scheduleSave('Marking notification read…');
+    navigate('story',storyRouteValue(note.storyId,''));
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      document.getElementById(`rp-post-${CSS.escape(note.postId)}`)?.scrollIntoView({behavior:'smooth',block:'center'});
+      ccrhRenderNotificationBell();
+    }));
+  }
+  function ccrhMarkAllNotificationsRead(){
+    const email=normalizeMemberEmail(firebase.user?.email||'');
+    const stamp=nowISO();
+    for(const note of ccrhNotifications()){
+      if(normalizeMemberEmail(note.recipientEmail)===email&&!note.readAt)note.readAt=stamp;
+    }
+    scheduleSave('Marking notifications read…');
+    ccrhRenderNotificationBell();
+    const menu=document.querySelector('[data-ccrh-notification-menu]');
+    if(menu)menu.hidden=true;
+  }
+
   function ccrhToggleFollow(){
     const {story}=ccrhStoryFromRoute();
     if(!story)return;
@@ -12868,6 +12995,7 @@ initFirebase();
       toast('Post updated.');
     }else{
       turns.push(turn);
+      ccrhCreatePostNotifications(story,turn);
       ccrhClearDraft(story);
       scheduleSave('Posting…');
     }
