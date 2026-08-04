@@ -4701,7 +4701,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "posting-as-sorted-2026-08-04";
+window.CODEX_BUILD = "exact-posting-as-fixed-2026-08-04";
 </script>
   <script>
 (() => {
@@ -6050,7 +6050,7 @@ window.CODEX_BUILD = "posting-as-sorted-2026-08-04";
     const storyCharacters = state.characters.filter(character => storyCharacterIds.has(character.id)).sort((a,b)=>a.name.localeCompare(b.name));
     const otherCharacters = state.characters.filter(character => !storyCharacterIds.has(character.id)).sort((a,b)=>a.name.localeCompare(b.name));
     const option = character => `<option value="character:${esc(character.id)}" ${selected===`character:${character.id}`?'selected':''}>${esc(character.name)}</option>`;
-    return `<option value="narrator" ${selected==='narrator'?'selected':''}>Narrator</option>${storyCharacters.length?`<optgroup label="Story characters">${storyCharacters.map(option).join('')}</optgroup>`:''}${otherCharacters.length?`<optgroup label="Other characters">${otherCharacters.map(option).join('')}</optgroup>`:''}<option value="custom" ${selected==='custom'?'selected':''}>Custom or other speaker</option>`;
+    return `<option value="narrator" ${selected==='narrator'?'selected':''}>Narrator</option>${storyCharacters.length?`${storyCharacters.map(option).join('')}`:''}${otherCharacters.length?`${otherCharacters.map(option).join('')}`:''}<option value="custom" ${selected==='custom'?'selected':''}>Custom or other speaker</option>`;
   }
 
   function storyTurnTypeLabel(type) {
@@ -13325,61 +13325,120 @@ initFirebase();
   function ccrhClearDraft(story){ try{localStorage.removeItem(ccrhDraftKey(story));}catch{} }
   function ccrhSpeakerOptions(story){
     const allCharacters=(state.characters||[]).filter(Boolean);
-    const byId=new Map(allCharacters.map(character=>[character.id,character]));
+    const byId=new Map(allCharacters.map(character=>[String(character.id),character]));
     const currentEmail=normalizeMemberEmail(firebase.user?.email||'');
 
     const orderedIds=[];
     const seen=new Set();
-    const addId=idValue=>{
-      if(!idValue||seen.has(idValue)||!byId.has(idValue))return;
-      seen.add(idValue);
-      orderedIds.push(idValue);
+
+    const addCharacter=idValue=>{
+      const idString=String(idValue||'');
+      if(!idString||seen.has(idString)||!byId.has(idString))return;
+      seen.add(idString);
+      orderedIds.push(idString);
     };
 
-    const turns=[...ensureStoryDocument(story)]
-      .filter(turn=>normalizeMemberEmail(turn.authorEmail||turn.createdBy||turn.userEmail||'')===currentEmail)
-      .sort((a,b)=>{
-        const aTime=new Date(a.updatedAt||a.createdAt||0).getTime()||0;
-        const bTime=new Date(b.updatedAt||b.createdAt||0).getTime()||0;
-        return bTime-aTime;
-      });
-    turns.forEach(turn=>addId(turn.characterId));
+    const getTurnCharacterId=turn=>{
+      const direct=
+        turn?.characterId||
+        turn?.speakerCharacterId||
+        turn?.speakerId||
+        turn?.character?.id||
+        '';
+      if(direct&&byId.has(String(direct)))return String(direct);
 
+      const speakerValue=String(turn?.speaker||turn?.speakerValue||turn?.postingAs||'');
+      if(speakerValue.startsWith('character:')){
+        const parsed=speakerValue.slice('character:'.length);
+        if(byId.has(parsed))return parsed;
+      }
+
+      const speakerName=String(turn?.speakerName||turn?.characterName||turn?.name||'').trim().toLowerCase();
+      if(speakerName){
+        const match=allCharacters.find(character=>String(character.name||'').trim().toLowerCase()===speakerName);
+        if(match)return String(match.id);
+      }
+
+      return '';
+    };
+
+    const getTurnAuthorEmail=turn=>normalizeMemberEmail(
+      turn?.authorEmail||
+      turn?.createdBy||
+      turn?.userEmail||
+      turn?.postedByEmail||
+      turn?.memberEmail||
+      ''
+    );
+
+    const getTurnTime=turn=>{
+      const raw=turn?.updatedAt||turn?.createdAt||turn?.postedAt||turn?.timestamp||0;
+      if(raw?.toDate){
+        try{return raw.toDate().getTime()||0;}catch{}
+      }
+      const value=new Date(raw).getTime();
+      return Number.isFinite(value)?value:0;
+    };
+
+    const turns=[...ensureStoryDocument(story)];
+
+    // 1. Characters personally posted by the signed-in member in this RP,
+    // newest submitted post first.
+    turns
+      .filter(turn=>getTurnAuthorEmail(turn)===currentEmail)
+      .sort((a,b)=>getTurnTime(b)-getTurnTime(a))
+      .forEach(turn=>addCharacter(getTurnCharacterId(turn)));
+
+    // 2. Characters connected to the current story point.
     const context=ccrhStoryFromRoute();
     const currentNode=context?.node;
     if(currentNode){
-      const point=typeof cc2Point==='function' ? cc2Point(story,currentNode) : (currentNode.point||currentNode);
-      const pointPeople=[
+      const point=(typeof cc2Point==='function')
+        ? cc2Point(story,currentNode)
+        : (currentNode.point||currentNode);
+
+      const pointValues=[
         ...(point?.peopleIds||[]),
         ...(point?.characterIds||[]),
-        ...(point?.people||[])
+        ...(point?.people||[]),
+        ...(point?.characters||[])
       ];
-      pointPeople.forEach(value=>addId(typeof value==='string'?value:value?.id));
+
+      pointValues.forEach(value=>addCharacter(typeof value==='string'?value:value?.id));
     }
 
+    // 3. Anyone connected anywhere in the full RP.
     for(const node of story.nodes||[]){
-      const point=typeof cc2Point==='function' ? cc2Point(story,node) : (node.point||node);
-      const ids=[
+      const point=(typeof cc2Point==='function')
+        ? cc2Point(story,node)
+        : (node.point||node);
+
+      const values=[
         ...(point?.peopleIds||[]),
         ...(point?.characterIds||[]),
-        ...(point?.people||[])
+        ...(point?.people||[]),
+        ...(point?.characters||[])
       ];
-      ids.forEach(value=>addId(typeof value==='string'?value:value?.id));
+
+      values.forEach(value=>addCharacter(typeof value==='string'?value:value?.id));
     }
-    for(const turn of ensureStoryDocument(story))addId(turn.characterId);
 
+    turns.forEach(turn=>addCharacter(getTurnCharacterId(turn)));
+
+    // 4. Everyone else alphabetically.
     allCharacters
-      .filter(character=>!seen.has(character.id))
+      .filter(character=>!seen.has(String(character.id)))
       .sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')))
-      .forEach(character=>addId(character.id));
+      .forEach(character=>addCharacter(character.id));
 
-    const characterOptions=orderedIds
+    const options=orderedIds
       .map(idValue=>byId.get(idValue))
       .filter(Boolean)
       .map(character=>`<option value="character:${esc(character.id)}">${esc(character.name||'Unnamed character')}</option>`)
       .join('');
 
-    return `${characterOptions}<option value="narrator">Narrator</option><option value="custom">Other / custom character</option>`;
+    // Narrator stays at the bottom, followed by custom.
+    return `${options}<option value="narrator">Narrator</option><option value="custom">Other / custom character</option>`;
   }
   function ccrhSafeReactionMarkup(key){
     key=String(key||'');
