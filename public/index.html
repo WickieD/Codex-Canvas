@@ -4946,6 +4946,9 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 </style>
 
 
+
+
+
 <style id="cc-dialogue-card-builder-style">
 .cc-dialogue-builder-mount[hidden]{display:none!important}
 .cc-dialogue-builder{margin:14px;border:1px solid var(--border);border-radius:16px;background:var(--panel);overflow:hidden}
@@ -4964,18 +4967,35 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .cc-dialogue-accent i{width:24px;height:24px;border-radius:50%;background:var(--dialogue-accent);border:2px solid rgba(255,255,255,.4)}
 .cc-dialogue-preview{margin-top:7px;padding:14px;border:1px dashed var(--border);border-radius:12px;background:var(--panel-soft)}
 
-.cc-dialogue-card{position:relative;display:flex;align-items:center;gap:18px;width:min(100%,760px);margin:20px auto;padding:20px 22px;border:1px solid color-mix(in srgb,var(--dialogue-accent) 75%,var(--border));border-radius:15px;background:linear-gradient(135deg,color-mix(in srgb,var(--dialogue-accent) 9%,transparent),transparent 42%),var(--panel-strong);box-shadow:0 0 28px color-mix(in srgb,var(--dialogue-accent) 14%,transparent);clear:both}
+.cc-dialogue-card{position:relative;display:flex;align-items:center;gap:18px;width:min(100%,860px);max-width:100%;min-width:0;margin:20px auto;padding:20px 22px;border:1px solid color-mix(in srgb,var(--dialogue-accent) 75%,var(--border));border-radius:15px;background:linear-gradient(135deg,color-mix(in srgb,var(--dialogue-accent) 9%,transparent),transparent 42%),var(--panel-strong);box-shadow:0 0 28px color-mix(in srgb,var(--dialogue-accent) 14%,transparent);clear:both;box-sizing:border-box}
 .cc-dialogue-card::before,.cc-dialogue-card::after{content:"✧";position:absolute;color:var(--dialogue-accent);opacity:.65}
 .cc-dialogue-card::before{left:8px;top:6px}.cc-dialogue-card::after{right:8px;bottom:5px}
-.cc-dialogue-card.align-left{margin-left:0;margin-right:auto;max-width:78%}.cc-dialogue-card.align-right{margin-left:auto;margin-right:0;max-width:78%}.cc-dialogue-card.align-full{width:100%;max-width:100%}
-.cc-dialogue-card.image-top,.cc-dialogue-card.image-bottom{flex-direction:column;text-align:center}.cc-dialogue-card.image-bottom .cc-dialogue-portrait{order:3}
-.cc-dialogue-card-copy{flex:1;min-width:0}.cc-dialogue-card-name{border:0;background:transparent;color:var(--dialogue-accent);font:inherit;font-weight:900;cursor:pointer;padding:0;margin-bottom:7px}
-.cc-dialogue-card-text{color:color-mix(in srgb,var(--dialogue-accent) 72%,var(--text));font-family:Georgia,serif;font-size:1.08em;line-height:1.55}
-.cc-dialogue-portrait{width:124px;height:124px;flex:0 0 124px;border:2px solid var(--dialogue-accent);background:var(--panel);padding:0;overflow:hidden;cursor:pointer;box-shadow:0 0 20px color-mix(in srgb,var(--dialogue-accent) 24%,transparent)}
-.cc-dialogue-portrait img{width:100%;height:100%;object-fit:cover}.shape-circle{border-radius:50%}.shape-rounded{border-radius:22px}.shape-square{border-radius:2px}.shape-octagon{clip-path:polygon(30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,0 30%)}.shape-diamond{clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}.shape-arch{border-radius:62px 62px 14px 14px}.shape-none{border:0;border-radius:0;background:transparent;box-shadow:none}
+.cc-dialogue-card.align-left{margin-left:0;margin-right:auto;width:min(78%,760px)}
+.cc-dialogue-card.align-center{margin-left:auto;margin-right:auto}
+.cc-dialogue-card.align-right{margin-left:auto;margin-right:0;width:min(78%,760px)}
+.cc-dialogue-card.align-full{width:100%;max-width:100%}
+.cc-dialogue-card.image-top,.cc-dialogue-card.image-bottom{flex-direction:column;text-align:center}
+.cc-dialogue-card.image-bottom .cc-dialogue-portrait{order:3}
+.cc-dialogue-card-copy{flex:1 1 auto;min-width:0;width:100%}
+.cc-dialogue-card-name{border:0;background:transparent;color:var(--dialogue-accent);font:inherit;font-weight:900;cursor:pointer;padding:0;margin-bottom:7px}
+.cc-dialogue-card-text{color:color-mix(in srgb,var(--dialogue-accent) 72%,var(--text));font-family:Georgia,serif;font-size:1.08em;line-height:1.55;overflow-wrap:anywhere;word-break:normal;white-space:normal}
+.cc-dialogue-portrait{position:relative;width:124px;height:124px;flex:0 0 124px;border:2px solid var(--dialogue-accent);background:var(--panel);padding:0;overflow:hidden;cursor:pointer;box-shadow:0 0 20px color-mix(in srgb,var(--dialogue-accent) 24%,transparent);display:grid;place-items:center;color:var(--dialogue-accent);font-weight:900}
+.cc-dialogue-portrait img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.cc-dialogue-portrait .cc-dialogue-initials{display:none}
+.cc-dialogue-portrait.image-failed .cc-dialogue-initials{display:block}
+.shape-circle{border-radius:50%}.shape-rounded{border-radius:22px}.shape-square{border-radius:2px}.shape-octagon{clip-path:polygon(30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,0 30%)}.shape-diamond{clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}.shape-arch{border-radius:62px 62px 14px 14px}.shape-none{border:0;border-radius:0;background:transparent;box-shadow:none}
 .cc-dialogue-profile-popover{position:absolute;z-index:55;right:16px;bottom:calc(100% + 10px);width:min(320px,calc(100vw - 40px));padding:14px;border:1px solid color-mix(in srgb,var(--dialogue-accent) 70%,var(--border));border-radius:14px;background:var(--panel);box-shadow:0 18px 50px rgba(0,0,0,.5)}
-.cc-dialogue-profile-popover[hidden]{display:none!important}.cc-dialogue-profile-popover img{width:64px;height:64px;object-fit:cover;border-radius:50%;border:2px solid var(--dialogue-accent);float:left;margin:0 12px 8px 0}.cc-dialogue-profile-popover p{clear:both;margin:10px 0}
-@media(max-width:760px){.cc-dialogue-builder-grid{grid-template-columns:1fr}.cc-dialogue-builder-grid .wide{grid-column:auto}.cc-dialogue-builder-actions{align-items:flex-start;flex-direction:column}.cc-dialogue-card,.cc-dialogue-card.align-left,.cc-dialogue-card.align-right{max-width:100%}.cc-dialogue-portrait{width:88px;height:88px;flex-basis:88px}}
+.cc-dialogue-profile-popover[hidden]{display:none!important}
+.cc-dialogue-profile-popover img{width:64px;height:64px;object-fit:cover;border-radius:50%;border:2px solid var(--dialogue-accent);float:left;margin:0 12px 8px 0}
+.cc-dialogue-popover-initials{width:64px;height:64px;display:grid;place-items:center;border-radius:50%;border:2px solid var(--dialogue-accent);float:left;margin:0 12px 8px 0;color:var(--dialogue-accent);font-weight:900}
+.cc-dialogue-profile-popover p{clear:both;margin:10px 0}
+@media(max-width:760px){
+  .cc-dialogue-builder-grid{grid-template-columns:1fr}
+  .cc-dialogue-builder-grid .wide{grid-column:auto}
+  .cc-dialogue-builder-actions{align-items:flex-start;flex-direction:column}
+  .cc-dialogue-card,.cc-dialogue-card.align-left,.cc-dialogue-card.align-right{width:100%;max-width:100%}
+  .cc-dialogue-portrait{width:88px;height:88px;flex-basis:88px}
+}
 </style>
 
 </head>
@@ -5064,7 +5084,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "dialogue-card-builder-2026-08-04";
+window.CODEX_BUILD = "dialogue-card-exact-rebuild-2026-08-04";
 </script>
   <script>
 (() => {
@@ -14784,7 +14804,7 @@ initFirebase();
 
 
 
-  /* === Dialogue Card Builder === */
+  /* === Exact Dialogue Card Builder === */
   let ccDialogueSelection={start:0,end:0,text:''};
   let ccDialogueState=null;
 
@@ -14795,12 +14815,50 @@ initFirebase();
     return state.workspace.dialogueCardDefaults;
   }
 
+  function ccDialogueCharacter(){
+    return (state.characters||[]).find(item=>String(item.id)===String(ccDialogueState?.characterId||''))||null;
+  }
+
   function ccDialogueColor(character){
-    return String(character?.profileAccentColor||character?.accentColor||character?.themeColor||character?.color||'#9a6bc2');
+    return String(
+      character?.profileAccentColor||
+      character?.accentColor||
+      character?.themeColor||
+      character?.color||
+      '#9a6bc2'
+    );
   }
 
   function ccDialogueImage(character){
-    return String(character?.portraitImage||character?.portrait||character?.mainImage||character?.image||character?.profileImage||'');
+    if(!character)return '';
+    const candidates=[
+      character.portraitImage,
+      character.portrait,
+      character.mainImage,
+      character.profileImage,
+      character.image,
+      character.avatar,
+      character.photo,
+      character.media?.portrait,
+      character.media?.main,
+      character.images?.portrait,
+      character.images?.main,
+      character.coverImage
+    ];
+    const direct=candidates.find(value=>typeof value==='string'&&value.trim());
+    if(direct)return direct.trim();
+
+    const blocks=Array.isArray(character.blocks)?character.blocks:[];
+    const imageBlock=blocks.find(block=>{
+      const type=String(block?.type||'').toLowerCase();
+      return (type==='image'||type==='portrait'||type==='media') && typeof block?.content==='string' && block.content.trim();
+    });
+    return imageBlock?.content?.trim()||'';
+  }
+
+  function ccDialogueInitials(character,name){
+    const value=String(name||character?.name||'?').trim();
+    return value.split(/\s+/).slice(0,2).map(part=>part[0]?.toUpperCase()||'').join('')||'?';
   }
 
   function ccDialogueBlurb(character){
@@ -14812,10 +14870,6 @@ initFirebase();
       character?.tagline||
       ''
     ).trim().slice(0,280);
-  }
-
-  function ccDialogueCharacter(){
-    return (state.characters||[]).find(item=>String(item.id)===String(ccDialogueState?.characterId||''))||null;
   }
 
   function ccDialogueLoad(character){
@@ -14832,9 +14886,22 @@ initFirebase();
     };
   }
 
-  function ccDialogueProfilePopover(character,name,blurb,image){
+  function ccDialoguePortrait(character,name,shape,showImage){
+    if(!showImage)return '';
+    const image=ccDialogueImage(character);
+    const content=image
+      ? `<img src="${esc(image)}" alt="${esc(name)}" onerror="this.closest('.cc-dialogue-portrait').classList.add('image-failed');this.remove();">`
+      : `<span class="cc-dialogue-initials">${esc(ccDialogueInitials(character,name))}</span>`;
+    return `<button type="button" class="cc-dialogue-portrait shape-${esc(shape)} ${image?'':'image-failed'}" data-cc-dialogue-profile-toggle>${content}<span class="cc-dialogue-initials">${esc(ccDialogueInitials(character,name))}</span></button>`;
+  }
+
+  function ccDialogueProfilePopover(character,name,blurb){
+    const image=ccDialogueImage(character);
+    const media=image
+      ? `<img src="${esc(image)}" alt="" onerror="this.remove()">`
+      : `<span class="cc-dialogue-popover-initials">${esc(ccDialogueInitials(character,name))}</span>`;
     return `<div class="cc-dialogue-profile-popover" hidden>
-      ${image?`<img src="${esc(image)}" alt="">`:''}
+      ${media}
       <strong>${esc(name||character?.name||'Character')}</strong>
       <p>${esc(blurb||'No character preview has been added yet.')}</p>
       <button class="button small" type="button" data-open="characters:${esc(character?.id||'')}">View character profile</button>
@@ -14842,17 +14909,19 @@ initFirebase();
   }
 
   function ccDialogueMarkup({character,name,blurb,shape,imagePlacement,cardAlignment,showImage,text}){
-    const image=ccDialogueImage(character);
+    const portrait=ccDialoguePortrait(character,name,shape,showImage);
     const accent=ccDialogueColor(character);
-    const portrait=showImage&&image?`<button type="button" class="cc-dialogue-portrait shape-${esc(shape)}" data-cc-dialogue-profile-toggle><img src="${esc(image)}" alt="${esc(name)}"></button>`:'';
+    const leftOrTop=imagePlacement==='left'||imagePlacement==='top';
+    const rightOrBottom=imagePlacement==='right'||imagePlacement==='bottom';
+
     return `<aside class="cc-dialogue-card align-${esc(cardAlignment)} image-${esc(imagePlacement)}" style="--dialogue-accent:${esc(accent)}">
-      ${imagePlacement==='top'||imagePlacement==='left'?portrait:''}
+      ${leftOrTop?portrait:''}
       <div class="cc-dialogue-card-copy">
         <button type="button" class="cc-dialogue-card-name" data-cc-dialogue-profile-toggle>${esc(name)}</button>
         <div class="cc-dialogue-card-text">${esc(text).replace(/\n/g,'<br>')}</div>
       </div>
-      ${imagePlacement==='right'||imagePlacement==='bottom'?portrait:''}
-      ${ccDialogueProfilePopover(character,name,blurb,image)}
+      ${rightOrBottom?portrait:''}
+      ${ccDialogueProfilePopover(character,name,blurb)}
     </aside>`;
   }
 
@@ -14867,7 +14936,10 @@ initFirebase();
       .map(([value,label])=>`<button type="button" class="${ccDialogueState.cardAlignment===value?'active':''}" data-cc-dialogue-alignment="${value}">${label}</button>`).join('');
 
     return `<section class="cc-dialogue-builder">
-      <header class="cc-dialogue-builder-head"><div><span class="eyebrow">BBCode widget</span><h3>Dialogue Card</h3></div><button class="icon-button" type="button" data-cc-dialogue-close>×</button></header>
+      <header class="cc-dialogue-builder-head">
+        <div><span class="eyebrow">BBCode widget</span><h3>Dialogue Card</h3></div>
+        <button class="icon-button" type="button" data-cc-dialogue-close>×</button>
+      </header>
       <div class="cc-dialogue-builder-grid">
         <label>Character<select class="select" data-cc-dialogue-character>${options}</select></label>
         <label>Display name<input class="input" data-cc-dialogue-name value="${esc(ccDialogueState.name)}"></label>
@@ -14881,7 +14953,10 @@ initFirebase();
       </div>
       <footer class="cc-dialogue-builder-actions">
         <label class="cc-dialogue-check"><input type="checkbox" data-cc-dialogue-save-default checked><span>Save these settings as this character’s default</span></label>
-        <div><button class="button secondary" type="button" data-cc-dialogue-close>Cancel</button><button class="button" type="button" data-cc-dialogue-insert>Insert Dialogue Card</button></div>
+        <div>
+          <button class="button secondary" type="button" data-cc-dialogue-close>Cancel</button>
+          <button class="button" type="button" data-cc-dialogue-insert>Insert Dialogue Card</button>
+        </div>
       </footer>
     </section>`;
   }
@@ -14904,10 +14979,15 @@ initFirebase();
   function ccDialogueOpen(){
     const editor=document.querySelector('[data-ccrh-editor]');
     const mount=document.querySelector('[data-cc-dialogue-builder-mount]');
-    if(!editor||!mount)return;
-    const start=editor.selectionStart??0,end=editor.selectionEnd??start;
+    if(!editor||!mount){
+      toast('Open the roleplay editor before adding a Dialogue Card.','error');
+      return;
+    }
+    const start=editor.selectionStart??0;
+    const end=editor.selectionEnd??start;
     ccDialogueSelection={start,end,text:editor.value.slice(start,end).trim()};
-    ccDialogueState=ccDialogueLoad((state.characters||[])[0]||null);
+    const first=(state.characters||[])[0]||null;
+    ccDialogueState=ccDialogueLoad(first);
     mount.hidden=false;
     mount.innerHTML=ccDialogueBuilderHtml();
     ccDialogueRefreshPreview();
@@ -14923,21 +15003,30 @@ initFirebase();
   function ccDialogueSync(){
     const mount=document.querySelector('[data-cc-dialogue-builder-mount]');
     if(!mount||!ccDialogueState)return;
-    ccDialogueState.name=mount.querySelector('[data-cc-dialogue-name]')?.value||ccDialogueState.name;
-    ccDialogueState.blurb=mount.querySelector('[data-cc-dialogue-blurb]')?.value||'';
-    ccDialogueState.showImage=Boolean(mount.querySelector('[data-cc-dialogue-show-image]')?.checked);
-    ccDialogueState.saveDefault=Boolean(mount.querySelector('[data-cc-dialogue-save-default]')?.checked);
+    const nameInput=mount.querySelector('[data-cc-dialogue-name]');
+    const blurbInput=mount.querySelector('[data-cc-dialogue-blurb]');
+    const showInput=mount.querySelector('[data-cc-dialogue-show-image]');
+    const saveInput=mount.querySelector('[data-cc-dialogue-save-default]');
+    if(nameInput)ccDialogueState.name=nameInput.value||ccDialogueState.name;
+    if(blurbInput)ccDialogueState.blurb=blurbInput.value||'';
+    if(showInput)ccDialogueState.showImage=Boolean(showInput.checked);
+    if(saveInput)ccDialogueState.saveDefault=Boolean(saveInput.checked);
     ccDialogueRefreshPreview();
   }
 
   function ccDialogueInsertCard(){
     const editor=document.querySelector('[data-ccrh-editor]');
     const character=ccDialogueCharacter();
-    if(!editor||!character||!ccDialogueState)return;
+    if(!editor||!character||!ccDialogueState){
+      toast('Choose a character before inserting the card.','error');
+      return;
+    }
+
     ccDialogueSync();
     const body=ccDialogueSelection.text||'Dialogue';
     const clean=value=>String(value||'').replace(/"/g,'');
     const tag=`[dialogue character="${clean(character.id)}" name="${clean(ccDialogueState.name)}" shape="${ccDialogueState.shape}" image="${ccDialogueState.imagePlacement}" card="${ccDialogueState.cardAlignment}" blurb="${clean(ccDialogueState.blurb)}"]\n${body}\n[/dialogue]`;
+
     editor.setRangeText(tag,ccDialogueSelection.start,ccDialogueSelection.end,'end');
     editor.dispatchEvent(new Event('input',{bubbles:true}));
     editor.focus();
@@ -14953,6 +15042,7 @@ initFirebase();
       };
       scheduleSave('Saving dialogue card defaults…');
     }
+
     ccDialogueClose();
     toast('Dialogue Card inserted.');
   }
@@ -14965,28 +15055,63 @@ initFirebase();
       (match,characterId,name,shape,imagePlacement,cardAlignment,blurb,text)=>{
         const token=`CCDIALOGUE${cards.length}TOKEN`;
         const character=(state.characters||[]).find(item=>String(item.id)===String(characterId))||null;
-        cards.push(ccDialogueMarkup({character,name,blurb,shape,imagePlacement,cardAlignment,showImage:true,text:text.trim()}));
+        cards.push(ccDialogueMarkup({
+          character,name,blurb,shape,imagePlacement,cardAlignment,showImage:true,text:text.trim()
+        }));
         return token;
       }
     );
     let rendered=ccDialogueBbcodeBase(prepared);
-    cards.forEach((markup,index)=>{rendered=rendered.replaceAll(`CCDIALOGUE${index}TOKEN`,markup);});
+    cards.forEach((markup,index)=>{
+      rendered=rendered.replaceAll(`CCDIALOGUE${index}TOKEN`,markup);
+    });
     return rendered;
   };
 
   document.addEventListener('click',event=>{
     if(event.target.closest('[data-cc-dialogue-card-open]')){event.preventDefault();ccDialogueOpen();return;}
     if(event.target.closest('[data-cc-dialogue-close]')){event.preventDefault();ccDialogueClose();return;}
+
     const shape=event.target.closest('[data-cc-dialogue-shape]');
-    if(shape){event.preventDefault();ccDialogueState.shape=shape.dataset.ccDialogueShape;shape.parentElement.querySelectorAll('button').forEach(button=>button.classList.toggle('active',button===shape));ccDialogueRefreshPreview();return;}
+    if(shape){
+      event.preventDefault();
+      ccDialogueState.shape=shape.dataset.ccDialogueShape;
+      shape.parentElement.querySelectorAll('button').forEach(button=>button.classList.toggle('active',button===shape));
+      ccDialogueRefreshPreview();
+      return;
+    }
+
     const placement=event.target.closest('[data-cc-dialogue-placement]');
-    if(placement){event.preventDefault();ccDialogueState.imagePlacement=placement.dataset.ccDialoguePlacement;placement.parentElement.querySelectorAll('button').forEach(button=>button.classList.toggle('active',button===placement));ccDialogueRefreshPreview();return;}
+    if(placement){
+      event.preventDefault();
+      ccDialogueState.imagePlacement=placement.dataset.ccDialoguePlacement;
+      placement.parentElement.querySelectorAll('button').forEach(button=>button.classList.toggle('active',button===placement));
+      ccDialogueRefreshPreview();
+      return;
+    }
+
     const alignment=event.target.closest('[data-cc-dialogue-alignment]');
-    if(alignment){event.preventDefault();ccDialogueState.cardAlignment=alignment.dataset.ccDialogueAlignment;alignment.parentElement.querySelectorAll('button').forEach(button=>button.classList.toggle('active',button===alignment));ccDialogueRefreshPreview();return;}
+    if(alignment){
+      event.preventDefault();
+      ccDialogueState.cardAlignment=alignment.dataset.ccDialogueAlignment;
+      alignment.parentElement.querySelectorAll('button').forEach(button=>button.classList.toggle('active',button===alignment));
+      ccDialogueRefreshPreview();
+      return;
+    }
+
     if(event.target.closest('[data-cc-dialogue-insert]')){event.preventDefault();ccDialogueInsertCard();return;}
+
     const profile=event.target.closest('[data-cc-dialogue-profile-toggle]');
-    if(profile){event.preventDefault();const popover=profile.closest('.cc-dialogue-card')?.querySelector('.cc-dialogue-profile-popover');if(popover)popover.hidden=!popover.hidden;return;}
-    if(!event.target.closest('.cc-dialogue-profile-popover'))document.querySelectorAll('.cc-dialogue-profile-popover').forEach(popover=>popover.hidden=true);
+    if(profile){
+      event.preventDefault();
+      const popover=profile.closest('.cc-dialogue-card')?.querySelector('.cc-dialogue-profile-popover');
+      if(popover)popover.hidden=!popover.hidden;
+      return;
+    }
+
+    if(!event.target.closest('.cc-dialogue-profile-popover')){
+      document.querySelectorAll('.cc-dialogue-profile-popover').forEach(popover=>popover.hidden=true);
+    }
   },true);
 
   document.addEventListener('change',event=>{
