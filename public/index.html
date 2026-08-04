@@ -5193,7 +5193,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "dialogue-card-polish-fixed-2026-08-04";
+window.CODEX_BUILD = "edit-save-unlock-fixed-2026-08-04";
 </script>
   <script>
 (() => {
@@ -14100,6 +14100,7 @@ initFirebase();
     el.modal.innerHTML=`<div class="modal-backdrop" data-modal-close></div><section class="modal-card" role="dialog" aria-modal="true"><header class="modal-head"><div><span class="eyebrow">Graph anchor</span><h2>Create anchor at this post</h2></div><button class="icon-button" type="button" data-modal-close>×</button></header><div class="modal-body ccrh-anchor-modal-grid"><label>Story point<select class="select" data-ccrh-anchor-node>${choices.map(point=>`<option value="${esc(point.id)}" ${point.id===node?.id?'selected':''}>${esc(storyPointTitle(story,point))}</option>`).join('')}</select></label><label>Anchor title<input class="input" data-ccrh-anchor-title placeholder="Chapter or scene title"></label><label>Summary<textarea class="textarea" rows="4" data-ccrh-anchor-summary placeholder="What begins at this post?"></textarea></label></div><footer class="modal-actions"><button class="button secondary" type="button" data-modal-close>Cancel</button><button class="button" type="button" data-ccrh-save-anchor="${esc(turnId)}">Create anchor</button></footer></section>`;
   }
   async function ccrhSubmit(){
+    ccrhUnlockEditor();
     const {story}=ccrhStoryFromRoute(); if(!story)return;
     const area=document.querySelector('[data-ccrh-editor]'),text=area?.value.trim()||'';
     if(!text){toast('Write something before saving.','error');return;}
@@ -15390,7 +15391,7 @@ initFirebase();
 
   document.addEventListener('click',event=>{
     if(event.target.closest('[data-ccrh-submit],[data-ccrh-cancel-edit]')){
-      requestAnimationFrame(ccrhUnlockEditor);
+      ccrhUnlockEditor();
     }
   },true);
 
