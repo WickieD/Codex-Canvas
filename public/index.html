@@ -4937,7 +4937,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "story-cards-centered-open-fixed-2026-08-04";
+window.CODEX_BUILD = "direct-story-open-fixed-2026-08-04";
 </script>
   <script>
 (() => {
@@ -10418,7 +10418,7 @@ document.addEventListener('click',event=>{
   const newStory=event.target.closest('[data-new-story]');if(newStory){event.preventDefault();showNewStoryModal();return;}
   const createStory=event.target.closest('[data-create-story]');if(createStory){event.preventDefault();createStoryFromModal();return;}
   const manageStory=event.target.closest('[data-manage-story]');if(manageStory){event.preventDefault();closeModal();showStoryManager(manageStory.dataset.manageStory);return;}
-  const openStory=event.target.closest('[data-open-story]');if(openStory){event.preventDefault();closeModal();const story=storyById(openStory.dataset.openStory);if(story)navigate('story',storyFirstRoute(story));return;}
+  const openStory=event.target.closest('[data-open-story]');if(openStory){event.preventDefault();event.stopImmediatePropagation();closeModal();window.ccOpenRoleplayDirect?.(openStory.dataset.openStory,'');return;}
   const storyGraph=event.target.closest('[data-story-graph]');if(storyGraph){event.preventDefault();graphSettings.graphType='story';graphSettings.storyId=storyGraph.dataset.storyGraph;graphSettings.layout='story';navigate('graph');return;}
   const deleteStoryButton=event.target.closest('[data-delete-story]');if(deleteStoryButton){event.preventDefault();deleteStory(deleteStoryButton.dataset.deleteStory);return;}
   const addPoint=event.target.closest('[data-add-story-point]');if(addPoint){event.preventDefault();addStoryPoint(addPoint.dataset.addStoryPoint);return;}
@@ -11752,7 +11752,7 @@ const CC2_VERSION = 'story-timeline-2026-08';
     const restore=event.target.closest('[data-cc2-restore-revision]'); if(restore){event.preventDefault();event.stopImmediatePropagation();const [storyId,nodeId,index]=restore.dataset.cc2RestoreRevision.split('|');cc2RestoreRevision(storyId,nodeId,index);return;}
     if(event.target.closest('[data-cc2-add-comment]')){event.preventDefault();event.stopImmediatePropagation();cc2AddComment();return;}
     const select=event.target.closest('[data-cc2-select-point]'); if(select){event.preventDefault();event.stopImmediatePropagation();graphSelectedNode=select.dataset.cc2SelectPoint;const story=activeStoryGraph(),node=story?.nodes.find(item=>item.id===graphSelectedNode);const inspector=document.getElementById('graphInspector');if(inspector)inspector.innerHTML=cc2InspectorHtml(story,node);document.querySelectorAll('.cc2-flow-card').forEach(card=>card.classList.toggle('selected',card.dataset.cc2SelectPoint===graphSelectedNode));return;}
-    const openRp=event.target.closest('[data-cc2-open-rp]'); if(openRp){event.preventDefault();event.stopImmediatePropagation();const [storyId,nodeId]=openRp.dataset.cc2OpenRp.split('|');openStoryPoint(storyId,nodeId,false);return;}
+    const openRp=event.target.closest('[data-cc2-open-rp]'); if(openRp){event.preventDefault();event.stopImmediatePropagation();const [storyId,nodeId]=openRp.dataset.cc2OpenRp.split('|');window.ccOpenRoleplayDirect?.(storyId,nodeId);return;}
     const typeMode=event.target.closest('[data-cc2-types]'); if(typeMode){event.preventDefault();event.stopImmediatePropagation();const story=activeStoryGraph();if(!story)return;const prefs=cc2Prefs(story),show=typeMode.dataset.cc2Types==='all';for(const item of cc2TypeDefinitions({includeDisabled:true}))prefs.visibleTypes[item.id]=show;cc2SavePrefs();renderGraphPage();return;}
     if(event.target.closest('[data-cc2-customize-types]')){event.preventDefault();event.stopImmediatePropagation();cc2ShowTypeManager();return;}
     if(event.target.closest('[data-cc2-add-custom-type]')){event.preventDefault();event.stopImmediatePropagation();cc2AddCustomTypeRow();return;}
@@ -13483,7 +13483,7 @@ initFirebase();
     if(!note)return;
     note.readAt=nowISO();
     scheduleSave('Marking notification read…');
-    navigate('story',storyRouteValue(note.storyId,''));
+    window.ccOpenRoleplayDirect?.(note.storyId,'');
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
       document.getElementById(`rp-post-${CSS.escape(note.postId)}`)?.scrollIntoView({behavior:'smooth',block:'center'});
       ccrhRenderNotificationBell();
@@ -14548,6 +14548,40 @@ initFirebase();
       toast('Image or GIF inserted into the post.');
     }
   },true);
+
+
+  window.ccOpenRoleplayDirect=function(storyId,nodeId=''){
+    const story=storyById(String(storyId||''));
+    if(!story)return;
+
+    let targetNodeId=String(nodeId||'');
+    if(!targetNodeId){
+      const first=(story.nodes||[])
+        .slice()
+        .sort((a,b)=>(Number(a.order)||0)-(Number(b.order)||0))[0];
+      targetNodeId=first?.id||'';
+    }
+
+    const routeId=storyRouteValue(story.id,targetNodeId);
+    route={view:'story',id:routeId};
+    history.replaceState(null,'',`#/${encodeURIComponent('story')}/${encodeURIComponent(routeId)}`);
+    document.body.classList.remove('sidebar-open');
+
+    renderSidebar();
+    renderBreadcrumbs();
+    ccrhRenderReader();
+
+    try{ccpEnhanceChrome();}catch{}
+    try{ccrhRenderNotificationBell();}catch{}
+    try{cc16RenderPresence();}catch{}
+
+    requestAnimationFrame(()=>{
+      const main=document.getElementById('mainContent');
+      main?.scrollTo?.({top:0,behavior:'auto'});
+      window.scrollTo({top:0,behavior:'auto'});
+    });
+  };
+
 })();
 
 </script>
@@ -14861,9 +14895,8 @@ initFirebase();
     event.stopImmediatePropagation();
     const storyId=button.dataset.openLibraryStory;
     if(!storyId)return;
-    route={view:'story',id:storyRouteValue(storyId,'')};
-    history.replaceState(null,'',`#story/${encodeURIComponent(route.id)}`);
-    render();
+    closeModal();
+    window.ccOpenRoleplayDirect?.(storyId,'');
   },true);
 
 })();
