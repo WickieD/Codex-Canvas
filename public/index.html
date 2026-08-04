@@ -5112,7 +5112,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "dialogue-final-exact-fixed-2026-08-04";
+window.CODEX_BUILD = "editor-lock-exact-fixed-2026-08-04";
 </script>
   <script>
 (() => {
@@ -12939,24 +12939,36 @@ initFirebase();
 
   const cc16BaseRender = render;
   render = function(){
-    const activeEditor=document.querySelector('[data-ccrh-editor]');
-    const activelyTyping=route.view==='story'&&activeEditor&&document.activeElement===activeEditor&&ccrhTypingStoryId;
-    if(activelyTyping){
-      ccrhTypingValue=activeEditor.value;
-      ccrhSaveDraft(ccrhStoryFromRoute().story,activeEditor.value);
+    if(ccrhEditorIsProtected()){
+      ccrhLockCurrentEditor();
       ccrhPendingRemoteRefresh=true;
       requestAnimationFrame(()=>{
-        cc16RenderPresence();
-        ccrhRenderNotificationBell();
+        try{cc16RenderPresence();}catch{}
+        try{ccrhRenderNotificationBell();}catch{}
+        ccrhRestoreLockedEditor();
       });
       return;
     }
-    if(route.view === 'graph'){
+
+    if(route.view==='graph'){
       cc16RenderGraphRoute();
     }else{
-      cc16BaseRender();
+      try{
+        cc16BaseRender();
+      }catch(error){
+        console.error('Page render failed',error);
+        if(route.view==='story'&&ccrhEditorLock.active){
+          requestAnimationFrame(ccrhRestoreLockedEditor);
+          return;
+        }
+        throw error;
+      }
     }
-    requestAnimationFrame(cc16RenderPresence);
+
+    requestAnimationFrame(()=>{
+      try{cc16RenderPresence();}catch{}
+      if(route.view==='story')ccrhRestoreLockedEditor();
+    });
   };
 
   document.addEventListener('click', event => {
@@ -15204,6 +15216,87 @@ initFirebase();
 
 
   window.cc4Editor=cc4Editor;
+
+
+  /* === Persistent Roleplay Editor Lock === */
+  let ccrhEditorLock={
+    active:false,
+    storyId:'',
+    turnId:'',
+    value:'',
+    start:0,
+    end:0
+  };
+
+  function ccrhLockCurrentEditor(){
+    const editor=document.querySelector('[data-ccrh-editor]');
+    if(!editor)return false;
+    const context=ccrhStoryFromRoute();
+    ccrhEditorLock.active=true;
+    ccrhEditorLock.storyId=String(context?.story?.id||'');
+    ccrhEditorLock.turnId=String(ccrhEditingTurnId||'');
+    ccrhEditorLock.value=editor.value;
+    ccrhEditorLock.start=editor.selectionStart??editor.value.length;
+    ccrhEditorLock.end=editor.selectionEnd??ccrhEditorLock.start;
+    return true;
+  }
+
+  function ccrhRestoreLockedEditor(){
+    if(!ccrhEditorLock.active)return;
+    const context=ccrhStoryFromRoute();
+    if(String(context?.story?.id||'')!==ccrhEditorLock.storyId)return;
+    const editor=document.querySelector('[data-ccrh-editor]');
+    if(!editor)return;
+    if(editor.value!==ccrhEditorLock.value)editor.value=ccrhEditorLock.value;
+    const max=editor.value.length;
+    try{
+      editor.setSelectionRange(
+        Math.min(ccrhEditorLock.start,max),
+        Math.min(ccrhEditorLock.end,max)
+      );
+    }catch{}
+  }
+
+  function ccrhUnlockEditor(){
+    ccrhEditorLock.active=false;
+    ccrhEditorLock.storyId='';
+    ccrhEditorLock.turnId='';
+    ccrhEditorLock.value='';
+  }
+
+  function ccrhEditorIsProtected(){
+    const editor=document.querySelector('[data-ccrh-editor]');
+    if(route.view!=='story'||!editor)return false;
+    const context=ccrhStoryFromRoute();
+    const sameStory=!ccrhEditorLock.storyId||
+      String(context?.story?.id||'')===String(ccrhEditorLock.storyId);
+    return sameStory&&(
+      ccrhEditorLock.active||
+      document.activeElement===editor||
+      Boolean(ccrhEditingTurnId)
+    );
+  }
+
+  document.addEventListener('focusin',event=>{
+    if(event.target.closest('[data-ccrh-editor]'))ccrhLockCurrentEditor();
+  },true);
+
+  document.addEventListener('input',event=>{
+    if(event.target.closest('[data-ccrh-editor]'))ccrhLockCurrentEditor();
+  },true);
+
+  document.addEventListener('selectionchange',()=>{
+    if(document.activeElement?.closest?.('[data-ccrh-editor]')){
+      ccrhLockCurrentEditor();
+    }
+  });
+
+  document.addEventListener('click',event=>{
+    if(event.target.closest('[data-ccrh-submit],[data-ccrh-cancel-edit]')){
+      requestAnimationFrame(ccrhUnlockEditor);
+    }
+  },true);
+
 })();
 
 </script>
