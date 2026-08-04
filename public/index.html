@@ -4615,6 +4615,89 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 </style>
 
+
+<style id="cc-story-library-uniform-layout">
+.story-library-grid,
+.story-grid,
+.cc-story-library-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:14px;
+  align-items:stretch;
+}
+.story-card,
+.story-library-card,
+.cc-story-card{
+  display:flex;
+  flex-direction:column;
+  min-height:390px;
+  height:100%;
+}
+.story-card > *,
+.story-library-card > *,
+.cc-story-card > *{
+  flex-shrink:0;
+}
+.story-card .story-description,
+.story-library-card .story-description,
+.cc-story-card .story-description,
+.story-card p,
+.story-library-card p,
+.cc-story-card p{
+  min-height:108px;
+}
+.story-card .story-stats,
+.story-library-card .story-stats,
+.cc-story-card .story-stats{
+  margin-top:auto;
+}
+.story-card .story-actions,
+.story-library-card .story-actions,
+.cc-story-card .story-actions,
+.story-card footer,
+.story-library-card footer,
+.cc-story-card footer{
+  margin-top:auto;
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+}
+.story-card .story-actions .button,
+.story-library-card .story-actions .button,
+.cc-story-card .story-actions .button{
+  min-height:42px;
+}
+@media(max-width:900px){
+  .story-card,
+  .story-library-card,
+  .cc-story-card{min-height:0}
+  .story-card .story-description,
+  .story-library-card .story-description,
+  .cc-story-card .story-description,
+  .story-card p,
+  .story-library-card p,
+  .cc-story-card p{min-height:0}
+}
+</style>
+
+
+<style id="cc-story-uniform-card-style">
+.cc-story-uniform-card{
+  display:flex!important;
+  flex-direction:column!important;
+  height:100%!important;
+}
+.cc-story-uniform-card .story-card-actions,
+.cc-story-uniform-card .card-actions,
+.cc-story-uniform-card .actions{
+  margin-top:auto!important;
+}
+.cc-story-uniform-card > :last-child{
+  margin-top:auto;
+}
+</style>
+
 </head>
 <body>
 
@@ -4701,7 +4784,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "exact-posting-as-fixed-2026-08-04";
+window.CODEX_BUILD = "story-library-open-layout-fixed-2026-08-04";
 </script>
   <script>
 (() => {
@@ -6120,7 +6203,7 @@ window.CODEX_BUILD = "exact-posting-as-fixed-2026-08-04";
     </section>`;
     el.main.innerHTML = `${pageHead('Roleplay story',story.name,story.description || 'Keep the entire RP together and use graph points as bookmarks into the story.',actions)}
       <section class="story-jump-panel" aria-label="Jump to a story point"><div class="story-jump-heading"><span class="eyebrow">Story bookmarks</span><p>Each point opens the same RP sheet at a saved post.</p></div><div class="story-jump-list">${jumpButtons}</div></section>
-      <article class="story-reader-page">
+      <article class="story-reader-page cc-story-uniform-card">
         <header class="story-point-head"><div><span class="story-point-number">Point ${esc(node.order || index + 1)}</span><span class="viz-badge">${esc(node.role || resolved?.type || 'Story point')}</span><h2>${esc(storyPointTitle(story,node))}</h2><p>${esc(passage.summary || `This bookmark is connected to ${resolved?.label || 'the selected graph node'}.`)}</p><p class="story-anchor-status">${esc(storyAnchorDescription(story,node))}</p></div><div class="story-point-stats"><span>${selectedRange.turns.length} post${selectedRange.turns.length===1?'':'s'} in section</span><span>${turns.length} total post${turns.length===1?'':'s'}</span><span>${participants.length} participant${participants.length===1?'':'s'}</span></div></header>
         ${storyEditMode ? editing : `<div class="rp-reading-list">${reading}</div>`}
         <footer class="story-reader-nav"><button class="button secondary" type="button" ${previous?`data-story-point="${esc(storyRouteValue(story.id,previous.id))}"`:'disabled'}>← Previous point</button><button class="button secondary" type="button" ${next?`data-story-point="${esc(storyRouteValue(story.id,next.id))}"`:'disabled'}>Next point →</button></footer>
@@ -10048,11 +10131,11 @@ function renderStoryLibrary(){
   const stories=state.storyGraphs||[];
   const cards=stories.map(story=>{
     const points=(story.nodes||[]).length,posts=(story.rpTurns||[]).length,intersections=storyIntersectionCount(story.id);
-    return `<article class="story-library-card"><div><span class="eyebrow">Story workspace</span><h3>${esc(story.name)}</h3></div><p>${esc(story.description||'Add the purpose, arc, or time period covered by this story.')}</p><div class="story-card-stats"><span class="tag">${points} point${points===1?'':'s'}</span><span class="tag">${posts} RP post${posts===1?'':'s'}</span><span class="tag">${intersections} intersection${intersections===1?'':'s'}</span></div><div class="story-card-actions"><button class="button" type="button" data-open-story="${esc(story.id)}">${points?'Open story':'Set up story'}</button><button class="button secondary" type="button" data-manage-story="${esc(story.id)}">Manage</button><button class="button ghost" type="button" data-story-graph="${esc(story.id)}">Open graph</button><button class="button ghost" type="button" data-delete-story="${esc(story.id)}">Delete</button></div></article>`;
+    return `<article class="story-library-card cc-story-uniform-card"><div><span class="eyebrow">Story workspace</span><h3>${esc(story.name)}</h3></div><p>${esc(story.description||'Add the purpose, arc, or time period covered by this story.')}</p><div class="story-card-stats"><span class="tag">${points} point${points===1?'':'s'}</span><span class="tag">${posts} RP post${posts===1?'':'s'}</span><span class="tag">${intersections} intersection${intersections===1?'':'s'}</span></div><div class="story-card-actions"><button class="button" type="button" data-open-story="${esc(story.id)}">${points?'Open story':'Set up story'}</button><button class="button secondary" type="button" data-manage-story="${esc(story.id)}">Manage</button><button class="button ghost" type="button" data-story-graph="${esc(story.id)}">Open graph</button><button class="button ghost" type="button" data-delete-story="${esc(story.id)}">Delete</button></div></article>`;
   }).join('');
   const intersectionCards=(state.storyIntersections||[]).map(item=>{
     const a=storyById(item.storyAId),b=storyById(item.storyBId);if(!a||!b)return '';
-    return `<article class="story-intersection-card"><div><strong>${esc(item.label||'Story intersection')}</strong><small>${esc(a.name)} at ${esc(storyNodeName(item.nodeAId))} ↔ ${esc(b.name)} at ${esc(storyNodeName(item.nodeBId))}${item.description?` · ${esc(item.description)}`:''}</small></div><button class="button ghost small" type="button" data-delete-intersection="${esc(item.id)}">Remove</button></article>`;
+    return `<article class="story-intersection-card cc-story-uniform-card"><div><strong>${esc(item.label||'Story intersection')}</strong><small>${esc(a.name)} at ${esc(storyNodeName(item.nodeAId))} ↔ ${esc(b.name)} at ${esc(storyNodeName(item.nodeBId))}${item.description?` · ${esc(item.description)}`:''}</small></div><button class="button ghost small" type="button" data-delete-intersection="${esc(item.id)}">Remove</button></article>`;
   }).join('');
   el.main.innerHTML=`${pageHead('Roleplay writing','Story Library','Create as many independent or interconnected stories as your world needs.',`<button class="button" type="button" data-new-story>New story</button><button class="button secondary" type="button" data-nav="graph">Open graphs</button>`)}<div class="story-library-toolbar"><p class="page-subtitle">Each story keeps its own RP sheet and graph points. Intersections record where two stories meet without forcing every story into one path.</p></div>${cards?`<div class="story-library-grid">${cards}</div>`:'<div class="empty-story-workspace"><h2>No stories yet</h2><p>Create the first story, then add people, places, factions, species, or events as story points.</p><button class="button" type="button" data-new-story>Create the first story</button></div>'}<section class="intersection-board"><h2>Story intersections</h2><p class="page-subtitle">Intersections are shared moments where two otherwise separate stories cross.</p><div class="story-intersection-list">${intersectionCards||'<div class="panel empty-state">No story intersections have been added yet.</div>'}</div></section>`;
 }
@@ -14626,6 +14709,18 @@ initFirebase();
 
 
 
+
+
+
+  document.addEventListener('click',event=>{
+    const openStory=event.target.closest('[data-open-story]');
+    if(!openStory)return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const storyId=openStory.dataset.openStory;
+    if(!storyId)return;
+    navigate('story',storyRouteValue(storyId,''));
+  },true);
 
 })();
 </script>
