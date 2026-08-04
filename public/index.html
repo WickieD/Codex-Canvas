@@ -5084,7 +5084,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "dialogue-card-exact-rebuild-2026-08-04";
+window.CODEX_BUILD = "dialogue-portrait-exact-fixed-2026-08-04";
 </script>
   <script>
 (() => {
@@ -14831,29 +14831,13 @@ initFirebase();
 
   function ccDialogueImage(character){
     if(!character)return '';
-    const candidates=[
-      character.portraitImage,
-      character.portrait,
-      character.mainImage,
-      character.profileImage,
-      character.image,
-      character.avatar,
-      character.photo,
-      character.media?.portrait,
-      character.media?.main,
-      character.images?.portrait,
-      character.images?.main,
-      character.coverImage
-    ];
-    const direct=candidates.find(value=>typeof value==='string'&&value.trim());
-    if(direct)return direct.trim();
-
-    const blocks=Array.isArray(character.blocks)?character.blocks:[];
-    const imageBlock=blocks.find(block=>{
-      const type=String(block?.type||'').toLowerCase();
-      return (type==='image'||type==='portrait'||type==='media') && typeof block?.content==='string' && block.content.trim();
-    });
-    return imageBlock?.content?.trim()||'';
+    try{
+      const resolved=ccrhCharacterImage(character);
+      return typeof resolved==='string'?resolved.trim():'';
+    }catch(error){
+      console.warn('Dialogue portrait lookup failed',error);
+      return '';
+    }
   }
 
   function ccDialogueInitials(character,name){
@@ -14890,8 +14874,8 @@ initFirebase();
     if(!showImage)return '';
     const image=ccDialogueImage(character);
     const content=image
-      ? `<img src="${esc(image)}" alt="${esc(name)}" onerror="this.closest('.cc-dialogue-portrait').classList.add('image-failed');this.remove();">`
-      : `<span class="cc-dialogue-initials">${esc(ccDialogueInitials(character,name))}</span>`;
+      ? `<img src="${esc(image)}" alt="${esc(name)}" onerror="const p=this.closest('.cc-dialogue-portrait');if(p)p.classList.add('image-failed');this.remove();">`
+      : '';
     return `<button type="button" class="cc-dialogue-portrait shape-${esc(shape)} ${image?'':'image-failed'}" data-cc-dialogue-profile-toggle>${content}<span class="cc-dialogue-initials">${esc(ccDialogueInitials(character,name))}</span></button>`;
   }
 
