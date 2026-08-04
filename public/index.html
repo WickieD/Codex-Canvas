@@ -5107,6 +5107,206 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 </style>
 
+
+<style id="cc-dialogue-card-theme-system-style">
+.cc-dialogue-theme-grid{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(110px,1fr));
+  gap:10px;
+  margin-top:8px;
+}
+.cc-dialogue-theme-choice{
+  display:grid;
+  gap:7px;
+  justify-items:center;
+  padding:9px;
+  border:1px solid var(--border);
+  border-radius:11px;
+  background:var(--panel-soft);
+  color:var(--text);
+  cursor:pointer;
+}
+.cc-dialogue-theme-choice.active{
+  border-color:var(--accent);
+  box-shadow:0 0 0 1px var(--accent) inset;
+  background:var(--accent-soft);
+}
+.cc-dialogue-theme-thumb{
+  width:100%;
+  height:42px;
+  border-radius:8px;
+  display:block;
+  position:relative;
+}
+.cc-dialogue-theme-thumb.theme-classic{
+  border:1px solid var(--accent);
+  background:linear-gradient(135deg,var(--accent-soft),transparent),var(--panel-strong);
+}
+.cc-dialogue-theme-thumb.theme-soft{
+  border:1px solid color-mix(in srgb,var(--accent) 45%,var(--border));
+  background:color-mix(in srgb,var(--accent) 12%,var(--panel));
+  box-shadow:0 0 12px color-mix(in srgb,var(--accent) 18%,transparent);
+}
+.cc-dialogue-theme-thumb.theme-minimal{
+  border:0;
+  border-left:3px solid var(--accent);
+  border-radius:2px;
+  background:transparent;
+}
+.cc-dialogue-theme-thumb.theme-framed{
+  border:3px double var(--accent);
+  background:var(--panel-strong);
+}
+.cc-dialogue-theme-thumb.theme-borderless{
+  border:0;
+  background:linear-gradient(90deg,transparent 0 20%,color-mix(in srgb,var(--accent) 16%,transparent) 20% 80%,transparent 80%);
+}
+.cc-dialogue-accent-preview{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-top:8px;
+}
+.cc-dialogue-accent-preview i{
+  width:22px;
+  height:22px;
+  border-radius:50%;
+  background:var(--dialogue-accent);
+  border:1px solid var(--border);
+}
+.cc-dialogue-toggle-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:9px;
+}
+
+/* Base theme controls */
+.cc-dialogue-card.no-border{border-color:transparent!important}
+.cc-dialogue-card.no-background{background:transparent!important}
+.cc-dialogue-card.no-corners .cc-dialogue-corner{display:none!important}
+.cc-dialogue-card.glow-none{box-shadow:none!important}
+.cc-dialogue-card.glow-soft{box-shadow:0 0 10px color-mix(in srgb,var(--dialogue-accent) 10%,transparent)!important}
+.cc-dialogue-card.glow-medium{box-shadow:0 0 22px color-mix(in srgb,var(--dialogue-accent) 22%,transparent)!important}
+.cc-dialogue-card[style*="transparent"] .cc-dialogue-card-name,
+.cc-dialogue-card[style*="transparent"] .cc-dialogue-card-subtitle{
+  color:var(--text)!important;
+}
+
+/* Classic */
+.cc-dialogue-card.theme-classic{
+  border-radius:15px;
+}
+.cc-dialogue-card.theme-classic.has-background{
+  background:
+    linear-gradient(135deg,color-mix(in srgb,var(--dialogue-accent) 8%,transparent),transparent 42%),
+    var(--panel-strong);
+}
+
+/* Soft Glow */
+.cc-dialogue-card.theme-soft{
+  border-radius:22px;
+}
+.cc-dialogue-card.theme-soft.has-background{
+  background:color-mix(in srgb,var(--dialogue-accent) 10%,var(--panel));
+}
+.cc-dialogue-card.theme-soft .cc-dialogue-corner{display:none}
+.cc-dialogue-card.theme-soft.has-border{
+  border-color:color-mix(in srgb,var(--dialogue-accent) 38%,var(--border))!important;
+}
+
+/* Minimal */
+.cc-dialogue-card.theme-minimal{
+  border-radius:0;
+  padding:12px 0 12px 18px;
+}
+.cc-dialogue-card.theme-minimal.has-border{
+  border:0!important;
+  border-left:3px solid var(--dialogue-accent)!important;
+}
+.cc-dialogue-card.theme-minimal .cc-dialogue-corner{display:none}
+.cc-dialogue-card.theme-minimal.has-background{background:transparent!important}
+
+/* Framed */
+.cc-dialogue-card.theme-framed{
+  border-radius:4px;
+}
+.cc-dialogue-card.theme-framed.has-border{
+  border:3px double color-mix(in srgb,var(--dialogue-accent) 74%,var(--border))!important;
+}
+.cc-dialogue-card.theme-framed.has-background{
+  background:var(--panel-strong);
+}
+.cc-dialogue-card.theme-framed .cc-dialogue-corner{display:none}
+
+/* Borderless */
+.cc-dialogue-card.theme-borderless{
+  border:0!important;
+  border-radius:0;
+  padding-left:0;
+  padding-right:0;
+  box-shadow:none!important;
+}
+.cc-dialogue-card.theme-borderless.has-background{background:transparent!important}
+.cc-dialogue-card.theme-borderless .cc-dialogue-corner{display:none}
+.cc-dialogue-card.theme-borderless .cc-dialogue-portrait{
+  box-shadow:none!important;
+}
+
+/* Identity placements */
+.cc-dialogue-portrait-group{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex:0 0 auto;
+}
+.cc-dialogue-card.name-right .cc-dialogue-portrait-group{
+  flex-direction:row;
+}
+.cc-dialogue-card.name-left .cc-dialogue-portrait-group{
+  flex-direction:row-reverse;
+}
+.cc-dialogue-card.name-below .cc-dialogue-portrait-group{
+  flex-direction:column;
+}
+.cc-dialogue-card.name-hidden .cc-dialogue-identity{
+  display:none!important;
+}
+.cc-dialogue-identity{
+  display:grid;
+  gap:2px;
+  min-width:0;
+}
+.cc-dialogue-card-subtitle{
+  color:color-mix(in srgb,var(--dialogue-accent) 60%,var(--muted));
+  font-size:.85em;
+}
+.cc-dialogue-card.image-right .cc-dialogue-portrait-group{
+  order:2;
+  margin-left:auto;
+}
+.cc-dialogue-card.image-left .cc-dialogue-portrait-group{
+  order:0;
+}
+.cc-dialogue-card.image-top .cc-dialogue-portrait-group,
+.cc-dialogue-card.image-bottom .cc-dialogue-portrait-group{
+  justify-content:center;
+}
+.cc-dialogue-card.image-bottom .cc-dialogue-portrait-group{
+  order:3;
+}
+
+@media(max-width:900px){
+  .cc-dialogue-theme-grid{
+    grid-template-columns:repeat(2,minmax(120px,1fr));
+  }
+}
+@media(max-width:640px){
+  .cc-dialogue-toggle-grid{
+    grid-template-columns:1fr;
+  }
+}
+</style>
+
 </head>
 <body>
 
@@ -5193,7 +5393,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "edit-save-unlock-fixed-2026-08-04";
+window.CODEX_BUILD = "dialogue-card-themes-2026-08-04";
 </script>
   <script>
 (() => {
@@ -14959,6 +15159,13 @@ initFirebase();
     );
   }
 
+  function ccDialogueResolvedAccent(character,stateValue=ccDialogueState){
+    if(stateValue?.accentMode==='none')return 'transparent';
+    if(stateValue?.accentMode==='custom')return String(stateValue.customAccent||'#5fc7c4');
+    return ccDialogueColor(character);
+  }
+
+
   function ccDialogueImage(character){
     if(!character)return '';
 
@@ -15044,11 +15251,20 @@ initFirebase();
     return {
       characterId:character?.id||'',
       name:Object.prototype.hasOwnProperty.call(saved,'name')?String(saved.name):String(character?.name||'Character'),
+      subtitle:String(saved.subtitle||''),
       blurb:String(saved.blurb||ccDialogueBlurb(character)),
       shape:String(saved.shape||'circle'),
       imagePlacement:String(saved.imagePlacement||'right'),
       cardAlignment:String(saved.cardAlignment||'center'),
+      namePlacement:String(saved.namePlacement||'right'),
+      theme:String(saved.theme||'classic'),
+      accentMode:String(saved.accentMode||'profile'),
+      customAccent:String(saved.customAccent||'#5fc7c4'),
       showImage:saved.showImage!==false,
+      showBorder:saved.showBorder!==false,
+      showCorners:saved.showCorners!==false,
+      showBackground:saved.showBackground!==false,
+      glow:String(saved.glow||'soft'),
       saveDefault:true
     };
   }
@@ -15081,27 +15297,50 @@ initFirebase();
     </div>`;
   }
 
-  function ccDialogueMarkup({character,name,blurb,shape,imagePlacement,cardAlignment,showImage,text}){
+  function ccDialogueMarkup({
+    character,name,subtitle,blurb,shape,imagePlacement,cardAlignment,namePlacement,
+    theme,accentMode,customAccent,showImage,showBorder,showCorners,showBackground,glow,text
+  }){
+    const accent=ccDialogueResolvedAccent(character,{accentMode,customAccent});
     const portrait=ccDialoguePortrait(character,name||character?.name||'',shape,showImage);
-    const accent=ccDialogueColor(character);
-    const leftOrTop=imagePlacement==='left'||imagePlacement==='top';
-    const rightOrBottom=imagePlacement==='right'||imagePlacement==='bottom';
     const visibleName=String(name||'').trim();
-    const nameButton=visibleName
-      ? `<button type="button" class="cc-dialogue-card-name" data-cc-dialogue-profile-toggle>${esc(visibleName)}</button>`
+    const visibleSubtitle=String(subtitle||'').trim();
+
+    const identity=(visibleName||visibleSubtitle)
+      ? `<div class="cc-dialogue-identity name-${esc(namePlacement)}">
+          ${visibleName?`<button type="button" class="cc-dialogue-card-name" data-cc-dialogue-profile-toggle>${esc(visibleName)}</button>`:''}
+          ${visibleSubtitle?`<div class="cc-dialogue-card-subtitle">${esc(visibleSubtitle)}</div>`:''}
+        </div>`
       : '';
 
-    return `<aside class="cc-dialogue-card align-${esc(cardAlignment)} image-${esc(imagePlacement)}" style="--dialogue-accent:${esc(accent)}">
-      <span class="cc-dialogue-corner corner-tl"></span>
-      <span class="cc-dialogue-corner corner-tr"></span>
-      <span class="cc-dialogue-corner corner-bl"></span>
-      <span class="cc-dialogue-corner corner-br"></span>
-      ${leftOrTop?portrait:''}
+    const portraitGroup=`<div class="cc-dialogue-portrait-group">
+      ${portrait}
+      ${(namePlacement==='right'||namePlacement==='left'||namePlacement==='below')?identity:''}
+    </div>`;
+
+    const topIdentity=(namePlacement==='above')?identity:'';
+    const cardClasses=[
+      'cc-dialogue-card',
+      `theme-${esc(theme)}`,
+      `align-${esc(cardAlignment)}`,
+      `image-${esc(imagePlacement)}`,
+      `name-${esc(namePlacement)}`,
+      showBorder?'has-border':'no-border',
+      showCorners?'has-corners':'no-corners',
+      showBackground?'has-background':'no-background',
+      `glow-${esc(glow)}`
+    ].join(' ');
+
+    return `<aside class="${cardClasses}" style="--dialogue-accent:${esc(accent)}">
+      ${showCorners?`<span class="cc-dialogue-corner corner-tl"></span><span class="cc-dialogue-corner corner-tr"></span><span class="cc-dialogue-corner corner-bl"></span><span class="cc-dialogue-corner corner-br"></span>`:''}
+      ${imagePlacement==='top'?portraitGroup:''}
+      ${imagePlacement==='left'?portraitGroup:''}
       <div class="cc-dialogue-card-copy">
-        ${nameButton}
+        ${topIdentity}
         <div class="cc-dialogue-card-text">${esc(text).replace(/\n/g,'<br>')}</div>
       </div>
-      ${rightOrBottom?portrait:''}
+      ${imagePlacement==='right'?portraitGroup:''}
+      ${imagePlacement==='bottom'?portraitGroup:''}
       ${ccDialogueProfilePopover(character,visibleName||character?.name||'Character',blurb)}
     </aside>`;
   }
@@ -15109,29 +15348,79 @@ initFirebase();
   function ccDialogueBuilderHtml(){
     const characters=(state.characters||[]).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
     const options=characters.map(character=>`<option value="${esc(character.id)}" ${String(character.id)===String(ccDialogueState.characterId)?'selected':''}>${esc(character.name||'Unnamed character')}</option>`).join('');
+
+    const themeLabels={
+      classic:'Classic',
+      soft:'Soft Glow',
+      minimal:'Minimal',
+      framed:'Framed',
+      borderless:'Borderless'
+    };
+    const themes=Object.entries(themeLabels).map(([value,label])=>`
+      <button type="button" class="cc-dialogue-theme-choice ${ccDialogueState.theme===value?'active':''}" data-cc-dialogue-theme="${value}">
+        <span class="cc-dialogue-theme-thumb theme-${value}"></span>
+        <span>${label}</span>
+      </button>`).join('');
+
     const shapeLabels={circle:'Circle',rounded:'Rounded',square:'Square',octagon:'Octagon',diamond:'Diamond',arch:'Arch',none:'No shape'};
     const shapes=Object.entries(shapeLabels).map(([value,label])=>`<button type="button" class="${ccDialogueState.shape===value?'active':''}" data-cc-dialogue-shape="${value}">${label}</button>`).join('');
+
     const placements=[['left','Left'],['right','Right'],['top','Center top'],['bottom','Center bottom']]
       .map(([value,label])=>`<button type="button" class="${ccDialogueState.imagePlacement===value?'active':''}" data-cc-dialogue-placement="${value}">${label}</button>`).join('');
+
     const alignments=[['left','Left'],['center','Center'],['right','Right'],['full','Full width']]
       .map(([value,label])=>`<button type="button" class="${ccDialogueState.cardAlignment===value?'active':''}" data-cc-dialogue-alignment="${value}">${label}</button>`).join('');
+
+    const namePlacements=[['right','Right of portrait'],['left','Left of portrait'],['above','Above dialogue'],['below','Below portrait'],['hidden','Hidden']]
+      .map(([value,label])=>`<button type="button" class="${ccDialogueState.namePlacement===value?'active':''}" data-cc-dialogue-name-placement="${value}">${label}</button>`).join('');
+
+    const accentChoices=[['profile','Profile color'],['custom','Custom color'],['none','No accent']]
+      .map(([value,label])=>`<button type="button" class="${ccDialogueState.accentMode===value?'active':''}" data-cc-dialogue-accent-mode="${value}">${label}</button>`).join('');
+
+    const glowChoices=[['none','None'],['soft','Soft'],['medium','Medium']]
+      .map(([value,label])=>`<button type="button" class="${ccDialogueState.glow===value?'active':''}" data-cc-dialogue-glow="${value}">${label}</button>`).join('');
+
+    const character=ccDialogueCharacter();
+    const resolvedAccent=ccDialogueResolvedAccent(character,ccDialogueState);
 
     return `<section class="cc-dialogue-builder">
       <header class="cc-dialogue-builder-head">
         <div><span class="eyebrow">BBCode widget</span><h3>Dialogue Card</h3></div>
         <button class="icon-button" type="button" data-cc-dialogue-close>×</button>
       </header>
+
       <div class="cc-dialogue-builder-grid">
         <label>Character<select class="select" data-cc-dialogue-character>${options}</select></label>
         <label>Display name<input class="input" data-cc-dialogue-name value="${esc(ccDialogueState.name)}"></label>
-        <label class="wide">Character preview blurb<textarea class="textarea" rows="3" data-cc-dialogue-blurb>${esc(ccDialogueState.blurb)}</textarea><small>This appears only after the portrait or name is clicked.</small></label>
+
+        <label>Subtitle<input class="input" data-cc-dialogue-subtitle value="${esc(ccDialogueState.subtitle)}" placeholder="Optional title or role"></label>
+        <label>Custom accent<input class="input" type="color" data-cc-dialogue-custom-accent value="${esc(ccDialogueState.customAccent)}" ${ccDialogueState.accentMode==='custom'?'':'disabled'}></label>
+
+        <label class="wide">Character preview blurb
+          <textarea class="textarea" rows="4" data-cc-dialogue-blurb>${esc(ccDialogueState.blurb)}</textarea>
+          <small>This appears when the portrait or visible name is clicked. You can change it for this card or save it as the character default.</small>
+        </label>
+
+        <div class="wide"><strong>Card theme</strong><div class="cc-dialogue-theme-grid">${themes}</div></div>
+        <div class="wide"><strong>Accent</strong><div class="cc-dialogue-options">${accentChoices}</div><div class="cc-dialogue-accent-preview"><i style="--dialogue-accent:${esc(resolvedAccent)}"></i><span>${ccDialogueState.accentMode==='profile'?'Uses the character profile color':ccDialogueState.accentMode==='custom'?'Uses your custom color':'No accent color'}</span></div></div>
         <div class="wide"><strong>Portrait shape</strong><div class="cc-dialogue-options">${shapes}</div></div>
+
         <div><strong>Image placement</strong><div class="cc-dialogue-options">${placements}</div></div>
         <div><strong>Card alignment</strong><div class="cc-dialogue-options">${alignments}</div></div>
-        <label class="cc-dialogue-check"><input type="checkbox" data-cc-dialogue-show-image ${ccDialogueState.showImage?'checked':''}><span>Show character image</span></label>
-        <div class="cc-dialogue-accent"><span>Accent color</span><i style="--dialogue-accent:${esc(ccDialogueColor(ccDialogueCharacter()))}"></i><small>Uses the character’s profile color</small></div>
+
+        <div class="wide"><strong>Name placement</strong><div class="cc-dialogue-options">${namePlacements}</div></div>
+        <div class="wide"><strong>Glow</strong><div class="cc-dialogue-options">${glowChoices}</div></div>
+
+        <div class="wide cc-dialogue-toggle-grid">
+          <label class="cc-dialogue-check"><input type="checkbox" data-cc-dialogue-show-image ${ccDialogueState.showImage?'checked':''}><span>Show character image</span></label>
+          <label class="cc-dialogue-check"><input type="checkbox" data-cc-dialogue-show-border ${ccDialogueState.showBorder?'checked':''}><span>Show border</span></label>
+          <label class="cc-dialogue-check"><input type="checkbox" data-cc-dialogue-show-corners ${ccDialogueState.showCorners?'checked':''}><span>Show decorative corners</span></label>
+          <label class="cc-dialogue-check"><input type="checkbox" data-cc-dialogue-show-background ${ccDialogueState.showBackground?'checked':''}><span>Show background panel</span></label>
+        </div>
+
         <div class="wide"><strong>Live preview</strong><div class="cc-dialogue-preview" data-cc-dialogue-preview></div></div>
       </div>
+
       <footer class="cc-dialogue-builder-actions">
         <label class="cc-dialogue-check"><input type="checkbox" data-cc-dialogue-save-default checked><span>Save these settings as this character’s default</span></label>
         <div>
@@ -15148,11 +15437,20 @@ initFirebase();
     target.innerHTML=ccDialogueMarkup({
       character:ccDialogueCharacter(),
       name:ccDialogueState.name,
+      subtitle:ccDialogueState.subtitle,
       blurb:ccDialogueState.blurb,
       shape:ccDialogueState.shape,
       imagePlacement:ccDialogueState.imagePlacement,
       cardAlignment:ccDialogueState.cardAlignment,
+      namePlacement:ccDialogueState.namePlacement,
+      theme:ccDialogueState.theme,
+      accentMode:ccDialogueState.accentMode,
+      customAccent:ccDialogueState.customAccent,
       showImage:ccDialogueState.showImage,
+      showBorder:ccDialogueState.showBorder,
+      showCorners:ccDialogueState.showCorners,
+      showBackground:ccDialogueState.showBackground,
+      glow:ccDialogueState.glow,
       text:ccDialogueSelection.text||'Selected dialogue will appear here.'
     });
   }
@@ -15184,14 +15482,23 @@ initFirebase();
   function ccDialogueSync(){
     const mount=document.querySelector('[data-cc-dialogue-builder-mount]');
     if(!mount||!ccDialogueState)return;
+
     const nameInput=mount.querySelector('[data-cc-dialogue-name]');
+    const subtitleInput=mount.querySelector('[data-cc-dialogue-subtitle]');
     const blurbInput=mount.querySelector('[data-cc-dialogue-blurb]');
-    const showInput=mount.querySelector('[data-cc-dialogue-show-image]');
-    const saveInput=mount.querySelector('[data-cc-dialogue-save-default]');
-    if(nameInput)ccDialogueState.name=nameInput.value||ccDialogueState.name;
+    const customAccentInput=mount.querySelector('[data-cc-dialogue-custom-accent]');
+
+    if(nameInput)ccDialogueState.name=nameInput.value;
+    if(subtitleInput)ccDialogueState.subtitle=subtitleInput.value;
     if(blurbInput)ccDialogueState.blurb=blurbInput.value;
-    if(showInput)ccDialogueState.showImage=Boolean(showInput.checked);
-    if(saveInput)ccDialogueState.saveDefault=Boolean(saveInput.checked);
+    if(customAccentInput)ccDialogueState.customAccent=customAccentInput.value;
+
+    ccDialogueState.showImage=Boolean(mount.querySelector('[data-cc-dialogue-show-image]')?.checked);
+    ccDialogueState.showBorder=Boolean(mount.querySelector('[data-cc-dialogue-show-border]')?.checked);
+    ccDialogueState.showCorners=Boolean(mount.querySelector('[data-cc-dialogue-show-corners]')?.checked);
+    ccDialogueState.showBackground=Boolean(mount.querySelector('[data-cc-dialogue-show-background]')?.checked);
+    ccDialogueState.saveDefault=Boolean(mount.querySelector('[data-cc-dialogue-save-default]')?.checked);
+
     ccDialogueRefreshPreview();
   }
 
@@ -15206,7 +15513,8 @@ initFirebase();
     ccDialogueSync();
     const body=ccDialogueSelection.text||'Dialogue';
     const clean=value=>String(value||'').replace(/"/g,'');
-    const tag=`[dialogue character="${clean(character.id)}" name="${clean(ccDialogueState.name)}" shape="${ccDialogueState.shape}" image="${ccDialogueState.imagePlacement}" card="${ccDialogueState.cardAlignment}" blurb="${clean(ccDialogueState.blurb)}"]\n${body}\n[/dialogue]`;
+
+    const tag=`[dialogue character="${clean(character.id)}" name="${clean(ccDialogueState.name)}" subtitle="${clean(ccDialogueState.subtitle)}" shape="${ccDialogueState.shape}" image="${ccDialogueState.imagePlacement}" card="${ccDialogueState.cardAlignment}" namepos="${ccDialogueState.namePlacement}" theme="${ccDialogueState.theme}" accent="${ccDialogueState.accentMode}" customaccent="${clean(ccDialogueState.customAccent)}" border="${ccDialogueState.showBorder?'yes':'no'}" corners="${ccDialogueState.showCorners?'yes':'no'}" background="${ccDialogueState.showBackground?'yes':'no'}" glow="${ccDialogueState.glow}" blurb="${clean(ccDialogueState.blurb)}"]\n${body}\n[/dialogue]`;
 
     editor.setRangeText(tag,ccDialogueSelection.start,ccDialogueSelection.end,'end');
     editor.dispatchEvent(new Event('input',{bubbles:true}));
@@ -15215,11 +15523,20 @@ initFirebase();
     if(ccDialogueState.saveDefault){
       ccDialogueDefaults()[character.id]={
         name:ccDialogueState.name,
+        subtitle:ccDialogueState.subtitle,
         blurb:ccDialogueState.blurb,
         shape:ccDialogueState.shape,
         imagePlacement:ccDialogueState.imagePlacement,
         cardAlignment:ccDialogueState.cardAlignment,
-        showImage:ccDialogueState.showImage
+        namePlacement:ccDialogueState.namePlacement,
+        theme:ccDialogueState.theme,
+        accentMode:ccDialogueState.accentMode,
+        customAccent:ccDialogueState.customAccent,
+        showImage:ccDialogueState.showImage,
+        showBorder:ccDialogueState.showBorder,
+        showCorners:ccDialogueState.showCorners,
+        showBackground:ccDialogueState.showBackground,
+        glow:ccDialogueState.glow
       };
       scheduleSave('Saving dialogue card defaults…');
     }
@@ -15232,16 +15549,38 @@ initFirebase();
   ccrhBbcode=function(raw){
     const cards=[];
     const prepared=String(raw||'').replace(
-      /\[dialogue\s+character="([^"]+)"\s+name="([^"]*)"\s+shape="(circle|rounded|square|octagon|diamond|arch|none)"\s+image="(left|right|top|bottom)"\s+card="(left|center|right|full)"\s+blurb="([^"]*)"\]([\s\S]*?)\[\/dialogue\]/gi,
-      (match,characterId,name,shape,imagePlacement,cardAlignment,blurb,text)=>{
-        const token=`CCDIALOGUE${cards.length}TOKEN`;
+      /\[dialogue\s+([^\]]+)\]([\s\S]*?)\[\/dialogue\]/gi,
+      (match,attributeText,text)=>{
+        const attrs={};
+        attributeText.replace(/([a-z]+)="([^"]*)"/gi,(m,key,value)=>{attrs[key.toLowerCase()]=value;return m;});
+        const characterId=attrs.character||'';
         const character=(state.characters||[]).find(item=>String(item.id)===String(characterId))||null;
+        const token=`CCDIALOGUE${cards.length}TOKEN`;
+
         cards.push(ccDialogueMarkup({
-          character,name,blurb,shape,imagePlacement,cardAlignment,showImage:true,text:text.trim()
+          character,
+          name:attrs.name??character?.name??'Character',
+          subtitle:attrs.subtitle||'',
+          blurb:attrs.blurb||'',
+          shape:attrs.shape||'circle',
+          imagePlacement:attrs.image||'right',
+          cardAlignment:attrs.card||'center',
+          namePlacement:attrs.namepos||'right',
+          theme:attrs.theme||'classic',
+          accentMode:attrs.accent||'profile',
+          customAccent:attrs.customaccent||'#5fc7c4',
+          showImage:attrs.showimage!=='no',
+          showBorder:attrs.border!=='no',
+          showCorners:attrs.corners!=='no',
+          showBackground:attrs.background!=='no',
+          glow:attrs.glow||'soft',
+          text:text.trim()
         }));
+
         return token;
       }
     );
+
     let rendered=ccDialogueBbcodeBase(prepared);
     cards.forEach((markup,index)=>{
       rendered=rendered.replaceAll(`CCDIALOGUE${index}TOKEN`,markup);
@@ -15252,6 +15591,45 @@ initFirebase();
   document.addEventListener('click',event=>{
     if(event.target.closest('[data-cc-dialogue-card-open]')){event.preventDefault();ccDialogueOpen();return;}
     if(event.target.closest('[data-cc-dialogue-close]')){event.preventDefault();ccDialogueClose();return;}
+
+
+    const themeButton=event.target.closest('[data-cc-dialogue-theme]');
+    if(themeButton){
+      event.preventDefault();
+      ccDialogueState.theme=themeButton.dataset.ccDialogueTheme;
+      document.querySelectorAll('[data-cc-dialogue-theme]').forEach(button=>button.classList.toggle('active',button===themeButton));
+      ccDialogueRefreshPreview();
+      return;
+    }
+
+    const accentMode=event.target.closest('[data-cc-dialogue-accent-mode]');
+    if(accentMode){
+      event.preventDefault();
+      ccDialogueState.accentMode=accentMode.dataset.ccDialogueAccentMode;
+      document.querySelectorAll('[data-cc-dialogue-accent-mode]').forEach(button=>button.classList.toggle('active',button===accentMode));
+      const input=document.querySelector('[data-cc-dialogue-custom-accent]');
+      if(input)input.disabled=ccDialogueState.accentMode!=='custom';
+      ccDialogueRefreshPreview();
+      return;
+    }
+
+    const namePlacement=event.target.closest('[data-cc-dialogue-name-placement]');
+    if(namePlacement){
+      event.preventDefault();
+      ccDialogueState.namePlacement=namePlacement.dataset.ccDialogueNamePlacement;
+      document.querySelectorAll('[data-cc-dialogue-name-placement]').forEach(button=>button.classList.toggle('active',button===namePlacement));
+      ccDialogueRefreshPreview();
+      return;
+    }
+
+    const glowButton=event.target.closest('[data-cc-dialogue-glow]');
+    if(glowButton){
+      event.preventDefault();
+      ccDialogueState.glow=glowButton.dataset.ccDialogueGlow;
+      document.querySelectorAll('[data-cc-dialogue-glow]').forEach(button=>button.classList.toggle('active',button===glowButton));
+      ccDialogueRefreshPreview();
+      return;
+    }
 
     const shape=event.target.closest('[data-cc-dialogue-shape]');
     if(shape){
@@ -15304,11 +15682,11 @@ initFirebase();
       if(mount){mount.innerHTML=ccDialogueBuilderHtml();ccDialogueRefreshPreview();}
       return;
     }
-    if(event.target.closest('[data-cc-dialogue-show-image],[data-cc-dialogue-save-default]'))ccDialogueSync();
+    if(event.target.closest('[data-cc-dialogue-show-image],[data-cc-dialogue-show-border],[data-cc-dialogue-show-corners],[data-cc-dialogue-show-background],[data-cc-dialogue-save-default],[data-cc-dialogue-custom-accent]'))ccDialogueSync();
   },true);
 
   document.addEventListener('input',event=>{
-    if(event.target.closest('[data-cc-dialogue-name],[data-cc-dialogue-blurb]'))ccDialogueSync();
+    if(event.target.closest('[data-cc-dialogue-name],[data-cc-dialogue-subtitle],[data-cc-dialogue-blurb],[data-cc-dialogue-custom-accent]'))ccDialogueSync();
   },true);
 
 
