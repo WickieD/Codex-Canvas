@@ -4909,7 +4909,7 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 </style>
 
 
-<style id="ccrh-anchor-editor-fix-style">
+<style id="ccrh-unique-anchor-chooser-style">
 .ccrh-anchor-modal{width:min(620px,calc(100vw - 28px))}
 .ccrh-anchor-choice-list{display:grid;gap:9px;margin-top:14px}
 .ccrh-anchor-choice{
@@ -4941,10 +4941,7 @@ button:disabled { cursor: not-allowed; opacity: .48; }
   color:var(--accent-strong);
   font-weight:850;
 }
-.ccrh-anchor-choice span:last-child{
-  display:grid;
-  gap:3px;
-}
+.ccrh-anchor-choice span:last-child{display:grid;gap:3px}
 .ccrh-anchor-choice small{color:var(--muted)}
 </style>
 
@@ -5034,7 +5031,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "create-anchor-editor-fixed-2026-08-04";
+window.CODEX_BUILD = "unique-anchor-chooser-fixed-2026-08-04";
 </script>
   <script>
 (() => {
@@ -10722,7 +10719,7 @@ function cc5ShowImageEditor(ref){
     <label class="button secondary">Replace image<input type="file" accept="image/*" hidden data-cc5-image-replace="${esc(ref)}"></label>
   </div>`,`<button class="button danger" type="button" data-cc5-image-delete="${esc(ref)}">Delete image</button><button class="button" type="button" data-close-modal>Done</button>`);
 }
-ccrhOpenAnchorChooser=function(kind,item,openCount=2){
+cc4Editor=function(kind,item,openCount=2){
   const groups=cc4SectionGroups(item);
   const toolbar=`<div class="block-toolbar" data-editor="${kind}:${item.id}"><button class="block-tool" type="button" data-add-block="text" title="Text">T</button><button class="block-tool" type="button" data-add-block="h2" title="New section">H</button><button class="block-tool" type="button" data-add-block="bullet" title="Bullet">•</button><button class="block-tool" type="button" data-add-block="quote" title="Quote">❝</button><button class="block-tool" type="button" data-add-block="divider" title="Divider">―</button><label class="block-tool cc9-toolbar-upload" title="Add image">▧<input type="file" accept="image/*" data-cc5-image-input="${kind}:${item.id}"></label><span class="cc5-image-toolbar-help">Add images anywhere, then choose inline, in front, or behind.</span></div>`;
   return `${toolbar}<div class="cc4-section-stack block-list" data-block-list="${kind}:${item.id}">${groups.map((g,i)=>{
@@ -12287,7 +12284,7 @@ function cc4SectionGroups(item){
  blocks.forEach((block,index)=>{if(block.type==='h2'){current={title:stripMd(block.content)||'Untitled section',heading:{block,index},rows:[]};groups.push(current)}else{if(!current){current={title:'Overview',heading:null,rows:[]};groups.push(current)}current.rows.push({block,index})}});return groups;
 }
 function cc4GroupEmpty(group){return !group.rows.some(x=>stripMd(x.block.content||'').trim()&&!/^(describe|add |list |summarize|record )/i.test(stripMd(x.block.content||'').trim()));}
-function ccrhOpenAnchorChooser(kind,item,openCount=2){
+function cc4Editor(kind,item,openCount=2){
  const groups=cc4SectionGroups(item);const toolbar=`<div class="block-toolbar" data-editor="${kind}:${item.id}"><button class="block-tool" data-add-block="text">T</button><button class="block-tool" data-add-block="h2">H</button><button class="block-tool" data-add-block="bullet">•</button><button class="block-tool" data-add-block="quote">❝</button><button class="block-tool" data-add-block="divider">―</button></div>`;
  return `${toolbar}<div class="cc4-section-stack block-list" data-block-list="${kind}:${item.id}">${groups.map((g,i)=>`<details class="cc4-section ${cc4GroupEmpty(g)?'is-empty':''}" ${i<openCount?'open':''} id="cc4-${kind}-${item.id}-${i}"><summary><span>${esc(g.title)}</span><small>${cc4GroupEmpty(g)?'Not filled in':'Open section'}</small></summary><div class="cc4-section-body">${g.heading?renderBlock(kind,item.id,g.heading.block,g.heading.index):''}${g.rows.map(x=>renderBlock(kind,item.id,x.block,x.index)).join('')||'<p class="cc4-muted">Nothing has been added yet.</p>'}</div></details>`).join('')}</div>`;
 }
@@ -12296,13 +12293,13 @@ function cc4KnownMembers(item){return `<section class="cc4-mini-panel"><h3>Known
 function cc4LocationLinks(item){const children=childrenOf(item.id),connected=(item.relatedLocationIds||[]).map(x=>getItem('locations',x)).filter(Boolean);return `<div class="cc4-link-grid"><section><h3>Contains</h3>${children.map(x=>`<button data-open="locations:${x.id}">${esc(x.name)}</button>`).join('')||'<span>None yet</span>'}</section><section><h3>Connected To</h3>${connected.map(x=>`<button data-open="locations:${x.id}">${esc(x.name)}</button>`).join('')||'<span>None yet</span>'}</section><section><h3>Travel Routes</h3><p>${esc(item.travelConnections||item.notes||'Add routes and travel notes.')}</p></section></div>`}
 function cc4Title(kind,item,label){return `${cc3TitleRow(kind,item,label,[kind==='locations'?item.type:item.classification,kind==='locations'?parentName(item):item.origin].filter(Boolean).map(cc3Tag).join(''))}`}
 function cc4Species(item,t){const cover=renderSectionMediaCover('species',item),portrait=renderSectionMediaPortrait('species',item),props=cc3PropertiesPanel('species',item,'Quick Facts');
- if(t==='lineage-cards')return `<article class="cc4-page cc4-anatomy">${cover}${cc4Title('species',item,'Anatomy & Culture')}<div class="cc4-top-grid"><div>${portrait}</div><div>${props}</div></div><div class="cc4-content-with-outline"><main>${ccrhOpenAnchorChooser('species',item,4)}</main>${cc4Outline('species',item)}</div></article>`;
- if(t==='classification-index')return `<article class="cc4-page cc4-lineage">${cover}<header class="cc4-archive-head">${cc4Title('species',item,'Lineage Archive')}</header><div class="cc4-lineage-grid"><aside>${props}</aside><main>${ccrhOpenAnchorChooser('species',item,1)}</main></div></article>`;
- return `<article class="cc4-page cc4-field">${cover}${cc4Title('species',item,'Field Guide')}<div class="cc4-top-grid"><div>${portrait}</div><div>${props}</div></div><div class="cc4-content-with-outline"><main>${ccrhOpenAnchorChooser('species',item,2)}</main>${cc4Outline('species',item)}</div></article>`}
+ if(t==='lineage-cards')return `<article class="cc4-page cc4-anatomy">${cover}${cc4Title('species',item,'Anatomy & Culture')}<div class="cc4-top-grid"><div>${portrait}</div><div>${props}</div></div><div class="cc4-content-with-outline"><main>${cc4Editor('species',item,4)}</main>${cc4Outline('species',item)}</div></article>`;
+ if(t==='classification-index')return `<article class="cc4-page cc4-lineage">${cover}<header class="cc4-archive-head">${cc4Title('species',item,'Lineage Archive')}</header><div class="cc4-lineage-grid"><aside>${props}</aside><main>${cc4Editor('species',item,1)}</main></div></article>`;
+ return `<article class="cc4-page cc4-field">${cover}${cc4Title('species',item,'Field Guide')}<div class="cc4-top-grid"><div>${portrait}</div><div>${props}</div></div><div class="cc4-content-with-outline"><main>${cc4Editor('species',item,2)}</main>${cc4Outline('species',item)}</div></article>`}
 function cc4Location(item,t){const cover=renderSectionMediaCover('locations',item),portrait=renderSectionMediaPortrait('locations',item),props=cc3PropertiesPanel('locations',item,'Quick Facts'),crumb=renderLocationBreadcrumb(item);
- if(t==='travel-journal')return `${crumb}<article class="cc4-page cc4-journal-page">${cover}${cc4Title('locations',item,"Traveler’s Journal")}<div class="cc4-content-with-outline"><main>${portrait}${ccrhOpenAnchorChooser('locations',item,3)}</main>${cc4Outline('locations',item)}</div></article>`;
- if(t==='hierarchy-survey')return `${crumb}<article class="cc4-page cc4-connections">${cover}${cc4Title('locations',item,'Map & Connections')}<div class="cc4-map-summary"><div class="cc4-map-box">${portrait}</div>${props}</div>${cc4LocationLinks(item)}<div class="cc4-story-strip"><h3>Story Appearances</h3><div>●────●────●────●</div></div><div class="cc4-content-with-outline"><main>${ccrhOpenAnchorChooser('locations',item,1)}</main>${cc4Outline('locations',item)}</div></article>`;
- return `${crumb}<article class="cc4-page cc4-atlas">${cover}${cc4Title('locations',item,'Atlas Sheet')}<div class="cc4-map-summary"><div class="cc4-map-box">${portrait}</div>${props}</div><div class="cc4-content-with-outline"><main>${ccrhOpenAnchorChooser('locations',item,3)}</main>${cc4Outline('locations',item)}</div></article>`}
+ if(t==='travel-journal')return `${crumb}<article class="cc4-page cc4-journal-page">${cover}${cc4Title('locations',item,"Traveler’s Journal")}<div class="cc4-content-with-outline"><main>${portrait}${cc4Editor('locations',item,3)}</main>${cc4Outline('locations',item)}</div></article>`;
+ if(t==='hierarchy-survey')return `${crumb}<article class="cc4-page cc4-connections">${cover}${cc4Title('locations',item,'Map & Connections')}<div class="cc4-map-summary"><div class="cc4-map-box">${portrait}</div>${props}</div>${cc4LocationLinks(item)}<div class="cc4-story-strip"><h3>Story Appearances</h3><div>●────●────●────●</div></div><div class="cc4-content-with-outline"><main>${cc4Editor('locations',item,1)}</main>${cc4Outline('locations',item)}</div></article>`;
+ return `${crumb}<article class="cc4-page cc4-atlas">${cover}${cc4Title('locations',item,'Atlas Sheet')}<div class="cc4-map-summary"><div class="cc4-map-box">${portrait}</div>${props}</div><div class="cc4-content-with-outline"><main>${cc4Editor('locations',item,3)}</main>${cc4Outline('locations',item)}</div></article>`}
 const cc4RenderEntityBase=renderEntity;
 renderEntity=function(kind,itemId){if(!['species','locations'].includes(kind))return cc4RenderEntityBase(kind,itemId);const item=getItem(kind,itemId);if(!item){navigate(kind);return;}const toolbar=sectionDesignToolbar(kind),html=kind==='species'?cc4Species(item,sectionDesign(kind).template):cc4Location(item,sectionDesign(kind).template);el.main.innerHTML=`<section class="${sectionCssClass(kind)} cc4-approved" style="${sectionThemeStyle(kind)}">${toolbar}${html}</section>`;requestAnimationFrame(()=>autoSizeEntityTitle(document.querySelector('.entity-title-input')))};
 document.addEventListener('click',e=>{const b=e.target.closest('[data-cc4-jump]');if(!b)return;const d=document.getElementById(b.dataset.cc4Jump);if(d){d.open=true;d.scrollIntoView({behavior:'smooth',block:'start'})}});
@@ -12378,7 +12375,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-cc4-jump]'
     return html.replace(/(<div class="block-row[^"]*"[^>]*>)/,`$1${actions}`);
   };
 
-  ccrhOpenAnchorChooser=function(kind,item,openCount=2){
+  cc4Editor=function(kind,item,openCount=2){
     const groups=groupsFor(item);
     const toolbar=`<div class="cc8-toolbar" data-editor="${kind}:${item.id}">
       <button class="block-tool" type="button" data-add-block="text" title="Add text">T</button>
@@ -12599,8 +12596,8 @@ initFirebase();
   }
   const ccFinalBaseRenderBlock=renderBlock;
   renderBlock=function(kind,itemId,block,index){if(ccFinalMediaKinds.has(kind)&&block?.type==='image')return ccFinalPageBlock(kind,itemId,block,index);return ccFinalBaseRenderBlock(kind,itemId,block,index);};
-  const ccFinalBaseEditor=ccrhOpenAnchorChooser;
-  ccrhOpenAnchorChooser=function(kind,item,openCount=2){
+  const ccFinalBaseEditor=cc4Editor;
+  cc4Editor=function(kind,item,openCount=2){
     let out=ccFinalBaseEditor(kind,item,openCount);
     if(!ccFinalMediaKinds.has(kind))return out;
     const maxY=(item.blocks||[]).filter(b=>b?.type==='image'&&['front','behind'].includes(b.layout)).reduce((m,b)=>Math.max(m,(Number(b.y)||0)+(Number(b.width)||360)/(Number(b.ratio)||1)+80),0);
@@ -12671,8 +12668,8 @@ initFirebase();
   /* Isolated final upload channel: avoids legacy change listeners. */
   const cc13MediaKinds=new Set(['species','locations']);
 
-  const cc13BaseEditor=ccrhOpenAnchorChooser;
-  ccrhOpenAnchorChooser=function(kind,item,openCount=2){
+  const cc13BaseEditor=cc4Editor;
+  cc4Editor=function(kind,item,openCount=2){
     let markup=cc13BaseEditor(kind,item,openCount);
     if(!cc13MediaKinds.has(kind))return markup;
     /* Rename only the active toolbar input so older listeners cannot intercept it. */
@@ -14008,7 +14005,7 @@ initFirebase();
     if(anchor){
       event.preventDefault();
       event.stopImmediatePropagation();
-      ccrhOpenAnchorChooser('',anchor.dataset.ccrhAnchor);
+      ccrhOpenPostAnchorChooser(anchor.dataset.ccrhAnchor);
       return;
     }
     const saveAnchor=event.target.closest('[data-ccrh-save-anchor]'); if(saveAnchor){event.preventDefault();const {story}=ccrhStoryFromRoute();const nodeId=document.querySelector('[data-ccrh-anchor-node]')?.value;const point=(story.nodes||[]).find(x=>x.id===nodeId);if(point){const passage=ensureStoryPassage(point);passage.anchorTurnId=saveAnchor.dataset.ccrhSaveAnchor;const title=document.querySelector('[data-ccrh-anchor-title]')?.value.trim();const summary=document.querySelector('[data-ccrh-anchor-summary]')?.value.trim();if(title)passage.title=title;if(summary)passage.summary=summary;scheduleSave('Saving anchor…');closeModal();render();toast('Anchor created.');}return;}
@@ -14674,19 +14671,15 @@ initFirebase();
   },true);
 
 
-  function ccrhOpenAnchorChooser(storyIdOrValue,turnIdMaybe=''){
+  function ccrhOpenPostAnchorChooser(turnId){
     const context=ccrhStoryFromRoute();
     const story=context?.story;
-    if(!story)return;
-
-    let turnId=String(turnIdMaybe||'');
-    if(!turnId){
-      const raw=String(storyIdOrValue||'');
-      const parts=raw.split('|');
-      turnId=parts.length>1?parts.at(-1):raw;
+    if(!story){
+      toast('The roleplay story could not be found.','error');
+      return;
     }
 
-    const turn=ensureStoryDocument(story).find(item=>String(item.id)===String(turnId));
+    const turn=ensureStoryDocument(story).find(item=>String(item.id)===String(turnId||''));
     if(!turn){
       toast('That roleplay post could not be found.','error');
       return;
@@ -14705,9 +14698,12 @@ initFirebase();
       const passage=ensureStoryPassage(node);
       const selected=String(passage.anchorTurnId||'')===String(turn.id);
       return `<button class="ccrh-anchor-choice ${selected?'active':''}" type="button"
-        data-ccrh-anchor-choice="${esc(story.id)}|${esc(node.id)}|${esc(turn.id)}">
+        data-ccrh-save-anchor="${esc(story.id)}|${esc(node.id)}|${esc(turn.id)}">
         <span class="ccrh-anchor-choice-number">${esc(node.order||'')}</span>
-        <span><strong>${esc(storyPointTitle(story,node))}</strong><small>${selected?'Currently starts here':'Set this point to start at this post'}</small></span>
+        <span>
+          <strong>${esc(storyPointTitle(story,node))}</strong>
+          <small>${selected?'Currently starts at this post':'Start this story point at this post'}</small>
+        </span>
       </button>`;
     }).join('');
 
@@ -14728,18 +14724,18 @@ initFirebase();
     </div>`;
   }
 
-  function ccrhSaveAnchorChoice(value){
+  function ccrhApplyPostAnchor(value){
     const [storyId,nodeId,turnId]=String(value||'').split('|');
     const story=storyById(storyId);
     const node=story?.nodes?.find(item=>String(item.id)===String(nodeId));
     const turn=story?ensureStoryDocument(story).find(item=>String(item.id)===String(turnId)):null;
+
     if(!story||!node||!turn){
       toast('The story point or post could not be found.','error');
       return;
     }
 
-    const passage=ensureStoryPassage(node);
-    passage.anchorTurnId=turn.id;
+    ensureStoryPassage(node).anchorTurnId=turn.id;
     scheduleSave('Saving story anchor…');
     closeModal();
     ccrhRenderReader();
@@ -14747,11 +14743,11 @@ initFirebase();
   }
 
   document.addEventListener('click',event=>{
-    const choice=event.target.closest('[data-ccrh-anchor-choice]');
+    const choice=event.target.closest('[data-ccrh-save-anchor]');
     if(!choice)return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    ccrhSaveAnchorChoice(choice.dataset.ccrhAnchorChoice);
+    ccrhApplyPostAnchor(choice.dataset.ccrhSaveAnchor);
   },true);
 
 })();
@@ -14795,8 +14791,8 @@ initFirebase();
   });
 
   /* Species-only media channel copied from the confirmed working Location path. */
-  const cc14BaseEditor=ccrhOpenAnchorChooser;
-  ccrhOpenAnchorChooser=function(kind,item,openCount=2){
+  const cc14BaseEditor=cc4Editor;
+  cc4Editor=function(kind,item,openCount=2){
     let markup=cc14BaseEditor(kind,item,openCount);
     if(kind!=='species')return markup;
     return markup
