@@ -5112,7 +5112,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "editor-lock-exact-fixed-2026-08-04";
+window.CODEX_BUILD = "startup-editor-lock-repaired-2026-08-04";
 </script>
   <script>
 (() => {
@@ -10352,7 +10352,11 @@ sectionEntityCover=function(kind,item){
   // overlay repeated the template name and collided with the placeholder on
   // narrow screens, making location pages look stacked and unreadable.
   return `<div class="section-media-hero">${renderSectionMediaCover(kind,item)}</div>`;
-};
+}
+
+window.renderSectionMediaCover = renderSectionMediaCover;
+window.renderSectionMediaPortrait = renderSectionMediaPortrait;
+;
 const originalRenderProperties=renderProperties;
 renderProperties=function(kind,item){
   if(kind==='species')return `<div class="property-list">${propertyInput('Classification','classification',item.classification||item.prevalence||'',kind,item.id)}${propertyInput('Origin','origin',item.origin||'',kind,item.id)}${propertyTextarea('Description','description',item.description||item.survivalGoal||'',kind,item.id)}${propertyTextarea('Traits / physiology','traitsText',item.traitsText||'',kind,item.id)}${propertyTextarea('Culture / society','culture',item.culture||item.relations||'',kind,item.id)}<div class="property-row"><label>Known members</label>${linkedPills('characters',item.keyMemberIds)}</div>${propertyTextarea('Notes','notes',item.notes||'',kind,item.id)}</div>`;
@@ -10362,7 +10366,7 @@ const originalRenderEntity=renderEntity;
 renderEntity=function(kind,itemId){
   if(kind==='characters'||!SECTION_MEDIA_COPY[kind])return originalRenderEntity(kind,itemId);
   const item=getItem(kind,itemId);if(!item){navigate(kind);return;}const meta=COLLECTIONS[kind],breadcrumb=kind==='locations'?renderLocationBreadcrumb(item):'',templateToolbar=sectionDesignToolbar(kind);
-  const body=`${templateToolbar}${breadcrumb}<section class="entity-hero">${sectionEntityCover(kind,item)}<div class="entity-title-row"><textarea class="entity-title-input" rows="1" aria-label="${meta.singular} name" data-title-kind="${kind}" data-title-id="${item.id}">${esc(item.name)}</textarea><button class="favorite-button ${item.favorite?'on':''}" type="button" data-favorite="${kind}:${item.id}" title="Favorite">☆</button></div></section><div class="entity-layout"><div class="editor-surface">${renderBlockEditor(kind,item.id,item.blocks,item.name)}</div><aside class="properties-panel">${renderSectionMediaPortrait(kind,item)}<div class="panel-head" style="padding:0 0 14px"><h2>Properties</h2><button class="button ghost small" type="button" data-delete="${kind}:${item.id}">Delete</button></div>${renderProperties(kind,item)}</aside></div>`;
+  const body=`${templateToolbar}${breadcrumb}<section class="entity-hero">${sectionEntityCover(kind,item)}<div class="entity-title-row"><textarea class="entity-title-input" rows="1" aria-label="${meta.singular} name" data-title-kind="${kind}" data-title-id="${item.id}">${esc(item.name)}</textarea><button class="favorite-button ${item.favorite?'on':''}" type="button" data-favorite="${kind}:${item.id}" title="Favorite">☆</button></div></section><div class="entity-layout"><div class="editor-surface">${renderBlockEditor(kind,item.id,item.blocks,item.name)}</div><aside class="properties-panel">${window.renderSectionMediaPortrait(kind,item)}<div class="panel-head" style="padding:0 0 14px"><h2>Properties</h2><button class="button ghost small" type="button" data-delete="${kind}:${item.id}">Delete</button></div>${renderProperties(kind,item)}</aside></div>`;
   el.main.innerHTML=`<section class="${sectionCssClass(kind)}" style="${sectionThemeStyle(kind)}">${body}</section>`;requestAnimationFrame(()=>autoSizeEntityTitle(document.querySelector('.entity-title-input')));
 };
 const originalRenderEntityCard=renderEntityCard;
@@ -12294,7 +12298,7 @@ function cc3TitleRow(kind,item,kicker,meta=''){
   return `<div class="cc3-title-row"><div class="cc3-title-copy"><span class="cc3-eyebrow">${esc(kicker)}</span><textarea class="entity-title-input cc3-title-input" rows="1" aria-label="${esc(COLLECTIONS[kind].singular)} name" data-title-kind="${esc(kind)}" data-title-id="${esc(item.id)}">${esc(item.name)}</textarea>${meta?`<div class="cc3-title-meta">${meta}</div>`:''}</div><div class="cc3-title-actions"><button class="favorite-button ${item.favorite?'on':''}" type="button" data-favorite="${esc(kind)}:${esc(item.id)}" title="Favorite">☆</button><button class="button ghost small" type="button" data-delete="${esc(kind)}:${esc(item.id)}">Delete</button></div></div>`;
 }
 function cc3PropertiesPanel(kind,item,title='Properties',includePortrait=false){
-  return `<aside class="properties-panel cc3-properties-panel">${includePortrait?renderSectionMediaPortrait(kind,item):''}<div class="panel-head cc3-panel-heading"><h2>${esc(title)}</h2></div>${renderProperties(kind,item)}</aside>`;
+  return `<aside class="properties-panel cc3-properties-panel">${includePortrait?window.renderSectionMediaPortrait(kind,item):''}<div class="panel-head cc3-panel-heading"><h2>${esc(title)}</h2></div>${renderProperties(kind,item)}</aside>`;
 }
 function cc3WritingPanel(kind,item,label='Living record'){
   return `<section class="editor-surface cc3-writing-panel"><div class="cc3-panel-kicker">${esc(label)}</div>${renderBlockEditor(kind,item.id,item.blocks,item.name)}</section>`;
@@ -12309,7 +12313,7 @@ function cc3FactionPowerMeter(item){
 }
 
 function cc3RenderDistinctEntity(kind,item){
-  const template=sectionDesign(kind).template,breadcrumb=kind==='locations'?renderLocationBreadcrumb(item):'',toolbar=sectionDesignToolbar(kind),cover=renderSectionMediaCover(kind,item),portrait=renderSectionMediaPortrait(kind,item),props=cc3PropertiesPanel(kind,item,'Properties'),writing=cc3WritingPanel(kind,item);
+  const template=sectionDesign(kind).template,breadcrumb=kind==='locations'?renderLocationBreadcrumb(item):'',toolbar=sectionDesignToolbar(kind),cover=window.renderSectionMediaCover(kind,item),portrait=window.renderSectionMediaPortrait(kind,item),props=cc3PropertiesPanel(kind,item,'Properties'),writing=cc3WritingPanel(kind,item);
   if(kind==='locations'){
     if(template==='travel-journal')return `${toolbar}${breadcrumb}<article class="cc3-detail cc3-location-journal-detail"><div class="cc3-journal-hero">${cover}</div>${cc3TitleRow(kind,item,'Travel Journal',[item.type,parentName(item),item.controlledBy].filter(Boolean).map(cc3Tag).join(''))}<div class="cc3-journal-detail-grid"><main>${cc3WritingPanel(kind,item,'Field notes')}</main><aside>${portrait}${props}</aside></div></article>`;
     if(template==='hierarchy-survey')return `${toolbar}${breadcrumb}<article class="cc3-detail cc3-realm-detail">${cc3TitleRow(kind,item,'Realm Tree',cc3Tag(item.type||'Location'))}${cc3LocationHierarchy(item)}<div class="cc3-realm-detail-grid"><main>${cc3WritingPanel(kind,item,'Place record')}</main><aside><div class="cc3-small-cover">${cover}</div>${props}</aside></div></article>`;
@@ -12373,11 +12377,11 @@ function cc4Outline(kind,item){const groups=cc4SectionGroups(item);return `<asid
 function cc4KnownMembers(item){return `<section class="cc4-mini-panel"><h3>Known Members</h3>${linkedPills('characters',item.keyMemberIds)}</section>`}
 function cc4LocationLinks(item){const children=childrenOf(item.id),connected=(item.relatedLocationIds||[]).map(x=>getItem('locations',x)).filter(Boolean);return `<div class="cc4-link-grid"><section><h3>Contains</h3>${children.map(x=>`<button data-open="locations:${x.id}">${esc(x.name)}</button>`).join('')||'<span>None yet</span>'}</section><section><h3>Connected To</h3>${connected.map(x=>`<button data-open="locations:${x.id}">${esc(x.name)}</button>`).join('')||'<span>None yet</span>'}</section><section><h3>Travel Routes</h3><p>${esc(item.travelConnections||item.notes||'Add routes and travel notes.')}</p></section></div>`}
 function cc4Title(kind,item,label){return `${cc3TitleRow(kind,item,label,[kind==='locations'?item.type:item.classification,kind==='locations'?parentName(item):item.origin].filter(Boolean).map(cc3Tag).join(''))}`}
-function cc4Species(item,t){const cover=renderSectionMediaCover('species',item),portrait=renderSectionMediaPortrait('species',item),props=cc3PropertiesPanel('species',item,'Quick Facts');
+function cc4Species(item,t){const cover=window.renderSectionMediaCover('species',item),portrait=window.renderSectionMediaPortrait('species',item),props=cc3PropertiesPanel('species',item,'Quick Facts');
  if(t==='lineage-cards')return `<article class="cc4-page cc4-anatomy">${cover}${cc4Title('species',item,'Anatomy & Culture')}<div class="cc4-top-grid"><div>${portrait}</div><div>${props}</div></div><div class="cc4-content-with-outline"><main>${cc4Editor('species',item,4)}</main>${cc4Outline('species',item)}</div></article>`;
  if(t==='classification-index')return `<article class="cc4-page cc4-lineage">${cover}<header class="cc4-archive-head">${cc4Title('species',item,'Lineage Archive')}</header><div class="cc4-lineage-grid"><aside>${props}</aside><main>${cc4Editor('species',item,1)}</main></div></article>`;
  return `<article class="cc4-page cc4-field">${cover}${cc4Title('species',item,'Field Guide')}<div class="cc4-top-grid"><div>${portrait}</div><div>${props}</div></div><div class="cc4-content-with-outline"><main>${cc4Editor('species',item,2)}</main>${cc4Outline('species',item)}</div></article>`}
-function cc4Location(item,t){const cover=renderSectionMediaCover('locations',item),portrait=renderSectionMediaPortrait('locations',item),props=cc3PropertiesPanel('locations',item,'Quick Facts'),crumb=renderLocationBreadcrumb(item);
+function cc4Location(item,t){const cover=window.renderSectionMediaCover('locations',item),portrait=window.renderSectionMediaPortrait('locations',item),props=cc3PropertiesPanel('locations',item,'Quick Facts'),crumb=renderLocationBreadcrumb(item);
  if(t==='travel-journal')return `${crumb}<article class="cc4-page cc4-journal-page">${cover}${cc4Title('locations',item,"Traveler’s Journal")}<div class="cc4-content-with-outline"><main>${portrait}${cc4Editor('locations',item,3)}</main>${cc4Outline('locations',item)}</div></article>`;
  if(t==='hierarchy-survey')return `${crumb}<article class="cc4-page cc4-connections">${cover}${cc4Title('locations',item,'Map & Connections')}<div class="cc4-map-summary"><div class="cc4-map-box">${portrait}</div>${props}</div>${cc4LocationLinks(item)}<div class="cc4-story-strip"><h3>Story Appearances</h3><div>●────●────●────●</div></div><div class="cc4-content-with-outline"><main>${cc4Editor('locations',item,1)}</main>${cc4Outline('locations',item)}</div></article>`;
  return `${crumb}<article class="cc4-page cc4-atlas">${cover}${cc4Title('locations',item,'Atlas Sheet')}<div class="cc4-map-summary"><div class="cc4-map-box">${portrait}</div>${props}</div><div class="cc4-content-with-outline"><main>${cc4Editor('locations',item,3)}</main>${cc4Outline('locations',item)}</div></article>`}
@@ -12645,7 +12649,7 @@ initFirebase();
     return `<section class="panel section-media-portrait-card cc-final-profile-card"><div class="section-media-portrait-label">${esc(copy.label)}</div><div class="cc-final-profile" data-cc-final-media-box="${esc(ref)}">${body}</div></section>`;
   };
   const ccFinalOldEntityCover=sectionEntityCover;
-  sectionEntityCover=function(kind,item){return ccFinalMediaKinds.has(kind)?`<div class="section-media-hero">${renderSectionMediaCover(kind,item)}</div>`:ccFinalOldEntityCover(kind,item);};
+  sectionEntityCover=function(kind,item){return ccFinalMediaKinds.has(kind)?`<div class="section-media-hero">${window.renderSectionMediaCover(kind,item)}</div>`:ccFinalOldEntityCover(kind,item);};
 
   function ccFinalParseMediaRef(ref){const [kind,slot,itemId]=String(ref||'').split(':');const item=getItem(kind,itemId);const field=slot==='cover'?'headerImage':'profileImage';return{kind,slot,itemId,item,field,media:item?.[field]};}
   function ccFinalShowMediaEditor(ref){
@@ -12939,7 +12943,7 @@ initFirebase();
 
   const cc16BaseRender = render;
   render = function(){
-    if(ccrhEditorIsProtected()){
+    if(typeof ccrhEditorIsProtected==='function'&&ccrhEditorIsProtected()){
       ccrhLockCurrentEditor();
       ccrhPendingRemoteRefresh=true;
       requestAnimationFrame(()=>{
@@ -15234,7 +15238,7 @@ initFirebase();
     const context=ccrhStoryFromRoute();
     ccrhEditorLock.active=true;
     ccrhEditorLock.storyId=String(context?.story?.id||'');
-    ccrhEditorLock.turnId=String(ccrhEditingTurnId||'');
+    ccrhEditorLock.turnId=String(document.querySelector('[data-ccrh-cancel-edit]')?.dataset?.ccrhCancelEdit||'');
     ccrhEditorLock.value=editor.value;
     ccrhEditorLock.start=editor.selectionStart??editor.value.length;
     ccrhEditorLock.end=editor.selectionEnd??ccrhEditorLock.start;
@@ -15265,15 +15269,16 @@ initFirebase();
   }
 
   function ccrhEditorIsProtected(){
+    if(typeof route==='undefined'||!route||route.view!=='story')return false;
     const editor=document.querySelector('[data-ccrh-editor]');
-    if(route.view!=='story'||!editor)return false;
+    if(!editor)return false;
     const context=ccrhStoryFromRoute();
     const sameStory=!ccrhEditorLock.storyId||
       String(context?.story?.id||'')===String(ccrhEditorLock.storyId);
     return sameStory&&(
       ccrhEditorLock.active||
       document.activeElement===editor||
-      Boolean(ccrhEditingTurnId)
+      Boolean(document.querySelector('[data-ccrh-cancel-edit]'))
     );
   }
 
