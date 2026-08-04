@@ -5307,6 +5307,143 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 </style>
 
+
+<style id="cc-dialogue-image-library-style">
+.cc-dialogue-image-library{display:grid;gap:10px}
+.cc-dialogue-library-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.cc-dialogue-library-head>div{display:grid;gap:3px}.cc-dialogue-library-head small,.cc-dialogue-selected-image-note{color:var(--muted)}
+.cc-dialogue-upload-label{white-space:nowrap}.cc-dialogue-image-choice-row{display:flex;gap:10px;overflow-x:auto;padding:3px 2px 8px}
+.cc-dialogue-image-choice,.cc-dialogue-saved-image{flex:0 0 112px}.cc-dialogue-image-choice{width:100%;display:grid;gap:6px;justify-items:center;padding:8px;border:1px solid var(--border);border-radius:11px;background:var(--panel-soft);color:var(--text);cursor:pointer}
+.cc-dialogue-image-choice.active,.cc-dialogue-saved-image.active .cc-dialogue-image-choice{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:var(--accent-soft)}
+.cc-dialogue-image-thumb{width:82px;height:82px;display:grid;place-items:center;overflow:hidden;border-radius:9px;border:1px solid var(--border);background:var(--panel-strong);color:var(--muted)}
+.cc-dialogue-image-thumb img{width:100%;height:100%;object-fit:cover}.cc-dialogue-no-image{font-size:30px}.cc-dialogue-saved-image{position:relative}
+.cc-dialogue-image-delete{position:absolute;top:4px;right:4px;z-index:2;width:23px;height:23px;border-radius:50%;border:1px solid var(--border);background:var(--panel-strong);color:var(--text);cursor:pointer}
+.cc-dialogue-selected-image-note{font-size:.86rem}
+</style>
+
+
+<style id="cc-dialogue-spacing-image-control-style">
+.cc-dialogue-section-title{
+  display:grid;
+  gap:3px;
+  padding-top:8px;
+  border-top:1px solid var(--border);
+}
+.cc-dialogue-section-title small{color:var(--muted)}
+
+/* Card width */
+.cc-dialogue-card.width-compact{width:min(560px,100%)!important}
+.cc-dialogue-card.width-standard{width:min(760px,100%)!important}
+.cc-dialogue-card.width-wide{width:min(980px,100%)!important}
+.cc-dialogue-card.width-full{width:100%!important}
+
+/* Inner padding */
+.cc-dialogue-card.padding-tight{padding:10px!important}
+.cc-dialogue-card.padding-standard{padding:18px!important}
+.cc-dialogue-card.padding-roomy{padding:28px!important}
+.cc-dialogue-card.padding-extra{padding:38px!important}
+
+/* Outside paragraph spacing */
+.cc-dialogue-card.space-before-none{margin-top:0!important}
+.cc-dialogue-card.space-before-tight{margin-top:8px!important}
+.cc-dialogue-card.space-before-standard{margin-top:16px!important}
+.cc-dialogue-card.space-before-roomy{margin-top:28px!important}
+.cc-dialogue-card.space-before-extra{margin-top:42px!important}
+.cc-dialogue-card.space-after-none{margin-bottom:0!important}
+.cc-dialogue-card.space-after-tight{margin-bottom:8px!important}
+.cc-dialogue-card.space-after-standard{margin-bottom:16px!important}
+.cc-dialogue-card.space-after-roomy{margin-bottom:28px!important}
+.cc-dialogue-card.space-after-extra{margin-bottom:42px!important}
+
+/* Portrait gap */
+.cc-dialogue-card.portrait-gap-tight .cc-dialogue-portrait-group{gap:8px!important}
+.cc-dialogue-card.portrait-gap-standard .cc-dialogue-portrait-group{gap:18px!important}
+.cc-dialogue-card.portrait-gap-wide .cc-dialogue-portrait-group{gap:32px!important}
+.cc-dialogue-card.portrait-gap-tight{column-gap:8px!important}
+.cc-dialogue-card.portrait-gap-standard{column-gap:18px!important}
+.cc-dialogue-card.portrait-gap-wide{column-gap:32px!important}
+
+/* Separate glow wrapper prevents clip-path shapes from cutting off glow */
+.cc-dialogue-portrait-wrap{
+  display:inline-grid;
+  place-items:center;
+  flex:0 0 auto;
+  padding:4px;
+  border:0;
+  background:transparent;
+  color:inherit;
+  cursor:pointer;
+  overflow:visible!important;
+}
+.cc-dialogue-card.glow-none .cc-dialogue-portrait-wrap{filter:none!important}
+.cc-dialogue-card.glow-soft .cc-dialogue-portrait-wrap{
+  filter:drop-shadow(0 0 6px color-mix(in srgb,var(--dialogue-accent) 42%,transparent))!important;
+}
+.cc-dialogue-card.glow-medium .cc-dialogue-portrait-wrap{
+  filter:drop-shadow(0 0 11px color-mix(in srgb,var(--dialogue-accent) 68%,transparent))!important;
+}
+.cc-dialogue-portrait{
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+  background:var(--panel-strong);
+}
+.cc-dialogue-portrait img{
+  width:100%;
+  height:100%;
+  display:block;
+}
+
+/* Portrait sizes */
+.cc-dialogue-portrait.size-small,.cc-dialogue-portrait-wrap.size-small{width:58px!important;height:58px!important}
+.cc-dialogue-portrait.size-medium,.cc-dialogue-portrait-wrap.size-medium{width:84px!important;height:84px!important}
+.cc-dialogue-portrait.size-large,.cc-dialogue-portrait-wrap.size-large{width:116px!important;height:116px!important}
+.cc-dialogue-portrait.size-extra,.cc-dialogue-portrait-wrap.size-extra{width:150px!important;height:150px!important}
+
+/* Crop */
+.cc-dialogue-portrait.crop-fit img{object-fit:contain!important}
+.cc-dialogue-portrait.crop-fill img{object-fit:cover!important;object-position:center!important}
+.cc-dialogue-portrait.crop-top img{object-fit:cover!important;object-position:center top!important}
+.cc-dialogue-portrait.crop-center img{object-fit:cover!important;object-position:center!important}
+
+/* Frames */
+.cc-dialogue-portrait.frame-none{border:0!important;box-shadow:none!important}
+.cc-dialogue-portrait.frame-thin{border:1px solid var(--border)!important}
+.cc-dialogue-portrait.frame-accent{border:2px solid var(--dialogue-accent)!important}
+.cc-dialogue-portrait.frame-decorative{
+  border:3px double var(--dialogue-accent)!important;
+  outline:1px solid color-mix(in srgb,var(--dialogue-accent) 40%,transparent);
+  outline-offset:3px;
+}
+
+/* Preserve all clipping shapes on the inner portrait only */
+.cc-dialogue-portrait.shape-circle{border-radius:50%!important;clip-path:none!important}
+.cc-dialogue-portrait.shape-rounded{border-radius:18px!important;clip-path:none!important}
+.cc-dialogue-portrait.shape-square{border-radius:2px!important;clip-path:none!important}
+.cc-dialogue-portrait.shape-octagon{border-radius:0!important;clip-path:polygon(30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,0 30%)!important}
+.cc-dialogue-portrait.shape-diamond{border-radius:0!important;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)!important}
+.cc-dialogue-portrait.shape-arch{border-radius:50% 50% 10px 10px!important;clip-path:none!important}
+.cc-dialogue-portrait.shape-none{border-radius:0!important;clip-path:none!important;border:0!important}
+
+/* Wrapper itself must remain unclipped */
+.cc-dialogue-portrait-wrap.shape-octagon,
+.cc-dialogue-portrait-wrap.shape-diamond,
+.cc-dialogue-portrait-wrap.shape-circle,
+.cc-dialogue-portrait-wrap.shape-rounded,
+.cc-dialogue-portrait-wrap.shape-square,
+.cc-dialogue-portrait-wrap.shape-arch,
+.cc-dialogue-portrait-wrap.shape-none{
+  clip-path:none!important;
+  border-radius:0!important;
+}
+
+@media(max-width:640px){
+  .cc-dialogue-card.padding-roomy{padding:20px!important}
+  .cc-dialogue-card.padding-extra{padding:24px!important}
+  .cc-dialogue-portrait.size-extra,.cc-dialogue-portrait-wrap.size-extra{width:118px!important;height:118px!important}
+}
+</style>
+
 </head>
 <body>
 
@@ -5393,7 +5530,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "dialogue-card-themes-2026-08-04";
+window.CODEX_BUILD = "dialogue-spacing-image-controls-2026-08-04";
 </script>
   <script>
 (() => {
@@ -15230,6 +15367,36 @@ initFirebase();
     return '';
   }
 
+  function ccDialogueImageLibrary(character){
+    if(!character)return [];
+    if(!Array.isArray(character.dialogueImages))character.dialogueImages=[];
+    character.dialogueImages=character.dialogueImages
+      .filter(item=>item&&typeof item==='object'&&String(item.src||'').trim())
+      .map(item=>({id:String(item.id||id('portrait')),name:String(item.name||'Saved portrait'),src:String(item.src||''),createdAt:String(item.createdAt||nowISO())}));
+    return character.dialogueImages;
+  }
+
+  function ccDialogueSelectedImage(character,stateValue=ccDialogueState){
+    if(!stateValue||stateValue.imageChoice==='none')return '';
+    if(stateValue.imageChoice==='saved'&&stateValue.selectedImage){
+      const found=ccDialogueImageLibrary(character).find(item=>String(item.id)===String(stateValue.selectedImage));
+      if(found?.src)return found.src;
+    }
+    return ccDialogueImage(character);
+  }
+
+  function ccDialogueReadImageFile(file){
+    return new Promise((resolve,reject)=>{
+      if(!file){reject(new Error('Choose an image first.'));return;}
+      if(!String(file.type||'').startsWith('image/')){reject(new Error('Please choose an image file.'));return;}
+      const reader=new FileReader();
+      reader.onload=()=>resolve(String(reader.result||''));
+      reader.onerror=()=>reject(new Error('The image could not be read.'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+
   function ccDialogueInitials(character,name){
     const value=String(name||character?.name||'?').trim();
     return value.split(/\s+/).slice(0,2).map(part=>part[0]?.toUpperCase()||'').join('')||'?';
@@ -15260,29 +15427,43 @@ initFirebase();
       theme:String(saved.theme||'classic'),
       accentMode:String(saved.accentMode||'profile'),
       customAccent:String(saved.customAccent||'#5fc7c4'),
+      imageChoice:String(saved.imageChoice||'default'),
+      selectedImage:String(saved.selectedImage||''),
       showImage:saved.showImage!==false,
       showBorder:saved.showBorder!==false,
       showCorners:saved.showCorners!==false,
       showBackground:saved.showBackground!==false,
       glow:String(saved.glow||'soft'),
+      innerPadding:String(saved.innerPadding||'standard'),
+      spaceBefore:String(saved.spaceBefore||'standard'),
+      spaceAfter:String(saved.spaceAfter||'standard'),
+      portraitGap:String(saved.portraitGap||'standard'),
+      cardWidth:String(saved.cardWidth||'standard'),
+      portraitSize:String(saved.portraitSize||'medium'),
+      imageCrop:String(saved.imageCrop||'fill'),
+      imageFrame:String(saved.imageFrame||'accent'),
       saveDefault:true
     };
   }
 
-  function ccDialoguePortrait(character,name,shape,showImage){
+  function ccDialoguePortrait(character,name,shape,showImage,imageOverride='',portraitSize='medium',imageCrop='fill',imageFrame='accent'){
     if(!showImage)return '';
-    const image=ccDialogueImage(character);
-    const initials=esc(ccDialogueInitials(character,name));
-    const imageMarkup=image
-      ? `<img src="${esc(image)}" alt="${esc(name)}" onerror="const portrait=this.closest('.cc-dialogue-portrait');if(portrait)portrait.classList.add('image-failed');this.remove();">`
-      : '';
-    return `<button type="button" class="cc-dialogue-portrait shape-${esc(shape)} ${image?'':'image-failed'}" data-cc-dialogue-profile-toggle>
-      ${imageMarkup}<span class="cc-dialogue-initials">${initials}</span>
+    const image=imageOverride||ccDialogueImage(character);
+    const initials=ccDialogueInitials(character,name);
+    const shapeClass=`shape-${esc(shape)}`;
+    const sizeClass=`size-${esc(portraitSize)}`;
+    const cropClass=`crop-${esc(imageCrop)}`;
+    const frameClass=`frame-${esc(imageFrame)}`;
+    const media=image
+      ? `<img src="${esc(image)}" alt="" onerror="this.closest('.cc-dialogue-portrait-wrap').innerHTML='<span class=&quot;cc-dialogue-portrait ${shapeClass} ${sizeClass} ${frameClass}&quot;>${esc(initials)}</span>'">`
+      : esc(initials);
+    return `<button type="button" class="cc-dialogue-portrait-wrap ${shapeClass} ${sizeClass} ${frameClass}" data-cc-dialogue-profile-toggle>
+      <span class="cc-dialogue-portrait ${shapeClass} ${sizeClass} ${cropClass} ${frameClass}">${media}</span>
     </button>`;
   }
 
-  function ccDialogueProfilePopover(character,name,blurb){
-    const image=ccDialogueImage(character);
+  function ccDialogueProfilePopover(character,name,blurb,imageOverride=''){
+    const image=imageOverride||ccDialogueImage(character);
     const media=image
       ? `<img src="${esc(image)}" alt="" onerror="this.remove()">`
       : `<span class="cc-dialogue-popover-initials">${esc(ccDialogueInitials(character,name))}</span>`;
@@ -15299,10 +15480,12 @@ initFirebase();
 
   function ccDialogueMarkup({
     character,name,subtitle,blurb,shape,imagePlacement,cardAlignment,namePlacement,
-    theme,accentMode,customAccent,showImage,showBorder,showCorners,showBackground,glow,text
+    theme,accentMode,customAccent,imageChoice,selectedImage,imageUrl,showImage,showBorder,showCorners,showBackground,glow,
+    innerPadding,spaceBefore,spaceAfter,portraitGap,cardWidth,portraitSize,imageCrop,imageFrame,text
   }){
     const accent=ccDialogueResolvedAccent(character,{accentMode,customAccent});
-    const portrait=ccDialoguePortrait(character,name||character?.name||'',shape,showImage);
+    const imageSource=String(imageUrl||'')||ccDialogueSelectedImage(character,{imageChoice,selectedImage});
+    const portrait=ccDialoguePortrait(character,name||character?.name||'',shape,showImage,imageSource,portraitSize,imageCrop,imageFrame);
     const visibleName=String(name||'').trim();
     const visibleSubtitle=String(subtitle||'').trim();
 
@@ -15328,7 +15511,12 @@ initFirebase();
       showBorder?'has-border':'no-border',
       showCorners?'has-corners':'no-corners',
       showBackground?'has-background':'no-background',
-      `glow-${esc(glow)}`
+      `glow-${esc(glow)}`,
+      `padding-${esc(innerPadding)}`,
+      `space-before-${esc(spaceBefore)}`,
+      `space-after-${esc(spaceAfter)}`,
+      `portrait-gap-${esc(portraitGap)}`,
+      `width-${esc(cardWidth)}`
     ].join(' ');
 
     return `<aside class="${cardClasses}" style="--dialogue-accent:${esc(accent)}">
@@ -15341,12 +15529,15 @@ initFirebase();
       </div>
       ${imagePlacement==='right'?portraitGroup:''}
       ${imagePlacement==='bottom'?portraitGroup:''}
-      ${ccDialogueProfilePopover(character,visibleName||character?.name||'Character',blurb)}
+      ${ccDialogueProfilePopover(character,visibleName||character?.name||'Character',blurb,imageSource)}
     </aside>`;
   }
 
   function ccDialogueBuilderHtml(){
     const characters=(state.characters||[]).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+    const activeCharacter=ccDialogueCharacter();
+    const imageLibrary=ccDialogueImageLibrary(activeCharacter);
+    const selectedImageSource=ccDialogueSelectedImage(activeCharacter,ccDialogueState);
     const options=characters.map(character=>`<option value="${esc(character.id)}" ${String(character.id)===String(ccDialogueState.characterId)?'selected':''}>${esc(character.name||'Unnamed character')}</option>`).join('');
 
     const themeLabels={
@@ -15380,6 +15571,22 @@ initFirebase();
     const glowChoices=[['none','None'],['soft','Soft'],['medium','Medium']]
       .map(([value,label])=>`<button type="button" class="${ccDialogueState.glow===value?'active':''}" data-cc-dialogue-glow="${value}">${label}</button>`).join('');
 
+    const spacingOptions=[['none','None'],['tight','Tight'],['standard','Standard'],['roomy','Roomy'],['extra','Extra roomy']];
+    const paddingChoices=[['tight','Tight'],['standard','Standard'],['roomy','Roomy'],['extra','Extra roomy']]
+      .map(([value,label])=>`<button type="button" class="${ccDialogueState.innerPadding===value?'active':''}" data-cc-dialogue-padding="${value}">${label}</button>`).join('');
+    const beforeChoices=spacingOptions.map(([value,label])=>`<button type="button" class="${ccDialogueState.spaceBefore===value?'active':''}" data-cc-dialogue-space-before="${value}">${label}</button>`).join('');
+    const afterChoices=spacingOptions.map(([value,label])=>`<button type="button" class="${ccDialogueState.spaceAfter===value?'active':''}" data-cc-dialogue-space-after="${value}">${label}</button>`).join('');
+    const gapChoices=[['tight','Tight'],['standard','Standard'],['wide','Wide']]
+      .map(([value,label])=>`<button type="button" class="${ccDialogueState.portraitGap===value?'active':''}" data-cc-dialogue-gap="${value}">${label}</button>`).join('');
+    const widthChoices=[['compact','Compact'],['standard','Standard'],['wide','Wide'],['full','Full width']]
+      .map(([value,label])=>`<button type="button" class="${ccDialogueState.cardWidth===value?'active':''}" data-cc-dialogue-width="${value}">${label}</button>`).join('');
+    const sizeChoices=[['small','Small'],['medium','Medium'],['large','Large'],['extra','Extra large']]
+      .map(([value,label])=>`<button type="button" class="${ccDialogueState.portraitSize===value?'active':''}" data-cc-dialogue-portrait-size="${value}">${label}</button>`).join('');
+    const cropChoices=[['fit','Fit'],['fill','Fill'],['top','Top focus'],['center','Center focus']]
+      .map(([value,label])=>`<button type="button" class="${ccDialogueState.imageCrop===value?'active':''}" data-cc-dialogue-crop="${value}">${label}</button>`).join('');
+    const frameChoices=[['none','No frame'],['thin','Thin border'],['accent','Accent border'],['decorative','Decorative']]
+      .map(([value,label])=>`<button type="button" class="${ccDialogueState.imageFrame===value?'active':''}" data-cc-dialogue-frame="${value}">${label}</button>`).join('');
+
     const character=ccDialogueCharacter();
     const resolvedAccent=ccDialogueResolvedAccent(character,ccDialogueState);
 
@@ -15411,6 +15618,18 @@ initFirebase();
         <div class="wide"><strong>Name placement</strong><div class="cc-dialogue-options">${namePlacements}</div></div>
         <div class="wide"><strong>Glow</strong><div class="cc-dialogue-options">${glowChoices}</div></div>
 
+        <div class="wide cc-dialogue-section-title"><strong>Spacing and size</strong><small>These settings control the room inside the card and the space between the card and the paragraphs around it.</small></div>
+        <div><strong>Inner padding</strong><div class="cc-dialogue-options">${paddingChoices}</div></div>
+        <div><strong>Portrait gap</strong><div class="cc-dialogue-options">${gapChoices}</div></div>
+        <div><strong>Space before card</strong><div class="cc-dialogue-options">${beforeChoices}</div></div>
+        <div><strong>Space after card</strong><div class="cc-dialogue-options">${afterChoices}</div></div>
+        <div class="wide"><strong>Card width</strong><div class="cc-dialogue-options">${widthChoices}</div></div>
+
+        <div class="wide cc-dialogue-section-title"><strong>Portrait appearance</strong><small>Adjust the portrait without changing the saved image itself.</small></div>
+        <div><strong>Portrait size</strong><div class="cc-dialogue-options">${sizeChoices}</div></div>
+        <div><strong>Image crop</strong><div class="cc-dialogue-options">${cropChoices}</div></div>
+        <div class="wide"><strong>Image frame</strong><div class="cc-dialogue-options">${frameChoices}</div></div>
+
         <div class="wide cc-dialogue-toggle-grid">
           <label class="cc-dialogue-check"><input type="checkbox" data-cc-dialogue-show-image ${ccDialogueState.showImage?'checked':''}><span>Show character image</span></label>
           <label class="cc-dialogue-check"><input type="checkbox" data-cc-dialogue-show-border ${ccDialogueState.showBorder?'checked':''}><span>Show border</span></label>
@@ -15418,6 +15637,24 @@ initFirebase();
           <label class="cc-dialogue-check"><input type="checkbox" data-cc-dialogue-show-background ${ccDialogueState.showBackground?'checked':''}><span>Show background panel</span></label>
         </div>
 
+
+        <div class="wide cc-dialogue-image-library">
+          <div class="cc-dialogue-library-head">
+            <div><strong>Character image</strong><small>Choose the default portrait, a saved alternate image, upload another, or hide the image.</small></div>
+            <label class="button secondary small cc-dialogue-upload-label">Upload image<input type="file" accept="image/*" data-cc-dialogue-image-upload hidden></label>
+          </div>
+          <div class="cc-dialogue-image-choice-row">
+            <button type="button" class="cc-dialogue-image-choice ${ccDialogueState.imageChoice==='default'?'active':''}" data-cc-dialogue-image-choice="default">
+              <span class="cc-dialogue-image-thumb">${ccDialogueImage(activeCharacter)?`<img src="${esc(ccDialogueImage(activeCharacter))}" alt="">`:'<span>Default</span>'}</span><span>Default portrait</span>
+            </button>
+            ${imageLibrary.map(item=>`<div class="cc-dialogue-saved-image ${ccDialogueState.imageChoice==='saved'&&ccDialogueState.selectedImage===item.id?'active':''}">
+              <button type="button" class="cc-dialogue-image-choice" data-cc-dialogue-saved-image="${esc(item.id)}"><span class="cc-dialogue-image-thumb"><img src="${esc(item.src)}" alt=""></span><span>${esc(item.name)}</span></button>
+              <button type="button" class="cc-dialogue-image-delete" data-cc-dialogue-delete-image="${esc(item.id)}" title="Delete saved image">×</button>
+            </div>`).join('')}
+            <button type="button" class="cc-dialogue-image-choice ${ccDialogueState.imageChoice==='none'?'active':''}" data-cc-dialogue-image-choice="none"><span class="cc-dialogue-image-thumb cc-dialogue-no-image">×</span><span>No image</span></button>
+          </div>
+          ${selectedImageSource?`<div class="cc-dialogue-selected-image-note">Selected image will stay attached to this Dialogue Card.</div>`:''}
+        </div>
         <div class="wide"><strong>Live preview</strong><div class="cc-dialogue-preview" data-cc-dialogue-preview></div></div>
       </div>
 
@@ -15446,11 +15683,21 @@ initFirebase();
       theme:ccDialogueState.theme,
       accentMode:ccDialogueState.accentMode,
       customAccent:ccDialogueState.customAccent,
+      imageChoice:ccDialogueState.imageChoice,
+      selectedImage:ccDialogueState.selectedImage,
       showImage:ccDialogueState.showImage,
       showBorder:ccDialogueState.showBorder,
       showCorners:ccDialogueState.showCorners,
       showBackground:ccDialogueState.showBackground,
       glow:ccDialogueState.glow,
+      innerPadding:ccDialogueState.innerPadding,
+      spaceBefore:ccDialogueState.spaceBefore,
+      spaceAfter:ccDialogueState.spaceAfter,
+      portraitGap:ccDialogueState.portraitGap,
+      cardWidth:ccDialogueState.cardWidth,
+      portraitSize:ccDialogueState.portraitSize,
+      imageCrop:ccDialogueState.imageCrop,
+      imageFrame:ccDialogueState.imageFrame,
       text:ccDialogueSelection.text||'Selected dialogue will appear here.'
     });
   }
@@ -15514,7 +15761,7 @@ initFirebase();
     const body=ccDialogueSelection.text||'Dialogue';
     const clean=value=>String(value||'').replace(/"/g,'');
 
-    const tag=`[dialogue character="${clean(character.id)}" name="${clean(ccDialogueState.name)}" subtitle="${clean(ccDialogueState.subtitle)}" shape="${ccDialogueState.shape}" image="${ccDialogueState.imagePlacement}" card="${ccDialogueState.cardAlignment}" namepos="${ccDialogueState.namePlacement}" theme="${ccDialogueState.theme}" accent="${ccDialogueState.accentMode}" customaccent="${clean(ccDialogueState.customAccent)}" border="${ccDialogueState.showBorder?'yes':'no'}" corners="${ccDialogueState.showCorners?'yes':'no'}" background="${ccDialogueState.showBackground?'yes':'no'}" glow="${ccDialogueState.glow}" blurb="${clean(ccDialogueState.blurb)}"]\n${body}\n[/dialogue]`;
+    const tag=`[dialogue character="${clean(character.id)}" name="${clean(ccDialogueState.name)}" subtitle="${clean(ccDialogueState.subtitle)}" shape="${ccDialogueState.shape}" image="${ccDialogueState.imagePlacement}" card="${ccDialogueState.cardAlignment}" namepos="${ccDialogueState.namePlacement}" theme="${ccDialogueState.theme}" accent="${ccDialogueState.accentMode}" customaccent="${clean(ccDialogueState.customAccent)}" imagechoice="${clean(ccDialogueState.imageChoice)}" imageid="${clean(ccDialogueState.selectedImage)}" imageurl="${clean(ccDialogueSelectedImage(character,ccDialogueState))}" border="${ccDialogueState.showBorder?'yes':'no'}" corners="${ccDialogueState.showCorners?'yes':'no'}" background="${ccDialogueState.showBackground?'yes':'no'}" glow="${ccDialogueState.glow}" padding="${ccDialogueState.innerPadding}" before="${ccDialogueState.spaceBefore}" after="${ccDialogueState.spaceAfter}" gap="${ccDialogueState.portraitGap}" width="${ccDialogueState.cardWidth}" portraitsize="${ccDialogueState.portraitSize}" crop="${ccDialogueState.imageCrop}" frame="${ccDialogueState.imageFrame}" blurb="${clean(ccDialogueState.blurb)}"]\n${body}\n[/dialogue]`;
 
     editor.setRangeText(tag,ccDialogueSelection.start,ccDialogueSelection.end,'end');
     editor.dispatchEvent(new Event('input',{bubbles:true}));
@@ -15532,11 +15779,21 @@ initFirebase();
         theme:ccDialogueState.theme,
         accentMode:ccDialogueState.accentMode,
         customAccent:ccDialogueState.customAccent,
+        imageChoice:ccDialogueState.imageChoice,
+        selectedImage:ccDialogueState.selectedImage,
         showImage:ccDialogueState.showImage,
         showBorder:ccDialogueState.showBorder,
         showCorners:ccDialogueState.showCorners,
         showBackground:ccDialogueState.showBackground,
-        glow:ccDialogueState.glow
+        glow:ccDialogueState.glow,
+        innerPadding:ccDialogueState.innerPadding,
+        spaceBefore:ccDialogueState.spaceBefore,
+        spaceAfter:ccDialogueState.spaceAfter,
+        portraitGap:ccDialogueState.portraitGap,
+        cardWidth:ccDialogueState.cardWidth,
+        portraitSize:ccDialogueState.portraitSize,
+        imageCrop:ccDialogueState.imageCrop,
+        imageFrame:ccDialogueState.imageFrame
       };
       scheduleSave('Saving dialogue card defaults…');
     }
@@ -15569,11 +15826,22 @@ initFirebase();
           theme:attrs.theme||'classic',
           accentMode:attrs.accent||'profile',
           customAccent:attrs.customaccent||'#5fc7c4',
+          imageChoice:attrs.imageurl?'saved':(attrs.imagechoice||'default'),
+          selectedImage:attrs.imageid||'',
+          imageUrl:attrs.imageurl||'',
           showImage:attrs.showimage!=='no',
           showBorder:attrs.border!=='no',
           showCorners:attrs.corners!=='no',
           showBackground:attrs.background!=='no',
           glow:attrs.glow||'soft',
+          innerPadding:attrs.padding||'standard',
+          spaceBefore:attrs.before||'standard',
+          spaceAfter:attrs.after||'standard',
+          portraitGap:attrs.gap||'standard',
+          cardWidth:attrs.width||'standard',
+          portraitSize:attrs.portraitsize||'medium',
+          imageCrop:attrs.crop||'fill',
+          imageFrame:attrs.frame||'accent',
           text:text.trim()
         }));
 
@@ -15592,6 +15860,25 @@ initFirebase();
     if(event.target.closest('[data-cc-dialogue-card-open]')){event.preventDefault();ccDialogueOpen();return;}
     if(event.target.closest('[data-cc-dialogue-close]')){event.preventDefault();ccDialogueClose();return;}
 
+
+
+    const imageChoiceButton=event.target.closest('[data-cc-dialogue-image-choice]');
+    if(imageChoiceButton){
+      event.preventDefault();ccDialogueState.imageChoice=imageChoiceButton.dataset.ccDialogueImageChoice;ccDialogueState.selectedImage='';ccDialogueRefreshBuilder();return;
+    }
+    const savedImageButton=event.target.closest('[data-cc-dialogue-saved-image]');
+    if(savedImageButton){
+      event.preventDefault();ccDialogueState.imageChoice='saved';ccDialogueState.selectedImage=savedImageButton.dataset.ccDialogueSavedImage;ccDialogueRefreshBuilder();return;
+    }
+    const deleteImageButton=event.target.closest('[data-cc-dialogue-delete-image]');
+    if(deleteImageButton){
+      event.preventDefault();event.stopPropagation();
+      const character=ccDialogueCharacter();if(!character)return;
+      const imageId=deleteImageButton.dataset.ccDialogueDeleteImage;
+      character.dialogueImages=ccDialogueImageLibrary(character).filter(item=>item.id!==imageId);
+      if(ccDialogueState.selectedImage===imageId){ccDialogueState.imageChoice='default';ccDialogueState.selectedImage='';}
+      scheduleSave('Removing saved character image…');ccDialogueRefreshBuilder();return;
+    }
 
     const themeButton=event.target.closest('[data-cc-dialogue-theme]');
     if(themeButton){
@@ -15621,6 +15908,24 @@ initFirebase();
       ccDialogueRefreshPreview();
       return;
     }
+
+
+    const paddingButton=event.target.closest('[data-cc-dialogue-padding]');
+    if(paddingButton){event.preventDefault();ccDialogueState.innerPadding=paddingButton.dataset.ccDialoguePadding;ccDialogueRefreshBuilder();return;}
+    const beforeButton=event.target.closest('[data-cc-dialogue-space-before]');
+    if(beforeButton){event.preventDefault();ccDialogueState.spaceBefore=beforeButton.dataset.ccDialogueSpaceBefore;ccDialogueRefreshBuilder();return;}
+    const afterButton=event.target.closest('[data-cc-dialogue-space-after]');
+    if(afterButton){event.preventDefault();ccDialogueState.spaceAfter=afterButton.dataset.ccDialogueSpaceAfter;ccDialogueRefreshBuilder();return;}
+    const gapButton=event.target.closest('[data-cc-dialogue-gap]');
+    if(gapButton){event.preventDefault();ccDialogueState.portraitGap=gapButton.dataset.ccDialogueGap;ccDialogueRefreshBuilder();return;}
+    const widthButton=event.target.closest('[data-cc-dialogue-width]');
+    if(widthButton){event.preventDefault();ccDialogueState.cardWidth=widthButton.dataset.ccDialogueWidth;ccDialogueRefreshBuilder();return;}
+    const portraitSizeButton=event.target.closest('[data-cc-dialogue-portrait-size]');
+    if(portraitSizeButton){event.preventDefault();ccDialogueState.portraitSize=portraitSizeButton.dataset.ccDialoguePortraitSize;ccDialogueRefreshBuilder();return;}
+    const cropButton=event.target.closest('[data-cc-dialogue-crop]');
+    if(cropButton){event.preventDefault();ccDialogueState.imageCrop=cropButton.dataset.ccDialogueCrop;ccDialogueRefreshBuilder();return;}
+    const frameButton=event.target.closest('[data-cc-dialogue-frame]');
+    if(frameButton){event.preventDefault();ccDialogueState.imageFrame=frameButton.dataset.ccDialogueFrame;ccDialogueRefreshBuilder();return;}
 
     const glowButton=event.target.closest('[data-cc-dialogue-glow]');
     if(glowButton){
@@ -15671,6 +15976,27 @@ initFirebase();
     if(!event.target.closest('.cc-dialogue-profile-popover')){
       document.querySelectorAll('.cc-dialogue-profile-popover').forEach(popover=>popover.hidden=true);
     }
+  },true);
+
+  document.addEventListener('change',async event=>{
+    const upload=event.target.closest('[data-cc-dialogue-image-upload]');
+    if(!upload)return;
+    try{
+      const character=ccDialogueCharacter();
+      if(!character)throw new Error('Choose a character first.');
+      const src=await ccDialogueReadImageFile(upload.files?.[0]);
+      const suggested=String(upload.files?.[0]?.name||'Saved portrait').replace(/\.[^.]+$/,'');
+      const imageName=window.prompt('Name this saved character image:',suggested);
+      if(imageName===null){upload.value='';return;}
+      const entry={id:id('portrait'),name:imageName.trim()||'Saved portrait',src,createdAt:nowISO()};
+      ccDialogueImageLibrary(character).push(entry);
+      ccDialogueState.imageChoice='saved';
+      ccDialogueState.selectedImage=entry.id;
+      scheduleSave('Saving character image…');
+      ccDialogueRefreshBuilder();
+      toast('Character image saved.');
+    }catch(error){toast(error?.message||String(error),'error');}
+    upload.value='';
   },true);
 
   document.addEventListener('change',event=>{
@@ -15733,10 +16059,21 @@ initFirebase();
   }
 
   function ccrhUnlockEditor(){
+    const shouldRefresh=Boolean(ccrhPendingRemoteRefresh);
     ccrhEditorLock.active=false;
     ccrhEditorLock.storyId='';
     ccrhEditorLock.turnId='';
     ccrhEditorLock.value='';
+    ccrhEditorLock.start=0;
+    ccrhEditorLock.end=0;
+    ccrhPendingRemoteRefresh=false;
+    if(shouldRefresh){
+      requestAnimationFrame(()=>{
+        if(typeof route!=='undefined'&&route?.view==='story'){
+          try{render();}catch(error){console.error('Queued roleplay refresh failed',error);}
+        }
+      });
+    }
   }
 
   function ccrhEditorIsProtected(){
@@ -15748,8 +16085,7 @@ initFirebase();
       String(context?.story?.id||'')===String(ccrhEditorLock.storyId);
     return sameStory&&(
       ccrhEditorLock.active||
-      document.activeElement===editor||
-      Boolean(document.querySelector('[data-ccrh-cancel-edit]'))
+      document.activeElement===editor
     );
   }
 
