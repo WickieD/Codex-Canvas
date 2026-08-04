@@ -4998,6 +4998,34 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 </style>
 
+
+<style id="cc-dialogue-final-exact-fix-style">
+.cc-dialogue-card{
+  container-type:inline-size;
+}
+@container (max-width: 560px){
+  .cc-dialogue-card.image-left,
+  .cc-dialogue-card.image-right{
+    flex-direction:column;
+    text-align:center;
+  }
+  .cc-dialogue-card.image-left .cc-dialogue-portrait,
+  .cc-dialogue-card.image-right .cc-dialogue-portrait{
+    order:-1;
+  }
+  .cc-dialogue-card.image-left .cc-dialogue-card-copy,
+  .cc-dialogue-card.image-right .cc-dialogue-card-copy{
+    width:100%;
+  }
+}
+.cc-dialogue-card-text{
+  min-width:0;
+  width:100%;
+  overflow-wrap:normal!important;
+  word-break:normal!important;
+}
+</style>
+
 </head>
 <body>
 
@@ -5084,7 +5112,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "dialogue-portrait-exact-fixed-2026-08-04";
+window.CODEX_BUILD = "dialogue-final-exact-fixed-2026-08-04";
 </script>
   <script>
 (() => {
@@ -14069,7 +14097,11 @@ initFirebase();
   },true);
   document.addEventListener('input',event=>{
     const area=event.target.closest('[data-ccrh-editor]'); if(!area)return;
-    const {story}=ccrhStoryFromRoute();document.querySelector('[data-ccrh-count]').textContent=area.value.length.toLocaleString();clearTimeout(ccrhDraftTimer);ccrhDraftTimer=setTimeout(()=>ccrhSaveDraft(story,area.value),400);
+    const {story}=ccrhStoryFromRoute();
+    const count=document.querySelector('[data-ccrh-count]');
+    if(count)count.textContent=area.value.length.toLocaleString();
+    clearTimeout(ccrhDraftTimer);
+    ccrhDraftTimer=setTimeout(()=>ccrhSaveDraft(story,area.value),400);
   },true);
   document.addEventListener('change',event=>{
     const speaker=event.target.closest('[data-ccrh-speaker]');if(speaker){const wrap=document.querySelector('[data-ccrh-custom-wrap]');if(wrap)wrap.hidden=speaker.value!=='custom';}
@@ -14831,13 +14863,66 @@ initFirebase();
 
   function ccDialogueImage(character){
     if(!character)return '';
-    try{
-      const resolved=ccrhCharacterImage(character);
-      return typeof resolved==='string'?resolved.trim():'';
-    }catch(error){
-      console.warn('Dialogue portrait lookup failed',error);
+
+    const safeSource=value=>{
+      if(typeof value==='string'){
+        const source=value.trim();
+        return /^(https?:|data:image\/|blob:)/i.test(source)?source:'';
+      }
+      if(value&&typeof value==='object'){
+        for(const key of ['src','url','dataUrl','dataURL','imageUrl','imageURL','downloadURL']){
+          const source=safeSource(value[key]);
+          if(source)return source;
+        }
+      }
       return '';
+    };
+
+    const preferredKeys=[
+      'profileImage','portraitImage','portrait','dossierProfileImage',
+      'dossierMainImage','mainPortrait','mainImage','avatar','image',
+      'photo','headerImage','coverImage'
+    ];
+
+    for(const key of preferredKeys){
+      const source=safeSource(character[key]);
+      if(source)return source;
     }
+
+    for(const containerKey of ['media','images','portraits','gallery','pageImages']){
+      const container=character[containerKey];
+      if(!container)continue;
+
+      if(Array.isArray(container)){
+        for(const entry of container){
+          const source=safeSource(entry);
+          if(source)return source;
+        }
+      }else if(typeof container==='object'){
+        for(const key of preferredKeys){
+          const source=safeSource(container[key]);
+          if(source)return source;
+        }
+        for(const value of Object.values(container)){
+          const source=safeSource(value);
+          if(source)return source;
+        }
+      }
+    }
+
+    for(const block of Array.isArray(character.blocks)?character.blocks:[]){
+      const type=String(block?.type||'').toLowerCase();
+      if(!/(image|portrait|media|photo)/.test(type))continue;
+      const source=safeSource(block?.src||block?.url||block?.content||block?.media);
+      if(source)return source;
+    }
+
+    try{
+      const source=ccrhCharacterImage(character);
+      if(source)return source;
+    }catch{}
+
+    return '';
   }
 
   function ccDialogueInitials(character,name){
@@ -14873,10 +14958,13 @@ initFirebase();
   function ccDialoguePortrait(character,name,shape,showImage){
     if(!showImage)return '';
     const image=ccDialogueImage(character);
-    const content=image
-      ? `<img src="${esc(image)}" alt="${esc(name)}" onerror="const p=this.closest('.cc-dialogue-portrait');if(p)p.classList.add('image-failed');this.remove();">`
+    const initials=esc(ccDialogueInitials(character,name));
+    const imageMarkup=image
+      ? `<img src="${esc(image)}" alt="${esc(name)}" onerror="const portrait=this.closest('.cc-dialogue-portrait');if(portrait)portrait.classList.add('image-failed');this.remove();">`
       : '';
-    return `<button type="button" class="cc-dialogue-portrait shape-${esc(shape)} ${image?'':'image-failed'}" data-cc-dialogue-profile-toggle>${content}<span class="cc-dialogue-initials">${esc(ccDialogueInitials(character,name))}</span></button>`;
+    return `<button type="button" class="cc-dialogue-portrait shape-${esc(shape)} ${image?'':'image-failed'}" data-cc-dialogue-profile-toggle>
+      ${imageMarkup}<span class="cc-dialogue-initials">${initials}</span>
+    </button>`;
   }
 
   function ccDialogueProfilePopover(character,name,blurb){
@@ -15114,6 +15202,8 @@ initFirebase();
     if(event.target.closest('[data-cc-dialogue-name],[data-cc-dialogue-blurb]'))ccDialogueSync();
   },true);
 
+
+  window.cc4Editor=cc4Editor;
 })();
 
 </script>
@@ -15155,8 +15245,10 @@ initFirebase();
   });
 
   /* Species-only media channel copied from the confirmed working Location path. */
-  const cc14BaseEditor=cc4Editor;
-  cc4Editor=function(kind,item,openCount=2){
+  const cc14BaseEditor=(typeof window.cc4Editor==='function')
+    ? window.cc4Editor
+    : ((kind,item,openCount=2)=>'');
+  window.cc4Editor=function(kind,item,openCount=2){
     let markup=cc14BaseEditor(kind,item,openCount);
     if(kind!=='species')return markup;
     return markup
