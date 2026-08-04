@@ -5031,7 +5031,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "unique-anchor-chooser-fixed-2026-08-04";
+window.CODEX_BUILD = "anchor-name-mismatch-fixed-2026-08-04";
 </script>
   <script>
 (() => {
@@ -14008,7 +14008,6 @@ initFirebase();
       ccrhOpenPostAnchorChooser(anchor.dataset.ccrhAnchor);
       return;
     }
-    const saveAnchor=event.target.closest('[data-ccrh-save-anchor]'); if(saveAnchor){event.preventDefault();const {story}=ccrhStoryFromRoute();const nodeId=document.querySelector('[data-ccrh-anchor-node]')?.value;const point=(story.nodes||[]).find(x=>x.id===nodeId);if(point){const passage=ensureStoryPassage(point);passage.anchorTurnId=saveAnchor.dataset.ccrhSaveAnchor;const title=document.querySelector('[data-ccrh-anchor-title]')?.value.trim();const summary=document.querySelector('[data-ccrh-anchor-summary]')?.value.trim();if(title)passage.title=title;if(summary)passage.summary=summary;scheduleSave('Saving anchor…');closeModal();render();toast('Anchor created.');}return;}
     const jump=event.target.closest('[data-ccrh-jump-post]'); if(jump){event.preventDefault();document.getElementById(`rp-post-${CSS.escape(jump.dataset.ccrhJumpPost)}`)?.scrollIntoView({behavior:'smooth',block:'start'});return;}
     const edit=event.target.closest('[data-ccrh-edit-post]'); if(edit){event.preventDefault();const {story}=ccrhStoryFromRoute();const turn=ensureStoryDocument(story).find(x=>x.id===edit.dataset.ccrhEditPost);if(turn){ccrhEditingPostId=turn.id;ccrhPreviewMode=false;ccrhRenderReader();requestAnimationFrame(()=>document.getElementById('rp-composer')?.scrollIntoView({behavior:'smooth',block:'start'}));toast('Editing this exact post.');}return;}
     const cancelEdit=event.target.closest('[data-ccrh-cancel-edit]'); if(cancelEdit){event.preventDefault();ccrhEditingPostId='';ccrhPreviewMode=false;ccrhRenderReader();toast('Edit cancelled.');return;}
