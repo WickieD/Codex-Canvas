@@ -4743,6 +4743,114 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 </style>
 
+
+<style id="cc-story-card-centered-bottom-fix">
+.story-library-grid,
+.story-grid,
+.cc-story-library-grid{
+  align-items:stretch!important;
+}
+
+.story-card,
+.story-library-card,
+.cc-story-card,
+.cc-story-uniform-card{
+  display:flex!important;
+  flex-direction:column!important;
+  height:100%!important;
+  min-height:390px!important;
+  text-align:left;
+}
+
+/* Let title and description occupy normal space. */
+.story-card .story-description,
+.story-library-card .story-description,
+.cc-story-card .story-description,
+.cc-story-uniform-card .story-description{
+  flex:0 0 auto!important;
+  min-height:0!important;
+}
+
+/* Push the count row and everything after it to the bottom. */
+.story-card .story-stats,
+.story-library-card .story-stats,
+.cc-story-card .story-stats,
+.cc-story-uniform-card .story-stats,
+.story-card .chip-row,
+.story-library-card .chip-row,
+.cc-story-card .chip-row,
+.cc-story-uniform-card .chip-row{
+  margin-top:auto!important;
+  margin-bottom:12px!important;
+  display:flex!important;
+  justify-content:center!important;
+  align-items:center!important;
+  flex-wrap:wrap!important;
+  gap:7px!important;
+  width:100%!important;
+}
+
+/* Center action buttons. */
+.story-card .story-actions,
+.story-library-card .story-actions,
+.cc-story-card .story-actions,
+.cc-story-uniform-card .story-actions,
+.story-card .card-actions,
+.story-library-card .card-actions,
+.cc-story-card .card-actions,
+.cc-story-uniform-card .card-actions{
+  margin-top:0!important;
+  display:flex!important;
+  justify-content:center!important;
+  align-items:center!important;
+  flex-wrap:wrap!important;
+  gap:9px!important;
+  width:100%!important;
+}
+
+/* Center Delete beneath the buttons. */
+.story-card .story-delete,
+.story-library-card .story-delete,
+.cc-story-card .story-delete,
+.cc-story-uniform-card .story-delete,
+.story-card [data-delete-story],
+.story-library-card [data-delete-story],
+.cc-story-card [data-delete-story],
+.cc-story-uniform-card [data-delete-story]{
+  align-self:center!important;
+  margin:12px auto 0!important;
+  text-align:center!important;
+}
+
+/* Generic fallback for the actual current card structure. */
+.cc-story-uniform-card > div:nth-last-child(3){
+  margin-top:auto!important;
+  display:flex!important;
+  justify-content:center!important;
+  flex-wrap:wrap!important;
+  gap:7px!important;
+}
+.cc-story-uniform-card > div:nth-last-child(2){
+  display:flex!important;
+  justify-content:center!important;
+  flex-wrap:wrap!important;
+  gap:9px!important;
+}
+.cc-story-uniform-card > :last-child{
+  align-self:center!important;
+  margin:12px auto 0!important;
+}
+
+@media(max-width:900px){
+  .story-card,
+  .story-library-card,
+  .cc-story-card,
+  .cc-story-uniform-card{
+    min-height:0!important;
+  }
+}
+</style>
+
 </head>
 <body>
 
@@ -4829,7 +4937,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "exact-story-card-fixed-2026-08-04";
+window.CODEX_BUILD = "story-cards-centered-open-fixed-2026-08-04";
 </script>
   <script>
 (() => {
@@ -10176,7 +10284,7 @@ function renderStoryLibrary(){
   const stories=state.storyGraphs||[];
   const cards=stories.map(story=>{
     const points=(story.nodes||[]).length,posts=(story.rpTurns||[]).length,intersections=storyIntersectionCount(story.id);
-    return `<article class="story-library-card cc-story-uniform-card"><div><span class="eyebrow">Story workspace</span><h3>${esc(story.name)}</h3></div><p>${esc(story.description||'Add the purpose, arc, or time period covered by this story.')}</p><div class="story-card-stats"><span class="tag">${points} point${points===1?'':'s'}</span><span class="tag">${posts} RP post${posts===1?'':'s'}</span><span class="tag">${intersections} intersection${intersections===1?'':'s'}</span></div><div class="story-card-actions"><button class="button" type="button" data-open-story="${esc(story.id)}">${points?'Open story':'Set up story'}</button><button class="button secondary" type="button" data-manage-story="${esc(story.id)}">Manage</button><button class="button ghost" type="button" data-story-graph="${esc(story.id)}">Open graph</button><button class="button ghost" type="button" data-delete-story="${esc(story.id)}">Delete</button></div></article>`;
+    return `<article class="story-library-card cc-story-uniform-card"><div><span class="eyebrow">Story workspace</span><h3>${esc(story.name)}</h3></div><p>${esc(story.description||'Add the purpose, arc, or time period covered by this story.')}</p><div class="story-card-stats story-stats"><span class="tag">${points} point${points===1?'':'s'}</span><span class="tag">${posts} RP post${posts===1?'':'s'}</span><span class="tag">${intersections} intersection${intersections===1?'':'s'}</span></div><div class="story-card-actions"><button class="button" type="button" data-open-story="${esc(story.id)}">${points?'Open story':'Set up story'}</button><button class="button secondary" type="button" data-manage-story="${esc(story.id)}">Manage</button><button class="button ghost" type="button" data-story-graph="${esc(story.id)}">Open graph</button><button class="story-delete" class="button ghost story-delete" type="button" data-delete-story="${esc(story.id)}">Delete</button></div></article>`;
   }).join('');
   const intersectionCards=(state.storyIntersections||[]).map(item=>{
     const a=storyById(item.storyAId),b=storyById(item.storyBId);if(!a||!b)return '';
@@ -10199,7 +10307,7 @@ function showStoryManager(storyId){
   const otherStories=(state.storyGraphs||[]).filter(item=>item.id!==story.id);
   const pointRows=(story.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0)).map(node=>`<div class="story-point-manager-row"><span><strong>${esc(storyNodeName(node.id))}</strong><small>${esc(node.role||'Story point')} · Point ${esc(node.order||'')}</small></span><button class="button ghost small" type="button" data-remove-story-point="${esc(story.id)}|${esc(node.id)}">Remove</button></div>`).join('');
   const intersections=(state.storyIntersections||[]).filter(item=>item.storyAId===story.id||item.storyBId===story.id).map(item=>{const other=storyById(item.storyAId===story.id?item.storyBId:item.storyAId);return `<div class="story-point-manager-row"><span><strong>${esc(item.label)}</strong><small>${esc(other?.name||'Other story')} · ${esc(item.description||'Shared story point')}</small></span><button class="button ghost small" type="button" data-delete-intersection="${esc(item.id)}">Remove</button></div>`;}).join('');
-  showModal(`Manage ${story.name}`,`<div class="story-manager"><div class="story-manager-grid"><label><span>Story name</span><input class="input" value="${esc(story.name)}" data-story-name="${esc(story.id)}"></label><label><span>Description</span><textarea class="textarea" rows="3" data-story-description="${esc(story.id)}">${esc(story.description||'')}</textarea></label></div><section class="story-manager-section"><h3>Story points</h3><div class="story-manager-add"><label><span>Add a person, place, group, species, or event</span><select id="storyPointToAdd" class="select"><option value="">Choose a point</option>${allPoints.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('')}</select></label><label><span>Point role</span><input id="storyPointRole" class="input" placeholder="Story turn, setting, branch…"></label><button class="button" type="button" data-add-story-point="${esc(story.id)}">Add point</button></div><div class="story-point-manager-list">${pointRows||'<p class="page-subtitle">No points yet.</p>'}</div></section><section class="story-manager-section"><h3>Connect this story to another story</h3>${otherStories.length&&points.length?`<div class="story-manager-add"><label><span>Other story</span><select id="intersectionOtherStory" class="select"><option value="">Choose a story</option>${otherStories.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}</select></label><label><span>This story point</span><select id="intersectionThisPoint" class="select">${points.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('')}</select></label><label><span>Other story point</span><select id="intersectionOtherPoint" class="select"><option value="">Choose the other story first</option></select></label><label><span>Intersection name</span><input id="intersectionLabel" class="input" placeholder="Paths cross, shared aftermath…"></label><label style="grid-column:1/-1"><span>Description</span><input id="intersectionDescription" class="input" placeholder="What connects these stories here?"></label><button class="button" type="button" data-add-intersection="${esc(story.id)}">Add intersection</button></div>`:'<p class="page-subtitle">Add points to this story and create at least one other story before adding an intersection.</p>'}<div class="story-point-manager-list">${intersections||''}</div></section></div>`,`<button class="button secondary" type="button" data-close-modal>Done</button><button class="button" type="button" data-nav="story" data-id="${esc(storyRouteValue(story.id,''))}">Open story</button>`);
+  showModal(`Manage ${story.name}`,`<div class="story-manager"><div class="story-manager-grid"><label><span>Story name</span><input class="input" value="${esc(story.name)}" data-story-name="${esc(story.id)}"></label><label><span>Description</span><textarea class="textarea" rows="3" data-story-description="${esc(story.id)}">${esc(story.description||'')}</textarea></label></div><section class="story-manager-section"><h3>Story points</h3><div class="story-manager-add"><label><span>Add a person, place, group, species, or event</span><select id="storyPointToAdd" class="select"><option value="">Choose a point</option>${allPoints.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('')}</select></label><label><span>Point role</span><input id="storyPointRole" class="input" placeholder="Story turn, setting, branch…"></label><button class="button" type="button" data-add-story-point="${esc(story.id)}">Add point</button></div><div class="story-point-manager-list">${pointRows||'<p class="page-subtitle">No points yet.</p>'}</div></section><section class="story-manager-section"><h3>Connect this story to another story</h3>${otherStories.length&&points.length?`<div class="story-manager-add"><label><span>Other story</span><select id="intersectionOtherStory" class="select"><option value="">Choose a story</option>${otherStories.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}</select></label><label><span>This story point</span><select id="intersectionThisPoint" class="select">${points.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('')}</select></label><label><span>Other story point</span><select id="intersectionOtherPoint" class="select"><option value="">Choose the other story first</option></select></label><label><span>Intersection name</span><input id="intersectionLabel" class="input" placeholder="Paths cross, shared aftermath…"></label><label style="grid-column:1/-1"><span>Description</span><input id="intersectionDescription" class="input" placeholder="What connects these stories here?"></label><button class="button" type="button" data-add-intersection="${esc(story.id)}">Add intersection</button></div>`:'<p class="page-subtitle">Add points to this story and create at least one other story before adding an intersection.</p>'}<div class="story-point-manager-list">${intersections||''}</div></section></div>`,`<button class="button secondary" type="button" data-close-modal>Done</button><button class="button" type="button" data-open-library-story="${esc(story.id)}">Open story</button>`);
 }
 function addStoryPoint(storyId){
   const story=storyById(storyId),nodeId=document.getElementById('storyPointToAdd')?.value;if(!story||!nodeId)return;
@@ -10263,7 +10371,7 @@ function graphConnectionManagerHtml(){
   const options=graphConnectionNodeOptions();
   if(graphSettings.graphType==='story'){
     const story=activeStoryGraph();if(!story)return '';
-    const rows=(story.links||[]).map(link=>`<div class="graph-connection-row"><span><strong>${esc(storyNodeName(link.source))} → ${esc(storyNodeName(link.target))}</strong><small>${link.mainPath===false?'Branch path':'Main path'}</small></span><input class="input" value="${esc(link.label||'')}" data-story-link-label="${esc(story.id)}|${esc(link.id)}" aria-label="Connection label"><button class="button ghost small" type="button" data-delete-story-link="${esc(story.id)}|${esc(link.id)}">Delete</button><input class="input graph-connection-description" value="${esc(link.description||'')}" data-story-link-description="${esc(story.id)}|${esc(link.id)}" placeholder="Optional explanation of this branch"></div>`).join('');
+    const rows=(story.links||[]).map(link=>`<div class="graph-connection-row"><span><strong>${esc(storyNodeName(link.source))} → ${esc(storyNodeName(link.target))}</strong><small>${link.mainPath===false?'Branch path':'Main path'}</small></span><input class="input" value="${esc(link.label||'')}" data-story-link-label="${esc(story.id)}|${esc(link.id)}" aria-label="Connection label"><button class="story-delete" class="button ghost small story-delete" type="button" data-delete-story-link="${esc(story.id)}|${esc(link.id)}">Delete</button><input class="input graph-connection-description" value="${esc(link.description||'')}" data-story-link-description="${esc(story.id)}|${esc(link.id)}" placeholder="Optional explanation of this branch"></div>`).join('');
     return `<details class="graph-connection-panel" open><summary>Edit story branches</summary><div class="graph-connection-panel-body"><p class="page-subtitle">Name each line exactly as it should read, such as “Bond established,” “Leaves the main path,” or “Reunites here.”</p><div class="graph-connection-form"><label><span>From</span><select id="graphConnectionFrom" class="select"><option value="">Choose a point</option>${options.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('')}</select></label><label><span>To</span><select id="graphConnectionTo" class="select"><option value="">Choose a point</option>${options.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('')}</select></label><label><span>Branch name</span><input id="graphConnectionLabel" class="input" placeholder="Bond established"></label><label><span>Path type</span><select id="graphConnectionPathType" class="select"><option value="main">Main path</option><option value="branch">Branch path</option></select></label><label style="grid-column:1/-1"><span>Description</span><input id="graphConnectionDescription" class="input" placeholder="Optional explanation"></label><button class="button" type="button" data-add-graph-connection>Add branch</button></div><div class="graph-connection-manager-list">${rows||'<p class="page-subtitle">No branches yet.</p>'}</div></div></details>`;
   }
   const rows=(state.graphConnections||[]).filter(branch=>options.some(x=>x.value===branch.source)&&options.some(x=>x.value===branch.target)).map(branch=>`<div class="graph-connection-row"><span><strong>${esc(resolveGraphNode(branch.source)?.label||branch.source)} ↔ ${esc(resolveGraphNode(branch.target)?.label||branch.target)}</strong><small>Custom graph branch</small></span><input class="input" value="${esc(branch.label||'')}" data-custom-link-label="${esc(branch.id)}"><button class="button ghost small" type="button" data-delete-custom-link="${esc(branch.id)}">Delete</button><input class="input graph-connection-description" value="${esc(branch.description||'')}" data-custom-link-description="${esc(branch.id)}" placeholder="Optional explanation of this connection"></div>`).join('');
@@ -14744,6 +14852,20 @@ initFirebase();
       }
     });
   }
+
+
+  document.addEventListener('click',event=>{
+    const button=event.target.closest('[data-open-library-story]');
+    if(!button)return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const storyId=button.dataset.openLibraryStory;
+    if(!storyId)return;
+    route={view:'story',id:storyRouteValue(storyId,'')};
+    history.replaceState(null,'',`#story/${encodeURIComponent(route.id)}`);
+    render();
+  },true);
+
 })();
 </script>
 
