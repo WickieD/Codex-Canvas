@@ -5026,6 +5026,87 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 </style>
 
+
+<style id="cc-dialogue-card-polish-style">
+.cc-dialogue-card{
+  box-shadow:0 0 10px color-mix(in srgb,var(--dialogue-accent) 9%,transparent)!important;
+  border-color:color-mix(in srgb,var(--dialogue-accent) 58%,var(--border))!important;
+  overflow:visible;
+}
+.cc-dialogue-card.image-right{
+  flex-direction:row!important;
+}
+.cc-dialogue-card.image-right .cc-dialogue-card-copy{
+  order:1;
+}
+.cc-dialogue-card.image-right .cc-dialogue-portrait{
+  order:2;
+  margin-left:auto;
+}
+.cc-dialogue-card-name:empty{
+  display:none!important;
+}
+.cc-dialogue-corner{
+  position:absolute;
+  width:17px;
+  height:17px;
+  pointer-events:none;
+  opacity:.7;
+}
+.cc-dialogue-corner::before,
+.cc-dialogue-corner::after{
+  content:"";
+  position:absolute;
+  background:var(--dialogue-accent);
+  border-radius:1px;
+}
+.cc-dialogue-corner::before{
+  width:12px;
+  height:1px;
+}
+.cc-dialogue-corner::after{
+  width:1px;
+  height:12px;
+}
+.cc-dialogue-corner.corner-tl{left:8px;top:8px}
+.cc-dialogue-corner.corner-tr{right:8px;top:8px;transform:rotate(90deg)}
+.cc-dialogue-corner.corner-br{right:8px;bottom:8px;transform:rotate(180deg)}
+.cc-dialogue-corner.corner-bl{left:8px;bottom:8px;transform:rotate(270deg)}
+.cc-dialogue-corner::before{left:0;top:0}
+.cc-dialogue-corner::after{left:0;top:0}
+
+.cc-dialogue-profile-popover{
+  border-color:color-mix(in srgb,var(--dialogue-accent) 58%,var(--border))!important;
+  box-shadow:0 14px 34px rgba(0,0,0,.38)!important;
+}
+.cc-dialogue-profile-head{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.cc-dialogue-profile-head img,
+.cc-dialogue-profile-head .cc-dialogue-popover-initials{
+  float:none!important;
+  margin:0!important;
+  flex:0 0 54px;
+  width:54px!important;
+  height:54px!important;
+}
+.cc-dialogue-profile-popover p{
+  clear:none!important;
+  margin:12px 0!important;
+  line-height:1.45;
+}
+.cc-dialogue-profile-button{
+  background:color-mix(in srgb,var(--dialogue-accent) 20%,var(--panel-strong))!important;
+  border-color:color-mix(in srgb,var(--dialogue-accent) 65%,var(--border))!important;
+  color:color-mix(in srgb,var(--dialogue-accent) 78%,white)!important;
+}
+.cc-dialogue-profile-button:hover{
+  background:color-mix(in srgb,var(--dialogue-accent) 32%,var(--panel-strong))!important;
+}
+</style>
+
 </head>
 <body>
 
@@ -5112,7 +5193,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "startup-editor-lock-repaired-2026-08-04";
+window.CODEX_BUILD = "dialogue-card-polish-fixed-2026-08-04";
 </script>
   <script>
 (() => {
@@ -14961,7 +15042,7 @@ initFirebase();
     const saved=ccDialogueDefaults()[character?.id]||{};
     return {
       characterId:character?.id||'',
-      name:String(saved.name||character?.name||'Character'),
+      name:Object.prototype.hasOwnProperty.call(saved,'name')?String(saved.name):String(character?.name||'Character'),
       blurb:String(saved.blurb||ccDialogueBlurb(character)),
       shape:String(saved.shape||'circle'),
       imagePlacement:String(saved.imagePlacement||'right'),
@@ -14988,28 +15069,39 @@ initFirebase();
     const media=image
       ? `<img src="${esc(image)}" alt="" onerror="this.remove()">`
       : `<span class="cc-dialogue-popover-initials">${esc(ccDialogueInitials(character,name))}</span>`;
+    const safeBlurb=String(blurb||'').trim();
     return `<div class="cc-dialogue-profile-popover" hidden>
-      ${media}
-      <strong>${esc(name||character?.name||'Character')}</strong>
-      <p>${esc(blurb||'No character preview has been added yet.')}</p>
-      <button class="button small" type="button" data-open="characters:${esc(character?.id||'')}">View character profile</button>
+      <div class="cc-dialogue-profile-head">
+        ${media}
+        <strong>${esc(name||character?.name||'Character')}</strong>
+      </div>
+      <p>${safeBlurb?esc(safeBlurb):'<span class="muted">No character preview has been added yet.</span>'}</p>
+      <button class="button small cc-dialogue-profile-button" type="button" data-open="characters:${esc(character?.id||'')}">View character profile</button>
     </div>`;
   }
 
   function ccDialogueMarkup({character,name,blurb,shape,imagePlacement,cardAlignment,showImage,text}){
-    const portrait=ccDialoguePortrait(character,name,shape,showImage);
+    const portrait=ccDialoguePortrait(character,name||character?.name||'',shape,showImage);
     const accent=ccDialogueColor(character);
     const leftOrTop=imagePlacement==='left'||imagePlacement==='top';
     const rightOrBottom=imagePlacement==='right'||imagePlacement==='bottom';
+    const visibleName=String(name||'').trim();
+    const nameButton=visibleName
+      ? `<button type="button" class="cc-dialogue-card-name" data-cc-dialogue-profile-toggle>${esc(visibleName)}</button>`
+      : '';
 
     return `<aside class="cc-dialogue-card align-${esc(cardAlignment)} image-${esc(imagePlacement)}" style="--dialogue-accent:${esc(accent)}">
+      <span class="cc-dialogue-corner corner-tl"></span>
+      <span class="cc-dialogue-corner corner-tr"></span>
+      <span class="cc-dialogue-corner corner-bl"></span>
+      <span class="cc-dialogue-corner corner-br"></span>
       ${leftOrTop?portrait:''}
       <div class="cc-dialogue-card-copy">
-        <button type="button" class="cc-dialogue-card-name" data-cc-dialogue-profile-toggle>${esc(name)}</button>
+        ${nameButton}
         <div class="cc-dialogue-card-text">${esc(text).replace(/\n/g,'<br>')}</div>
       </div>
       ${rightOrBottom?portrait:''}
-      ${ccDialogueProfilePopover(character,name,blurb)}
+      ${ccDialogueProfilePopover(character,visibleName||character?.name||'Character',blurb)}
     </aside>`;
   }
 
@@ -15096,7 +15188,7 @@ initFirebase();
     const showInput=mount.querySelector('[data-cc-dialogue-show-image]');
     const saveInput=mount.querySelector('[data-cc-dialogue-save-default]');
     if(nameInput)ccDialogueState.name=nameInput.value||ccDialogueState.name;
-    if(blurbInput)ccDialogueState.blurb=blurbInput.value||'';
+    if(blurbInput)ccDialogueState.blurb=blurbInput.value;
     if(showInput)ccDialogueState.showImage=Boolean(showInput.checked);
     if(saveInput)ccDialogueState.saveDefault=Boolean(saveInput.checked);
     ccDialogueRefreshPreview();
