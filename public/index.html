@@ -5530,7 +5530,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "dialogue-spacing-image-controls-2026-08-04";
+window.CODEX_BUILD = "dialogue-runtime-repair-2026-08-04";
 </script>
   <script>
 (() => {
@@ -10052,6 +10052,7 @@ const SECTION_TEMPLATE_CONFIG = Object.freeze({
     }
   }
 });
+window.SECTION_TEMPLATE_CONFIG=SECTION_TEMPLATE_CONFIG;
 
 function ensureSectionDesigns(){
   state.workspace ||= {};
@@ -15668,6 +15669,18 @@ initFirebase();
     </section>`;
   }
 
+  function ccDialogueRefreshBuilder(){
+    const mount=document.querySelector('[data-cc-dialogue-builder-mount]');
+    if(!mount||!ccDialogueState)return;
+    const scrollContainer=mount.closest('.ccrh-composer-card')||mount.parentElement;
+    const previousScroll=scrollContainer?.scrollTop||0;
+    mount.innerHTML=ccDialogueBuilderHtml();
+    ccDialogueRefreshPreview();
+    if(scrollContainer){
+      requestAnimationFrame(()=>{scrollContainer.scrollTop=previousScroll;});
+    }
+  }
+
   function ccDialogueRefreshPreview(){
     const target=document.querySelector('[data-cc-dialogue-preview]');
     if(!target||!ccDialogueState)return;
@@ -16215,7 +16228,7 @@ initFirebase();
   },true);
 
 
-  Object.assign(SECTION_TEMPLATE_CONFIG.factions.templates,{
+  Object.assign(window.SECTION_TEMPLATE_CONFIG.factions.templates,{
     'heraldic-registry':{name:'Lore Ledger',description:'A detailed ledger with a list of factions and a rich detail panel for each selection.',preview:'ccf-lore-ledger'},
     'influence-board':{name:'Banner Board',description:'A vibrant board with at-a-glance stats, grouped faction cards, and a contextual sidebar.',preview:'ccf-banner-board'},
     'intelligence-files':{name:'Codex Grid',description:'A clean grid of faction cards with key details and a compact overview panel.',preview:'ccf-codex-grid'}
