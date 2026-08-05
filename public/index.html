@@ -16311,6 +16311,14 @@ initFirebase();
     }
   },true);
 
+  /* Expose the shared media helpers used by the character/species media extension script. */
+  Object.assign(window,{
+    ccFinalCopy,
+    ccFinalSrc,
+    ccFinalMediaCss,
+    ccFinalAddPageImage
+  });
+
 })();
 
 </script>
