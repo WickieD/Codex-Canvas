@@ -5614,7 +5614,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "species-section-state-2026-08-05";
+window.CODEX_BUILD = "species-persistent-section-state-2026-08-05";
 </script>
   <script>
 (() => {
@@ -11435,11 +11435,35 @@ cc4Editor=function(kind,item,openCount=2){
   const toolbar=`<div class="block-toolbar" data-editor="${kind}:${item.id}"><button class="block-tool" type="button" data-add-block="text" title="Text">T</button><button class="block-tool" type="button" data-add-block="h2" title="New section">H</button><button class="block-tool" type="button" data-add-block="bullet" title="Bullet">•</button><button class="block-tool" type="button" data-add-block="quote" title="Quote">❝</button><button class="block-tool" type="button" data-add-block="divider" title="Divider">―</button><label class="block-tool cc9-toolbar-upload" title="Add image">▧<input type="file" accept="image/*" data-cc5-image-input="${kind}:${item.id}"></label><span class="cc5-image-toolbar-help">Add images anywhere, then choose inline, in front, or behind.</span></div>`;
   return `${toolbar}<div class="cc4-section-stack block-list" data-block-list="${kind}:${item.id}">${groups.map((g,i)=>{
     const headingIndex=g.heading?.index;
-    return `<details class="cc4-section cc5-section ${cc4GroupEmpty(g)?'is-empty':''}" ${i<openCount?'open':''} id="cc4-${kind}-${item.id}-${i}">
+    const ccSectionKey=String(g.heading?.block?.id||g.heading?.block?.key||g.title||`section-${i}`);
+    const ccSavedStates=item.sectionOpenState&&typeof item.sectionOpenState==='object'?item.sectionOpenState:{};
+    const ccHasSavedState=Object.prototype.hasOwnProperty.call(ccSavedStates,ccSectionKey);
+    const ccShouldOpen=ccHasSavedState?Boolean(ccSavedStates[ccSectionKey]):i<openCount;
+    return `<details class="cc4-section cc5-section ${cc4GroupEmpty(g)?'is-empty':''}" ${ccShouldOpen?'open':''} data-cc-section-state="${esc(kind)}:${esc(item.id)}:${esc(ccSectionKey)}" id="cc4-${kind}-${item.id}-${i}">
       <summary><div class="cc5-section-summary"><input class="cc5-section-title" value="${esc(g.title)}" aria-label="Section heading" data-cc5-section-title="${kind}:${item.id}:${headingIndex??-1}"><small>${cc4GroupEmpty(g)?'Not filled in':'Open section'}</small><span class="cc5-section-actions"><button type="button" data-cc5-section-up="${kind}:${item.id}:${headingIndex??-1}" title="Move section up">↑</button><button type="button" data-cc5-section-down="${kind}:${item.id}:${headingIndex??-1}" title="Move section down">↓</button><button class="danger" type="button" data-cc5-section-delete="${kind}:${item.id}:${headingIndex??-1}">Delete</button></span></div></summary>
       <div class="cc4-section-body">${g.heading?renderBlock(kind,item.id,g.heading.block,g.heading.index):''}${g.rows.map(x=>renderBlock(kind,item.id,x.block,x.index)).join('')||'<p class="cc4-muted">Nothing has been added yet.</p>'}</div>
     </details>`;}).join('')}</div>`;
 };
+
+// Persist the last shared open/closed choice for every editable section.
+document.addEventListener('toggle',event=>{
+  const details=event.target instanceof Element?event.target.closest('[data-cc-section-state]'):null;
+  if(!details)return;
+  const raw=details.dataset.ccSectionState||'';
+  const first=raw.indexOf(':'),second=raw.indexOf(':',first+1);
+  if(first<1||second<0)return;
+  const kind=raw.slice(0,first);
+  const itemId=raw.slice(first+1,second);
+  const sectionKey=raw.slice(second+1);
+  const item=getItem(kind,itemId);
+  if(!item||!sectionKey)return;
+  if(!item.sectionOpenState||typeof item.sectionOpenState!=='object')item.sectionOpenState={};
+  const next=Boolean(details.open);
+  if(item.sectionOpenState[sectionKey]===next)return;
+  item.sectionOpenState[sectionKey]=next;
+  item.updatedAt=nowISO();
+  scheduleSave('Saving section state…');
+},true);
 
 document.addEventListener('click',event=>{
   const add=event.target.closest('[data-cc5-add-image]');if(add){event.preventDefault();event.stopImmediatePropagation();const input=document.querySelector(`[data-cc5-image-input="${CSS.escape(add.dataset.cc5AddImage)}"]`);if(input){input.value='';input.click();}return;}
@@ -16565,6 +16589,9 @@ initFirebase();
     'intelligence-files':{name:'Codex Grid',description:'A clean grid of faction cards with key details and a compact overview panel.',preview:'ccf-codex-grid'}
   });
 
+  // This extension script has its own scope. The main picker remains active
+  // in the primary application script; this local fallback prevents startup errors.
+  let showSectionTemplatePicker=window.showSectionTemplatePicker||function(){};
   const ccfBasePicker=showSectionTemplatePicker;
   function ccfPreview(id){
     if(id==='heraldic-registry')return `<div class="ccf-shell ccf-shell-ledger"><div class="ccf-shell-top"></div><div class="ccf-shell-nav"></div><div class="ccf-shell-row"><div class="list">${'<i></i>'.repeat(7)}</div><div class="detail"><b></b>${'<span></span>'.repeat(4)}</div></div></div>`;
