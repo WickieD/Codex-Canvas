@@ -5635,7 +5635,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "species-faction-image-upload-fix-2026-08-05";
+window.CODEX_BUILD = "species-faction-upload-scope-fix-2026-08-05";
 </script>
   <script>
 (() => {
@@ -6448,10 +6448,10 @@ window.CODEX_BUILD = "species-faction-image-upload-fix-2026-08-05";
     const title=dossierLabel(item,titleKey), help=dossierLabel(item,helpKey);
     return `<article class="dossier-media-card ${esc(className)}">
       <div class="dossier-media-head"><span>${dossierLabelButton(item,titleKey,'media-title')}</span><span>${dossierLabelButton(item,helpKey,'media-help')}</span></div>
-      <div class="dossier-media-slot ${image ? 'has-image' : ''}" data-character-media-select="${esc(ref)}" data-character-media-drop="${esc(ref)}" ${image ? `tabindex="0" role="button" aria-label="Select ${esc(title)}"` : ''}>
-        ${image ? `<img src="${esc(image)}" alt="${esc(media?.alt || `${item.name} ${title}`)}" style="${characterMediaStyle(media,slot)}">` : `<button class="dossier-media-placeholder" type="button" data-character-media-trigger="${esc(ref)}"><span><strong>Add ${esc(title)}</strong>Click or drop an image here</span></button>`}
-        ${image ? `<button class="dossier-media-edit" type="button" data-character-media-edit="${esc(ref)}">Edit image</button>` : ''}
-        <input type="file" accept="image/*" hidden data-character-media-input="${esc(ref)}">
+      <div class="dossier-media-slot ${image ? 'has-image' : ''}" data-character-media-select="${cc15Esc(ref)}" data-character-media-drop="${cc15Esc(ref)}" ${image ? `tabindex="0" role="button" aria-label="Select ${esc(title)}"` : ''}>
+        ${image ? `<img src="${esc(image)}" alt="${esc(media?.alt || `${item.name} ${title}`)}" style="${characterMediaStyle(media,slot)}">` : `<button class="dossier-media-placeholder" type="button" data-character-media-trigger="${cc15Esc(ref)}"><span><strong>Add ${esc(title)}</strong>Click or drop an image here</span></button>`}
+        ${image ? `<button class="dossier-media-edit" type="button" data-character-media-edit="${cc15Esc(ref)}">Edit image</button>` : ''}
+        <input type="file" accept="image/*" hidden data-character-media-input="${cc15Esc(ref)}">
       </div>
     </article>`;
   }
@@ -7910,22 +7910,22 @@ window.CODEX_BUILD = "species-faction-image-upload-fix-2026-08-05";
     media.fit = media.fit === 'contain' ? 'contain' : 'cover';
     const ref = `${slot}:${characterId}`;
     const label = characterMediaLabel(slot);
-    showModal(`Edit ${label}`, `<div class="character-crop-editor" data-character-crop-editor="${esc(ref)}">
-      <div class="character-crop-stage ${slot === 'header' ? 'is-cover' : 'is-portrait'}" data-character-crop-stage="${esc(ref)}" aria-label="Drag the image to choose which part is visible">
-        <img src="${esc(media.src)}" alt="${esc(media.alt || `${character.name} ${label}`)}" data-character-crop-preview="${esc(ref)}" style="${characterMediaStyle(media,slot)}">
+    showModal(`Edit ${label}`, `<div class="character-crop-editor" data-character-crop-editor="${cc15Esc(ref)}">
+      <div class="character-crop-stage ${slot === 'header' ? 'is-cover' : 'is-portrait'}" data-character-crop-stage="${cc15Esc(ref)}" aria-label="Drag the image to choose which part is visible">
+        <img src="${esc(media.src)}" alt="${esc(media.alt || `${character.name} ${label}`)}" data-character-crop-preview="${cc15Esc(ref)}" style="${characterMediaStyle(media,slot)}">
         <div class="character-crop-guide" aria-hidden="true"></div>
         <span class="character-crop-tip">Drag image to reposition</span>
       </div>
       <div class="character-crop-controls">
-        <label class="property-row"><span>Image size <output data-character-crop-zoom-output>${Math.round(media.zoom * 100)}%</output></span><input type="range" min="100" max="300" step="1" value="${Math.round(media.zoom * 100)}" data-character-crop-zoom="${esc(ref)}"></label>
-        <label class="property-row"><span>How it fills the frame</span><select class="select" data-character-crop-fit="${esc(ref)}"><option value="cover" ${media.fit === 'cover' ? 'selected' : ''}>Fill the frame</option><option value="contain" ${media.fit === 'contain' ? 'selected' : ''}>Show the whole image</option></select></label>
+        <label class="property-row"><span>Image size <output data-character-crop-zoom-output>${Math.round(media.zoom * 100)}%</output></span><input type="range" min="100" max="300" step="1" value="${Math.round(media.zoom * 100)}" data-character-crop-zoom="${cc15Esc(ref)}"></label>
+        <label class="property-row"><span>How it fills the frame</span><select class="select" data-character-crop-fit="${cc15Esc(ref)}"><option value="cover" ${media.fit === 'cover' ? 'selected' : ''}>Fill the frame</option><option value="contain" ${media.fit === 'contain' ? 'selected' : ''}>Show the whole image</option></select></label>
         <div class="character-crop-actions">
-          <button class="button ghost small" type="button" data-character-crop-reset="${esc(ref)}">Reset position</button>
-          <label class="button secondary small character-crop-file-label">Replace image<input type="file" accept="image/*" hidden data-character-crop-file="${esc(ref)}"></label>
+          <button class="button ghost small" type="button" data-character-crop-reset="${cc15Esc(ref)}">Reset position</button>
+          <label class="button secondary small character-crop-file-label">Replace image<input type="file" accept="image/*" hidden data-character-crop-file="${cc15Esc(ref)}"></label>
         </div>
         <p class="property-help">Move the image inside the frame, then use Image size to zoom in or out. The frame itself stays aligned with the character details.</p>
       </div>
-    </div>`, `<button class="button danger" type="button" data-character-crop-remove="${esc(ref)}">Remove ${label}</button><button class="button primary" type="button" data-close-modal>Done</button>`);
+    </div>`, `<button class="button danger" type="button" data-character-crop-remove="${cc15Esc(ref)}">Remove ${label}</button><button class="button primary" type="button" data-close-modal>Done</button>`);
     el.modal.querySelector('.modal')?.classList.add('character-crop-modal');
   }
 
@@ -8176,19 +8176,19 @@ window.CODEX_BUILD = "species-faction-image-upload-fix-2026-08-05";
     const padding=Math.max(0,Math.min(80,Number(block.padding)||18));
     const opacity=Math.round(Math.max(.15,Math.min(1,Number(block.opacity)||1))*100);
     startImageEditing(ref);
-    showModal('Image settings',`<div class="image-editor-modal" data-image-editor-ref="${esc(ref)}">
+    showModal('Image settings',`<div class="image-editor-modal" data-image-editor-ref="${cc15Esc(ref)}">
       <div class="image-editor-preview"><img src="${esc(block.src)}" alt="${esc(block.alt||'Character image')}" data-image-editor-preview-img></div>
       <div class="image-editor-fields">
-        <label><span>How this image behaves</span><select data-image-editor-layout="${esc(ref)}"><option value="wrap" ${layout==='wrap'?'selected':''}>Fit the words around the image</option><option value="front" ${layout==='front'?'selected':''}>Float freely in front of the words</option><option value="behind" ${layout==='behind'?'selected':''}>Float freely behind the words</option></select></label>
-        <label><span>Image width <output data-image-editor-width-output>${width}px</output></span><input type="range" min="120" max="900" step="5" value="${width}" data-image-editor-width="${esc(ref)}"></label>
-        <label data-image-editor-cushion-row ${layout!=='wrap'?'hidden':''}><span>Space between image and words <output data-image-editor-padding-output>${padding}px</output></span><input type="range" min="0" max="80" step="2" value="${padding}" data-image-editor-padding="${esc(ref)}"></label>
-        <label><span>Image strength <output data-image-editor-opacity-output>${opacity}%</output></span><input type="range" min="15" max="100" step="5" value="${opacity}" data-image-editor-opacity="${esc(ref)}"></label>
+        <label><span>How this image behaves</span><select data-image-editor-layout="${cc15Esc(ref)}"><option value="wrap" ${layout==='wrap'?'selected':''}>Fit the words around the image</option><option value="front" ${layout==='front'?'selected':''}>Float freely in front of the words</option><option value="behind" ${layout==='behind'?'selected':''}>Float freely behind the words</option></select></label>
+        <label><span>Image width <output data-image-editor-width-output>${width}px</output></span><input type="range" min="120" max="900" step="5" value="${width}" data-image-editor-width="${cc15Esc(ref)}"></label>
+        <label data-image-editor-cushion-row ${layout!=='wrap'?'hidden':''}><span>Space between image and words <output data-image-editor-padding-output>${padding}px</output></span><input type="range" min="0" max="80" step="2" value="${padding}" data-image-editor-padding="${cc15Esc(ref)}"></label>
+        <label><span>Image strength <output data-image-editor-opacity-output>${opacity}%</output></span><input type="range" min="15" max="100" step="5" value="${opacity}" data-image-editor-opacity="${cc15Esc(ref)}"></label>
         <label><span>Editor panel visibility <output data-image-panel-opacity-output>78%</output></span><input type="range" min="45" max="95" step="5" value="78" data-image-panel-opacity></label>
-        <label><span>Image description</span><input class="input" type="text" value="${esc(block.alt||'')}" placeholder="Describe the image" data-image-editor-alt="${esc(ref)}"></label>
-        <label class="image-replace-field"><span>Replace this image</span><input type="file" accept="image/*" data-image-replace="${esc(ref)}"></label>
+        <label><span>Image description</span><input class="input" type="text" value="${esc(block.alt||'')}" placeholder="Describe the image" data-image-editor-alt="${cc15Esc(ref)}"></label>
+        <label class="image-replace-field"><span>Replace this image</span><input type="file" accept="image/*" data-image-replace="${cc15Esc(ref)}"></label>
       </div>
       <div class="image-editor-help" data-image-editor-help>Drag this panel by its title to move it out of the way. You can keep the panel open while dragging or resizing the image behind it.</div>
-    </div>`,`<button class="button danger image-delete-button" type="button" data-image-editor-remove="${esc(ref)}">Delete image</button><button class="button" type="button" data-close-modal>Done</button>`);
+    </div>`,`<button class="button danger image-delete-button" type="button" data-image-editor-remove="${cc15Esc(ref)}">Delete image</button><button class="button" type="button" data-close-modal>Done</button>`);
     makeImageEditorPanelDraggable();
   }
 
@@ -8328,7 +8328,7 @@ window.CODEX_BUILD = "species-faction-image-upload-fix-2026-08-05";
 
   function editCharacterFlowBlock(ref) {
     const [kind,itemId,indexRaw]=String(ref||'').split(':');const index=Number(indexRaw);const target=resolveBlockTarget(kind,itemId);const block=target?.blocks?.[index];if(!block)return;
-    showModal('Edit writing',`<label class="flow-text-editor"><span>${esc(block.type==='bullet'?'Bullet':block.type==='quote'?'Quote':/^h/.test(block.type)?'Heading':'Text')}</span><textarea class="textarea" rows="10" data-flow-textarea="${esc(ref)}">${esc(block.content||'')}</textarea><small>Use **double asterisks** for bold. The page will wrap the updated words around the image after you save.</small></label>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-save-flow-text="${esc(ref)}">Save writing</button>`);
+    showModal('Edit writing',`<label class="flow-text-editor"><span>${esc(block.type==='bullet'?'Bullet':block.type==='quote'?'Quote':/^h/.test(block.type)?'Heading':'Text')}</span><textarea class="textarea" rows="10" data-flow-textarea="${cc15Esc(ref)}">${esc(block.content||'')}</textarea><small>Use **double asterisks** for bold. The page will wrap the updated words around the image after you save.</small></label>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-save-flow-text="${cc15Esc(ref)}">Save writing</button>`);
     requestAnimationFrame(()=>document.querySelector('[data-flow-textarea]')?.focus());
   }
 
@@ -8881,8 +8881,8 @@ window.CODEX_BUILD = "species-faction-image-upload-fix-2026-08-05";
     normalizeBlockHeadingSyntax(info.block);
     const block=info.block;const layout=textElementLayout(block);const isDivider=block.type==='divider';
     const width=Math.max(100,Number(block.width)||(isDivider?360:300));const padding=Math.max(0,Math.min(100,Number(block.padding)||16));const z=Number(block.z)||(layout==='behind'?-2:layout==='front'?8:4);
-    const writingField=isDivider?'':`<label class="flow-text-editor"><span>${esc(textElementLabel(block))}</span><textarea class="textarea" rows="8" data-text-element-content="${esc(ref)}">${esc(cleanedBlockContent(block))}</textarea><small>Bold uses **double asterisks**. Heading symbols such as #### are removed automatically.</small></label>`;
-    showModal(`Edit ${textElementLabel(block).toLowerCase()}`,`<div class="text-element-modal">${writingField}<label><span>Behavior</span><select class="select" data-text-element-layout="${esc(ref)}"><option value="inline" ${layout==='inline'?'selected':''}>In the writing flow</option><option value="wrap" ${layout==='wrap'?'selected':''}>Fit other writing around it</option><option value="front" ${layout==='front'?'selected':''}>In front of other elements</option><option value="behind" ${layout==='behind'?'selected':''}>Behind other elements</option></select></label><label><span>Element width</span><input type="range" min="100" max="760" step="10" value="${width}" data-text-element-width="${esc(ref)}"><output data-text-element-width-output>${width}px</output></label><label data-text-element-cushion-row ${layout!=='wrap'?'hidden':''}><span>Space around element</span><input type="range" min="0" max="100" step="2" value="${padding}" data-text-element-padding="${esc(ref)}"><output data-text-element-padding-output>${padding}px</output></label><label><span>Layer order</span><input class="input" type="number" min="-20" max="50" value="${z}" data-text-element-z="${esc(ref)}"><small>Higher numbers sit above lower numbers when elements overlap.</small></label><p class="text-element-help" data-text-element-help>${layout==='inline'?'This element stays in normal reading order.':'Save, click the element, then choose Edit element to drag and resize it freely.'}</p></div>`,`<button class="button danger" type="button" data-delete-text-element="${esc(ref)}">Delete element</button><button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-save-text-element="${esc(ref)}">Save element</button>`);
+    const writingField=isDivider?'':`<label class="flow-text-editor"><span>${esc(textElementLabel(block))}</span><textarea class="textarea" rows="8" data-text-element-content="${cc15Esc(ref)}">${esc(cleanedBlockContent(block))}</textarea><small>Bold uses **double asterisks**. Heading symbols such as #### are removed automatically.</small></label>`;
+    showModal(`Edit ${textElementLabel(block).toLowerCase()}`,`<div class="text-element-modal">${writingField}<label><span>Behavior</span><select class="select" data-text-element-layout="${cc15Esc(ref)}"><option value="inline" ${layout==='inline'?'selected':''}>In the writing flow</option><option value="wrap" ${layout==='wrap'?'selected':''}>Fit other writing around it</option><option value="front" ${layout==='front'?'selected':''}>In front of other elements</option><option value="behind" ${layout==='behind'?'selected':''}>Behind other elements</option></select></label><label><span>Element width</span><input type="range" min="100" max="760" step="10" value="${width}" data-text-element-width="${cc15Esc(ref)}"><output data-text-element-width-output>${width}px</output></label><label data-text-element-cushion-row ${layout!=='wrap'?'hidden':''}><span>Space around element</span><input type="range" min="0" max="100" step="2" value="${padding}" data-text-element-padding="${cc15Esc(ref)}"><output data-text-element-padding-output>${padding}px</output></label><label><span>Layer order</span><input class="input" type="number" min="-20" max="50" value="${z}" data-text-element-z="${cc15Esc(ref)}"><small>Higher numbers sit above lower numbers when elements overlap.</small></label><p class="text-element-help" data-text-element-help>${layout==='inline'?'This element stays in normal reading order.':'Save, click the element, then choose Edit element to drag and resize it freely.'}</p></div>`,`<button class="button danger" type="button" data-delete-text-element="${cc15Esc(ref)}">Delete element</button><button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-save-text-element="${cc15Esc(ref)}">Save element</button>`);
     requestAnimationFrame(()=>document.querySelector('[data-text-element-content]')?.focus());
   }
 
@@ -9179,7 +9179,7 @@ window.CODEX_BUILD = "species-faction-image-upload-fix-2026-08-05";
     normalizeBlockHeadingSyntax(info.block);const block=info.block;const layout=textElementLayout(block);const isInline=layout==='inline';
     const width=Math.max(90,Number(block.width)||(block.type==='divider'?420:320));const height=unifiedTextHeight(block);const padding=Math.max(0,Math.min(100,Number(block.padding)||16));const z=Number(block.z)||(layout==='behind'?-2:layout==='front'?8:4);
     if(!isInline){activeTextElementRef=ref;editingTextElementRef=ref;activeInlineTextRef='';document.querySelector(`[data-text-block="${CSS.escape(ref)}"]`)?.classList.add('is-selected','is-editing');}
-    showModal('Shape settings',`<div class="text-element-modal" data-canvas-text-ref="${esc(ref)}">
+    showModal('Shape settings',`<div class="text-element-modal" data-canvas-text-ref="${cc15Esc(ref)}">
       <div class="text-canvas-grid">
         <label><span>Element style</span><select class="select" data-canvas-text-type><option value="text" ${block.type==='text'?'selected':''}>Text</option><option value="h1" ${block.type==='h1'?'selected':''}>Large heading</option><option value="h2" ${block.type==='h2'?'selected':''}>Heading</option><option value="h3" ${block.type==='h3'?'selected':''}>Small heading</option><option value="bullet" ${block.type==='bullet'?'selected':''}>Bullet</option><option value="quote" ${block.type==='quote'?'selected':''}>Quote</option><option value="divider" ${block.type==='divider'?'selected':''}>Horizontal line</option></select></label>
         <label><span>Behavior</span><select class="select" data-canvas-text-layout><option value="inline" ${layout==='inline'?'selected':''}>Stay in the normal writing flow</option><option value="wrap" ${layout==='wrap'?'selected':''}>Other writing flows around this shape</option><option value="front" ${layout==='front'?'selected':''}>Move freely in front</option><option value="behind" ${layout==='behind'?'selected':''}>Move freely behind</option></select></label>
@@ -9189,9 +9189,9 @@ window.CODEX_BUILD = "species-faction-image-upload-fix-2026-08-05";
         <label><span>Layer order</span><input class="input" type="number" min="-20" max="50" value="${z}" data-canvas-z></label>
         <label><span>Panel visibility <output data-text-panel-opacity-output>82%</output></span><input type="range" min="45" max="95" step="5" value="82" data-text-panel-opacity></label>
       </div>
-      ${isInline?`<button class="button secondary text-make-free" type="button" data-make-text-free="${esc(ref)}">Make this movable now</button>`:''}
+      ${isInline?`<button class="button secondary text-make-free" type="button" data-make-text-free="${cc15Esc(ref)}">Make this movable now</button>`:''}
       <p class="text-panel-note">This panel changes the shape, position behavior, size, and layer. To change the actual words, close it and click the writing, then choose Edit words.</p>
-    </div>`,`<button class="button danger text-delete-button" type="button" data-canvas-delete-text="${esc(ref)}">Delete element</button><button class="button secondary" type="button" data-text-panel-done>Cancel</button><button class="button" type="button" data-canvas-save-text="${esc(ref)}">Save shape</button>`);
+    </div>`,`<button class="button danger text-delete-button" type="button" data-canvas-delete-text="${cc15Esc(ref)}">Delete element</button><button class="button secondary" type="button" data-text-panel-done>Cancel</button><button class="button" type="button" data-canvas-save-text="${cc15Esc(ref)}">Save shape</button>`);
     makeTextSettingsPanelDraggable();
   };
   editCharacterFlowBlock=showTextElementEditor;
@@ -9426,7 +9426,7 @@ window.CODEX_BUILD = "species-faction-image-upload-fix-2026-08-05";
     return {list:bounds.list,rect,listRect:bounds.listRect,left:bounds.left,top:bounds.top,width:bounds.width,height:bounds.height};
   };
 
-  const directResizeHandles=(ref)=>['nw','n','ne','e','se','s','sw','w'].map(dir=>`<button class="text-transform-handle" type="button" data-text-handle="${esc(ref)}" data-dir="${dir}" aria-label="Resize ${dir}"></button>`).join('');
+  const directResizeHandles=(ref)=>['nw','n','ne','e','se','s','sw','w'].map(dir=>`<button class="text-transform-handle" type="button" data-text-handle="${cc15Esc(ref)}" data-dir="${dir}" aria-label="Resize ${dir}"></button>`).join('');
 
   renderCharacterTextElement=function(kind,itemId,block,index){
     normalizeBlockHeadingSyntax(block);
@@ -9544,7 +9544,7 @@ window.CODEX_BUILD = "species-faction-image-upload-fix-2026-08-05";
     const block=info.block,layout=textElementLayout(block)==='inline'?'front':textElementLayout(block),padding=Math.max(0,Math.min(100,Number(block.padding)||16));
     activeTextElementRef=ref;editingTextElementRef=ref;activeInlineTextRef='';
     requestAnimationFrame(()=>document.querySelector(`[data-text-block="${CSS.escape(ref)}"]`)?.classList.add('is-selected','is-editing'));
-    showModal('Shape options',`<div class="text-element-modal" data-canvas-text-ref="${esc(ref)}">
+    showModal('Shape options',`<div class="text-element-modal" data-canvas-text-ref="${cc15Esc(ref)}">
       <div class="direct-shape-help"><strong>Resize and move directly on the page</strong><span>Leave this panel open. Drag the selected text box to move it. Drag any dot around its edge to resize it from that side or corner.</span></div>
       <div class="text-canvas-grid" style="margin-top:14px">
         <label><span>Element style</span><select class="select" data-direct-text-type><option value="text" ${block.type==='text'?'selected':''}>Text</option><option value="h1" ${block.type==='h1'?'selected':''}>Large heading</option><option value="h2" ${block.type==='h2'?'selected':''}>Heading</option><option value="h3" ${block.type==='h3'?'selected':''}>Small heading</option><option value="bullet" ${block.type==='bullet'?'selected':''}>Bullet</option><option value="quote" ${block.type==='quote'?'selected':''}>Quote</option><option value="divider" ${block.type==='divider'?'selected':''}>Horizontal line</option></select></label>
@@ -9553,7 +9553,7 @@ window.CODEX_BUILD = "species-faction-image-upload-fix-2026-08-05";
         <label><span>Panel visibility <output data-text-panel-opacity-output>76%</output></span><input type="range" min="40" max="95" step="5" value="76" data-text-panel-opacity></label>
       </div>
       <div class="text-canvas-full" style="margin-top:14px"><span>Stacking</span><div class="shape-layer-buttons"><button class="button secondary" type="button" data-shape-layer="back">Send backward</button><button class="button secondary" type="button" data-shape-layer="forward">Bring forward</button><button class="button secondary" type="button" data-shape-layer="bottom">Send to back</button><button class="button secondary" type="button" data-shape-layer="top">Bring to front</button></div></div>
-    </div>`,`<button class="button danger text-delete-button" type="button" data-canvas-delete-text="${esc(ref)}">Delete element</button><button class="button secondary" type="button" data-text-panel-done>Cancel</button><button class="button" type="button" data-direct-shape-save="${esc(ref)}">Done</button>`);
+    </div>`,`<button class="button danger text-delete-button" type="button" data-canvas-delete-text="${cc15Esc(ref)}">Delete element</button><button class="button secondary" type="button" data-text-panel-done>Cancel</button><button class="button" type="button" data-direct-shape-save="${cc15Esc(ref)}">Done</button>`);
     makeTextSettingsPanelDraggable();
     const panel=el.modal.querySelector('.text-settings-floating');panel?.style.setProperty('--text-settings-alpha','76%');
   };
@@ -10961,8 +10961,8 @@ async function setSectionMedia(kind,itemId,slot,file){
   try{el.saveStatus.textContent='Preparing image…';const prepared=await imageFileToBlock(file,{name:item.name});const field=slot==='cover'?'headerImage':'profileImage';item[field]={src:prepared.src,alt:`${item.name} ${slot} image`,positionX:50,positionY:slot==='cover'?45:25,zoom:1,fit:'cover'};item.updatedAt=nowISO();scheduleSave('Saving image…');renderEntity(kind,itemId);toast('Image added.');}
   catch(error){console.error(error);toast(error.message||'The image could not be added.','error');}
 }
-function renderSectionMediaCover(kind,item){const copy=SECTION_MEDIA_COPY[kind],media=item.headerImage,image=media?.src||'',ref=`${kind}:cover:${item.id}`;if(!image)return `<label class="section-media-cover-slot cc9-native-upload"><div class="section-media-placeholder"><div><span class="title">${esc(copy.cover)}</span><span class="help">${esc(copy.coverHelp)}</span><span class="cc9-upload-hint">Tap to choose an image</span></div></div><input type="file" accept="image/*" data-section-media-input="${ref}"></label>`;return `<div class="section-media-cover-slot has-image" data-section-media-select="${ref}" tabindex="0" role="button"><img src="${esc(image)}" alt="${esc(media.alt||item.name+' cover')}" style="${sectionMediaStyle(media,'cover')}"><div class="section-media-cover-overlay"></div><div class="section-media-controls"><label class="button secondary small cc9-replace-label">Replace cover<input type="file" accept="image/*" data-section-media-input="${ref}"></label><button class="button ghost small" type="button" data-section-media-remove="${ref}">Remove</button></div></div>`;}
-function renderSectionMediaPortrait(kind,item){const copy=SECTION_MEDIA_COPY[kind],media=item.profileImage,image=media?.src||'',ref=`${kind}:profile:${item.id}`;if(!image)return `<section class="panel section-media-portrait-card"><div class="section-media-portrait-label">${esc(copy.label)}</div><label class="section-media-slot cc9-native-upload"><div class="section-media-placeholder-compact"><div><span class="title">${esc(copy.image)}</span><span class="help">${esc(copy.imageHelp)}</span><span class="cc9-upload-hint">Tap to choose an image</span></div></div><input type="file" accept="image/*" data-section-media-input="${ref}"></label></section>`;return `<section class="panel section-media-portrait-card"><div class="section-media-portrait-label">${esc(copy.label)}</div><div class="section-media-slot has-image" data-section-media-select="${ref}" tabindex="0" role="button"><img src="${esc(image)}" alt="${esc(media.alt||item.name+' image')}" style="${sectionMediaStyle(media,'profile')}"><div class="section-media-controls"><label class="button secondary small cc9-replace-label">Replace image<input type="file" accept="image/*" data-section-media-input="${ref}"></label><button class="button ghost small" type="button" data-section-media-remove="${ref}">Remove</button></div></div></section>`;}
+function renderSectionMediaCover(kind,item){const copy=SECTION_MEDIA_COPY[kind],media=item.headerImage,image=media?.src||'',ref=`${kind}:cover:${item.id}`;if(!image)return `<label class="section-media-cover-slot cc9-native-upload"><div class="section-media-placeholder"><div><span class="title">${cc15Esc(copy.cover)}</span><span class="help">${cc15Esc(copy.coverHelp)}</span><span class="cc9-upload-hint">Tap to choose an image</span></div></div><input type="file" accept="image/*" data-section-media-input="${ref}"></label>`;return `<div class="section-media-cover-slot has-image" data-section-media-select="${ref}" tabindex="0" role="button"><img src="${esc(image)}" alt="${esc(media.alt||item.name+' cover')}" style="${sectionMediaStyle(media,'cover')}"><div class="section-media-cover-overlay"></div><div class="section-media-controls"><label class="button secondary small cc9-replace-label">Replace cover<input type="file" accept="image/*" data-section-media-input="${ref}"></label><button class="button ghost small" type="button" data-section-media-remove="${ref}">Remove</button></div></div>`;}
+function renderSectionMediaPortrait(kind,item){const copy=SECTION_MEDIA_COPY[kind],media=item.profileImage,image=media?.src||'',ref=`${kind}:profile:${item.id}`;if(!image)return `<section class="panel section-media-portrait-card"><div class="section-media-portrait-label">${cc15Esc(copy.label)}</div><label class="section-media-slot cc9-native-upload"><div class="section-media-placeholder-compact"><div><span class="title">${cc15Esc(copy.image)}</span><span class="help">${cc15Esc(copy.imageHelp)}</span><span class="cc9-upload-hint">Tap to choose an image</span></div></div><input type="file" accept="image/*" data-section-media-input="${ref}"></label></section>`;return `<section class="panel section-media-portrait-card"><div class="section-media-portrait-label">${cc15Esc(copy.label)}</div><div class="section-media-slot has-image" data-section-media-select="${ref}" tabindex="0" role="button"><img src="${esc(image)}" alt="${esc(media.alt||item.name+' image')}" style="${sectionMediaStyle(media,'profile')}"><div class="section-media-controls"><label class="button secondary small cc9-replace-label">Replace image<input type="file" accept="image/*" data-section-media-input="${ref}"></label><button class="button ghost small" type="button" data-section-media-remove="${ref}">Remove</button></div></div></section>`;}
 const originalSectionEntityCover=sectionEntityCover;
 sectionEntityCover=function(kind,item){
   if(!SECTION_MEDIA_COPY[kind])return originalSectionEntityCover(kind,item);
@@ -11412,9 +11412,9 @@ function cc5PageImageBlock(kind,itemId,block,index){
   const gap=Math.max(0,Math.min(80,Number(block.padding)||18));
   const opacity=Math.max(.15,Math.min(1,Number(block.opacity)||1));
   const ref=`${kind}:${itemId}:${index}`;
-  return `<figure class="cc5-page-image layout-${layout} side-${side}" data-block-row="${esc(ref)}" style="--cc5-width:${width}px;--cc5-gap:${gap}px;--cc5-opacity:${opacity}">
+  return `<figure class="cc5-page-image layout-${layout} side-${side}" data-block-row="${cc15Esc(ref)}" style="--cc5-width:${width}px;--cc5-gap:${gap}px;--cc5-opacity:${opacity}">
     <img src="${esc(block.src||'')}" alt="${esc(block.alt||'Page image')}">
-    <div class="cc5-page-image-controls"><button type="button" data-cc5-image-edit="${esc(ref)}">Edit image</button></div>
+    <div class="cc5-page-image-controls"><button type="button" data-cc5-image-edit="${cc15Esc(ref)}">Edit image</button></div>
     ${block.caption?`<figcaption class="cc5-page-image-caption">${esc(block.caption)}</figcaption>`:''}
   </figure>`;
 }
@@ -11441,15 +11441,15 @@ function cc5ShowImageEditor(ref){
   showModal('Edit page image',`<div class="cc5-image-modal-grid">
     <div class="cc5-image-preview"><img src="${esc(b.src||'')}" alt="${esc(b.alt||'Page image')}"></div>
     <div class="cc5-image-settings">
-      <label class="property-row"><span>Placement</span><select class="select" data-cc5-image-field="layout" data-cc5-image-ref="${esc(ref)}"><option value="wrap" ${layout==='wrap'?'selected':''}>Inline with words</option><option value="front" ${layout==='front'?'selected':''}>In front of words</option><option value="behind" ${layout==='behind'?'selected':''}>Behind words</option></select></label>
-      <label class="property-row"><span>Side when inline</span><select class="select" data-cc5-image-field="wrapSide" data-cc5-image-ref="${esc(ref)}"><option value="left" ${b.wrapSide!=='right'?'selected':''}>Left</option><option value="right" ${b.wrapSide==='right'?'selected':''}>Right</option></select></label>
-      <label class="property-row"><span>Width <output>${Number(b.width)||360}px</output></span><input type="range" min="140" max="900" step="10" value="${Number(b.width)||360}" data-cc5-image-field="width" data-cc5-image-ref="${esc(ref)}"></label>
-      <label class="property-row"><span>Text spacing <output>${Number(b.padding)||18}px</output></span><input type="range" min="0" max="80" step="2" value="${Number(b.padding)||18}" data-cc5-image-field="padding" data-cc5-image-ref="${esc(ref)}"></label>
-      <label class="property-row"><span>Opacity <output>${Math.round((Number(b.opacity)||1)*100)}%</output></span><input type="range" min="15" max="100" step="1" value="${Math.round((Number(b.opacity)||1)*100)}" data-cc5-image-field="opacity" data-cc5-image-ref="${esc(ref)}"></label>
-      <label class="property-row"><span>Caption</span><input class="input" value="${esc(b.caption||'')}" data-cc5-image-field="caption" data-cc5-image-ref="${esc(ref)}"></label>
+      <label class="property-row"><span>Placement</span><select class="select" data-cc5-image-field="layout" data-cc5-image-ref="${cc15Esc(ref)}"><option value="wrap" ${layout==='wrap'?'selected':''}>Inline with words</option><option value="front" ${layout==='front'?'selected':''}>In front of words</option><option value="behind" ${layout==='behind'?'selected':''}>Behind words</option></select></label>
+      <label class="property-row"><span>Side when inline</span><select class="select" data-cc5-image-field="wrapSide" data-cc5-image-ref="${cc15Esc(ref)}"><option value="left" ${b.wrapSide!=='right'?'selected':''}>Left</option><option value="right" ${b.wrapSide==='right'?'selected':''}>Right</option></select></label>
+      <label class="property-row"><span>Width <output>${Number(b.width)||360}px</output></span><input type="range" min="140" max="900" step="10" value="${Number(b.width)||360}" data-cc5-image-field="width" data-cc5-image-ref="${cc15Esc(ref)}"></label>
+      <label class="property-row"><span>Text spacing <output>${Number(b.padding)||18}px</output></span><input type="range" min="0" max="80" step="2" value="${Number(b.padding)||18}" data-cc5-image-field="padding" data-cc5-image-ref="${cc15Esc(ref)}"></label>
+      <label class="property-row"><span>Opacity <output>${Math.round((Number(b.opacity)||1)*100)}%</output></span><input type="range" min="15" max="100" step="1" value="${Math.round((Number(b.opacity)||1)*100)}" data-cc5-image-field="opacity" data-cc5-image-ref="${cc15Esc(ref)}"></label>
+      <label class="property-row"><span>Caption</span><input class="input" value="${esc(b.caption||'')}" data-cc5-image-field="caption" data-cc5-image-ref="${cc15Esc(ref)}"></label>
     </div>
-    <label class="button secondary">Replace image<input type="file" accept="image/*" hidden data-cc5-image-replace="${esc(ref)}"></label>
-  </div>`,`<button class="button danger" type="button" data-cc5-image-delete="${esc(ref)}">Delete image</button><button class="button" type="button" data-close-modal>Done</button>`);
+    <label class="button secondary">Replace image<input type="file" accept="image/*" hidden data-cc5-image-replace="${cc15Esc(ref)}"></label>
+  </div>`,`<button class="button danger" type="button" data-cc5-image-delete="${cc15Esc(ref)}">Delete image</button><button class="button" type="button" data-close-modal>Done</button>`);
 }
 cc4Editor=function(kind,item,openCount=2){
   const groups=cc4SectionGroups(item);
@@ -12933,7 +12933,7 @@ showSectionTemplatePicker=function(kind){
 function cc3MediaSource(item){ return item.profileImage?.src || item.headerImage?.src || ''; }
 function cc3CardImage(item,label){
   const src=cc3MediaSource(item);
-  return src?`<img src="${esc(src)}" alt="${esc(item.profileImage?.alt||item.headerImage?.alt||label)}">`:`<span class="cc3-card-placeholder">${esc(initials(item.name))}</span>`;
+  return src?`<img src="${cc15Esc(src)}" alt="${esc(item.profileImage?.alt||item.headerImage?.alt||label)}">`:`<span class="cc3-card-placeholder">${esc(initials(item.name))}</span>`;
 }
 function cc3Tag(text){ return text?`<span class="tag">${esc(text)}</span>`:''; }
 
@@ -13124,9 +13124,9 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-cc4-jump]'
     if(block?.type==='image') return html;
     const ref=`${kind}:${itemId}:${index}`;
     const actions=`<span class="cc8-block-actions">
-      <button type="button" data-cc8-block-up="${esc(ref)}" title="Move this part up">↑</button>
-      <button type="button" data-cc8-block-down="${esc(ref)}" title="Move this part down">↓</button>
-      <button class="danger" type="button" data-cc8-block-delete="${esc(ref)}" title="Delete this part">Delete</button>
+      <button type="button" data-cc8-block-up="${cc15Esc(ref)}" title="Move this part up">↑</button>
+      <button type="button" data-cc8-block-down="${cc15Esc(ref)}" title="Move this part down">↓</button>
+      <button class="danger" type="button" data-cc8-block-delete="${cc15Esc(ref)}" title="Delete this part">Delete</button>
     </span>`;
     return html.replace(/(<div class="block-row[^"]*"[^>]*>)/,`$1${actions}`);
   };
@@ -13327,13 +13327,13 @@ initFirebase();
 
   renderSectionMediaCover=function(kind,item){
     const copy=ccFinalCopy(kind),media=item.headerImage||null,src=ccFinalSrc(media),ref=`${kind}:cover:${item.id}`;
-    if(!src)return `<div class="cc-final-cover"><label class="cc-final-media-empty"><span><strong>${esc(copy.cover)}</strong>${esc(copy.coverHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc-final-media-input="${esc(ref)}"></label></div>`;
-    return `<div class="cc-final-cover" data-cc-final-media-box="${esc(ref)}"><img src="${esc(src)}" alt="${esc(media?.alt||item.name+' cover')}" style="${ccFinalMediaCss(media,'cover')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${esc(ref)}">Edit cover</button></div>`;
+    if(!src)return `<div class="cc-final-cover"><label class="cc-final-media-empty"><span><strong>${cc15Esc(copy.cover)}</strong>${cc15Esc(copy.coverHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc-final-media-input="${cc15Esc(ref)}"></label></div>`;
+    return `<div class="cc-final-cover" data-cc-final-media-box="${cc15Esc(ref)}"><img src="${cc15Esc(src)}" alt="${cc15Esc(media?.alt||item.name+' cover')}" style="${cc15MediaCss(media,'cover')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${cc15Esc(ref)}">Edit cover</button></div>`;
   };
   renderSectionMediaPortrait=function(kind,item){
     const copy=ccFinalCopy(kind),media=item.profileImage||null,src=ccFinalSrc(media),ref=`${kind}:profile:${item.id}`;
-    const body=!src?`<label class="cc-final-media-empty"><span><strong>${esc(copy.image)}</strong>${esc(copy.imageHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc-final-media-input="${esc(ref)}"></label>`:`<img src="${esc(src)}" alt="${esc(media?.alt||item.name+' image')}" style="${ccFinalMediaCss(media,'profile')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${esc(ref)}">Edit image</button>`;
-    return `<section class="panel section-media-portrait-card cc-final-profile-card"><div class="section-media-portrait-label">${esc(copy.label)}</div><div class="cc-final-profile" data-cc-final-media-box="${esc(ref)}">${body}</div></section>`;
+    const body=!src?`<label class="cc-final-media-empty"><span><strong>${cc15Esc(copy.image)}</strong>${cc15Esc(copy.imageHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc-final-media-input="${cc15Esc(ref)}"></label>`:`<img src="${cc15Esc(src)}" alt="${cc15Esc(media?.alt||item.name+' image')}" style="${cc15MediaCss(media,'profile')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${cc15Esc(ref)}">Edit image</button>`;
+    return `<section class="panel section-media-portrait-card cc-final-profile-card"><div class="section-media-portrait-label">${cc15Esc(copy.label)}</div><div class="cc-final-profile" data-cc-final-media-box="${cc15Esc(ref)}">${body}</div></section>`;
   };
   const ccFinalOldEntityCover=sectionEntityCover;
   sectionEntityCover=function(kind,item){return ccFinalMediaKinds.has(kind)?`<div class="section-media-hero">${window.renderSectionMediaCover(kind,item)}</div>`:ccFinalOldEntityCover(kind,item);};
@@ -13342,16 +13342,16 @@ initFirebase();
   function ccFinalShowMediaEditor(ref){
     const info=ccFinalParseMediaRef(ref);if(!info.item||!info.media)return;
     const m=info.media,src=ccFinalSrc(m);if(!src)return;
-    showModal(`Edit ${info.slot==='cover'?'cover':'image'}`,`<div class="cc-final-media-modal" data-cc-final-media-ref="${esc(ref)}">
-      <div class="cc-final-media-preview"><img src="${esc(src)}" alt="${esc(m.alt||'Image')}" style="${ccFinalMediaCss(m,info.slot)}" data-cc-final-media-preview></div>
+    showModal(`Edit ${info.slot==='cover'?'cover':'image'}`,`<div class="cc-final-media-modal" data-cc-final-media-ref="${cc15Esc(ref)}">
+      <div class="cc-final-media-preview"><img src="${cc15Esc(src)}" alt="${esc(m.alt||'Image')}" style="${ccFinalMediaCss(m,info.slot)}" data-cc-final-media-preview></div>
       <div class="cc-final-media-fields">
        <label><span>Fit</span><select class="select" data-cc-final-media-field="fit"><option value="cover" ${m.fit!=='contain'?'selected':''}>Fill the frame</option><option value="contain" ${m.fit==='contain'?'selected':''}>Show the whole image</option></select></label>
        <label><span>Zoom <output>${ccFinalClamp(m.zoom,1,3,1).toFixed(2)}×</output></span><input type="range" min="1" max="3" step="0.05" value="${ccFinalClamp(m.zoom,1,3,1)}" data-cc-final-media-field="zoom"></label>
        <label><span>Horizontal position <output>${ccFinalClamp(m.positionX,0,100,50)}%</output></span><input type="range" min="0" max="100" step="1" value="${ccFinalClamp(m.positionX,0,100,50)}" data-cc-final-media-field="positionX"></label>
        <label><span>Vertical position <output>${ccFinalClamp(m.positionY,0,100,info.slot==='cover'?45:35)}%</output></span><input type="range" min="0" max="100" step="1" value="${ccFinalClamp(m.positionY,0,100,info.slot==='cover'?45:35)}" data-cc-final-media-field="positionY"></label>
        <label><span>Description</span><input class="input" value="${esc(m.alt||'')}" data-cc-final-media-field="alt"></label>
-       <label class="button secondary">Replace image<input class="cc-final-native-input" type="file" accept="image/*" data-cc-final-media-replace="${esc(ref)}"></label>
-      </div></div>`,`<button class="button danger" type="button" data-cc-final-media-remove="${esc(ref)}">Remove</button><button class="button" type="button" data-close-modal>Done</button>`);
+       <label class="button secondary">Replace image<input class="cc-final-native-input" type="file" accept="image/*" data-cc-final-media-replace="${cc15Esc(ref)}"></label>
+      </div></div>`,`<button class="button danger" type="button" data-cc-final-media-remove="${cc15Esc(ref)}">Remove</button><button class="button" type="button" data-close-modal>Done</button>`);
   }
   function ccFinalUpdateMediaPreview(ref){const info=ccFinalParseMediaRef(ref),img=el.modal.querySelector('[data-cc-final-media-preview]');if(info.media&&img)img.style.cssText=ccFinalMediaCss(info.media,info.slot);}
 
@@ -13359,10 +13359,10 @@ initFirebase();
   function ccFinalPageBlock(kind,itemId,block,index){
     const src=ccFinalPageSource(block),layout=['wrap','front','behind'].includes(block.layout)?block.layout:'wrap',side=['left','right','center'].includes(block.wrapSide)?block.wrapSide:'left';
     const width=ccFinalClamp(block.width,120,1000,360),gap=ccFinalClamp(block.padding,0,100,18),opacity=ccFinalClamp(block.opacity,.1,1,1),x=ccFinalClamp(block.x,0,2400,20),y=ccFinalClamp(block.y,0,5000,120),ref=`${kind}:${itemId}:${index}`;
-    return `<figure class="cc-final-page-image mode-${layout} side-${side}" data-cc-final-page="${esc(ref)}" style="--img-width:${width}px;--img-gap:${gap}px;--img-opacity:${opacity};--img-x:${x}px;--img-y:${y}px">
-      <img src="${esc(src)}" alt="${esc(block.alt||'Page image')}">
-      <div class="cc-final-page-tools"><button class="cc-final-drag" type="button" data-cc-final-page-drag="${esc(ref)}">Move</button><button type="button" data-cc-final-page-edit="${esc(ref)}">Edit</button></div>
-      <button class="cc-final-resize" type="button" data-cc-final-page-resize="${esc(ref)}" aria-label="Resize image"></button>
+    return `<figure class="cc-final-page-image mode-${layout} side-${side}" data-cc-final-page="${cc15Esc(ref)}" style="--img-width:${width}px;--img-gap:${gap}px;--img-opacity:${opacity};--img-x:${x}px;--img-y:${y}px">
+      <img src="${cc15Esc(src)}" alt="${esc(block.alt||'Page image')}">
+      <div class="cc-final-page-tools"><button class="cc-final-drag" type="button" data-cc-final-page-drag="${cc15Esc(ref)}">Move</button><button type="button" data-cc-final-page-edit="${cc15Esc(ref)}">Edit</button></div>
+      <button class="cc-final-resize" type="button" data-cc-final-page-resize="${cc15Esc(ref)}" aria-label="Resize image"></button>
       ${block.caption?`<figcaption class="cc-final-caption">${esc(block.caption)}</figcaption>`:''}
     </figure>`;
   }
@@ -13383,15 +13383,15 @@ initFirebase();
   function ccFinalBlockInfo(ref){const parts=String(ref).split(':'),index=Number(parts.pop()),itemId=parts.pop(),kind=parts.join(':'),item=getItem(kind,itemId);return{kind,itemId,index,item,block:item?.blocks?.[index]};}
   function ccFinalShowPageEditor(ref){
     const info=ccFinalBlockInfo(ref);if(!info.block)return;const b=info.block,layout=['wrap','front','behind'].includes(b.layout)?b.layout:'wrap';
-    showModal('Edit page image',`<div class="cc-final-page-modal" data-cc-final-page-ref="${esc(ref)}">
+    showModal('Edit page image',`<div class="cc-final-page-modal" data-cc-final-page-ref="${cc15Esc(ref)}">
       <label><span>Placement</span><select class="select" data-cc-final-page-field="layout"><option value="wrap" ${layout==='wrap'?'selected':''}>Inline with text</option><option value="front" ${layout==='front'?'selected':''}>Free in front</option><option value="behind" ${layout==='behind'?'selected':''}>Free behind</option></select></label>
       <label><span>Inline side</span><select class="select" data-cc-final-page-field="wrapSide"><option value="left" ${b.wrapSide==='left'?'selected':''}>Left</option><option value="right" ${b.wrapSide==='right'?'selected':''}>Right</option><option value="center" ${b.wrapSide==='center'?'selected':''}>Center</option></select></label>
       <label><span>Width <output>${ccFinalClamp(b.width,120,1000,360)}px</output></span><input type="range" min="120" max="1000" step="5" value="${ccFinalClamp(b.width,120,1000,360)}" data-cc-final-page-field="width"></label>
       <label><span>Text spacing <output>${ccFinalClamp(b.padding,0,100,18)}px</output></span><input type="range" min="0" max="100" step="2" value="${ccFinalClamp(b.padding,0,100,18)}" data-cc-final-page-field="padding"></label>
       <label><span>Opacity <output>${Math.round(ccFinalClamp(b.opacity,.1,1,1)*100)}%</output></span><input type="range" min="10" max="100" step="1" value="${Math.round(ccFinalClamp(b.opacity,.1,1,1)*100)}" data-cc-final-page-field="opacity"></label>
       <label><span>Caption</span><input class="input" value="${esc(b.caption||'')}" data-cc-final-page-field="caption"></label>
-      <label class="button secondary">Replace image<input class="cc-final-native-input" type="file" accept="image/*" data-cc-final-page-replace="${esc(ref)}"></label>
-    </div>`,`<button class="button danger" type="button" data-cc-final-page-remove="${esc(ref)}">Delete image</button><button class="button" type="button" data-close-modal>Done</button>`);
+      <label class="button secondary">Replace image<input class="cc-final-native-input" type="file" accept="image/*" data-cc-final-page-replace="${cc15Esc(ref)}"></label>
+    </div>`,`<button class="button danger" type="button" data-cc-final-page-remove="${cc15Esc(ref)}">Delete image</button><button class="button" type="button" data-close-modal>Done</button>`);
   }
   function ccFinalSyncFigure(ref){const info=ccFinalBlockInfo(ref),fig=document.querySelector(`[data-cc-final-page="${CSS.escape(ref)}"]`);if(!info.block||!fig)return;const b=info.block;fig.className=`cc-final-page-image mode-${b.layout||'wrap'} side-${b.wrapSide||'left'} selected`;fig.style.setProperty('--img-width',`${ccFinalClamp(b.width,120,1000,360)}px`);fig.style.setProperty('--img-gap',`${ccFinalClamp(b.padding,0,100,18)}px`);fig.style.setProperty('--img-opacity',ccFinalClamp(b.opacity,.1,1,1));fig.style.setProperty('--img-x',`${ccFinalClamp(b.x,0,2400,20)}px`);fig.style.setProperty('--img-y',`${ccFinalClamp(b.y,0,5000,120)}px`);}
 
@@ -13453,16 +13453,16 @@ initFirebase();
 
   renderSectionMediaCover=function(kind,item){
     const copy=ccFinalCopy(kind),media=item.headerImage||null,src=ccFinalSrc(media),ref=`${kind}:cover:${item.id}`;
-    if(!src)return `<div class="cc-final-cover"><label class="cc-final-media-empty"><span><strong>${esc(copy.cover)}</strong>${esc(copy.coverHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc13-fixed-media-input="${esc(ref)}"></label></div>`;
-    return `<div class="cc-final-cover" data-cc-final-media-box="${esc(ref)}"><img src="${esc(src)}" alt="${esc(media?.alt||item.name+' cover')}" style="${ccFinalMediaCss(media,'cover')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${esc(ref)}">Edit cover</button></div>`;
+    if(!src)return `<div class="cc-final-cover"><label class="cc-final-media-empty"><span><strong>${cc15Esc(copy.cover)}</strong>${cc15Esc(copy.coverHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc13-fixed-media-input="${cc15Esc(ref)}"></label></div>`;
+    return `<div class="cc-final-cover" data-cc-final-media-box="${cc15Esc(ref)}"><img src="${cc15Esc(src)}" alt="${cc15Esc(media?.alt||item.name+' cover')}" style="${cc15MediaCss(media,'cover')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${cc15Esc(ref)}">Edit cover</button></div>`;
   };
 
   renderSectionMediaPortrait=function(kind,item){
     const copy=ccFinalCopy(kind),media=item.profileImage||null,src=ccFinalSrc(media),ref=`${kind}:profile:${item.id}`;
     const body=!src
-      ?`<label class="cc-final-media-empty"><span><strong>${esc(copy.image)}</strong>${esc(copy.imageHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc13-fixed-media-input="${esc(ref)}"></label>`
-      :`<img src="${esc(src)}" alt="${esc(media?.alt||item.name+' image')}" style="${ccFinalMediaCss(media,'profile')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${esc(ref)}">Edit image</button>`;
-    return `<section class="panel section-media-portrait-card cc-final-profile-card"><div class="section-media-portrait-label">${esc(copy.label)}</div><div class="cc-final-profile" data-cc-final-media-box="${esc(ref)}">${body}</div></section>`;
+      ?`<label class="cc-final-media-empty"><span><strong>${cc15Esc(copy.image)}</strong>${cc15Esc(copy.imageHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc13-fixed-media-input="${cc15Esc(ref)}"></label>`
+      :`<img src="${cc15Esc(src)}" alt="${cc15Esc(media?.alt||item.name+' image')}" style="${cc15MediaCss(media,'profile')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${cc15Esc(ref)}">Edit image</button>`;
+    return `<section class="panel section-media-portrait-card cc-final-profile-card"><div class="section-media-portrait-label">${cc15Esc(copy.label)}</div><div class="cc-final-profile" data-cc-final-media-box="${cc15Esc(ref)}">${body}</div></section>`;
   };
 
   document.addEventListener('change',async event=>{
@@ -15189,7 +15189,7 @@ initFirebase();
     const transparency=document.querySelector('[data-cc-emoji-transparency]');
     try{
       const src=await ccEmojiReadFile(file);
-      if(preview)preview.innerHTML=`<img src="${esc(src)}" alt="">`;
+      if(preview)preview.innerHTML=`<img src="${cc15Esc(src)}" alt="">`;
       const detected=await ccEmojiTransparency(file);
       if(transparency)transparency.innerHTML=`<span class="cc-emoji-transparency ${detected?'yes':'no'}">${detected?'Transparent background detected':'Background is not transparent or could not be detected'}</span>`;
     }catch(error){toast(error.message||String(error),'error');fileInput.value='';}
@@ -16556,16 +16556,16 @@ initFirebase();
   renderSectionMediaCover=function(kind,item){
     if(kind!=='species')return cc14LocationCoverRenderer(kind,item);
     const copy=ccFinalCopy('species'),media=item.headerImage||null,src=ccFinalSrc(media),ref=`species:cover:${item.id}`;
-    if(!src)return `<div class="cc-final-cover"><label class="cc-final-media-empty"><span><strong>${esc(copy.cover)}</strong>${esc(copy.coverHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc14-species-fixed-input="${esc(ref)}"></label></div>`;
-    return `<div class="cc-final-cover" data-cc-final-media-box="${esc(ref)}"><img src="${esc(src)}" alt="${esc(media?.alt||item.name+' cover')}" style="${ccFinalMediaCss(media,'cover')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${esc(ref)}">Edit cover</button></div>`;
+    if(!src)return `<div class="cc-final-cover"><label class="cc-final-media-empty"><span><strong>${cc15Esc(copy.cover)}</strong>${cc15Esc(copy.coverHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc14-species-fixed-input="${cc15Esc(ref)}"></label></div>`;
+    return `<div class="cc-final-cover" data-cc-final-media-box="${cc15Esc(ref)}"><img src="${cc15Esc(src)}" alt="${cc15Esc(media?.alt||item.name+' cover')}" style="${cc15MediaCss(media,'cover')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${cc15Esc(ref)}">Edit cover</button></div>`;
   };
   renderSectionMediaPortrait=function(kind,item){
     if(kind!=='species')return cc14LocationPortraitRenderer(kind,item);
     const copy=ccFinalCopy('species'),media=item.profileImage||null,src=ccFinalSrc(media),ref=`species:profile:${item.id}`;
     const body=!src
-      ?`<label class="cc-final-media-empty"><span><strong>${esc(copy.image)}</strong>${esc(copy.imageHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc14-species-fixed-input="${esc(ref)}"></label>`
-      :`<img src="${esc(src)}" alt="${esc(media?.alt||item.name+' image')}" style="${ccFinalMediaCss(media,'profile')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${esc(ref)}">Edit image</button>`;
-    return `<section class="panel section-media-portrait-card cc-final-profile-card"><div class="section-media-portrait-label">${esc(copy.label)}</div><div class="cc-final-profile" data-cc-final-media-box="${esc(ref)}">${body}</div></section>`;
+      ?`<label class="cc-final-media-empty"><span><strong>${cc15Esc(copy.image)}</strong>${cc15Esc(copy.imageHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc14-species-fixed-input="${cc15Esc(ref)}"></label>`
+      :`<img src="${cc15Esc(src)}" alt="${cc15Esc(media?.alt||item.name+' image')}" style="${cc15MediaCss(media,'profile')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${cc15Esc(ref)}">Edit image</button>`;
+    return `<section class="panel section-media-portrait-card cc-final-profile-card"><div class="section-media-portrait-label">${cc15Esc(copy.label)}</div><div class="cc-final-profile" data-cc-final-media-box="${cc15Esc(ref)}">${body}</div></section>`;
   };
 
   async function cc14ReadSpeciesFile(file,item,slot){
@@ -16607,10 +16607,41 @@ initFirebase();
 
   /* === Stable Species + Factions image upload channel ===
      Uses unique input attributes so legacy media listeners cannot intercept files. */
-  ccFinalMediaKinds.add('factions');
-  cc13MediaKinds.add('factions');
 
   const cc15MediaKinds=new Set(['species','factions']);
+
+  const cc15Esc=value=>String(value??'')
+    .replaceAll('&','&amp;')
+    .replaceAll('<','&lt;')
+    .replaceAll('>','&gt;')
+    .replaceAll('"','&quot;')
+    .replaceAll("'","&#039;");
+
+  const cc15Copy=kind=>kind==='species'
+    ? {
+        cover:'Add species cover',
+        coverHelp:'Culture, lineage, environment, or representative scene',
+        image:'Add species image',
+        imageHelp:'Upload a primary species image',
+        label:'Species image'
+      }
+    : {
+        cover:'Add faction cover',
+        coverHelp:'Headquarters, territory, members, or defining scene',
+        image:'Add faction image',
+        imageHelp:'Upload a crest, badge, emblem, or primary image',
+        label:'Faction image'
+      };
+
+  const cc15Src=media=>String(media?.src||media?.url||'');
+
+  const cc15MediaCss=(media,slot)=>{
+    const x=Number.isFinite(Number(media?.positionX))?Number(media.positionX):50;
+    const y=Number.isFinite(Number(media?.positionY))?Number(media.positionY):(slot==='cover'?45:30);
+    const zoom=Number.isFinite(Number(media?.zoom))?Math.max(.25,Number(media.zoom)):1;
+    const fit=media?.fit==='contain'?'contain':'cover';
+    return `width:100%;height:100%;display:block;object-fit:${fit};object-position:${x}% ${y}%;transform:scale(${zoom});transform-origin:${x}% ${y}%;`;
+  };
 
   const cc15BaseEditor=cc4Editor;
   cc4Editor=function(kind,item,openCount=2){
@@ -16629,22 +16660,22 @@ initFirebase();
 
   renderSectionMediaCover=function(kind,item){
     if(!cc15MediaKinds.has(kind))return cc15PreviousCoverRenderer(kind,item);
-    const copy=ccFinalCopy(kind),media=item.headerImage||null,src=ccFinalSrc(media);
+    const copy=cc15Copy(kind),media=item.headerImage||null,src=cc15Src(media);
     const ref=`${kind}:cover:${item.id}`;
     if(!src){
-      return `<div class="cc-final-cover"><label class="cc-final-media-empty"><span><strong>${esc(copy.cover)}</strong>${esc(copy.coverHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc15-media-input="${esc(ref)}"></label></div>`;
+      return `<div class="cc-final-cover"><label class="cc-final-media-empty"><span><strong>${cc15Esc(copy.cover)}</strong>${cc15Esc(copy.coverHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc15-media-input="${cc15Esc(ref)}"></label></div>`;
     }
-    return `<div class="cc-final-cover" data-cc-final-media-box="${esc(ref)}"><img src="${esc(src)}" alt="${esc(media?.alt||item.name+' cover')}" style="${ccFinalMediaCss(media,'cover')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${esc(ref)}">Edit cover</button><label class="button secondary small cc15-replace-image">Replace cover<input class="cc-final-native-input" type="file" accept="image/*" data-cc15-media-input="${esc(ref)}"></label></div>`;
+    return `<div class="cc-final-cover" data-cc-final-media-box="${cc15Esc(ref)}"><img src="${cc15Esc(src)}" alt="${cc15Esc(media?.alt||item.name+' cover')}" style="${cc15MediaCss(media,'cover')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${cc15Esc(ref)}">Edit cover</button><label class="button secondary small cc15-replace-image">Replace cover<input class="cc-final-native-input" type="file" accept="image/*" data-cc15-media-input="${cc15Esc(ref)}"></label></div>`;
   };
 
   renderSectionMediaPortrait=function(kind,item){
     if(!cc15MediaKinds.has(kind))return cc15PreviousPortraitRenderer(kind,item);
-    const copy=ccFinalCopy(kind),media=item.profileImage||null,src=ccFinalSrc(media);
+    const copy=cc15Copy(kind),media=item.profileImage||null,src=cc15Src(media);
     const ref=`${kind}:profile:${item.id}`;
     const body=!src
-      ? `<label class="cc-final-media-empty"><span><strong>${esc(copy.image)}</strong>${esc(copy.imageHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc15-media-input="${esc(ref)}"></label>`
-      : `<img src="${esc(src)}" alt="${esc(media?.alt||item.name+' image')}" style="${ccFinalMediaCss(media,'profile')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${esc(ref)}">Edit image</button><label class="button secondary small cc15-replace-image">Replace image<input class="cc-final-native-input" type="file" accept="image/*" data-cc15-media-input="${esc(ref)}"></label>`;
-    return `<section class="panel section-media-portrait-card cc-final-profile-card"><div class="section-media-portrait-label">${esc(copy.label)}</div><div class="cc-final-profile" data-cc-final-media-box="${esc(ref)}">${body}</div></section>`;
+      ? `<label class="cc-final-media-empty"><span><strong>${cc15Esc(copy.image)}</strong>${cc15Esc(copy.imageHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc15-media-input="${cc15Esc(ref)}"></label>`
+      : `<img src="${cc15Esc(src)}" alt="${cc15Esc(media?.alt||item.name+' image')}" style="${cc15MediaCss(media,'profile')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${cc15Esc(ref)}">Edit image</button><label class="button secondary small cc15-replace-image">Replace image<input class="cc-final-native-input" type="file" accept="image/*" data-cc15-media-input="${cc15Esc(ref)}"></label>`;
+    return `<section class="panel section-media-portrait-card cc-final-profile-card"><div class="section-media-portrait-label">${cc15Esc(copy.label)}</div><div class="cc-final-profile" data-cc-final-media-box="${cc15Esc(ref)}">${body}</div></section>`;
   };
   window.renderSectionMediaCover=renderSectionMediaCover;
   window.renderSectionMediaPortrait=renderSectionMediaPortrait;
@@ -16700,7 +16731,25 @@ initFirebase();
       const cut=ref.indexOf(':');
       const kind=ref.slice(0,cut),itemId=ref.slice(cut+1);
       try{
-        await ccFinalAddPageImage(kind,itemId,file);
+        const item=getItem(kind,itemId);
+        if(!item)throw new Error('The selected record could not be found.');
+        const prepared=await imageFileToBlock(file,{name:item.name});
+        if(!Array.isArray(item.pageImages))item.pageImages=[];
+        item.pageImages.push({
+          id:`page-image-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`,
+          src:prepared.src||'',
+          assetId:prepared.assetId||'',
+          alt:`${item.name} page image`,
+          caption:'',
+          positionX:50,
+          positionY:50,
+          zoom:1,
+          fit:'cover'
+        });
+        item.updatedAt=nowISO();
+        scheduleSave('Saving page image…');
+        renderEntity(kind,itemId);
+        toast(`${kind==='species'?'Species':'Faction'} page image added.`);
       }catch(error){
         console.error(error);
         toast(error?.message||'The page image could not be added.','error');
