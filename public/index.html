@@ -5614,7 +5614,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "roleplay-location-tracking-2026-08-05";
+window.CODEX_BUILD = "species-section-state-2026-08-05";
 </script>
   <script>
 (() => {
@@ -10243,6 +10243,7 @@ function ensureSectionDesigns(){
   return state.workspace.sectionDesigns;
 }
 function sectionDesign(kind){ ensureSectionDesigns(); return state.workspace.sectionDesigns[kind]; }
+window.SECTION_TEMPLATE_CONFIG=SECTION_TEMPLATE_CONFIG;
 function sectionTemplateConfig(kind){ return SECTION_TEMPLATE_CONFIG[kind] || SECTION_TEMPLATE_CONFIG.locations; }
 function sectionTemplateName(kind){ const config=sectionTemplateConfig(kind);return config.templates[sectionDesign(kind).template]?.name || config.templates[config.defaultTemplate].name; }
 function sectionThemeName(kind){ const theme=sectionDesign(kind).theme;return theme==='custom'?'Fully Custom':(DOSSIER_THEMES[theme]?.name||'Classic Parchment'); }
@@ -13087,6 +13088,9 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-cc4-jump]'
 
   cc4Editor=function(kind,item,openCount=2){
     const groups=groupsFor(item);
+    state.workspace=state.workspace||{};
+    state.workspace.sectionDisclosure=state.workspace.sectionDisclosure||{};
+    const disclosure=state.workspace.sectionDisclosure;
     const toolbar=`<div class="cc8-toolbar" data-editor="${kind}:${item.id}">
       <button class="block-tool" type="button" data-add-block="text" title="Add text">T</button>
       <button class="block-tool" type="button" data-add-block="h2" title="Add heading">H</button>
@@ -13100,7 +13104,9 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-cc4-jump]'
     return `<div class="cc8-editor">${toolbar}<div class="cc4-section-stack block-list" data-block-list="${kind}:${item.id}">
       ${groups.map((g,i)=>{
         const empty=groupEmpty(g);
-        return `<details class="cc4-section ${empty?'is-empty':''}" ${i<openCount?'open':''}>
+        const disclosureKey=`${kind}:${item.id}:${i}`;
+        const isOpen=Object.prototype.hasOwnProperty.call(disclosure,disclosureKey)?Boolean(disclosure[disclosureKey]):i<openCount;
+        return `<details class="cc4-section ${empty?'is-empty':''}" ${isOpen?'open':''} data-cc-section-disclosure="${esc(disclosureKey)}">
           <summary>
             <div class="cc8-section-summary">
               <input class="cc8-section-title" value="${esc(g.title)}"
@@ -13121,6 +13127,17 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-cc4-jump]'
       }).join('')}
     </div></div>`;
   };
+
+  document.addEventListener('toggle',event=>{
+    const section=event.target.closest?.('[data-cc-section-disclosure]');
+    if(!section)return;
+    state.workspace=state.workspace||{};
+    state.workspace.sectionDisclosure=state.workspace.sectionDisclosure||{};
+    const key=section.dataset.ccSectionDisclosure;
+    if(state.workspace.sectionDisclosure[key]===section.open)return;
+    state.workspace.sectionDisclosure[key]=section.open;
+    scheduleSave('Saving section state…');
+  },true);
 
   document.addEventListener('input',event=>{
     const editor=event.target.closest('[data-ccrh-editor]');
@@ -16542,7 +16559,7 @@ initFirebase();
   },true);
 
 
-  Object.assign(SECTION_TEMPLATE_CONFIG.factions.templates,{
+  Object.assign(window.SECTION_TEMPLATE_CONFIG.factions.templates,{
     'heraldic-registry':{name:'Lore Ledger',description:'A detailed ledger with a list of factions and a rich detail panel for each selection.',preview:'ccf-lore-ledger'},
     'influence-board':{name:'Banner Board',description:'A vibrant board with at-a-glance stats, grouped faction cards, and a contextual sidebar.',preview:'ccf-banner-board'},
     'intelligence-files':{name:'Codex Grid',description:'A clean grid of faction cards with key details and a compact overview panel.',preview:'ccf-codex-grid'}
