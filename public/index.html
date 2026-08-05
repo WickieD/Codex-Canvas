@@ -5635,7 +5635,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "cc15esc-startup-repair-2026-08-05";
+window.CODEX_BUILD = "species-faction-upload-bridge-fix-2026-08-05";
 </script>
   <script>
 (() => {
@@ -8398,6 +8398,17 @@ window.CODEX_BUILD = "cc15esc-startup-repair-2026-08-05";
   function showModal(title,body,footer='') {
     el.modal.innerHTML=`<div class="modal-backdrop" data-close-modal><div class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="modal-head"><h2>${esc(title)}</h2><button class="icon-button" type="button" data-close-modal aria-label="Close">×</button></div><div class="modal-body">${body}</div>${footer?`<div class="modal-foot">${footer}</div>`:''}</div></div>`;
   }
+
+  // Narrow bridge for isolated extension scripts.
+  // These functions remain owned by the primary application scope.
+  window.CodexCanvasMediaBridge = Object.freeze({
+    getItem: (kind,itemId)=>getItem(kind,itemId),
+    prepareImage: (file,item)=>imageFileToBlock(file,item),
+    nowISO: ()=>nowISO(),
+    scheduleSave: message=>scheduleSave(message),
+    renderEntity: (kind,itemId)=>renderEntity(kind,itemId),
+    toast: (message,type='info')=>toast(message,type)
+  });
   function closeModal(){el.modal.innerHTML='';}
 
   function downloadBackup() {
@@ -16674,9 +16685,11 @@ initFirebase();
   window.renderSectionMediaPortrait=renderSectionMediaPortrait;
 
   async function cc15StoreFixedImage(kind,itemId,slot,file){
-    const item=getItem(kind,itemId);
+    const api=window.CodexCanvasMediaBridge;
+    if(!api)throw new Error('The image service is not ready. Refresh the page and try again.');
+    const item=api.getItem(kind,itemId);
     if(!item)throw new Error('The selected record could not be found.');
-    const prepared=await imageFileToBlock(file,{name:item.name});
+    const prepared=await api.prepareImage(file,{name:item.name});
     const field=slot==='cover'?'headerImage':'profileImage';
     item[field]={
       src:prepared.src||'',
@@ -16687,10 +16700,10 @@ initFirebase();
       zoom:1,
       fit:'cover'
     };
-    item.updatedAt=nowISO();
-    scheduleSave('Saving image…');
-    renderEntity(kind,itemId);
-    toast(`${kind==='species'?'Species':'Faction'} image added.`);
+    item.updatedAt=api.nowISO();
+    api.scheduleSave('Saving image…');
+    api.renderEntity(kind,itemId);
+    api.toast(`${kind==='species'?'Species':'Faction'} image added.`);
   }
 
   document.addEventListener('change',async event=>{
@@ -16708,7 +16721,7 @@ initFirebase();
         await cc15StoreFixedImage(kind,itemId,slot,file);
       }catch(error){
         console.error(error);
-        toast(error?.message||'The image could not be added.','error');
+        window.CodexCanvasMediaBridge?.toast(error?.message||'The image could not be added.','error');
       }
       return;
     }
@@ -16724,9 +16737,11 @@ initFirebase();
       const cut=ref.indexOf(':');
       const kind=ref.slice(0,cut),itemId=ref.slice(cut+1);
       try{
-        const item=getItem(kind,itemId);
+        const api=window.CodexCanvasMediaBridge;
+        if(!api)throw new Error('The image service is not ready. Refresh the page and try again.');
+        const item=api.getItem(kind,itemId);
         if(!item)throw new Error('The selected record could not be found.');
-        const prepared=await imageFileToBlock(file,{name:item.name});
+        const prepared=await api.prepareImage(file,{name:item.name});
         if(!Array.isArray(item.pageImages))item.pageImages=[];
         item.pageImages.push({
           id:`page-image-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`,
@@ -16739,13 +16754,13 @@ initFirebase();
           zoom:1,
           fit:'cover'
         });
-        item.updatedAt=nowISO();
-        scheduleSave('Saving page image…');
-        renderEntity(kind,itemId);
-        toast(`${kind==='species'?'Species':'Faction'} page image added.`);
+        item.updatedAt=api.nowISO();
+        api.scheduleSave('Saving page image…');
+        api.renderEntity(kind,itemId);
+        api.toast(`${kind==='species'?'Species':'Faction'} page image added.`);
       }catch(error){
         console.error(error);
-        toast(error?.message||'The page image could not be added.','error');
+        window.CodexCanvasMediaBridge?.toast(error?.message||'The page image could not be added.','error');
       }
       return;
     }
