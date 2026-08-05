@@ -5507,6 +5507,27 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 </style>
 
+
+<style id="cc-roleplay-location-tracking-style">
+.cc-scene-location-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 14px;padding:12px 14px;border:1px solid var(--border);border-radius:14px;background:var(--panel-soft)}
+.cc-scene-location-bar strong{color:var(--accent-strong)}
+.cc-scene-location-bar .button{margin-left:auto}
+.cc-scene-location-divider{display:flex;align-items:center;gap:10px;margin:20px 0 12px;color:var(--accent-strong);font-size:12px;font-weight:850;text-transform:uppercase;letter-spacing:.06em}
+.cc-scene-location-divider::before,.cc-scene-location-divider::after{content:"";height:1px;flex:1;background:var(--border)}
+.cc-rp-location-chip{display:inline-flex;align-items:center;gap:5px;margin-top:3px;color:var(--muted);font-size:11px}
+.cc-rp-location-chip button{border:0;background:transparent;color:var(--accent-strong);padding:0;font:inherit;font-weight:750;cursor:pointer}
+.cc-rp-location-controls{display:grid;grid-template-columns:minmax(150px,.8fr) minmax(180px,1fr) minmax(160px,1fr);gap:10px;margin:10px 0}
+.cc-rp-location-controls label{display:grid;gap:5px;font-size:12px;font-weight:750}
+.cc-location-appearances{margin:20px 0;padding:18px;border:1px solid var(--border);border-radius:16px;background:var(--panel)}
+.cc-location-appearances h2{margin:0 0 4px;font-size:18px}
+.cc-location-appearances>p{margin:0 0 14px;color:var(--muted)}
+.cc-location-appearance-list{display:grid;gap:9px}
+.cc-location-appearance{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;text-align:left;border:1px solid var(--border);border-radius:12px;background:var(--panel-soft);padding:11px 12px;color:var(--text);cursor:pointer}
+.cc-location-appearance strong,.cc-location-appearance span{display:block}.cc-location-appearance small{color:var(--muted)}
+.cc-location-appearance:hover{border-color:var(--accent)}
+@media(max-width:760px){.cc-rp-location-controls{grid-template-columns:1fr}.cc-scene-location-bar .button{margin-left:0}.cc-location-appearance{grid-template-columns:1fr}}
+</style>
+
 </head>
 <body>
 
@@ -5593,7 +5614,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "character-library-images-2026-08-04";
+window.CODEX_BUILD = "roleplay-location-tracking-2026-08-05";
 </script>
   <script>
 (() => {
@@ -6510,7 +6531,7 @@ window.CODEX_BUILD = "character-library-images-2026-08-04";
       return;
     }
     const breadcrumb = kind === 'locations' ? renderLocationBreadcrumb(item) : '';
-    const snapshot = kind === 'characters' ? renderCharacterSnapshot(item) : '';
+    const snapshot = kind === 'characters' ? renderCharacterSnapshot(item) : kind === 'locations' ? renderLocationRoleplayAppearances(item) : '';
     const entityCover = kind === 'characters' ? renderCharacterCover(item) : '<div class="entity-cover"></div>';
     const templateToolbar = kind === 'characters' ? renderCharacterTemplateToolbar(item) : '';
     el.main.innerHTML = `${templateToolbar}${breadcrumb}<section class="entity-hero">${entityCover}<div class="entity-title-row"><textarea class="entity-title-input" rows="1" aria-label="${meta.singular} name" data-title-kind="${kind}" data-title-id="${item.id}">${esc(item.name)}</textarea><button class="favorite-button ${item.favorite?'on':''}" type="button" data-favorite="${kind}:${item.id}" title="Favorite">☆</button></div></section>
@@ -6540,6 +6561,21 @@ window.CODEX_BUILD = "character-library-images-2026-08-04";
         ${item.relationshipsText ? `<div class="snapshot-relationships character-snapshot-wide"><span class="snapshot-label">Key relationships</span><p data-snapshot-value="relationshipsText">${esc(cleanNotionRefs(item.relationshipsText))}</p></div>` : ''}
       </div>
     </section>`;
+  }
+
+  function renderLocationRoleplayAppearances(item) {
+    const appearances=[];
+    for(const story of state.storyGraphs||[]){
+      ensureStoryDocument(story);syncStoryPointLocations(story);
+      for(const point of story.nodes||[]){
+        const place=storyPointResolvedLocation(story,point);
+        if(place.locationId!==item.id)continue;
+        const range=storyPointRange(story,point);
+        appearances.push({story,point,detail:place.detail||'',posts:range.turns.length});
+      }
+    }
+    if(!appearances.length)return `<section class="cc-location-appearances"><h2>Roleplay appearances</h2><p>This location has not been connected to a Roleplay Hub scene yet.</p></section>`;
+    return `<section class="cc-location-appearances"><h2>Roleplay appearances</h2><p>Scenes and graph points that take place here.</p><div class="cc-location-appearance-list">${appearances.map(entry=>`<button class="cc-location-appearance" type="button" data-story-point="${esc(storyRouteValue(entry.story.id,entry.point.id))}"><span><strong>${esc(entry.story.name)}</strong><small>${esc(storyPointTitle(entry.story,entry.point))}${entry.detail?` · ${esc(entry.detail)}`:''}</small></span><small>${entry.posts} post${entry.posts===1?'':'s'} →</small></button>`).join('')}</div></section>`;
   }
 
   function renderLocationBreadcrumb(item) {
@@ -6747,6 +6783,9 @@ window.CODEX_BUILD = "character-library-images-2026-08-04";
     turn.characterId ||= '';
     turn.speakerName ||= turn.characterId ? (getItem('characters', turn.characterId)?.name || 'Character') : 'Narrator';
     turn.text ||= '';
+    turn.locationMode = ['inherit','change','override','none'].includes(turn.locationMode) ? turn.locationMode : 'inherit';
+    turn.locationId ||= '';
+    turn.locationDetail ||= '';
     return turn;
   }
 
@@ -6757,14 +6796,64 @@ window.CODEX_BUILD = "character-library-images-2026-08-04";
     node.passage.summary ||= '';
     node.passage.anchorTurnId ||= '';
     node.passage.turns ||= [];
+    node.passage.locationMode = node.passage.locationMode === 'manual' ? 'manual' : 'auto';
+    node.passage.locationId ||= '';
+    node.passage.locationDetail ||= '';
     return node.passage;
   }
 
   function ensureStoryDocument(story) {
     if (!story) return [];
     story.rpTurns ||= [];
+    story.startLocationId ||= '';
+    story.startLocationDetail ||= '';
     for (const turn of story.rpTurns) normalizeStoryTurn(turn);
     return story.rpTurns;
+  }
+
+  function storyLocationOptions(selected='') {
+    return `<option value="">No saved location</option>${state.locations.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(location=>`<option value="${esc(location.id)}" ${selected===location.id?'selected':''}>${esc(location.name)}</option>`).join('')}`;
+  }
+
+  function storyLocationName(locationId, detail='') {
+    const location = locationId ? getItem('locations',locationId) : null;
+    return [location?.name || '', detail || ''].filter(Boolean).join(' · ');
+  }
+
+  function storyTurnLocation(story,index) {
+    const turns=ensureStoryDocument(story);
+    let locationId=story?.startLocationId||'';
+    let detail=story?.startLocationDetail||'';
+    for(let i=0;i<=index&&i<turns.length;i++){
+      const turn=turns[i];
+      if(turn.locationMode==='change'){
+        locationId=turn.locationId||'';
+        detail=turn.locationDetail||'';
+      }
+      if(i===index){
+        if(turn.locationMode==='override')return {locationId:turn.locationId||'',detail:turn.locationDetail||'',mode:'override'};
+        if(turn.locationMode==='none')return {locationId:'',detail:'',mode:'none'};
+      }
+    }
+    return {locationId,detail,mode:turns[index]?.locationMode||'inherit'};
+  }
+
+  function storyPointResolvedLocation(story,node) {
+    const passage=ensureStoryPassage(node);
+    if(passage.locationMode==='manual')return {locationId:passage.locationId||'',detail:passage.locationDetail||''};
+    const index=storyAnchorIndex(story,node);
+    return index>=0?storyTurnLocation(story,index):{locationId:story?.startLocationId||'',detail:story?.startLocationDetail||''};
+  }
+
+  function syncStoryPointLocations(story) {
+    for(const point of story?.nodes||[]){
+      const passage=ensureStoryPassage(point);
+      if(passage.locationMode!=='manual'){
+        const resolved=storyPointResolvedLocation(story,point);
+        passage.locationId=resolved.locationId||'';
+        passage.locationDetail=resolved.detail||'';
+      }
+    }
   }
 
   function storyRouteValue(storyId, nodeId = '') {
@@ -6789,6 +6878,8 @@ window.CODEX_BUILD = "character-library-images-2026-08-04";
   function storyPointTitle(story, node) {
     if (!node) return 'Untitled story point';
     const passage = ensureStoryPassage(node);
+    ensureStoryDocument(story);
+    syncStoryPointLocations(story);
     const resolved = resolveGraphNode(node.id);
     return passage.title.trim() || resolved?.label || node.role || `Point ${node.order || ''}`.trim();
   }
@@ -6958,8 +7049,13 @@ window.CODEX_BUILD = "character-library-images-2026-08-04";
     const startsSelectedSection = selectedRange.start === index;
     const markers = markerMap.get(index) || [];
     const marker = markers.length ? `<div class="rp-story-anchor ${markers.some(point=>point.id===selectedNode.id)?'active':''}">${markers.map(point=>`<button type="button" data-story-point="${esc(storyRouteValue(story.id,point.id))}"><span>Point ${esc(point.order || '')}</span><strong>${esc(storyPointTitle(story,point))}</strong></button>`).join('')}</div>` : '';
-    return `${marker}<article id="rp-turn-${esc(turn.id)}" data-rp-turn-id="${esc(turn.id)}" class="rp-post rp-post-${esc(turn.type || 'dialogue')} ${inSelectedSection?'rp-post-selected-section':''} ${startsSelectedSection?'rp-post-selected-start':''}">
-      <header class="rp-post-head"><button class="rp-avatar" type="button"${open} ${speaker.character?'':'disabled'}>${esc(speaker.initials)}</button><div><div class="rp-speaker">${esc(speaker.name)}</div><div class="rp-post-meta">${esc(storyTurnTypeLabel(turn.type))} · Post ${index + 1}</div></div></header>
+    const scene=storyTurnLocation(story,index);
+    const location=getItem('locations',scene.locationId);
+    const locationText=storyLocationName(scene.locationId,scene.detail);
+    const divider=turn.locationMode==='change'?`<div class="cc-scene-location-divider">Scene moved to ${esc(locationText||'an unspecified location')}</div>`:'';
+    const locationMeta=locationText?`<div class="cc-rp-location-chip">Location: ${location?`<button type="button" data-open="locations:${esc(location.id)}">${esc(location.name)}</button>`:''}${scene.detail?`<span>${location?'· ':''}${esc(scene.detail)}</span>`:''}</div>`:'';
+    return `${marker}${divider}<article id="rp-turn-${esc(turn.id)}" data-rp-turn-id="${esc(turn.id)}" class="rp-post rp-post-${esc(turn.type || 'dialogue')} ${inSelectedSection?'rp-post-selected-section':''} ${startsSelectedSection?'rp-post-selected-start':''}">
+      <header class="rp-post-head"><button class="rp-avatar" type="button"${open} ${speaker.character?'':'disabled'}>${esc(speaker.initials)}</button><div><div class="rp-speaker">${esc(speaker.name)}</div><div class="rp-post-meta">${esc(storyTurnTypeLabel(turn.type))} · Post ${index + 1}</div>${locationMeta}</div></header>
       <div class="rp-post-body">${body || '<span class="rp-empty-copy">No text added yet.</span>'}</div>
     </article>`;
   }
@@ -6978,6 +7074,11 @@ window.CODEX_BUILD = "character-library-images-2026-08-04";
         <div class="rp-editor-actions"><button class="button ghost small" type="button" data-story-set-anchor="${esc(turn.id)}">${isSelectedAnchor?'Point starts here':'Start selected point here'}</button><button class="button ghost small" type="button" data-story-turn-up="${esc(turn.id)}" ${index===0?'disabled':''} aria-label="Move post up">↑</button><button class="button ghost small" type="button" data-story-turn-down="${esc(turn.id)}" ${index===total-1?'disabled':''} aria-label="Move post down">↓</button><button class="button ghost small" type="button" data-story-turn-delete="${esc(turn.id)}">Delete</button></div>
       </div>
       ${custom?`<label class="rp-custom-speaker"><span>Speaker name</span><input class="input" type="text" value="${esc(turn.speakerName || '')}" data-story-turn-custom="${esc(turn.id)}" placeholder="Character or player name"></label>`:''}
+      <div class="cc-rp-location-controls">
+        <label><span>Location behavior</span><select class="select" data-story-turn-location-mode="${esc(turn.id)}"><option value="inherit" ${turn.locationMode==='inherit'?'selected':''}>Use current scene location</option><option value="change" ${turn.locationMode==='change'?'selected':''}>Change scene location from here</option><option value="override" ${turn.locationMode==='override'?'selected':''}>Different location for this post only</option><option value="none" ${turn.locationMode==='none'?'selected':''}>No location for this post</option></select></label>
+        <label><span>Location</span><select class="select" data-story-turn-location="${esc(turn.id)}" ${['inherit','none'].includes(turn.locationMode)?'disabled':''}>${storyLocationOptions(turn.locationId)}</select></label>
+        <label><span>Specific area</span><input class="input" value="${esc(turn.locationDetail||'')}" data-story-turn-location-detail="${esc(turn.id)}" placeholder="Room, street, floor…" ${['inherit','none'].includes(turn.locationMode)?'disabled':''}></label>
+      </div>
       <label class="rp-editor-text"><span>Roleplay post</span><textarea class="textarea" rows="7" data-story-turn-text="${esc(turn.id)}" placeholder="Paste or write this character's part of the RP here…">${esc(turn.text || '')}</textarea></label>
     </section>`;
   }
@@ -7004,8 +7105,14 @@ window.CODEX_BUILD = "character-library-images-2026-08-04";
     }).join('');
     const actions = `<button class="button secondary" type="button" data-nav="graph">Back to graph</button><button class="button" type="button" data-story-mode="${storyEditMode?'read':'edit'}">${storyEditMode?'Read full RP':'Edit RP and anchors'}</button>`;
     const reading = turns.length ? turns.map((turn,turnIndex)=>renderStoryTurnRead(turn,turnIndex,story,node,markerMap)).join('') : `<div class="rp-empty"><h3>The full RP sheet is empty</h3><p>Add the roleplay once, in its real posting order. Then each graph point can jump to the post where that part of the story begins.</p><button class="button" type="button" data-story-mode="edit">Add the first post</button></div>`;
+    const currentScene=storyTurnLocation(story,Math.max(0,turns.length-1));
+    const currentLocation=getItem('locations',currentScene.locationId);
+    const sceneBar=`<div class="cc-scene-location-bar"><span>Current scene location:</span><strong>${esc(storyLocationName(currentScene.locationId,currentScene.detail)||'Not set')}</strong>${currentLocation?`<button class="button ghost small" type="button" data-open="locations:${esc(currentLocation.id)}">Open location</button>`:''}</div>`;
     const editing = `<section class="story-point-editor">
+      ${sceneBar}
       <div class="story-anchor-callout"><strong>One RP, multiple jump points</strong><span>The writing below is one continuous sheet. This point only stores where its section begins.</span></div>
+      <div class="cc-rp-location-controls"><label><span>Story starting location</span><select class="select" data-story-start-location>${storyLocationOptions(story.startLocationId)}</select></label><label><span>Starting area</span><input class="input" value="${esc(story.startLocationDetail||'')}" data-story-start-location-detail placeholder="Room, street, floor…"></label><label><span>Point location tracking</span><select class="select" data-story-point-location-mode><option value="auto" ${passage.locationMode!=='manual'?'selected':''}>Follow anchored post</option><option value="manual" ${passage.locationMode==='manual'?'selected':''}>Set manually</option></select></label></div>
+      ${passage.locationMode==='manual'?`<div class="cc-rp-location-controls"><label><span>Point location</span><select class="select" data-story-point-location>${storyLocationOptions(passage.locationId)}</select></label><label><span>Point area</span><input class="input" value="${esc(passage.locationDetail||'')}" data-story-point-location-detail></label></div>`:''}
       <div class="story-point-fields story-point-fields-anchor"><label><span>Point title</span><input class="input" type="text" value="${esc(passage.title)}" data-story-point-title placeholder="${esc(resolved?.label || `Point ${node.order}`)}"></label><label><span>Point summary</span><textarea class="textarea" rows="3" data-story-point-summary placeholder="What changes at this point in the scene?">${esc(passage.summary)}</textarea></label><label class="story-point-anchor-control"><span>This point starts at</span><select class="select" data-story-point-anchor>${storyAnchorOptions(story,node)}</select><small>Choose a post here, or use “Start selected point here” beside any post below.</small></label></div>
       <div class="rp-editor-list">${turns.map((turn,turnIndex)=>renderStoryTurnEditor(story,turn,turnIndex,turns.length,node)).join('') || '<p class="rp-empty-copy">No posts yet. Add the first RP entry below.</p>'}</div>
       <button class="button" type="button" data-story-add-turn>Add roleplay post to full RP</button>
@@ -7014,7 +7121,7 @@ window.CODEX_BUILD = "character-library-images-2026-08-04";
       <section class="story-jump-panel" aria-label="Jump to a story point"><div class="story-jump-heading"><span class="eyebrow">Story bookmarks</span><p>Each point opens the same RP sheet at a saved post.</p></div><div class="story-jump-list">${jumpButtons}</div></section>
       <article class="story-reader-page cc-story-uniform-card">
         <header class="story-point-head"><div><span class="story-point-number">Point ${esc(node.order || index + 1)}</span><span class="viz-badge">${esc(node.role || resolved?.type || 'Story point')}</span><h2>${esc(storyPointTitle(story,node))}</h2><p>${esc(passage.summary || `This bookmark is connected to ${resolved?.label || 'the selected graph node'}.`)}</p><p class="story-anchor-status">${esc(storyAnchorDescription(story,node))}</p></div><div class="story-point-stats"><span>${selectedRange.turns.length} post${selectedRange.turns.length===1?'':'s'} in section</span><span>${turns.length} total post${turns.length===1?'':'s'}</span><span>${participants.length} participant${participants.length===1?'':'s'}</span></div></header>
-        ${storyEditMode ? editing : `<div class="rp-reading-list">${reading}</div>`}
+        ${storyEditMode ? editing : `${sceneBar}<div class="rp-reading-list">${reading}</div>`}
         <footer class="story-reader-nav"><button class="button secondary" type="button" ${previous?`data-story-point="${esc(storyRouteValue(story.id,previous.id))}"`:'disabled'}>← Previous point</button><button class="button secondary" type="button" ${next?`data-story-point="${esc(storyRouteValue(story.id,next.id))}"`:'disabled'}>Next point →</button></footer>
       </article>`;
     requestAnimationFrame(()=>scrollToStoryAnchor(story,node,storyEditMode));
@@ -8381,7 +8488,7 @@ window.CODEX_BUILD = "character-library-images-2026-08-04";
     const storyPoint=event.target.closest('[data-story-point]');if(storyPoint){const parsed=parseStoryRouteValue(storyPoint.dataset.storyPoint);openStoryPoint(parsed.storyId,parsed.nodeId,false);return;}
     const storyEditPoint=event.target.closest('[data-story-edit-point]');if(storyEditPoint){const parsed=parseStoryRouteValue(storyEditPoint.dataset.storyEditPoint);openStoryPoint(parsed.storyId,parsed.nodeId,true);return;}
     const storyMode=event.target.closest('[data-story-mode]');if(storyMode){storyEditMode=storyMode.dataset.storyMode==='edit';renderStoryReader();return;}
-    if(event.target.closest('[data-story-add-turn]')){const context=currentStoryPassage();if(context.story){const turn={id:id('turn'),type:'dialogue',characterId:'',speakerName:'Narrator',text:''};context.turns.push(turn);if(context.passage&&!context.passage.anchorTurnId)context.passage.anchorTurnId=turn.id;logActivity(`Added an RP post to ${context.story.name}`);scheduleSave();storyEditMode=true;renderStoryReader();requestAnimationFrame(()=>document.querySelector(`[data-story-turn-card="${CSS.escape(turn.id)}"] textarea`)?.focus());}return;}
+    if(event.target.closest('[data-story-add-turn]')){const context=currentStoryPassage();if(context.story){const turn={id:id('turn'),type:'dialogue',characterId:'',speakerName:'Narrator',text:'',locationMode:'inherit',locationId:'',locationDetail:''};context.turns.push(turn);if(context.passage&&!context.passage.anchorTurnId)context.passage.anchorTurnId=turn.id;logActivity(`Added an RP post to ${context.story.name}`);scheduleSave();storyEditMode=true;renderStoryReader();requestAnimationFrame(()=>document.querySelector(`[data-story-turn-card="${CSS.escape(turn.id)}"] textarea`)?.focus());}return;}
     const setAnchor=event.target.closest('[data-story-set-anchor]');if(setAnchor){const context=currentStoryPassage();if(context.passage){context.passage.anchorTurnId=setAnchor.dataset.storySetAnchor;scheduleSave();renderStoryReader();toast(`${storyPointTitle(context.story,context.node)} now starts at this post.`);}return;}
     const turnDelete=event.target.closest('[data-story-turn-delete]');if(turnDelete){const context=currentStoryPassage();if(context.story){const turnId=turnDelete.dataset.storyTurnDelete;const index=context.turns.findIndex(turn=>turn.id===turnId);if(index>=0){const replacement=context.turns[index+1]?.id||'';for(const point of context.story.nodes||[]){const pointPassage=ensureStoryPassage(point);if(pointPassage.anchorTurnId===turnId)pointPassage.anchorTurnId=replacement;}context.turns.splice(index,1);scheduleSave();renderStoryReader();}}return;}
     const turnUp=event.target.closest('[data-story-turn-up]');if(turnUp){const context=currentStoryPassage();const index=context.turns?.findIndex(turn=>turn.id===turnUp.dataset.storyTurnUp)??-1;if(index>0){[context.turns[index-1],context.turns[index]]=[context.turns[index],context.turns[index-1]];scheduleSave();renderStoryReader();}return;}
@@ -8457,6 +8564,9 @@ window.CODEX_BUILD = "character-library-images-2026-08-04";
     if(event.target.matches('[data-image-editor-alt]')){const info=blockFromRef(event.target.dataset.imageEditorAlt);if(info.block){info.block.alt=event.target.value;syncImageFigure(event.target.dataset.imageEditorAlt);scheduleSave();}return;}
     if(event.target.matches('[data-image-panel-opacity]')){const panel=event.target.closest('.image-settings-floating');if(panel){panel.style.setProperty('--image-settings-alpha',`${event.target.value}%`);event.target.closest('.image-editor-modal')?.querySelector('[data-image-panel-opacity-output]')?.replaceChildren(`${event.target.value}%`);}return;}
     if(event.target.matches('[data-character-crop-zoom]')){const [slot,characterId]=event.target.dataset.characterCropZoom.split(':');const {character,media}=characterMediaRecord(characterId,slot);if(media){media.zoom=Math.max(1,Math.min(3,Number(event.target.value)/100));character.updatedAt=nowISO();syncCharacterCropPreview(characterId,slot);scheduleSave();}return;}
+    if(event.target.matches('[data-story-start-location-detail]')){const context=currentStoryPassage();if(context.story){context.story.startLocationDetail=event.target.value;syncStoryPointLocations(context.story);scheduleSave();}return;}
+    if(event.target.matches('[data-story-point-location-detail]')){const context=currentStoryPassage();if(context.passage){context.passage.locationDetail=event.target.value;context.passage.locationMode='manual';scheduleSave();}return;}
+    if(event.target.matches('[data-story-turn-location-detail]')){const context=findStoryTurn(event.target.dataset.storyTurnLocationDetail);if(context.turn){context.turn.locationDetail=event.target.value;syncStoryPointLocations(context.story);scheduleSave();}return;}
     if(event.target.matches('[data-accent]')){state.workspace.accent=event.target.value;applyTheme();scheduleSave();return;}
   });
 
@@ -8474,6 +8584,11 @@ window.CODEX_BUILD = "character-library-images-2026-08-04";
     if(event.target.matches('[data-story-point-anchor]')){const context=currentStoryPassage();if(context.passage){context.passage.anchorTurnId=event.target.value;scheduleSave();renderStoryReader();}return;}
     if(event.target.matches('[data-story-turn-speaker]')){const context=findStoryTurn(event.target.dataset.storyTurnSpeaker);if(context.turn){const value=event.target.value;if(value.startsWith('character:')){context.turn.characterId=value.slice('character:'.length);context.turn.speakerName=getItem('characters',context.turn.characterId)?.name||'Character';}else if(value==='narrator'){context.turn.characterId='';context.turn.speakerName='Narrator';}else{context.turn.characterId='';context.turn.speakerName=context.turn.speakerName&&context.turn.speakerName!=='Narrator'?context.turn.speakerName:'Other';}scheduleSave();renderStoryReader();}return;}
     if(event.target.matches('[data-story-turn-type]')){const context=findStoryTurn(event.target.dataset.storyTurnType);if(context.turn){context.turn.type=event.target.value;scheduleSave();}return;}
+    if(event.target.matches('[data-story-start-location]')){const context=currentStoryPassage();if(context.story){context.story.startLocationId=event.target.value;syncStoryPointLocations(context.story);scheduleSave();renderStoryReader();}return;}
+    if(event.target.matches('[data-story-point-location-mode]')){const context=currentStoryPassage();if(context.passage){context.passage.locationMode=event.target.value==='manual'?'manual':'auto';syncStoryPointLocations(context.story);scheduleSave();renderStoryReader();}return;}
+    if(event.target.matches('[data-story-point-location]')){const context=currentStoryPassage();if(context.passage){context.passage.locationId=event.target.value;context.passage.locationMode='manual';scheduleSave();renderStoryReader();}return;}
+    if(event.target.matches('[data-story-turn-location-mode]')){const context=findStoryTurn(event.target.dataset.storyTurnLocationMode);if(context.turn){context.turn.locationMode=event.target.value;syncStoryPointLocations(context.story);scheduleSave();renderStoryReader();}return;}
+    if(event.target.matches('[data-story-turn-location]')){const context=findStoryTurn(event.target.dataset.storyTurnLocation);if(context.turn){context.turn.locationId=event.target.value;syncStoryPointLocations(context.story);scheduleSave();renderStoryReader();}return;}
     if(event.target.id==='graphType'){graphSettings.graphType=event.target.value;graphSettings.layout=graphSettings.graphType==='story'?'story':graphSettings.graphType==='locations'?'hierarchy':'focus';graphSettings.focus='';graphSelectedNode='';renderGraphPage();return;}
     if(event.target.id==='graphLayout'){graphSettings.layout=event.target.value;if(graphSettings.layout==='focus'&&!graphSettings.focus)graphSettings.focus=graphDefaultFocus();graphSelectedNode='';renderGraphPage();return;}
     if(event.target.id==='graphStory'){graphSettings.storyId=event.target.value;graphSettings.hiddenNodeIds=[];graphSelectedNode='';renderGraphPage();return;}
@@ -10425,14 +10540,14 @@ function graphItemsForCurrentType(){
   return [...state.locations.map(item=>({nodeId:`location:${item.id}`,label:item.name,type:'Location'})),...state.characters.map(item=>({nodeId:`character:${item.id}`,label:item.name,type:'Person'})),...state.species.map(item=>({nodeId:`species:${item.id}`,label:item.name,type:'Species'})),...state.factions.map(item=>({nodeId:`faction:${item.id}`,label:item.name,type:'Faction'})),...state.events.map(item=>({nodeId:`event:${item.id}`,label:item.name,type:'Event'}))].sort((a,b)=>a.type.localeCompare(b.type)||a.label.localeCompare(b.label));
 }
 function graphTypeFilters(){if(graphSettings.graphType==='story')return[{key:'Location',label:'Locations'},{key:'Person',label:'People'}];if(graphSettings.graphType==='locations')return[{key:'Location',label:'Locations'}];if(graphSettings.graphType==='characters')return[{key:'Person',label:'People'}];return[{key:'Location',label:'Locations'},{key:'Person',label:'People'},{key:'Species',label:'Species'},{key:'Faction',label:'Factions'},{key:'Event',label:'Events'}];}
-function graphRelationFilters(){if(graphSettings.graphType==='story')return[{key:'story',label:'Story connections'}];if(graphSettings.graphType==='locations')return[{key:'parent',label:'Parent and child'},{key:'related',label:'Related locations'}];if(graphSettings.graphType==='characters')return[{key:'relationship',label:'People relationships'}];return[{key:'parent',label:'Parent and child'},{key:'related',label:'Related locations'},{key:'relationship',label:'People relationships'},{key:'current',label:'Current locations'},{key:'speciesMember',label:'Known species members'},{key:'member',label:'Faction members'},{key:'event',label:'Event involvement'},{key:'keyPerson',label:'Key people at locations'}];}
+function graphRelationFilters(){if(graphSettings.graphType==='story')return[{key:'story',label:'Story connections'},{key:'sceneLocation',label:'Scene locations'}];if(graphSettings.graphType==='locations')return[{key:'parent',label:'Parent and child'},{key:'related',label:'Related locations'}];if(graphSettings.graphType==='characters')return[{key:'relationship',label:'People relationships'}];return[{key:'parent',label:'Parent and child'},{key:'related',label:'Related locations'},{key:'relationship',label:'People relationships'},{key:'current',label:'Current locations'},{key:'speciesMember',label:'Known species members'},{key:'member',label:'Faction members'},{key:'event',label:'Event involvement'},{key:'keyPerson',label:'Key people at locations'}];}
 function graphFocusOptions(){if(graphSettings.graphType==='story')return graphItemsForCurrentType().map(item=>({value:item.nodeId,label:item.label}));if(graphSettings.graphType==='locations')return state.locations.map(x=>({value:`location:${x.id}`,label:x.name}));if(graphSettings.graphType==='characters')return state.characters.map(x=>({value:`character:${x.id}`,label:x.name}));return[...state.locations.map(x=>({value:`location:${x.id}`,label:`Location: ${x.name}`})),...state.characters.map(x=>({value:`character:${x.id}`,label:`Person: ${x.name}`})),...state.species.map(x=>({value:`species:${x.id}`,label:`Species: ${x.name}`})),...state.factions.map(x=>({value:`faction:${x.id}`,label:`Faction: ${x.name}`})),...state.events.map(x=>({value:`event:${x.id}`,label:`Event: ${x.name}`}))];}
 function graphNodeKey(){const entries=graphTypeFilters();const colorMap={Location:'var(--accent)',Person:'var(--success)',Species:'var(--muted)',Faction:'var(--warning)',Event:'var(--danger)'};return entries.map(entry=>`<span class="graph-key-row"><span class="graph-key-dot" style="background:${colorMap[entry.key]}"></span><strong>${esc(entry.label)}</strong></span>`).join('');}
 function graphData(){
   const nodes=[],links=[],nodeSet=new Set(),linkSet=new Set();
   const addNode=(id,label,type,refId,kind,extra={})=>{if(!nodeSet.has(id)){nodeSet.add(id);nodes.push({id,label,type,refId,kind,...extra});}};
   const addLink=(source,target,type,label='',extra={})=>{if(!source||!target||source===target||graphSettings.visibleRelations[type]===false)return;const key=type==='story'?`${source}|${target}|${type}|${label}`:`${[source,target].sort().join('|')}|${type}`;if(!linkSet.has(key)){linkSet.add(key);links.push({source,target,type,label,...extra});}};
-  if(graphSettings.graphType==='story'){const story=activeStoryGraph();for(const storyNode of story?.nodes||[]){const resolved=resolveGraphNode(storyNode.id);if(resolved)addNode(resolved.id,resolved.label,resolved.type,resolved.refId,resolved.kind,{order:storyNode.order,role:storyNode.role||'',passage:ensureStoryPassage(storyNode),storyPointCount:storyPointRange(story,storyNode).turns.length,hasAnchor:Boolean(ensureStoryPassage(storyNode).anchorTurnId),storyX:story.positions?.[storyNode.id]?.x??storyNode.defaultX??.5,storyY:story.positions?.[storyNode.id]?.y??storyNode.defaultY??.5});}for(const storyLink of story?.links||[])addLink(storyLink.source,storyLink.target,'story',storyLink.label||'continues to',{curve:Number(storyLink.curve)||0,mainPath:storyLink.mainPath!==false});}
+  if(graphSettings.graphType==='story'){const story=activeStoryGraph();syncStoryPointLocations(story);for(const storyNode of story?.nodes||[]){const resolved=resolveGraphNode(storyNode.id);if(resolved)addNode(resolved.id,resolved.label,resolved.type,resolved.refId,resolved.kind,{order:storyNode.order,role:storyNode.role||'',passage:ensureStoryPassage(storyNode),storyPointCount:storyPointRange(story,storyNode).turns.length,hasAnchor:Boolean(ensureStoryPassage(storyNode).anchorTurnId),storyX:story.positions?.[storyNode.id]?.x??storyNode.defaultX??.5,storyY:story.positions?.[storyNode.id]?.y??storyNode.defaultY??.5});const place=storyPointResolvedLocation(story,storyNode);if(place.locationId){const location=getItem('locations',place.locationId);if(location){const locationNodeId=`location:${location.id}`;addNode(locationNodeId,location.name,'Location',location.id,'locations');if(locationNodeId!==storyNode.id)addLink(storyNode.id,locationNodeId,'sceneLocation',place.detail||'takes place at');}}}for(const storyLink of story?.links||[])addLink(storyLink.source,storyLink.target,'story',storyLink.label||'continues to',{curve:Number(storyLink.curve)||0,mainPath:storyLink.mainPath!==false});}
   else{
     if(graphSettings.graphType==='locations'||graphSettings.graphType==='world'){for(const x of state.locations)addNode(`location:${x.id}`,x.name,'Location',x.id,'locations');for(const x of state.locations){if(x.parentLocationId)addLink(`location:${x.parentLocationId}`,`location:${x.id}`,'parent','contains');for(const rel of x.relatedLocationIds||[])addLink(`location:${x.id}`,`location:${rel}`,'related','related');}}
     if(graphSettings.graphType==='characters'||graphSettings.graphType==='world'){for(const x of state.characters)addNode(`character:${x.id}`,x.name,'Person',x.id,'characters');for(const x of state.characters){for(const rel of x.relationshipIds||[])addLink(`character:${x.id}`,`character:${rel}`,'relationship','relationship');if(graphSettings.graphType==='world')for(const loc of x.currentLocationIds||[])addLink(`character:${x.id}`,`location:${loc}`,'current','currently in');}}
