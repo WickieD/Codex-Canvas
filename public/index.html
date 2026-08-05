@@ -5528,6 +5528,27 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 @media(max-width:760px){.cc-rp-location-controls{grid-template-columns:1fr}.cc-scene-location-bar .button{margin-left:0}.cc-location-appearance{grid-template-columns:1fr}}
 </style>
 
+
+<style id="cc15-species-faction-upload-style">
+.cc15-replace-image{
+  position:absolute;
+  right:12px;
+  bottom:12px;
+  z-index:5;
+}
+.cc-final-cover,
+.cc-final-profile{
+  position:relative;
+}
+.cc15-replace-image input{
+  position:absolute!important;
+  width:1px!important;
+  height:1px!important;
+  opacity:0!important;
+  pointer-events:none!important;
+}
+</style>
+
 </head>
 <body>
 
@@ -5614,7 +5635,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "species-persistent-section-state-2026-08-05";
+window.CODEX_BUILD = "species-faction-image-upload-fix-2026-08-05";
 </script>
   <script>
 (() => {
@@ -16582,6 +16603,111 @@ initFirebase();
     }
   },true);
 
+
+
+  /* === Stable Species + Factions image upload channel ===
+     Uses unique input attributes so legacy media listeners cannot intercept files. */
+  ccFinalMediaKinds.add('factions');
+  cc13MediaKinds.add('factions');
+
+  const cc15MediaKinds=new Set(['species','factions']);
+
+  const cc15BaseEditor=cc4Editor;
+  cc4Editor=function(kind,item,openCount=2){
+    let markup=cc15BaseEditor(kind,item,openCount);
+    if(!cc15MediaKinds.has(kind))return markup;
+    return markup
+      .replaceAll('data-cc14-species-page-input=', 'data-cc15-page-image-input=')
+      .replaceAll('data-cc13-page-image-input=', 'data-cc15-page-image-input=')
+      .replaceAll('data-cc5-image-input=', 'data-cc15-page-image-input=')
+      .replaceAll('data-cc8-image-input=', 'data-cc15-page-image-input=');
+  };
+  window.cc4Editor=cc4Editor;
+
+  const cc15PreviousCoverRenderer=renderSectionMediaCover;
+  const cc15PreviousPortraitRenderer=renderSectionMediaPortrait;
+
+  renderSectionMediaCover=function(kind,item){
+    if(!cc15MediaKinds.has(kind))return cc15PreviousCoverRenderer(kind,item);
+    const copy=ccFinalCopy(kind),media=item.headerImage||null,src=ccFinalSrc(media);
+    const ref=`${kind}:cover:${item.id}`;
+    if(!src){
+      return `<div class="cc-final-cover"><label class="cc-final-media-empty"><span><strong>${esc(copy.cover)}</strong>${esc(copy.coverHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc15-media-input="${esc(ref)}"></label></div>`;
+    }
+    return `<div class="cc-final-cover" data-cc-final-media-box="${esc(ref)}"><img src="${esc(src)}" alt="${esc(media?.alt||item.name+' cover')}" style="${ccFinalMediaCss(media,'cover')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${esc(ref)}">Edit cover</button><label class="button secondary small cc15-replace-image">Replace cover<input class="cc-final-native-input" type="file" accept="image/*" data-cc15-media-input="${esc(ref)}"></label></div>`;
+  };
+
+  renderSectionMediaPortrait=function(kind,item){
+    if(!cc15MediaKinds.has(kind))return cc15PreviousPortraitRenderer(kind,item);
+    const copy=ccFinalCopy(kind),media=item.profileImage||null,src=ccFinalSrc(media);
+    const ref=`${kind}:profile:${item.id}`;
+    const body=!src
+      ? `<label class="cc-final-media-empty"><span><strong>${esc(copy.image)}</strong>${esc(copy.imageHelp)}</span><input class="cc-final-native-input" type="file" accept="image/*" data-cc15-media-input="${esc(ref)}"></label>`
+      : `<img src="${esc(src)}" alt="${esc(media?.alt||item.name+' image')}" style="${ccFinalMediaCss(media,'profile')}"><button class="cc-final-media-edit" type="button" data-cc-final-media-edit="${esc(ref)}">Edit image</button><label class="button secondary small cc15-replace-image">Replace image<input class="cc-final-native-input" type="file" accept="image/*" data-cc15-media-input="${esc(ref)}"></label>`;
+    return `<section class="panel section-media-portrait-card cc-final-profile-card"><div class="section-media-portrait-label">${esc(copy.label)}</div><div class="cc-final-profile" data-cc-final-media-box="${esc(ref)}">${body}</div></section>`;
+  };
+  window.renderSectionMediaCover=renderSectionMediaCover;
+  window.renderSectionMediaPortrait=renderSectionMediaPortrait;
+
+  async function cc15StoreFixedImage(kind,itemId,slot,file){
+    const item=getItem(kind,itemId);
+    if(!item)throw new Error('The selected record could not be found.');
+    const prepared=await imageFileToBlock(file,{name:item.name});
+    const field=slot==='cover'?'headerImage':'profileImage';
+    item[field]={
+      src:prepared.src||'',
+      assetId:prepared.assetId||'',
+      alt:`${item.name} ${slot==='cover'?'cover':'image'}`,
+      positionX:50,
+      positionY:slot==='cover'?45:30,
+      zoom:1,
+      fit:'cover'
+    };
+    item.updatedAt=nowISO();
+    scheduleSave('Saving image…');
+    renderEntity(kind,itemId);
+    toast(`${kind==='species'?'Species':'Faction'} image added.`);
+  }
+
+  document.addEventListener('change',async event=>{
+    const fixed=event.target.closest?.('[data-cc15-media-input]');
+    if(fixed){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const file=fixed.files?.[0];
+      const ref=fixed.dataset.cc15MediaInput||'';
+      fixed.value='';
+      if(!file)return;
+      const first=ref.indexOf(':'),second=ref.indexOf(':',first+1);
+      const kind=ref.slice(0,first),slot=ref.slice(first+1,second),itemId=ref.slice(second+1);
+      try{
+        await cc15StoreFixedImage(kind,itemId,slot,file);
+      }catch(error){
+        console.error(error);
+        toast(error?.message||'The image could not be added.','error');
+      }
+      return;
+    }
+
+    const page=event.target.closest?.('[data-cc15-page-image-input]');
+    if(page){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const file=page.files?.[0];
+      const ref=page.dataset.cc15PageImageInput||'';
+      page.value='';
+      if(!file)return;
+      const cut=ref.indexOf(':');
+      const kind=ref.slice(0,cut),itemId=ref.slice(cut+1);
+      try{
+        await ccFinalAddPageImage(kind,itemId,file);
+      }catch(error){
+        console.error(error);
+        toast(error?.message||'The page image could not be added.','error');
+      }
+      return;
+    }
+  },true);
 
   Object.assign(window.SECTION_TEMPLATE_CONFIG.factions.templates,{
     'heraldic-registry':{name:'Lore Ledger',description:'A detailed ledger with a list of factions and a rich detail panel for each selection.',preview:'ccf-lore-ledger'},
