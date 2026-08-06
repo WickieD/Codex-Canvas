@@ -5865,7 +5865,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "wolf-silhouette-profile-fix-2026-08-05";
+window.CODEX_BUILD = "faction-badge-frame-scope-fix-2026-08-05";
 </script>
   <script>
 (() => {
@@ -10695,6 +10695,19 @@ C16 62 12 61 8 58Z"/>`,
 function factionBadgeStyle(item){
   return `--badge-primary:${safeDossierColor(item.badgePrimary,'#1d2736')};--badge-secondary:${safeDossierColor(item.badgeSecondary,'#c6a46a')};--badge-accent:${safeDossierColor(item.badgeAccent,'#f5ead3')};--badge-line:${safeDossierColor(item.badgeLine,item.badgeSecondary||'#c6a46a')};--badge-symbol-scale:${Math.max(.45,Math.min(1.8,Number(item.badgeSymbolScale??1)))};--badge-symbol-x:${Math.max(-40,Math.min(40,Number(item.badgeSymbolX??0)))}px;--badge-symbol-y:${Math.max(-40,Math.min(40,Number(item.badgeSymbolY??-4)))}px;`;
 }
+function factionBadgeFrame(shape){
+  const frames={
+    shield:`<path class="frame-outer" d="M50 3 94 18 87 79 50 108 13 79 6 18Z"/><path class="frame-inner" d="M50 10 86 22 80 74 50 99 20 74 14 22Z"/><path class="frame-detail" d="M26 21h18l6-7 6 7h18M25 82h18l7 8 7-8h18"/>`,
+    circle:`<circle class="frame-outer" cx="50" cy="56" r="46"/><circle class="frame-inner" cx="50" cy="56" r="39"/><path class="frame-detail" d="M31 16h14l5-7 5 7h14M31 96h14l5 7 5-7h14"/>`,
+    diamond:`<path class="frame-outer" d="M50 3 96 56 50 109 4 56Z"/><path class="frame-inner" d="M50 12 87 56 50 100 13 56Z"/><path class="frame-detail" d="M32 23h13l5-7 5 7h13M32 89h13l5 7 5-7h13"/>`,
+    hexagon:`<path class="frame-outer" d="M25 5h50l23 51-23 51H25L2 56Z"/><path class="frame-inner" d="M30 13h40l18 43-18 43H30L12 56Z"/><path class="frame-detail" d="M32 18h13l5-7 5 7h13M32 94h13l5 7 5-7h13"/>`,
+    banner:`<path class="frame-outer" d="M4 5h92v82L72 78 50 108 28 78 4 87Z"/><path class="frame-inner" d="M12 13h76v64l-20-7-18 25-18-25-20 7Z"/><path class="frame-detail" d="M30 20h15l5-7 5 7h15"/>`,
+    crest:`<path class="frame-outer" d="M8 20Q50 0 92 20v44q0 33-42 44Q8 97 8 64Z"/><path class="frame-inner" d="M16 25Q50 9 84 25v38q0 26-34 36-34-10-34-36Z"/><path class="frame-detail" d="M31 22h14l5-7 5 7h14M31 91h14l5 7 5-7h14"/>`
+  };
+  return `<span class="faction-badge-frame" aria-hidden="true"><svg viewBox="0 0 100 112">${frames[shape]||frames.shield}</svg></span>`;
+}
+window.factionBadgeFrame=factionBadgeFrame;
+
 function renderFactionBadge(item,size=''){
   const shape=['shield','circle','diamond','hexagon','banner','crest'].includes(item.badgeShape)?item.badgeShape:'shield';
   const words=String(item.badgeText||initials(item.name)||'').slice(0,18);
@@ -10704,7 +10717,7 @@ function renderFactionBadge(item,size=''){
   const symbolMarkup=customSrc
     ? `<span class="faction-badge-symbol is-custom"><img src="${esc(customSrc)}" alt=""></span>`
     : `<span class="faction-badge-symbol">${badgeSymbolGlyph(item.badgeSymbol)}</span>`;
-  return `<span class="faction-badge shape-${esc(shape)} ${size==='large'?'large':''} ${item.badgeShowLabel===false?'hide-label':''}" style="${factionBadgeStyle(item)}">${factionBadgeFrame(shape)}${symbolMarkup}${words&&item.badgeShowLabel!==false?`<span class="faction-badge-text">${esc(words)}</span>`:''}</span>`;
+  return `<span class="faction-badge shape-${esc(shape)} ${size==='large'?'large':''} ${item.badgeShowLabel===false?'hide-label':''}" style="${factionBadgeStyle(item)}">${typeof factionBadgeFrame==='function'?factionBadgeFrame(shape):(window.factionBadgeFrame?.(shape)||'')}${symbolMarkup}${words&&item.badgeShowLabel!==false?`<span class="faction-badge-text">${esc(words)}</span>`:''}</span>`;
 }
 function showFactionBadgeDesigner(itemId){
   const item=getItem('factions',itemId);if(!item)return;
