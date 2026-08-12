@@ -4055,6 +4055,40 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .ccrh-anchor-modal-grid label{display:grid;gap:6px;font-weight:800;font-size:12px}
 .ccrh-thread-empty{padding:35px;text-align:center;border:1px dashed var(--border);border-radius:14px;color:var(--muted)}
 @media(max-width:760px){.ccrh-post-body{padding:18px}.ccrh-post-head{grid-template-columns:auto 1fr}.ccrh-post-number{grid-column:2}.ccrh-compose-foot{align-items:stretch;flex-direction:column}.ccrh-compose-actions{display:grid;grid-template-columns:1fr 1fr}.ccrh-thread-head{display:block}.ccrh-thread-tools{justify-content:flex-start;margin-top:12px}}
+.ccrh-story-scroll-jump{
+  position:fixed;
+  right:24px;
+  bottom:24px;
+  z-index:80;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.ccrh-story-scroll-jump button{
+  min-width:92px;
+  min-height:40px;
+  padding:8px 12px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background:color-mix(in srgb,var(--panel) 94%,transparent);
+  color:var(--text);
+  box-shadow:0 10px 26px rgb(0 0 0 / 24%);
+  backdrop-filter:blur(9px);
+  cursor:pointer;
+  font:inherit;
+  font-size:12px;
+  font-weight:850;
+}
+.ccrh-story-scroll-jump button:hover{
+  border-color:var(--accent);
+  background:color-mix(in srgb,var(--accent) 10%,var(--panel));
+}
+.ccrh-story-scroll-jump button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ccrh-story-scroll-jump button:disabled{opacity:.42;cursor:default}
+@media(max-width:760px){
+  .ccrh-story-scroll-jump{right:10px;bottom:14px;gap:6px}
+  .ccrh-story-scroll-jump button{min-width:76px;min-height:36px;padding:7px 9px;font-size:11px}
+}
 </style>
 
 
@@ -5822,44 +5856,6 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 .badge-layout-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .badge-range-row{grid-template-columns:minmax(0,1fr) 62px}
-.badge-scroll-jump{
-  position:absolute;
-  right:14px;
-  bottom:72px;
-  z-index:12;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-  pointer-events:none;
-}
-.badge-scroll-jump button{
-  pointer-events:auto;
-  min-width:86px;
-  min-height:38px;
-  padding:8px 11px;
-  border:1px solid var(--border);
-  border-radius:999px;
-  background:color-mix(in srgb,var(--panel) 94%,transparent);
-  color:var(--text);
-  box-shadow:0 8px 24px rgb(0 0 0 / 24%);
-  backdrop-filter:blur(8px);
-  cursor:pointer;
-  font:inherit;
-  font-size:12px;
-  font-weight:800;
-}
-.badge-scroll-jump button:hover{
-  border-color:var(--accent);
-  background:color-mix(in srgb,var(--accent) 10%,var(--panel));
-}
-.badge-scroll-jump button:focus-visible{
-  outline:2px solid var(--accent);
-  outline-offset:2px;
-}
-.badge-scroll-jump button:disabled{
-  opacity:.42;
-  cursor:default;
-}
 @media(max-width:900px){
   .modal:has(.badge-designer){width:min(820px,calc(100vw - 22px))}
   .badge-designer{grid-template-columns:minmax(250px,300px) minmax(0,1fr);gap:20px}
@@ -5875,8 +5871,6 @@ button:disabled { cursor: not-allowed; opacity: .48; }
   .badge-symbol-library{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
   .badge-symbol-option{min-height:82px;padding:7px 5px}
   .badge-symbol-option svg{width:42px;height:42px}
-  .badge-scroll-jump{right:8px;bottom:66px;gap:6px}
-  .badge-scroll-jump button{min-width:72px;min-height:34px;padding:6px 9px;font-size:11px}
 }
 @media(max-width:420px){
   .badge-symbol-library{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -5969,7 +5963,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:431650304108:web:cf70a0524eba2a5b172849"
 };
 window.FIREBASE_WORLD_ID = "main";
-window.CODEX_BUILD = "badge-designer-scroll-jumps-2026-08-12";
+window.CODEX_BUILD = "story-library-scroll-jumps-2026-08-12";
 </script>
   <script>
 (() => {
@@ -8920,6 +8914,18 @@ window.CODEX_BUILD = "badge-designer-scroll-jumps-2026-08-12";
     if(!event.target.closest('.character-image-block')&&!event.target.closest('.modal'))clearImageSelection();
   });
 
+  window.addEventListener('scroll',()=>{
+    const rail=document.querySelector('[data-ccrh-story-scroll-jump]');
+    if(!rail)return;
+    const doc=document.scrollingElement||document.documentElement;
+    const maxScroll=Math.max(0,doc.scrollHeight-window.innerHeight);
+    const topButton=rail.querySelector('[data-ccrh-story-scroll="top"]');
+    const bottomButton=rail.querySelector('[data-ccrh-story-scroll="bottom"]');
+    if(topButton)topButton.disabled=window.scrollY<=4;
+    if(bottomButton)bottomButton.disabled=window.scrollY>=maxScroll-4;
+    rail.hidden=maxScroll<=8;
+  },{passive:true});
+
   document.addEventListener('input',event=>{
     const title=event.target.closest('[data-title-kind]');if(title){const item=getItem(title.dataset.titleKind,title.dataset.titleId);item.name=title.value;item.updatedAt=nowISO();autoSizeEntityTitle(title);scheduleSave();renderSidebar();renderBreadcrumbs();return;}
     const property=event.target.closest('[data-property]');if(property){const [kind,itemId,field]=property.dataset.property.split(':');const item=getItem(kind,itemId);if(item){item[field]=property.value;if(kind==='locations'){if(field==='type'&&isRegionType(property.value))item.parentLocationId='';normalizeLocationHierarchy();if(field==='parentLocationId'||field==='type'){item.updatedAt=nowISO();scheduleSave();renderSidebar();renderBreadcrumbs();renderEntity(kind,itemId);return;}}item.updatedAt=nowISO();scheduleSave();if(kind==='characters'){const snapshotValue=document.querySelector(`[data-snapshot-value="${field}"]`);if(snapshotValue)snapshotValue.textContent=cleanNotionRefs(property.value);}}return;}
@@ -10927,34 +10933,6 @@ function showFactionBadgeDesigner(itemId){
   showModal(`Badge designer · ${item.name}`,body,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-save-faction-badge="${esc(item.id)}">Save badge</button>`);
   el.modal._badgeDraft=draft;
 
-  const badgeModalBody=el.modal.querySelector('.modal-body');
-  if(badgeModalBody){
-    const jumpRail=document.createElement('div');
-    jumpRail.className='badge-scroll-jump';
-    jumpRail.setAttribute('aria-label','Badge designer scroll shortcuts');
-    jumpRail.innerHTML=`<button type="button" data-badge-scroll="top" title="Scroll to the top">↑ Top</button><button type="button" data-badge-scroll="bottom" title="Scroll to the bottom">↓ Bottom</button>`;
-    el.modal.appendChild(jumpRail);
-
-    const jumpTop=jumpRail.querySelector('[data-badge-scroll="top"]');
-    const jumpBottom=jumpRail.querySelector('[data-badge-scroll="bottom"]');
-    const syncJumpButtons=()=>{
-      const maxScroll=Math.max(0,badgeModalBody.scrollHeight-badgeModalBody.clientHeight);
-      if(jumpTop)jumpTop.disabled=badgeModalBody.scrollTop<=2;
-      if(jumpBottom)jumpBottom.disabled=badgeModalBody.scrollTop>=maxScroll-2;
-      jumpRail.hidden=maxScroll<=4;
-    };
-    jumpRail.addEventListener('click',event=>{
-      const button=event.target.closest('[data-badge-scroll]');
-      if(!button)return;
-      badgeModalBody.scrollTo({
-        top:button.dataset.badgeScroll==='top'?0:badgeModalBody.scrollHeight,
-        behavior:'smooth'
-      });
-    });
-    badgeModalBody.addEventListener('scroll',syncJumpButtons,{passive:true});
-    requestAnimationFrame(syncJumpButtons);
-    setTimeout(syncJumpButtons,120);
-  }
 
   const refresh=()=>{
     const preview=document.getElementById('factionBadgePreview');
@@ -15252,6 +15230,10 @@ initFirebase();
       <div class="ccrh-thread-bar"><strong>${turns.length} post${turns.length===1?'':'s'}</strong><span class="muted">Anchors mark where graph chapters begin.</span></div>
       <div class="ccrh-anchor-strip">${anchorChips}</div>
       <section class="ccrh-posts">${turns.length?turns.map((turn,index)=>ccrhPostHtml(turn,index,story)).join(''):'<div class="ccrh-thread-empty"><h3>No posts yet</h3><p>Use the reply editor below to begin this roleplay.</p></div>'}</section>
+      <div class="ccrh-story-scroll-jump" data-ccrh-story-scroll-jump aria-label="Story scroll shortcuts">
+        <button type="button" data-ccrh-story-scroll="top" title="Go to the top of this story">↑ Top</button>
+        <button type="button" data-ccrh-story-scroll="bottom" title="Go to the bottom of this story">↓ Bottom</button>
+      </div>
       <section class="ccrh-composer" id="rp-composer">
         <div class="ccrh-composer-title">${editingTurn?'Edit post':'Post a reply'}</div>
         ${editingTurn?`<div class="ccrh-editing-notice"><strong>Editing ${esc(storySpeakerMeta(editingTurn).name)}’s post.</strong> Saving will update this exact post and will not create a new one.</div>`:''}
@@ -15265,6 +15247,21 @@ initFirebase();
         <div class="ccrh-editor-wrap"><textarea class="ccrh-editor" data-ccrh-editor maxlength="50000" ${ccrhPreviewMode?'hidden':''} placeholder="Write your roleplay post here. BBCode and images or GIF URLs are supported.">${esc(draft)}</textarea><div class="ccrh-preview ccrh-post-body" data-ccrh-preview ${ccrhPreviewMode?'':'hidden'}>${ccrhBbcode(draft)||'<span class="muted">Your preview will appear here.</span>'}</div></div>
         <div class="cc-dialogue-builder-mount" data-cc-dialogue-builder-mount hidden></div><div class="ccrh-compose-foot"><span class="ccrh-char-count"><span></span></span><div class="ccrh-compose-actions">${editingTurn?`<button class="button secondary" type="button" data-ccrh-cancel-edit>Cancel edit</button>`:`<button class="button secondary" type="button" data-ccrh-save-draft>Save draft</button>`}<button class="button" type="button" data-ccrh-submit>${editingTurn?'Save changes':'Submit post'}</button></div></div>
       </section>`;
+
+    const storyScrollRail=document.querySelector('[data-ccrh-story-scroll-jump]');
+    const storyScrollTop=storyScrollRail?.querySelector('[data-ccrh-story-scroll="top"]');
+    const storyScrollBottom=storyScrollRail?.querySelector('[data-ccrh-story-scroll="bottom"]');
+    const syncStoryScrollButtons=()=>{
+      if(!storyScrollRail)return;
+      const doc=document.scrollingElement||document.documentElement;
+      const maxScroll=Math.max(0,doc.scrollHeight-window.innerHeight);
+      if(storyScrollTop)storyScrollTop.disabled=window.scrollY<=4;
+      if(storyScrollBottom)storyScrollBottom.disabled=window.scrollY>=maxScroll-4;
+      storyScrollRail.hidden=maxScroll<=8;
+    };
+    requestAnimationFrame(syncStoryScrollButtons);
+    setTimeout(syncStoryScrollButtons,120);
+
     if(editingTurn){
       requestAnimationFrame(()=>{
         const speakerSelect=document.querySelector('[data-ccrh-speaker]');
@@ -15370,6 +15367,12 @@ initFirebase();
   };
 
   document.addEventListener('click',async event=>{
+    const storyScroll=event.target.closest('[data-ccrh-story-scroll]');
+    if(storyScroll){
+      event.preventDefault();
+      window.scrollTo({top:storyScroll.dataset.ccrhStoryScroll==='top'?0:(document.scrollingElement||document.documentElement).scrollHeight,behavior:'smooth'});
+      return;
+    }
     const tag=event.target.closest('[data-ccrh-tag]'); if(tag){event.preventDefault();const t=tag.dataset.ccrhTag;ccrhInsert(`[${t}]`,`[/${t}]`);return;}
     const wrap=event.target.closest('[data-ccrh-wrap]'); if(wrap){event.preventDefault();const [a,b='']=wrap.dataset.ccrhWrap.split('|');ccrhInsert(a,b);return;}
     const tab=event.target.closest('[data-ccrh-tab]'); if(tab){event.preventDefault();ccrhPreviewMode=tab.dataset.ccrhTab==='preview';const area=document.querySelector('[data-ccrh-editor]');if(area)ccrhSaveDraft(ccrhStoryFromRoute().story,area.value);ccrhRenderReader();return;}
