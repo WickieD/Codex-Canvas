@@ -18362,5 +18362,118 @@ initFirebase();
  .ccf-picker-modal{width:calc(100vw - 18px)}
 }
 </style>
+
+
+<!-- CC SPECIES INLINE EDITOR UPDATE -->
+<style id="cc-species-inline-editor-style">
+/* Species entries read like a normal editable document instead of stacked cards. */
+.cc4-approved .cc-species-inline-editor{
+  position:relative;
+  overflow:visible;
+  isolation:isolate;
+}
+.cc4-approved .cc-species-inline-toolbar{
+  margin:0 0 18px;
+}
+.cc4-approved .cc-species-inline-list{
+  display:block;
+  min-width:0;
+}
+.cc4-approved .cc-species-inline-list>.block-row{
+  margin:0;
+  border-radius:7px;
+}
+.cc4-approved .cc-species-inline-list>.block-row:has(.block-content[data-type="h2"]){
+  margin-top:24px;
+}
+.cc4-approved .cc-species-inline-list>.block-row:first-child:has(.block-content[data-type="h2"]){
+  margin-top:0;
+}
+.cc4-approved .cc-species-inline-list .block-content[data-type="h2"]{
+  font-family:Georgia,serif;
+  font-size:23px;
+  font-weight:750;
+  line-height:1.25;
+  color:var(--section-ink);
+  padding:9px 5px 7px;
+  border-bottom:1px solid color-mix(in srgb,var(--section-line) 72%,transparent);
+}
+.cc4-approved .cc-species-inline-list .block-content[data-type="h3"]{
+  margin-top:10px;
+  font-size:18px;
+  font-weight:760;
+  color:var(--section-ink);
+}
+.cc4-approved .cc-species-inline-list .block-content[data-type="text"],
+.cc4-approved .cc-species-inline-list .block-content[data-type="bullet"],
+.cc4-approved .cc-species-inline-list .block-content[data-type="quote"]{
+  line-height:1.65;
+}
+.cc4-approved .cc-species-inline-list .block-content[contenteditable="true"]:focus{
+  outline:none;
+  background:color-mix(in srgb,var(--section-accent) 8%,transparent);
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--section-accent) 22%,transparent);
+  border-radius:6px;
+}
+.cc4-approved .cc-species-inline-list .cc8-block-actions{
+  opacity:0;
+}
+.cc4-approved .cc-species-inline-list>.block-row:hover>.cc8-block-actions,
+.cc4-approved .cc-species-inline-list>.block-row:focus-within>.cc8-block-actions{
+  opacity:1;
+}
+.cc4-approved .cc-species-inline-help{
+  margin-left:auto;
+  color:var(--muted);
+  font-size:11px;
+}
+@media(max-width:760px){
+  .cc4-approved .cc-species-inline-help{flex-basis:100%;margin-left:0}
+  .cc4-approved .cc-species-inline-list>.block-row:has(.block-content[data-type="h2"]){margin-top:20px}
+}
+</style>
+<script id="cc-species-inline-editor-script">
+(function(){
+  const previousEditor=window.cc4Editor;
+  if(typeof previousEditor!=='function')return;
+
+  function inlineSpeciesEditor(kind,item,openCount=2){
+    if(kind!=='species')return previousEditor(kind,item,openCount);
+
+    const blocks=Array.isArray(item?.blocks)?item.blocks:[];
+    const toolbar=`<div class="cc8-toolbar cc-species-inline-toolbar" data-editor="species:${item.id}">
+      <button class="block-tool" type="button" data-add-block="text" title="Add text">T</button>
+      <button class="block-tool" type="button" data-add-block="h2" title="Add heading">H</button>
+      <button class="block-tool" type="button" data-add-block="bullet" title="Add bullet">•</button>
+      <button class="block-tool" type="button" data-add-block="quote" title="Add quote">❝</button>
+      <button class="block-tool" type="button" data-add-block="divider" title="Add divider">―</button>
+      <label class="block-tool cc9-toolbar-upload" title="Add image">▧<input type="file" accept="image/*" data-cc5-image-input="species:${item.id}"></label>
+      <span class="cc-species-inline-help">Click any heading or text to edit it directly.</span>
+    </div>`;
+
+    const content=blocks.length
+      ? blocks.map((block,index)=>renderBlock('species',item.id,block,index)).join('')
+      : '<div class="block-placeholder">Use the toolbar to add the first part of this species entry.</div>';
+
+    const maxY=blocks
+      .filter(block=>block?.type==='image'&&['front','behind'].includes(block.layout))
+      .reduce((max,block)=>Math.max(max,(Number(block.y)||0)+(Number(block.width)||360)/(Number(block.ratio)||1)+80),0);
+
+    return `<div class="cc8-editor cc-species-inline-editor" style="min-height:${Math.max(300,Math.ceil(maxY))}px">${toolbar}<div class="block-list cc-species-inline-list" data-block-list="species:${item.id}">${content}</div></div>`;
+  }
+
+  window.cc4Editor=inlineSpeciesEditor;
+  try{cc4Editor=inlineSpeciesEditor;}catch(error){}
+
+  requestAnimationFrame(()=>{
+    try{
+      if(typeof route!=='undefined'&&route?.view==='species'&&route?.id&&typeof renderEntity==='function'){
+        renderEntity('species',route.id);
+      }
+    }catch(error){}
+  });
+})();
+</script>
+
 </body>
 </html>
