@@ -4097,6 +4097,13 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .ccrh-compose-controls{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;padding:14px 17px;border-bottom:1px solid var(--border)}
 .ccrh-compose-controls label{display:grid;gap:5px;font-size:11px;font-weight:800;color:var(--muted)}
 .ccrh-compose-controls select,.ccrh-compose-controls input{min-width:220px}
+.ccrh-compose-context{display:grid;grid-template-columns:minmax(220px,1fr) minmax(220px,1fr);gap:12px;padding:14px 17px;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--panel-soft) 70%,transparent)}
+.ccrh-compose-context label{display:grid;gap:5px;font-size:11px;font-weight:800;color:var(--muted)}
+.ccrh-compose-context select{width:100%;min-width:0}
+.ccrh-post-context{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 12px}
+.ccrh-post-context .ccrh-context-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:999px;background:var(--panel-soft);color:var(--muted);padding:5px 9px;font-size:11px;font-weight:750}
+button.ccrh-context-chip{cursor:pointer}
+button.ccrh-context-chip:hover{border-color:var(--accent);color:var(--text)}
 .ccrh-bb-toolbar{display:flex;gap:5px;flex-wrap:wrap;padding:10px 17px;border-bottom:1px solid var(--border);background:var(--panel-soft)}
 .ccrh-bb-toolbar button{min-width:34px;border:1px solid var(--border);border-radius:7px;background:var(--panel);color:var(--text);padding:7px 9px;font:inherit;cursor:pointer}
 .ccrh-editor-tabs{display:flex;justify-content:flex-end;gap:6px;padding:10px 17px 0}
@@ -4111,7 +4118,7 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .ccrh-anchor-modal-grid{display:grid;gap:12px}
 .ccrh-anchor-modal-grid label{display:grid;gap:6px;font-weight:800;font-size:12px}
 .ccrh-thread-empty{padding:35px;text-align:center;border:1px dashed var(--border);border-radius:14px;color:var(--muted)}
-@media(max-width:760px){.ccrh-post-body{padding:18px}.ccrh-post-head{grid-template-columns:auto 1fr}.ccrh-post-number{grid-column:2}.ccrh-compose-foot{align-items:stretch;flex-direction:column}.ccrh-compose-actions{display:grid;grid-template-columns:1fr 1fr}.ccrh-thread-head{display:block}.ccrh-thread-tools{justify-content:flex-start;margin-top:12px}}
+@media(max-width:760px){.ccrh-post-body{padding:18px}.ccrh-post-head{grid-template-columns:auto 1fr}.ccrh-post-number{grid-column:2}.ccrh-compose-foot{align-items:stretch;flex-direction:column}.ccrh-compose-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr))}.ccrh-compose-context{grid-template-columns:1fr}.ccrh-thread-head{display:block}.ccrh-thread-tools{justify-content:flex-start;margin-top:12px}}
 .ccrh-story-scroll-jump{
   position:fixed;
   right:24px;
@@ -7435,6 +7442,7 @@ window.CODEX_BUILD = "approved-badge-animals-layout-2026-08-12";
     turn.locationMode = ['inherit','change','override','none'].includes(turn.locationMode) ? turn.locationMode : 'inherit';
     turn.locationId ||= '';
     turn.locationDetail ||= '';
+    turn.storyPointId ||= '';
     return turn;
   }
 
@@ -15555,9 +15563,65 @@ initFirebase();
     return text;
   }
   function ccrhDraftKey(story){ return `cc-rp-draft:${state.workspace.id||'main'}:${story.id}:${normalizeMemberEmail(firebase.user?.email||'local')}`; }
-  function ccrhLoadDraft(story){ try{return localStorage.getItem(ccrhDraftKey(story))||'';}catch{return '';} }
-  function ccrhSaveDraft(story,value){ try{localStorage.setItem(ccrhDraftKey(story),value);}catch{} }
+  function ccrhLoadDraftData(story){
+    try{
+      const raw=localStorage.getItem(ccrhDraftKey(story))||'';
+      if(!raw)return {text:'',speaker:'',customName:'',locationChoice:'inherit',storyPointId:''};
+      if(raw.trim().startsWith('{')){
+        const parsed=JSON.parse(raw);
+        if(parsed&&typeof parsed==='object')return {
+          text:String(parsed.text||''),speaker:String(parsed.speaker||''),customName:String(parsed.customName||''),
+          locationChoice:String(parsed.locationChoice||'inherit'),storyPointId:String(parsed.storyPointId||'')
+        };
+      }
+      return {text:raw,speaker:'',customName:'',locationChoice:'inherit',storyPointId:''};
+    }catch{return {text:'',speaker:'',customName:'',locationChoice:'inherit',storyPointId:''};}
+  }
+  function ccrhLoadDraft(story){ return ccrhLoadDraftData(story).text; }
+  function ccrhSaveDraft(story,value,meta={}){
+    try{
+      const previous=ccrhLoadDraftData(story);
+      const payload={...previous,...meta,text:String(value||'')};
+      localStorage.setItem(ccrhDraftKey(story),JSON.stringify(payload));
+    }catch{}
+  }
   function ccrhClearDraft(story){ try{localStorage.removeItem(ccrhDraftKey(story));}catch{} }
+  function ccrhTurnStoryPointId(story,turn){
+    if(turn?.storyPointId&&story?.nodes?.some(point=>point.id===turn.storyPointId))return turn.storyPointId;
+    for(const point of (story?.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0))){
+      if(storyPointRange(story,point).turns.some(item=>item.id===turn?.id))return point.id;
+    }
+    return '';
+  }
+  function ccrhStoryPointOptions(story,selected=''){
+    const points=(story?.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0));
+    return `<option value="" ${!selected?'selected':''}>No story point selected</option>${points.map(point=>`<option value="${esc(point.id)}" ${selected===point.id?'selected':''}>${esc(storyPointTitle(story,point))}</option>`).join('')}`;
+  }
+  function ccrhLocationChoice(turn){
+    if(turn?.locationMode==='none')return 'none';
+    if((turn?.locationMode==='override'||turn?.locationMode==='change')&&turn?.locationId)return `location:${turn.locationId}`;
+    return 'inherit';
+  }
+  function ccrhLocationChoiceOptions(story,selected='inherit'){
+    const turns=ensureStoryDocument(story);
+    const scene=storyTurnLocation(story,Math.max(0,turns.length-1));
+    const sceneName=storyLocationName(scene.locationId,scene.detail)||'not set';
+    return `<option value="inherit" ${selected==='inherit'?'selected':''}>Use inherited scene location</option><option value="none" ${selected==='none'?'selected':''}>No location for this post</option>${state.locations.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))).map(location=>`<option value="location:${esc(location.id)}" ${selected===`location:${location.id}`?'selected':''}>${esc(location.name)}</option>`).join('')}`;
+  }
+  function ccrhComposerDraftMeta(){
+    return {
+      speaker:document.querySelector('[data-ccrh-speaker]')?.value||'',
+      customName:document.querySelector('[data-ccrh-custom-name]')?.value||'',
+      locationChoice:document.querySelector('[data-ccrh-location]')?.value||'inherit',
+      storyPointId:document.querySelector('[data-ccrh-story-point]')?.value||''
+    };
+  }
+  function ccrhPersistComposerDraft(){
+    const {story}=ccrhStoryFromRoute();
+    if(!story||ccrhEditingPostId)return;
+    const area=document.querySelector('[data-ccrh-editor]');
+    ccrhSaveDraft(story,area?.value||'',ccrhComposerDraftMeta());
+  }
   function ccrhSpeakerOptions(story){
     const allCharacters=(state.characters||[]).filter(Boolean);
     const byId=new Map(allCharacters.map(character=>[String(character.id),character]));
@@ -15747,6 +15811,14 @@ initFirebase();
           <div>${anchors.length?`<div class="ccrh-post-anchor-meta">Anchor: ${anchors.map(node=>esc(storyPointTitle(story,node))).join(', ')}</div>`:''}</div>
           <div class="ccrh-post-number">Post ${index+1}</div>
         </header>
+        ${(()=>{
+          const explicitPointId=ccrhTurnStoryPointId(story,turn);
+          const point=explicitPointId?(story.nodes||[]).find(item=>item.id===explicitPointId):null;
+          const place=storyTurnLocation(story,index);
+          const location=place.locationId?getItem('locations',place.locationId):null;
+          if(!point&&!location&&!place.detail)return '';
+          return `<div class="ccrh-post-context">${point?`<button class="ccrh-context-chip" type="button" data-story-point="${esc(storyRouteValue(story.id,point.id))}">Story point: ${esc(storyPointTitle(story,point))}</button>`:''}${location?`<button class="ccrh-context-chip" type="button" data-open="locations:${esc(location.id)}">Location: ${esc(storyLocationName(location.id,place.detail))}</button>`:place.detail?`<span class="ccrh-context-chip">Location: ${esc(place.detail)}</span>`:''}</div>`;
+        })()}
         <div class="ccrh-post-body">${ccrhBbcode(turn.text||'')}</div>
         <div class="ccrh-post-action-popup" hidden>
           <div class="ccrh-post-actions">
@@ -15774,9 +15846,12 @@ initFirebase();
     if(!story){el.main.innerHTML=pageHead('Roleplay Hub','No roleplays yet','Create a story graph to begin a live roleplay thread.','<button class="button" type="button" data-nav="graph">Open graphs</button>');return;}
     const turns=ensureStoryDocument(story);
     const editingTurn=ccrhEditingPostId?turns.find(turn=>turn.id===ccrhEditingPostId):null;
+    const storedDraft=ccrhLoadDraftData(story);
     const draft=editingTurn
       ? String(editingTurn.text||'')
-      : (ccrhTypingStoryId===story.id ? ccrhTypingValue : ccrhLoadDraft(story));
+      : (ccrhTypingStoryId===story.id ? ccrhTypingValue : storedDraft.text);
+    const composerLocationChoice=editingTurn?ccrhLocationChoice(editingTurn):(storedDraft.locationChoice||'inherit');
+    const composerStoryPointId=editingTurn?ccrhTurnStoryPointId(story,editingTurn):(storedDraft.storyPointId||node?.id||'');
     const incomingPosts=ccrhKnownPostCount&&turns.length>ccrhKnownPostCount;
     if(!ccrhTypingStoryId||ccrhTypingStoryId!==story.id)ccrhKnownPostCount=turns.length;
     const anchorChips=(ordered||[]).map(point=>{
@@ -15797,6 +15872,10 @@ initFirebase();
         <div class="ccrh-composer-title">${editingTurn?'Edit post':'Post a reply'}</div>
         ${editingTurn?`<div class="ccrh-editing-notice"><strong>Editing ${esc(storySpeakerMeta(editingTurn).name)}’s post.</strong> Saving will update this exact post and will not create a new one.</div>`:''}
         <div class="ccrh-compose-controls"><label>Posting as<select class="select" data-ccrh-speaker>${ccrhSpeakerOptions(story)}</select></label><label data-ccrh-custom-wrap hidden>Custom name<input class="input" data-ccrh-custom-name placeholder="Speaker name"></label></div>
+        <div class="ccrh-compose-context">
+          <label>Location<select class="select" data-ccrh-location>${ccrhLocationChoiceOptions(story,composerLocationChoice)}</select></label>
+          <label>Story point<select class="select" data-ccrh-story-point>${ccrhStoryPointOptions(story,composerStoryPointId)}</select></label>
+        </div>
         <div class="ccrh-bb-toolbar">
           <button type="button" data-ccrh-tag="b">B</button><button type="button" data-ccrh-tag="i"><i>I</i></button><button type="button" data-ccrh-tag="u"><u>U</u></button><button type="button" data-ccrh-tag="s"><s>S</s></button>
           <button type="button" data-ccrh-wrap="[size=18]|[/size]">Size</button><button type="button" data-ccrh-wrap="[color=#8f6aae]|[/color]">Color</button><button type="button" data-ccrh-wrap="[quote]|[/quote]">Quote</button><button type="button" data-cc-dialogue-card-open>Dialogue Card</button><button type="button" data-ccrh-wrap="[list]\n[*]|\n[/list]">List</button>
@@ -15804,7 +15883,7 @@ initFirebase();
         </div>
         <div class="ccrh-editor-tabs"><button class="${ccrhPreviewMode?'':'active'}" type="button" data-ccrh-tab="write">Write (BBCode)</button><button class="${ccrhPreviewMode?'active':''}" type="button" data-ccrh-tab="preview">Preview</button></div>
         <div class="ccrh-editor-wrap"><textarea class="ccrh-editor" data-ccrh-editor maxlength="50000" ${ccrhPreviewMode?'hidden':''} placeholder="Write your roleplay post here. BBCode and images or GIF URLs are supported.">${esc(draft)}</textarea><div class="ccrh-preview ccrh-post-body" data-ccrh-preview ${ccrhPreviewMode?'':'hidden'}>${ccrhBbcode(draft)||'<span class="muted">Your preview will appear here.</span>'}</div></div>
-        <div class="cc-dialogue-builder-mount" data-cc-dialogue-builder-mount hidden></div><div class="ccrh-compose-foot"><span class="ccrh-char-count"><span></span></span><div class="ccrh-compose-actions">${editingTurn?`<button class="button secondary" type="button" data-ccrh-cancel-edit>Cancel edit</button>`:`<button class="button secondary" type="button" data-ccrh-save-draft>Save draft</button>`}<button class="button" type="button" data-ccrh-submit>${editingTurn?'Save changes':'Submit post'}</button></div></div>
+        <div class="cc-dialogue-builder-mount" data-cc-dialogue-builder-mount hidden></div><div class="ccrh-compose-foot"><span class="ccrh-char-count"><span></span></span><div class="ccrh-compose-actions">${editingTurn?`<button class="button secondary" type="button" data-ccrh-cancel-edit>Cancel edit</button>`:`<button class="button secondary" type="button" data-ccrh-clear-reply>Clear</button><button class="button secondary" type="button" data-ccrh-save-draft>Save draft</button>`}<button class="button" type="button" data-ccrh-submit>${editingTurn?'Save changes':'Submit post'}</button></div></div>
       </section>`;
 
     const storyScrollRail=document.querySelector('[data-ccrh-story-scroll-jump]');
@@ -15821,18 +15900,18 @@ initFirebase();
     requestAnimationFrame(syncStoryScrollButtons);
     setTimeout(syncStoryScrollButtons,120);
 
-    if(editingTurn){
-      requestAnimationFrame(()=>{
-        const speakerSelect=document.querySelector('[data-ccrh-speaker]');
-        if(!speakerSelect)return;
-        const desired=editingTurn.characterId?`character:${editingTurn.characterId}`:(editingTurn.speakerName&&editingTurn.speakerName!=='Narrator'?'custom':'narrator');
-        speakerSelect.value=desired;
-        const customWrap=document.querySelector('[data-ccrh-custom-wrap]');
-        const customName=document.querySelector('[data-ccrh-custom-name]');
-        if(customWrap)customWrap.hidden=desired!=='custom';
-        if(customName&&desired==='custom')customName.value=editingTurn.speakerName||'';
-      });
-    }
+    requestAnimationFrame(()=>{
+      const speakerSelect=document.querySelector('[data-ccrh-speaker]');
+      if(!speakerSelect)return;
+      const desired=editingTurn
+        ? (editingTurn.characterId?`character:${editingTurn.characterId}`:(editingTurn.speakerName&&editingTurn.speakerName!=='Narrator'?'custom':'narrator'))
+        : (storedDraft.speaker||speakerSelect.value||'narrator');
+      if([...speakerSelect.options].some(option=>option.value===desired))speakerSelect.value=desired;
+      const customWrap=document.querySelector('[data-ccrh-custom-wrap]');
+      const customName=document.querySelector('[data-ccrh-custom-name]');
+      if(customWrap)customWrap.hidden=speakerSelect.value!=='custom';
+      if(customName&&speakerSelect.value==='custom')customName.value=editingTurn?(editingTurn.speakerName||''):(storedDraft.customName||'');
+    });
   }
   function ccrhInsert(open,close=''){
     const area=document.querySelector('[data-ccrh-editor]'); if(!area)return;
@@ -15866,6 +15945,19 @@ initFirebase();
     turn.updatedAt=nowISO();
     if(selected.startsWith('character:')){turn.characterId=selected.split(':')[1];turn.speakerName=getItem('characters',turn.characterId)?.name||'Character';}
     else if(selected==='custom'){turn.speakerName=document.querySelector('[data-ccrh-custom-name]')?.value.trim()||'Guest character';}
+    const locationChoice=document.querySelector('[data-ccrh-location]')?.value||'inherit';
+    if(locationChoice==='none'){
+      turn.locationMode='none';turn.locationId='';turn.locationDetail='';
+    }else if(locationChoice.startsWith('location:')){
+      const nextLocationId=locationChoice.slice('location:'.length);
+      const preserveExistingMode=Boolean(existing&&existing.locationId===nextLocationId&&['change','override'].includes(existing.locationMode));
+      turn.locationMode=preserveExistingMode?existing.locationMode:'override';
+      turn.locationId=nextLocationId;
+      if(!preserveExistingMode)turn.locationDetail='';
+    }else{
+      turn.locationMode='inherit';turn.locationId='';turn.locationDetail='';
+    }
+    turn.storyPointId=document.querySelector('[data-ccrh-story-point]')?.value||'';
     if(existing){
       ccrhEditingPostId='';
       ccrhTypingStoryId='';
@@ -15883,6 +15975,14 @@ initFirebase();
       ccrhKnownPostCount=turns.length;
       scheduleSave('Posting…');
     }
+    if(turn.storyPointId){
+      const selectedPoint=(story.nodes||[]).find(point=>point.id===turn.storyPointId);
+      if(selectedPoint){
+        const passage=ensureStoryPassage(selectedPoint);
+        if(!passage.anchorTurnId)passage.anchorTurnId=turn.id;
+      }
+    }
+    syncStoryPointLocations(story);
     ccrhPreviewMode=false;
     render();
     requestAnimationFrame(()=>document.getElementById(`rp-post-${CSS.escape(turn.id)}`)?.scrollIntoView({behavior:'smooth',block:'center'}));
@@ -15934,8 +16034,9 @@ initFirebase();
     }
     const tag=event.target.closest('[data-ccrh-tag]'); if(tag){event.preventDefault();const t=tag.dataset.ccrhTag;ccrhInsert(`[${t}]`,`[/${t}]`);return;}
     const wrap=event.target.closest('[data-ccrh-wrap]'); if(wrap){event.preventDefault();const [a,b='']=wrap.dataset.ccrhWrap.split('|');ccrhInsert(a,b);return;}
-    const tab=event.target.closest('[data-ccrh-tab]'); if(tab){event.preventDefault();ccrhPreviewMode=tab.dataset.ccrhTab==='preview';const area=document.querySelector('[data-ccrh-editor]');if(area)ccrhSaveDraft(ccrhStoryFromRoute().story,area.value);ccrhRenderReader();return;}
-    if(event.target.closest('[data-ccrh-save-draft]')){event.preventDefault();const {story}=ccrhStoryFromRoute();const area=document.querySelector('[data-ccrh-editor]');ccrhSaveDraft(story,area?.value||'');toast('Draft saved.');return;}
+    const tab=event.target.closest('[data-ccrh-tab]'); if(tab){event.preventDefault();ccrhPreviewMode=tab.dataset.ccrhTab==='preview';const area=document.querySelector('[data-ccrh-editor]');if(area&&!ccrhEditingPostId)ccrhSaveDraft(ccrhStoryFromRoute().story,area.value,ccrhComposerDraftMeta());ccrhRenderReader();return;}
+    if(event.target.closest('[data-ccrh-clear-reply]')){event.preventDefault();const {story,node}=ccrhStoryFromRoute();const area=document.querySelector('[data-ccrh-editor]');if(!story||!area)return;if(area.value&&!window.confirm('Clear this reply? This will remove the text in the reply box and reset its draft options.'))return;area.value='';ccrhTypingStoryId='';ccrhTypingValue='';const speaker=document.querySelector('[data-ccrh-speaker]');if(speaker){if([...speaker.options].some(option=>option.value==='narrator'))speaker.value='narrator';else speaker.selectedIndex=0;}const customWrap=document.querySelector('[data-ccrh-custom-wrap]');if(customWrap)customWrap.hidden=true;const customName=document.querySelector('[data-ccrh-custom-name]');if(customName)customName.value='';const locationSelect=document.querySelector('[data-ccrh-location]');if(locationSelect)locationSelect.value='inherit';const pointSelect=document.querySelector('[data-ccrh-story-point]');if(pointSelect)pointSelect.value=node?.id||'';ccrhClearDraft(story);const count=document.querySelector('[data-ccrh-count]');if(count)count.textContent='0';const preview=document.querySelector('[data-ccrh-preview]');if(preview)preview.innerHTML='<span class="muted">Your preview will appear here.</span>';area.focus();toast('Reply cleared.');return;}
+    if(event.target.closest('[data-ccrh-save-draft]')){event.preventDefault();const {story}=ccrhStoryFromRoute();const area=document.querySelector('[data-ccrh-editor]');ccrhSaveDraft(story,area?.value||'',ccrhComposerDraftMeta());toast('Draft saved.');return;}
     if(event.target.closest('[data-ccrh-submit]')){event.preventDefault();await ccrhSubmit();return;}
     const quote=event.target.closest('[data-ccrh-quote]'); if(quote){event.preventDefault();const {story}=ccrhStoryFromRoute();const turn=ensureStoryDocument(story).find(x=>x.id===quote.dataset.ccrhQuote);if(turn){const speaker=storySpeakerMeta(turn);document.getElementById('rp-composer')?.scrollIntoView({behavior:'smooth'});setTimeout(()=>ccrhInsert(`[quote="${speaker.name}"]\n${turn.text}\n[/quote]\n\n`,''),250);}return;}
     const anchor=event.target.closest('[data-ccrh-anchor]');
@@ -15970,10 +16071,14 @@ initFirebase();
     const count=document.querySelector('[data-ccrh-count]');
     if(count)count.textContent=area.value.length.toLocaleString();
     clearTimeout(ccrhDraftTimer);
-    ccrhDraftTimer=setTimeout(()=>ccrhSaveDraft(story,area.value),400);
+    ccrhDraftTimer=setTimeout(()=>ccrhSaveDraft(story,area.value,ccrhComposerDraftMeta()),400);
   },true);
   document.addEventListener('change',event=>{
-    const speaker=event.target.closest('[data-ccrh-speaker]');if(speaker){const wrap=document.querySelector('[data-ccrh-custom-wrap]');if(wrap)wrap.hidden=speaker.value!=='custom';}
+    const speaker=event.target.closest('[data-ccrh-speaker]');if(speaker){const wrap=document.querySelector('[data-ccrh-custom-wrap]');if(wrap)wrap.hidden=speaker.value!=='custom';ccrhPersistComposerDraft();return;}
+    if(event.target.closest('[data-ccrh-location]')||event.target.closest('[data-ccrh-story-point]')){ccrhPersistComposerDraft();return;}
+  },true);
+  document.addEventListener('input',event=>{
+    if(event.target.closest('[data-ccrh-custom-name]'))ccrhPersistComposerDraft();
   },true);
 
 
