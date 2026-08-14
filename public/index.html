@@ -18020,10 +18020,10 @@ initFirebase();
     }
     if(includePlaceholders&&!manual.some(event=>event.type==='origin'))entries.push({key:'origin-placeholder',kind:'origin-placeholder',type:'origin',title:'Origin not recorded yet',summary:'Add an origin point to begin this character’s life path.',impact:'',time:'Beginning',dateScore:null,sequence:-100000,locationIds:[],peopleIds:[],stories:[],sharedId:'',origin:true});
 
-    for(const event of state.events||[]){
-      if(!(event.characterIds||[]).includes(character.id))continue;
-      entries.push({key:`event:${event.id}`,kind:'event',sourceId:event.id,type:'world event',title:event.name||'Timeline event',summary:event.description||event.notes||'',impact:event.consequences||'',time:event.date||'',dateScore:ccLifeParseDate(event.date),sequence:seq++,locationIds:[],peopleIds:(event.characterIds||[]).filter(idValue=>idValue!==character.id),stories:[],sharedId:''});
-    }
+    // Keep Timeline events separate in the data model. They are merged visually later
+    // when an RP Story Point explicitly links to the same Timeline event.
+    const directCharacterEventIds=new Set();
+    for(const event of state.events||[])if((event.characterIds||[]).includes(character.id))directCharacterEventIds.add(event.id);
 
     const storyEntries=[];
     for(const story of state.storyGraphs||[]){
@@ -18035,22 +18035,105 @@ initFirebase();
         if(!pointPeople.includes(character.id)&&!turnPeople.includes(character.id))continue;
         const people=[...new Set([...pointPeople,...turnPeople])].filter(idValue=>idValue&&idValue!==character.id&&getItem('characters',idValue));
         const sharedId=ccLifeSharedId(story,node);
-        storyEntries.push({key:`story:${story.id}:${node.id}`,kind:'story',sourceStoryId:story.id,sourceNodeId:node.id,type:sharedId?'shared convergence':'story point',title:storyPointTitle(story,node),summary:point.summary||ensureStoryPassage(node).summary||'',impact:point.consequences||point.afterState||'',time:typeof cc2TimeLabel==='function'?cc2TimeLabel(story,node):(point.exactDate||`Story point ${node.order||''}`),dateScore:ccLifeParseDate(point.exactDate),sequence:seq++,locationIds:[...(point.locationIds||[])],peopleIds:people,stories:[story],sharedId,origin:false});
+        const timelineEventIds=[...new Set((point.timelineEventIds||[]).filter(eventId=>getItem('events',eventId)))];
+        storyEntries.push({key:`story:${story.id}:${node.id}`,kind:'story',sourceStoryId:story.id,sourceNodeId:node.id,type:sharedId?'shared convergence':'story point',title:storyPointTitle(story,node),summary:point.summary||ensureStoryPassage(node).summary||'',impact:point.consequences||point.afterState||'',time:typeof cc2TimeLabel==='function'?cc2TimeLabel(story,node):(point.exactDate||`Story point ${node.order||''}`),dateScore:ccLifeParseDate(point.exactDate),sequence:seq++,locationIds:[...(point.locationIds||[])],peopleIds:people,stories:[story],sharedId,sharedIds:sharedId?[sharedId]:[],timelineEventIds,origin:false});
       }
     }
     const grouped=new Map();
     for(const entry of storyEntries){
       if(!entry.sharedId){entries.push(entry);continue;}
       const key=`shared:${entry.sharedId}`;
-      if(!grouped.has(key)){entry.key=key;entry.stories=ccLifeSharedStories(entry.sharedId);grouped.set(key,entry);continue;}
+      if(!grouped.has(key)){entry.key=key;entry.stories=ccLifeSharedStories(entry.sharedId);entry.orderKeys=[`story:${entry.sourceStoryId}:${entry.sourceNodeId}`,key];grouped.set(key,entry);continue;}
       const target=grouped.get(key);
       target.peopleIds=[...new Set([...target.peopleIds,...entry.peopleIds])];
       target.locationIds=[...new Set([...target.locationIds,...entry.locationIds])];
+      target.timelineEventIds=[...new Set([...(target.timelineEventIds||[]),...(entry.timelineEventIds||[])])];
+      target.orderKeys=[...new Set([...(target.orderKeys||[target.key]),entry.key,`story:${entry.sourceStoryId}:${entry.sourceNodeId}`])];
       if(!target.summary&&entry.summary)target.summary=entry.summary;
       if(!target.impact&&entry.impact)target.impact=entry.impact;
       if(target.dateScore==null&&entry.dateScore!=null){target.dateScore=entry.dateScore;target.time=entry.time;}
     }
     entries.push(...grouped.values());
+
+    // A Timeline Event and any Story Point(s) explicitly connected to it describe the
+    // same historical moment. Collapse that connected component into one Life Story node
+    // while keeping every underlying Event and Story Point separately editable/openable.
+    const storyLifeEntries=entries.filter(entry=>entry.kind==='story');
+    const referencedEventIds=new Set(storyLifeEntries.flatMap(entry=>entry.timelineEventIds||[]));
+    const relevantEventIds=new Set([...directCharacterEventIds,...referencedEventIds]);
+    const eventEntryMap=new Map();
+    for(const event of state.events||[]){
+      if(!relevantEventIds.has(event.id))continue;
+      eventEntryMap.set(event.id,{key:`event:${event.id}`,kind:'event',sourceId:event.id,type:'world event',title:event.name||'Timeline event',summary:event.description||event.notes||'',impact:event.consequences||'',time:event.date||'',dateScore:ccLifeParseDate(event.date),sequence:seq++,locationIds:[],peopleIds:(event.characterIds||[]).filter(idValue=>idValue!==character.id),stories:[],sharedId:'',sharedIds:[],timelineEventIds:[event.id],origin:false});
+    }
+    const storiesByEvent=new Map();
+    for(const storyEntry of storyLifeEntries){
+      for(const eventId of storyEntry.timelineEventIds||[]){
+        if(!eventEntryMap.has(eventId))continue;
+        if(!storiesByEvent.has(eventId))storiesByEvent.set(eventId,[]);
+        storiesByEvent.get(eventId).push(storyEntry);
+      }
+    }
+    const consumedStories=new Set(),consumedEvents=new Set(),mergedEntries=[],standaloneEvents=[];
+    for(const seedId of eventEntryMap.keys()){
+      if(consumedEvents.has(seedId))continue;
+      const queue=[seedId],componentEvents=[],componentStories=[],seenStories=new Set();
+      while(queue.length){
+        const eventId=queue.shift();
+        if(consumedEvents.has(eventId))continue;
+        const eventEntry=eventEntryMap.get(eventId);if(!eventEntry)continue;
+        consumedEvents.add(eventId);componentEvents.push(eventEntry);
+        for(const storyEntry of storiesByEvent.get(eventId)||[]){
+          if(seenStories.has(storyEntry.key))continue;
+          seenStories.add(storyEntry.key);componentStories.push(storyEntry);
+          for(const linkedEventId of storyEntry.timelineEventIds||[])if(eventEntryMap.has(linkedEventId)&&!consumedEvents.has(linkedEventId))queue.push(linkedEventId);
+        }
+      }
+      if(!componentStories.length){standaloneEvents.push(...componentEvents);continue;}
+      componentStories.forEach(entry=>consumedStories.add(entry.key));
+      const primary=componentEvents.slice().sort((a,b)=>{
+        const ad=directCharacterEventIds.has(a.sourceId)?0:1,bd=directCharacterEventIds.has(b.sourceId)?0:1;
+        if(ad!==bd)return ad-bd;
+        if(a.dateScore!=null&&b.dateScore!=null)return a.dateScore-b.dateScore;
+        if(a.dateScore!=null)return -1;if(b.dateScore!=null)return 1;
+        return a.sequence-b.sequence;
+      })[0];
+      const portions=[];const portionSeen=new Set();
+      for(const storyEntry of componentStories){
+        const refs=storyEntry.sharedId?ccSharedPointMembers(storyEntry.sharedId):[ccLifeFindNode(storyEntry.sourceStoryId,storyEntry.sourceNodeId)];
+        for(const ref of refs){
+          if(!ref?.story||!ref?.node)continue;
+          const token=`${ref.story.id}:${ref.node.id}`;if(portionSeen.has(token))continue;portionSeen.add(token);
+          const range=storyPointRange(ref.story,ref.node);
+          portions.push({storyId:ref.story.id,nodeId:ref.node.id,storyName:ref.story.name,title:storyPointTitle(ref.story,ref.node),posts:(range.turns||[]).length});
+        }
+      }
+      const uniqueStories=[];const storySeen=new Set();
+      for(const storyEntry of componentStories)for(const story of storyEntry.stories||[]){if(!storySeen.has(story.id)){storySeen.add(story.id);uniqueStories.push(story);}}
+      const sharedIds=[...new Set(componentStories.flatMap(entry=>entry.sharedIds|| (entry.sharedId?[entry.sharedId]:[])).filter(Boolean))];
+      const allDateScores=[...componentEvents,...componentStories].map(entry=>entry.dateScore).filter(value=>value!=null&&Number.isFinite(value));
+      const allImpacts=[...new Set(componentEvents.map(entry=>entry.impact).filter(Boolean))];
+      mergedEntries.push({
+        key:primary.key,
+        orderKeys:[...new Set([...componentEvents.map(entry=>entry.key),...componentStories.flatMap(entry=>entry.orderKeys||[entry.key])])],
+        kind:'event-story',sourceId:primary.sourceId,eventIds:componentEvents.map(entry=>entry.sourceId),
+        sourceStoryId:portions[0]?.storyId||'',sourceNodeId:portions[0]?.nodeId||'',
+        type:portions.length===1?'world event · RP story point':'world event · RP sequence',
+        title:primary.title,summary:primary.summary||componentStories.find(entry=>entry.summary)?.summary||'',
+        impact:allImpacts.join(' · ')||componentStories.find(entry=>entry.impact)?.impact||'',
+        time:primary.time||componentStories.find(entry=>entry.time)?.time||'',
+        dateScore:primary.dateScore!=null?primary.dateScore:(allDateScores.length?Math.min(...allDateScores):null),
+        sequence:Math.min(...[...componentEvents,...componentStories].map(entry=>entry.sequence)),
+        locationIds:[...new Set(componentStories.flatMap(entry=>entry.locationIds||[]))],
+        peopleIds:[...new Set([...componentEvents.flatMap(entry=>entry.peopleIds||[]),...componentStories.flatMap(entry=>entry.peopleIds||[])])],
+        stories:uniqueStories,sharedId:sharedIds.length===1?sharedIds[0]:'',sharedIds,
+        timelineEventIds:componentEvents.map(entry=>entry.sourceId),rpPortions:portions,origin:false
+      });
+    }
+    const nonStoryEntries=entries.filter(entry=>entry.kind!=='story');
+    const remainingStories=storyLifeEntries.filter(entry=>!consumedStories.has(entry.key));
+    entries.splice(0,entries.length,...nonStoryEntries,...standaloneEvents,...remainingStories,...mergedEntries);
+
     entries.sort((a,b)=>{
       if(a.origin!==b.origin)return a.origin?-1:1;
       if(a.dateScore!=null&&b.dateScore!=null)return a.dateScore-b.dateScore||a.sequence-b.sequence;
@@ -18060,23 +18143,29 @@ initFirebase();
     const savedOrder=Array.isArray(character.lifeStoryOrder)?character.lifeStoryOrder:[];
     if(savedOrder.length){
       const rank=new Map(savedOrder.map((key,index)=>[key,index]));
+      const entryRank=entry=>{
+        const keys=entry.orderKeys||[entry.key];let best=Number.MAX_SAFE_INTEGER;
+        for(const key of keys)if(rank.has(key))best=Math.min(best,rank.get(key));
+        return best;
+      };
       const originEntries=entries.filter(entry=>entry.origin);
       const normalEntries=entries.filter(entry=>!entry.origin);
-      normalEntries.sort((a,b)=>{
-        const ar=rank.has(a.key)?rank.get(a.key):Number.MAX_SAFE_INTEGER;
-        const br=rank.has(b.key)?rank.get(b.key):Number.MAX_SAFE_INTEGER;
-        return ar-br || a.sequence-b.sequence;
-      });
+      normalEntries.sort((a,b)=>entryRank(a)-entryRank(b)||a.sequence-b.sequence);
       entries.splice(0,entries.length,...originEntries,...normalEntries);
     }
     if(includePlaceholders){
       const locations=character.currentLocationIds||[];
-      entries.push({key:'current',kind:'current',type:'present day',title:'Present Day',summary:[character.status,character.mood,character.position].filter(Boolean).join(' · ')||'This is the character’s current point in the world.',impact:'',time:'Now',dateScore:Infinity,sequence:Infinity,locationIds:[...locations],peopleIds:[],stories:[],sharedId:'',current:true});
+      entries.push({key:'current',kind:'current',type:'present day',title:'Present Day',summary:[character.status,character.mood,character.position].filter(Boolean).join(' · ')||'This is the character’s current point in the world.',impact:'',time:'Now',dateScore:Infinity,sequence:Infinity,locationIds:[...locations],peopleIds:[],stories:[],sharedId:'',sharedIds:[],current:true});
     }
     return entries;
   }
 
   function ccLifeEntryActions(entry){
+    if(entry.kind==='event-story'){
+      const eventButtons=(entry.eventIds||[entry.sourceId]).map(eventId=>getItem('events',eventId)).filter(Boolean).map((event,index)=>`<button class="button ${index?'ghost':'secondary'} small" type="button" data-open="events:${esc(event.id)}">${index?'Related event':'Open event'} · ${esc(event.name)} →</button>`).join('');
+      const rpButtons=(entry.rpPortions||[]).map(portion=>`<button class="button secondary small" type="button" data-story-point="${esc(storyRouteValue(portion.storyId,portion.nodeId))}">Open RP · ${esc(portion.title)} →</button>`).join('');
+      return eventButtons+rpButtons;
+    }
     if(entry.kind==='story'){
       const members=entry.sharedId?ccSharedPointMembers(entry.sharedId):[];
       const routes=members.length?members:[ccLifeFindNode(entry.sourceStoryId,entry.sourceNodeId)];
@@ -18086,6 +18175,7 @@ initFirebase();
     if(entry.kind==='manual')return `<button class="button ghost small" type="button" data-cc-life-edit-event="${esc(entry.characterId||'')}|${esc(entry.manualId)}">Edit</button>`;
     return '';
   }
+
   function ccLifePeopleMarkup(character,entry){
     const people=(entry.peopleIds||[]).map(idValue=>getItem('characters',idValue)).filter(Boolean);
     if(!people.length)return '';
@@ -18093,8 +18183,8 @@ initFirebase();
   }
   function ccLifeEntryHtml(character,entry,arrangeInfo=null){
     const locations=(entry.locationIds||[]).map(idValue=>getItem('locations',idValue)).filter(Boolean);
-    const sharedStories=entry.sharedId?ccLifeSharedStories(entry.sharedId):[];
-    const rowClass=[entry.origin?'is-origin':'',entry.current?'is-current':'',entry.sharedId?'is-shared':'',arrangeInfo?'is-arranging':''].filter(Boolean).join(' ');
+    const sharedStories=entry.kind==='event-story'?(entry.stories||[]):(entry.sharedId?ccLifeSharedStories(entry.sharedId):[]);
+    const rowClass=[entry.origin?'is-origin':'',entry.current?'is-current':'',entry.sharedId?'is-shared':'',entry.kind==='event-story'?'is-linked-event':'',arrangeInfo?'is-arranging':''].filter(Boolean).join(' ');
     let actions='';
     if(entry.kind==='manual')actions=`<button class="button ghost small" type="button" data-cc-life-edit-event="${esc(character.id)}|${esc(entry.manualId)}">Edit</button>`;
     else actions=ccLifeEntryActions(entry);
@@ -18102,11 +18192,13 @@ initFirebase();
     if(!entry.origin&&!entry.current&&entry.kind!=='origin-placeholder')actions+=`<button class="button ghost small" type="button" data-cc-life-flag="${esc(character.id)}|${encodeURIComponent(entry.key)}">⚠ Flag contradiction</button>`;
     const meta=[...locations.map(location=>`<button type="button" data-open="locations:${esc(location.id)}">${esc(location.name)}</button>`),...(sharedStories.length>1?[`<span>${sharedStories.length} story paths</span>`]:[])].join('');
     const reorder=arrangeInfo?`<div class="cc-life-reorder"><button class="cc-life-drag-handle" type="button" draggable="true" data-cc-life-drag-key="${esc(character.id)}|${encodeURIComponent(entry.key)}" title="Drag to reorder" aria-label="Drag ${esc(entry.title)} to reorder">⋮⋮</button><button type="button" data-cc-life-move="${esc(character.id)}|${encodeURIComponent(entry.key)}|up" ${arrangeInfo.index===0?'disabled':''} aria-label="Move earlier">↑</button><button type="button" data-cc-life-move="${esc(character.id)}|${encodeURIComponent(entry.key)}|down" ${arrangeInfo.index===arrangeInfo.total-1?'disabled':''} aria-label="Move later">↓</button></div>`:'';
-    return `<div class="cc-life-row ${rowClass}" ${arrangeInfo?`data-cc-life-drop-key="${esc(character.id)}|${encodeURIComponent(entry.key)}"`:''}><div class="cc-life-time">${esc(entry.time||'Undated')}</div><div class="cc-life-node-wrap"><span class="cc-life-node"></span></div><article class="cc-life-card"><div class="cc-life-card-head"><div><span class="cc-life-type">${esc(entry.type||'life event')}</span><h3>${esc(entry.title)}</h3></div>${reorder}</div>${entry.summary?`<p>${esc(entry.summary)}</p>`:''}${entry.impact?`<p><strong>Impact:</strong> ${esc(entry.impact)}</p>`:''}${meta?`<div class="cc-life-meta">${meta}</div>`:''}${actions?`<div class="cc-life-card-actions">${actions}</div>`:''}</article>${ccLifePeopleMarkup(character,entry)}</div>`;
+    const rpPortions=entry.kind==='event-story'&&entry.rpPortions?.length?`<div class="cc-life-rp-portions"><span class="cc-life-rp-label">Connected RP portion${entry.rpPortions.length===1?'':'s'}</span>${entry.rpPortions.map(portion=>`<button type="button" data-story-point="${esc(storyRouteValue(portion.storyId,portion.nodeId))}"><span><strong>${esc(portion.title)}</strong><small>${esc(portion.storyName)}</small></span><small>${portion.posts} post${portion.posts===1?'':'s'} →</small></button>`).join('')}</div>`:'';
+    return `<div class="cc-life-row ${rowClass}" ${arrangeInfo?`data-cc-life-drop-key="${esc(character.id)}|${encodeURIComponent(entry.key)}"`:''}><div class="cc-life-time">${esc(entry.time||'Undated')}</div><div class="cc-life-node-wrap"><span class="cc-life-node"></span></div><article class="cc-life-card"><div class="cc-life-card-head"><div><span class="cc-life-type">${esc(entry.type||'life event')}</span><h3>${esc(entry.title)}</h3></div>${reorder}</div>${entry.summary?`<p>${esc(entry.summary)}</p>`:''}${entry.impact?`<p><strong>Impact:</strong> ${esc(entry.impact)}</p>`:''}${meta?`<div class="cc-life-meta">${meta}</div>`:''}${rpPortions}${actions?`<div class="cc-life-card-actions">${actions}</div>`:''}</article>${ccLifePeopleMarkup(character,entry)}</div>`;
   }
+
   function ccLifeFilterEntries(entries,filter){
     if(filter==='relationships')return entries.filter(entry=>entry.origin||entry.current||(entry.peopleIds||[]).length);
-    if(filter==='story')return entries.filter(entry=>entry.origin||entry.current||entry.kind==='story');
+    if(filter==='story')return entries.filter(entry=>entry.origin||entry.current||entry.kind==='story'||entry.kind==='event-story');
     return entries;
   }
   function renderCharacterLifeStory(character){
@@ -18119,7 +18211,7 @@ initFirebase();
     const movableIndex=new Map(movable.map((entry,index)=>[entry.key,index]));
     const storyCount=new Set(allEntries.flatMap(entry=>(entry.stories||[]).map(story=>story.id))).size;
     const peopleCount=new Set(allEntries.flatMap(entry=>entry.peopleIds||[])).size;
-    const sharedCount=allEntries.filter(entry=>entry.sharedId).length;
+    const sharedCount=new Set(allEntries.flatMap(entry=>entry.sharedIds|| (entry.sharedId?[entry.sharedId]:[]))).size;
     const image=ccLifeCharacterImage(character);
     el.main.innerHTML=`<div class="cc-life-page">${ccLifeTabs(character.id,'life')}<section class="cc-life-hero"><div class="cc-life-avatar">${image?`<img src="${esc(image)}" alt="${esc(character.name)}">`:esc(initials(character.name||'?'))}</div><div><span class="eyebrow">Character Life Story</span><h1>${esc(character.name)}</h1><p>One connected history from origin to present day, built from story points, timeline events, locations, relationships, and your manual life events.</p></div><div class="cc-life-hero-actions"><button class="button secondary" type="button" data-cc-life-bio="${esc(character.id)}">Open Bio</button><button class="button" type="button" data-cc-life-add-event="${esc(character.id)}">Add life event</button></div></section><div class="cc-life-summary"><article><strong>${allEntries.filter(entry=>!entry.current&&!entry.origin).length}</strong><span>Life points</span></article><article><strong>${storyCount}</strong><span>Story paths</span></article><article><strong>${peopleCount}</strong><span>People intersected</span></article><article><strong>${sharedCount}</strong><span>Shared convergences</span></article></div><div class="cc-life-tools"><div class="cc-life-filters"><button type="button" class="${filter==='all'?'is-active':''}" data-cc-life-filter="${esc(character.id)}|all">Full Life</button><button type="button" class="${filter==='relationships'?'is-active':''}" data-cc-life-filter="${esc(character.id)}|relationships">Relationships</button><button type="button" class="${filter==='story'?'is-active':''}" data-cc-life-filter="${esc(character.id)}|story">Story / RP only</button></div><div class="cc-life-arrange-actions"><button class="button ${arranging?'':'secondary'} small" type="button" data-cc-life-arrange="${esc(character.id)}">${arranging?'Done arranging':'Arrange points'}</button>${character.lifeStoryOrder?.length?`<button class="button ghost small" type="button" data-cc-life-reset-order="${esc(character.id)}">Reset automatic order</button>`:''}</div></div>${arranging?`<div class="cc-life-arrange-note"><strong>Manual Life Story order:</strong> Drag points or use ↑ / ↓. This only changes this character’s Life Story display; it does not rewrite the underlying RP or Timeline dates. Use <em>Flag contradiction</em> when the source information itself conflicts.</div>`:`<div class="muted">Click a person to see how their paths intersect. If a point is in the wrong place, use Arrange points; if the underlying facts conflict, flag a contradiction for the Timeline.</div>`}${entries.length?`<section class="cc-life-graph">${entries.map(entry=>ccLifeEntryHtml(character,entry,arranging&&movableIndex.has(entry.key)?{index:movableIndex.get(entry.key),total:movable.length}:null)).join('')}</section>`:`<section class="cc-life-empty"><h3>No life-story points match this view</h3><p>Add a manual event or connect this character to a story point.</p></section>`}</div>`;
   }
@@ -18223,7 +18315,7 @@ initFirebase();
     const value=field=>root.querySelector(`[data-cc-contradiction-field="${field}"]`)?.value||'';item.title=value('title').trim()||'Continuity question';item.details=value('details').trim();item.status=value('status')||'Open';item.characterId=value('characterId');item.eventAId=value('eventAId');item.eventBId=value('eventBId');item.lifeEntryKey=root.querySelector('[data-cc-contradiction-life-key]')?.value||'';const point=root.querySelector('[data-cc-contradiction-story-point]')?.value||'';const [storyId,nodeId]=point.split('|');item.storyId=storyId||'';item.nodeId=nodeId||'';item.updatedAt=nowISO();scheduleSave('Saving contradiction…');closeModal();if(route.view==='events'&&!route.id)renderCollection('events');else render();toast('Contradiction saved to Timeline.');
   }
   function ccFlagLifeContradiction(characterId,key){
-    const character=getItem('characters',characterId);if(!character)return;const entry=ccCharacterLifeEntries(character).find(item=>item.key===key);if(!entry)return;const prefill={title:`Check order · ${entry.title}`,details:`This point looks out of place in ${character.name}’s Life Story. Confirm the date, RP sequence, or source information before resolving.`,characterId,lifeEntryKey:key};if(entry.kind==='event')prefill.eventAId=entry.sourceId||'';if(entry.kind==='story'){prefill.storyId=entry.sourceStoryId||'';prefill.nodeId=entry.sourceNodeId||'';}ccShowContradictionEditor('',prefill);
+    const character=getItem('characters',characterId);if(!character)return;const entry=ccCharacterLifeEntries(character).find(item=>item.key===key);if(!entry)return;const prefill={title:`Check order · ${entry.title}`,details:`This point looks out of place in ${character.name}’s Life Story. Confirm the date, RP sequence, or source information before resolving.`,characterId,lifeEntryKey:key};if(entry.kind==='event'||entry.kind==='event-story')prefill.eventAId=entry.sourceId||entry.eventIds?.[0]||'';if(entry.kind==='story'||entry.kind==='event-story'){prefill.storyId=entry.sourceStoryId||entry.rpPortions?.[0]?.storyId||'';prefill.nodeId=entry.sourceNodeId||entry.rpPortions?.[0]?.nodeId||'';}ccShowContradictionEditor('',prefill);
   }
 
   const ccLifeRenderCollectionBase=renderCollection;
@@ -19296,6 +19388,12 @@ initFirebase();
 .cc-life-row.is-origin .cc-life-node,.cc-life-row.is-current .cc-life-node{width:24px;height:24px}.cc-life-row.is-shared .cc-life-node{border-radius:5px;transform:rotate(45deg);background:var(--accent-soft)}
 .cc-life-card{border:1px solid var(--border);border-radius:15px;background:var(--panel);padding:13px 15px;display:grid;gap:8px;min-width:0}
 .cc-life-row.is-shared .cc-life-card{border-color:color-mix(in srgb,var(--accent) 65%,var(--border));box-shadow:inset 4px 0 0 var(--accent)}
+.cc-life-row.is-linked-event .cc-life-card{border-color:color-mix(in srgb,var(--accent) 70%,var(--border));box-shadow:inset 4px 0 0 color-mix(in srgb,var(--accent) 80%,white 20%)}
+.cc-life-row.is-linked-event .cc-life-node{border-radius:50%;background:var(--accent);box-shadow:0 0 0 5px var(--bg),0 0 0 7px color-mix(in srgb,var(--accent) 25%,transparent)}
+.cc-life-rp-portions{display:grid;gap:6px;border:1px solid color-mix(in srgb,var(--accent) 35%,var(--border));border-radius:11px;background:color-mix(in srgb,var(--accent-soft) 45%,var(--panel-soft));padding:9px}
+.cc-life-rp-label{font-size:9px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-strong)}
+.cc-life-rp-portions>button{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;border:1px solid var(--border);border-radius:9px;background:var(--panel);color:var(--text);padding:7px 9px;text-align:left;cursor:pointer}
+.cc-life-rp-portions>button:hover{border-color:var(--accent)}.cc-life-rp-portions>button span{display:grid;gap:2px}.cc-life-rp-portions>button small{color:var(--muted);font-size:9px}.cc-life-rp-portions>button>small{white-space:nowrap}
 .cc-life-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.cc-life-card h3{margin:0;font-size:17px}.cc-life-card p{margin:0;color:var(--muted);line-height:1.5}
 .cc-life-type{display:inline-flex;width:max-content;max-width:100%;border-radius:999px;background:var(--accent-soft);color:var(--accent-strong);padding:4px 8px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}
 .cc-life-meta{display:flex;gap:6px;flex-wrap:wrap}.cc-life-meta span,.cc-life-meta button{border:1px solid var(--border);border-radius:999px;background:var(--panel-soft);color:var(--muted);padding:5px 8px;font-size:10px}.cc-life-meta button{cursor:pointer;color:var(--text)}
