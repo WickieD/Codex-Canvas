@@ -5977,6 +5977,11 @@ button.ccrh-context-chip:hover{border-color:var(--accent);color:var(--text)}
 }
 </style>
 
+<style id="cc-life-standard-tabs-fix">
+.cc-character-view-standard{margin-left:auto}
+.character-template-toolbar .cc-character-view-standard + .button{margin-left:0}
+@media(max-width:760px){.cc-character-view-standard{margin-left:0;order:3;width:100%;justify-content:flex-start}}
+</style>
 </head>
 <body>
 
@@ -7000,6 +7005,7 @@ window.CODEX_BUILD = "approved-badge-animals-layout-2026-08-12";
   function renderCharacterTemplateToolbar(item) {
     return `<div class="character-template-toolbar">
       <div class="character-template-label"><span>Character template</span><strong>${esc(characterTemplateName(item.pageTemplate))}</strong></div>
+      <nav class="cc-character-view-switch cc-character-view-standard" aria-label="Character view"><button class="is-active" type="button" data-cc-life-bio="${esc(item.id)}">Bio</button><button type="button" data-cc-life-story="${esc(item.id)}">Life Story</button></nav>
       <button class="button secondary small" type="button" data-character-template-picker="${item.id}">Change template</button>
     </div>`;
   }
@@ -17778,6 +17784,338 @@ initFirebase();
     ccFinalAddPageImage
   });
 
+
+  /* Character Life Story extension — kept inside the primary app scope so it can
+     use routing, state, renderers, and save helpers on every character template. */
+(() => {
+  const ccLifeFilters = new Map();
+
+  function ccLifeFindNode(storyId,nodeId){
+    const story=(state.storyGraphs||[]).find(item=>item.id===storyId)||null;
+    const node=story?.nodes?.find(item=>item.id===nodeId)||null;
+    return {story,node};
+  }
+  function ccLifeSharedId(story,node){
+    if(node?.sharedPointId)return node.sharedPointId;
+    const hit=(state.storyIntersections||[]).find(item=>(item.storyAId===story?.id&&item.nodeAId===node?.id)||(item.storyBId===story?.id&&item.nodeBId===node?.id));
+    return hit?.sharedPointId||'';
+  }
+  function ccSharedPointMembers(sharedId){
+    if(!sharedId)return [];
+    const members=[];
+    for(const story of state.storyGraphs||[]) for(const node of story.nodes||[]) if(node.sharedPointId===sharedId)members.push({story,node});
+    return members;
+  }
+  function ccMergeSharedPointGroups(fromId,toId){
+    if(!fromId||!toId||fromId===toId)return;
+    for(const story of state.storyGraphs||[])for(const node of story.nodes||[])if(node.sharedPointId===fromId)node.sharedPointId=toId;
+    for(const item of state.storyIntersections||[])if(item.sharedPointId===fromId)item.sharedPointId=toId;
+  }
+  window.ccEnsureSharedStoryPoint=function(storyAId,nodeAId,storyBId,nodeBId,label='Shared convergence'){
+    const a=ccLifeFindNode(storyAId,nodeAId),b=ccLifeFindNode(storyBId,nodeBId);
+    if(!a.node||!b.node)return '';
+    let sharedId=a.node.sharedPointId||b.node.sharedPointId||id('shared-point');
+    if(a.node.sharedPointId&&b.node.sharedPointId&&a.node.sharedPointId!==b.node.sharedPointId){
+      ccMergeSharedPointGroups(b.node.sharedPointId,a.node.sharedPointId);sharedId=a.node.sharedPointId;
+    }
+    a.node.sharedPointId=sharedId;b.node.sharedPointId=sharedId;
+    let intersection=(state.storyIntersections||[]).find(item=>(item.storyAId===storyAId&&item.nodeAId===nodeAId&&item.storyBId===storyBId&&item.nodeBId===nodeBId)||(item.storyAId===storyBId&&item.nodeAId===nodeBId&&item.storyBId===storyAId&&item.nodeBId===nodeAId));
+    if(!intersection){
+      intersection={id:id('intersection'),storyAId,nodeAId,storyBId,nodeBId,label,description:'Shared convergence point',sharedPointId};
+      state.storyIntersections.push(intersection);
+    }else{
+      intersection.sharedPointId=sharedId;
+      if(!intersection.label)intersection.label=label;
+    }
+    return sharedId;
+  };
+  function ccUpgradeSharedStoryPoints(){
+    state.storyIntersections ||= [];
+    for(const story of state.storyGraphs||[])for(const node of story.nodes||[])node.sharedPointId ||= '';
+    for(const item of state.storyIntersections||[]){
+      const a=ccLifeFindNode(item.storyAId,item.nodeAId),b=ccLifeFindNode(item.storyBId,item.nodeBId);
+      if(!a.node||!b.node)continue;
+      const shared=ccEnsureSharedStoryPoint(item.storyAId,item.nodeAId,item.storyBId,item.nodeBId,item.label||'Shared convergence');
+      item.sharedPointId=shared;
+    }
+  }
+
+  const ccLifeNormalizeBase=normalizeState;
+  normalizeState=function(){
+    ccLifeNormalizeBase();
+    for(const character of state.characters||[]){
+      character.lifeEvents ||= [];
+      for(const event of character.lifeEvents){
+        event.id ||= id('life-event');event.type ||= 'event';event.title ||= 'Life event';event.summary ||= '';event.dateLabel ||= '';event.locationId ||= '';event.peopleIds ||= [];event.impact ||= '';event.order=Number(event.order)||0;
+      }
+    }
+    for(const story of state.storyGraphs||[])for(const turn of story.rpTurns||[])turn.storyPointStoryId ||= '';
+    ccUpgradeSharedStoryPoints();
+  };
+  normalizeState();
+
+  if(typeof addStoryIntersection==='function'){
+    const ccLifeBaseAddStoryIntersection=addStoryIntersection;
+    addStoryIntersection=function(storyId){
+      const otherStoryId=document.getElementById('intersectionOtherStory')?.value||'';
+      const nodeAId=document.getElementById('intersectionThisPoint')?.value||'';
+      const nodeBId=document.getElementById('intersectionOtherPoint')?.value||'';
+      const label=document.getElementById('intersectionLabel')?.value.trim()||'Shared convergence';
+      ccLifeBaseAddStoryIntersection(storyId);
+      if(otherStoryId&&nodeAId&&nodeBId){ccEnsureSharedStoryPoint(storyId,nodeAId,otherStoryId,nodeBId,label);scheduleSave('Saving shared story point…');}
+    };
+  }
+
+  function ccSharedPointConnections(story,node){
+    const sharedId=ccLifeSharedId(story,node);
+    if(!sharedId)return [];
+    return ccSharedPointMembers(sharedId).filter(item=>!(item.story.id===story.id&&item.node.id===node.id));
+  }
+
+  if(typeof cc2InspectorHtml==='function'){
+    const ccLifeBaseInspector=cc2InspectorHtml;
+    cc2InspectorHtml=function(story,node){
+      let html=ccLifeBaseInspector(story,node);if(!story||!node)return html;
+      const connected=ccSharedPointConnections(story,node);
+      const sharedId=ccLifeSharedId(story,node);
+      const section=`<div class="cc-shared-story-section"><div><strong>${sharedId?'Shared convergence':'Connected stories'}</strong><p>${sharedId?'This story point sits on more than one story path. Each story can continue in its own direction afterward.':'Connect this point to a point in another story when the paths temporarily intersect.'}</p></div>${connected.length?`<div class="cc-shared-story-list">${connected.map(item=>`<button type="button" data-story-point="${esc(storyRouteValue(item.story.id,item.node.id))}"><span><strong>${esc(item.story.name)}</strong><small>${esc(storyPointTitle(item.story,item.node))}</small></span><span>Open →</span></button>`).join('')}</div>`:''}<button class="button secondary small" type="button" data-cc-life-connect-point="${esc(story.id)}|${esc(node.id)}">${connected.length?'Add another story':'Connect another story'}</button></div>`;
+      const marker='<div class="graph-inspector-actions';
+      return html.includes(marker)?html.replace(marker,section+marker):html+section;
+    };
+  }
+
+  function ccLifeShowConnectPoint(storyId,nodeId){
+    const source=ccLifeFindNode(storyId,nodeId);if(!source.story||!source.node)return;
+    const otherStories=(state.storyGraphs||[]).filter(story=>story.id!==storyId&&story.nodes?.length);
+    if(!otherStories.length){toast('Create another story with at least one story point first.','error');return;}
+    const first=otherStories[0];
+    const pointOptions=owner=>(owner.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0)).map(node=>`<option value="${esc(node.id)}">${esc(storyPointTitle(owner,node))}</option>`).join('');
+    showModal('Connect shared story point',`<div class="cc-connect-point-grid"><p class="muted"><strong>${esc(storyPointTitle(source.story,source.node))}</strong> will become a shared convergence with the point you choose. The stories remain separate before and after this node.</p><label><span>Other story</span><select class="select" data-cc-life-connect-story>${otherStories.map(story=>`<option value="${esc(story.id)}">${esc(story.name)}</option>`).join('')}</select></label><label><span>Story point</span><select class="select" data-cc-life-connect-target>${pointOptions(first)}</select></label><label><span>Convergence label</span><input class="input" data-cc-life-connect-label value="${esc(`Shared · ${storyPointTitle(source.story,source.node)}`)}"></label></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-cc-life-save-connect="${esc(storyId)}|${esc(nodeId)}">Connect stories</button>`);
+  }
+
+  function ccLifeCharacterImage(character){
+    if(typeof ccrhCharacterImage==='function')return ccrhCharacterImage(character)||'';
+    return character?.profileImage?.src||character?.dossierMainImage?.src||'';
+  }
+  function ccLifeTabs(characterId,active){
+    return `<nav class="cc-character-view-tabs" aria-label="Character view"><button class="${active==='bio'?'is-active':''}" type="button" data-cc-life-bio="${esc(characterId)}">Character Bio</button><button class="${active==='life'?'is-active':''}" type="button" data-cc-life-story="${esc(characterId)}">Life Story</button></nav>`;
+  }
+  function ccLifeInjectBioTabs(item){
+    if(el.main?.querySelector('.cc-character-view-switch,.cc-character-view-tabs'))return;
+    const dossier=document.querySelector('.practical-dossier-page');
+    if(dossier){
+      const left=dossier.querySelector('.dossier-top-left')||dossier.querySelector('.dossier-topbar');
+      left?.insertAdjacentHTML('beforeend',`<nav class="cc-character-view-switch" aria-label="Character view"><button class="is-active" type="button" data-cc-life-bio="${esc(item.id)}">Bio</button><button type="button" data-cc-life-story="${esc(item.id)}">Life Story</button></nav>`);
+      return;
+    }
+    el.main?.insertAdjacentHTML('afterbegin',ccLifeTabs(item.id,'bio'));
+  }
+
+  function ccLifePointPeople(point){
+    if(typeof cc2AllPeople==='function')return cc2AllPeople(point);
+    return [...new Set([...(point?.participantIds||[]),...(point?.affectedIds||[]),...(point?.mentionedIds||[]),...(point?.povIds||[])])];
+  }
+  function ccLifePointTurns(ownerStory,node){
+    const turns=[];
+    const seen=new Set();
+    for(const story of state.storyGraphs||[]){
+      const docs=ensureStoryDocument(story);
+      for(const turn of docs){
+        const ownerId=turn.storyPointStoryId||story.id;
+        if(turn.storyPointId===node.id&&ownerId===ownerStory.id&&!seen.has(turn.id)){turns.push(turn);seen.add(turn.id);}
+      }
+    }
+    const range=storyPointRange(ownerStory,node);
+    for(const turn of range.turns||[])if(!seen.has(turn.id)){turns.push(turn);seen.add(turn.id);}
+    return turns;
+  }
+  function ccLifeParseDate(value){
+    const raw=String(value||'').trim();if(!raw)return null;
+    const t=new Date(raw.length===10?`${raw}T00:00:00`:raw).getTime();return Number.isFinite(t)?t:null;
+  }
+  function ccLifeSharedStories(sharedId){
+    return ccSharedPointMembers(sharedId).map(item=>item.story).filter((story,index,list)=>list.findIndex(x=>x.id===story.id)===index);
+  }
+  function ccCharacterLifeEntries(character,{includePlaceholders=true}={}){
+    const entries=[];let seq=0;
+    const manual=(character.lifeEvents||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0));
+    for(const event of manual){
+      entries.push({key:`manual:${event.id}`,kind:'manual',manualId:event.id,type:event.type||'event',title:event.title||'Life event',summary:event.summary||'',impact:event.impact||'',time:event.dateLabel||'',dateScore:ccLifeParseDate(event.dateLabel),sequence:seq++,locationIds:event.locationId?[event.locationId]:[],peopleIds:[...(event.peopleIds||[])],stories:[],sharedId:'',origin:event.type==='origin'});
+    }
+    if(includePlaceholders&&!manual.some(event=>event.type==='origin'))entries.push({key:'origin-placeholder',kind:'origin-placeholder',type:'origin',title:'Origin not recorded yet',summary:'Add an origin point to begin this character’s life path.',impact:'',time:'Beginning',dateScore:null,sequence:-100000,locationIds:[],peopleIds:[],stories:[],sharedId:'',origin:true});
+
+    for(const event of state.events||[]){
+      if(!(event.characterIds||[]).includes(character.id))continue;
+      entries.push({key:`event:${event.id}`,kind:'event',sourceId:event.id,type:'world event',title:event.name||'Timeline event',summary:event.description||event.notes||'',impact:event.consequences||'',time:event.date||'',dateScore:ccLifeParseDate(event.date),sequence:seq++,locationIds:[],peopleIds:(event.characterIds||[]).filter(idValue=>idValue!==character.id),stories:[],sharedId:''});
+    }
+
+    const storyEntries=[];
+    for(const story of state.storyGraphs||[]){
+      for(const node of (story.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0))){
+        const point=typeof cc2Point==='function'?cc2Point(story,node):(node.point||{});
+        const pointPeople=ccLifePointPeople(point);
+        const turns=ccLifePointTurns(story,node);
+        const turnPeople=turns.map(turn=>turn.characterId).filter(Boolean);
+        if(!pointPeople.includes(character.id)&&!turnPeople.includes(character.id))continue;
+        const people=[...new Set([...pointPeople,...turnPeople])].filter(idValue=>idValue&&idValue!==character.id&&getItem('characters',idValue));
+        const sharedId=ccLifeSharedId(story,node);
+        storyEntries.push({key:`story:${story.id}:${node.id}`,kind:'story',sourceStoryId:story.id,sourceNodeId:node.id,type:sharedId?'shared convergence':'story point',title:storyPointTitle(story,node),summary:point.summary||ensureStoryPassage(node).summary||'',impact:point.consequences||point.afterState||'',time:typeof cc2TimeLabel==='function'?cc2TimeLabel(story,node):(point.exactDate||`Story point ${node.order||''}`),dateScore:ccLifeParseDate(point.exactDate),sequence:seq++,locationIds:[...(point.locationIds||[])],peopleIds:people,stories:[story],sharedId,origin:false});
+      }
+    }
+    const grouped=new Map();
+    for(const entry of storyEntries){
+      if(!entry.sharedId){entries.push(entry);continue;}
+      const key=`shared:${entry.sharedId}`;
+      if(!grouped.has(key)){entry.key=key;entry.stories=ccLifeSharedStories(entry.sharedId);grouped.set(key,entry);continue;}
+      const target=grouped.get(key);
+      target.peopleIds=[...new Set([...target.peopleIds,...entry.peopleIds])];
+      target.locationIds=[...new Set([...target.locationIds,...entry.locationIds])];
+      if(!target.summary&&entry.summary)target.summary=entry.summary;
+      if(!target.impact&&entry.impact)target.impact=entry.impact;
+      if(target.dateScore==null&&entry.dateScore!=null){target.dateScore=entry.dateScore;target.time=entry.time;}
+    }
+    entries.push(...grouped.values());
+    entries.sort((a,b)=>{
+      if(a.origin!==b.origin)return a.origin?-1:1;
+      if(a.dateScore!=null&&b.dateScore!=null)return a.dateScore-b.dateScore||a.sequence-b.sequence;
+      if(a.dateScore!=null)return -1;if(b.dateScore!=null)return 1;
+      return a.sequence-b.sequence;
+    });
+    if(includePlaceholders){
+      const locations=character.currentLocationIds||[];
+      entries.push({key:'current',kind:'current',type:'present day',title:'Present Day',summary:[character.status,character.mood,character.position].filter(Boolean).join(' · ')||'This is the character’s current point in the world.',impact:'',time:'Now',dateScore:Infinity,sequence:Infinity,locationIds:[...locations],peopleIds:[],stories:[],sharedId:'',current:true});
+    }
+    return entries;
+  }
+
+  function ccLifeEntryActions(entry){
+    if(entry.kind==='story'){
+      const members=entry.sharedId?ccSharedPointMembers(entry.sharedId):[];
+      const routes=members.length?members:[ccLifeFindNode(entry.sourceStoryId,entry.sourceNodeId)];
+      return routes.filter(item=>item.story&&item.node).map(item=>`<button class="button secondary small" type="button" data-story-point="${esc(storyRouteValue(item.story.id,item.node.id))}">${esc(item.story.name)} →</button>`).join('');
+    }
+    if(entry.kind==='event')return `<button class="button secondary small" type="button" data-open="events:${esc(entry.sourceId)}">Open event →</button>`;
+    if(entry.kind==='manual')return `<button class="button ghost small" type="button" data-cc-life-edit-event="${esc(entry.characterId||'')}|${esc(entry.manualId)}">Edit</button>`;
+    return '';
+  }
+  function ccLifePeopleMarkup(character,entry){
+    const people=(entry.peopleIds||[]).map(idValue=>getItem('characters',idValue)).filter(Boolean);
+    if(!people.length)return '';
+    return `<aside class="cc-life-people"><span class="cc-life-people-label">Intersects with</span>${people.slice(0,5).map(person=>{const image=ccLifeCharacterImage(person);return `<button class="cc-life-person" type="button" data-cc-life-impact="${esc(character.id)}|${esc(person.id)}"><span class="cc-life-person-avatar">${image?`<img src="${esc(image)}" alt="">`:esc(initials(person.name||'?'))}</span><span><strong>${esc(person.name)}</strong><small>View impact / path</small></span></button>`;}).join('')}${people.length>5?`<span class="muted">+${people.length-5} more</span>`:''}</aside>`;
+  }
+  function ccLifeEntryHtml(character,entry){
+    const locations=(entry.locationIds||[]).map(idValue=>getItem('locations',idValue)).filter(Boolean);
+    const sharedStories=entry.sharedId?ccLifeSharedStories(entry.sharedId):[];
+    const rowClass=[entry.origin?'is-origin':'',entry.current?'is-current':'',entry.sharedId?'is-shared':''].filter(Boolean).join(' ');
+    let actions='';
+    if(entry.kind==='manual')actions=`<button class="button ghost small" type="button" data-cc-life-edit-event="${esc(character.id)}|${esc(entry.manualId)}">Edit</button>`;
+    else actions=ccLifeEntryActions(entry);
+    if(entry.kind==='origin-placeholder')actions=`<button class="button small" type="button" data-cc-life-add-origin="${esc(character.id)}">Set origin</button>`;
+    const meta=[...locations.map(location=>`<button type="button" data-open="locations:${esc(location.id)}">${esc(location.name)}</button>`),...(sharedStories.length>1?[`<span>${sharedStories.length} story paths</span>`]:[])].join('');
+    return `<div class="cc-life-row ${rowClass}"><div class="cc-life-time">${esc(entry.time||'Undated')}</div><div class="cc-life-node-wrap"><span class="cc-life-node"></span></div><article class="cc-life-card"><div class="cc-life-card-head"><div><span class="cc-life-type">${esc(entry.type||'life event')}</span><h3>${esc(entry.title)}</h3></div></div>${entry.summary?`<p>${esc(entry.summary)}</p>`:''}${entry.impact?`<p><strong>Impact:</strong> ${esc(entry.impact)}</p>`:''}${meta?`<div class="cc-life-meta">${meta}</div>`:''}${actions?`<div class="cc-life-card-actions">${actions}</div>`:''}</article>${ccLifePeopleMarkup(character,entry)}</div>`;
+  }
+  function ccLifeFilterEntries(entries,filter){
+    if(filter==='relationships')return entries.filter(entry=>entry.origin||entry.current||(entry.peopleIds||[]).length);
+    if(filter==='story')return entries.filter(entry=>entry.origin||entry.current||entry.kind==='story');
+    return entries;
+  }
+  function renderCharacterLifeStory(character){
+    const filter=ccLifeFilters.get(character.id)||'all';
+    const allEntries=ccCharacterLifeEntries(character);
+    const entries=ccLifeFilterEntries(allEntries,filter);
+    const storyCount=new Set(allEntries.flatMap(entry=>(entry.stories||[]).map(story=>story.id))).size;
+    const peopleCount=new Set(allEntries.flatMap(entry=>entry.peopleIds||[])).size;
+    const sharedCount=allEntries.filter(entry=>entry.sharedId).length;
+    const image=ccLifeCharacterImage(character);
+    el.main.innerHTML=`<div class="cc-life-page">${ccLifeTabs(character.id,'life')}<section class="cc-life-hero"><div class="cc-life-avatar">${image?`<img src="${esc(image)}" alt="${esc(character.name)}">`:esc(initials(character.name||'?'))}</div><div><span class="eyebrow">Character Life Story</span><h1>${esc(character.name)}</h1><p>One connected history from origin to present day, built from story points, timeline events, locations, relationships, and your manual life events.</p></div><div class="cc-life-hero-actions"><button class="button secondary" type="button" data-cc-life-bio="${esc(character.id)}">Open Bio</button><button class="button" type="button" data-cc-life-add-event="${esc(character.id)}">Add life event</button></div></section><div class="cc-life-summary"><article><strong>${allEntries.filter(entry=>!entry.current&&!entry.origin).length}</strong><span>Life points</span></article><article><strong>${storyCount}</strong><span>Story paths</span></article><article><strong>${peopleCount}</strong><span>People intersected</span></article><article><strong>${sharedCount}</strong><span>Shared convergences</span></article></div><div class="cc-life-tools"><div class="cc-life-filters"><button type="button" class="${filter==='all'?'is-active':''}" data-cc-life-filter="${esc(character.id)}|all">Full Life</button><button type="button" class="${filter==='relationships'?'is-active':''}" data-cc-life-filter="${esc(character.id)}|relationships">Relationships</button><button type="button" class="${filter==='story'?'is-active':''}" data-cc-life-filter="${esc(character.id)}|story">Story / RP only</button></div><span class="muted">Click a person to see how their paths intersect.</span></div>${entries.length?`<section class="cc-life-graph">${entries.map(entry=>ccLifeEntryHtml(character,entry)).join('')}</section>`:`<section class="cc-life-empty"><h3>No life-story points match this view</h3><p>Add a manual event or connect this character to a story point.</p></section>`}</div>`;
+  }
+
+  const ccLifeCollectionBase=collectionForView;
+  collectionForView=function(view){return view==='character-life'?'characters':ccLifeCollectionBase(view);};
+  if(typeof navButton==='function'){
+    const ccLifeNavButtonBase=navButton;
+    navButton=function(view,label,icon,count=''){
+      let html=ccLifeNavButtonBase(view,label,icon,count);
+      if(view==='characters'&&route.view==='character-life'&&!html.includes('nav-item active'))html=html.replace('nav-item ','nav-item active ');
+      return html;
+    };
+  }
+  if(typeof renderBreadcrumbs==='function'){
+    const ccLifeBreadcrumbsBase=renderBreadcrumbs;
+    renderBreadcrumbs=function(){
+      ccLifeBreadcrumbsBase();
+      if(route.view==='character-life'){
+        const first=[...el.breadcrumbs.querySelectorAll('[data-nav="character-life"]')][0];
+        if(first)first.dataset.nav='characters';
+      }
+    };
+  }
+  const ccLifeRenderEntityBase=renderEntity;
+  renderEntity=function(kind,itemId){
+    const item=getItem(kind,itemId);
+    if(kind==='characters'&&item&&route.view==='character-life'){renderCharacterLifeStory(item);return;}
+    ccLifeRenderEntityBase(kind,itemId);
+    if(kind==='characters'&&item)requestAnimationFrame(()=>ccLifeInjectBioTabs(item));
+  };
+
+  function ccLifeShowEventEditor(characterId,eventId='',forceOrigin=false){
+    const character=getItem('characters',characterId);if(!character)return;
+    const existing=(character.lifeEvents||[]).find(event=>event.id===eventId)||null;
+    const draft=existing||{id:'',type:forceOrigin?'origin':'event',title:'',summary:'',dateLabel:'',locationId:'',peopleIds:[],impact:''};
+    const people=(state.characters||[]).filter(person=>person.id!==characterId);
+    showModal(existing?'Edit life event':(forceOrigin?'Set character origin':'Add life event'),`<div class="cc-life-event-editor" data-cc-life-event-character="${esc(characterId)}" data-cc-life-event-id="${esc(existing?.id||'')}"><div class="cc-life-event-grid"><label><span>Type</span><select class="select" data-cc-life-event-field="type"><option value="origin" ${draft.type==='origin'?'selected':''}>Origin</option><option value="event" ${draft.type==='event'?'selected':''}>Life event</option><option value="milestone" ${draft.type==='milestone'?'selected':''}>Milestone</option><option value="relationship" ${draft.type==='relationship'?'selected':''}>Relationship</option><option value="travel" ${draft.type==='travel'?'selected':''}>Travel</option><option value="transformation" ${draft.type==='transformation'?'selected':''}>Transformation</option></select></label><label><span>Date / period</span><input class="input" data-cc-life-event-field="dateLabel" value="${esc(draft.dateLabel||'')}" placeholder="1240 AR, childhood, three years earlier…"></label><label class="wide"><span>Title</span><input class="input" data-cc-life-event-field="title" value="${esc(draft.title||'')}" placeholder="Born in Ashfall Dominion"></label><label class="wide"><span>What happened</span><textarea class="textarea" rows="4" data-cc-life-event-field="summary">${esc(draft.summary||'')}</textarea></label><label><span>Location</span><select class="select" data-cc-life-event-field="locationId"><option value="">No location</option>${(state.locations||[]).slice().sort((a,b)=>a.name.localeCompare(b.name)).map(location=>`<option value="${esc(location.id)}" ${draft.locationId===location.id?'selected':''}>${esc(location.name)}</option>`).join('')}</select></label><label class="wide"><span>How this changed or impacted ${esc(character.name)}</span><textarea class="textarea" rows="3" data-cc-life-event-field="impact">${esc(draft.impact||'')}</textarea></label></div><div><strong>People connected to this event</strong><div class="cc-life-people-picker">${people.map(person=>`<label><input type="checkbox" value="${esc(person.id)}" data-cc-life-event-person ${draft.peopleIds?.includes(person.id)?'checked':''}>${esc(person.name)}</label>`).join('')||'<span class="muted">No other characters yet.</span>'}</div></div></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button>${existing?`<button class="button danger" type="button" data-cc-life-delete-event="${esc(characterId)}|${esc(existing.id)}">Delete</button>`:''}<button class="button" type="button" data-cc-life-save-event>Save life event</button>`);
+  }
+  function ccLifeSaveEvent(){
+    const root=el.modal.querySelector('[data-cc-life-event-character]');if(!root)return;
+    const character=getItem('characters',root.dataset.ccLifeEventCharacter);if(!character)return;
+    const eventId=root.dataset.ccLifeEventId||'';
+    let event=(character.lifeEvents||[]).find(item=>item.id===eventId)||null;
+    if(!event){event={id:id('life-event'),order:(character.lifeEvents||[]).reduce((max,item)=>Math.max(max,Number(item.order)||0),0)+1};character.lifeEvents.push(event);}
+    const value=field=>root.querySelector(`[data-cc-life-event-field="${field}"]`)?.value||'';
+    event.type=value('type')||'event';event.title=value('title').trim()||(event.type==='origin'?'Origin':'Life event');event.dateLabel=value('dateLabel').trim();event.summary=value('summary').trim();event.locationId=value('locationId');event.impact=value('impact').trim();event.peopleIds=[...root.querySelectorAll('[data-cc-life-event-person]:checked')].map(input=>input.value);event.updatedAt=nowISO();
+    if(event.type==='origin')for(const other of character.lifeEvents)if(other.id!==event.id&&other.type==='origin')other.type='event';
+    character.updatedAt=nowISO();scheduleSave('Saving life story…');closeModal();renderEntity('characters',character.id);toast('Life event saved.');
+  }
+  function ccLifeShowImpact(subjectId,targetId){
+    const subject=getItem('characters',subjectId),target=getItem('characters',targetId);if(!subject||!target)return;
+    const shared=ccCharacterLifeEntries(subject,{includePlaceholders:false}).filter(entry=>(entry.peopleIds||[]).includes(targetId));
+    const first=shared[0];const targetImage=ccLifeCharacterImage(target);
+    showModal(`${target.name} × ${subject.name}`,`<div class="cc-life-event-editor"><div style="display:grid;grid-template-columns:58px 1fr;gap:12px;align-items:center"><div class="cc-life-avatar" style="width:58px;height:58px">${targetImage?`<img src="${esc(targetImage)}" alt="">`:esc(initials(target.name||'?'))}</div><div><strong>${esc(target.name)}</strong><p class="muted">${shared.length} recorded intersection${shared.length===1?'':'s'} with ${esc(subject.name)}${first?` · first shown here at ${esc(first.title)}`:''}</p></div></div><div class="cc-life-impact-list">${shared.slice(0,10).map(entry=>`<div class="cc-life-impact-item"><strong>${esc(entry.title)}</strong><small>${esc(entry.time||entry.type||'')}</small>${entry.impact?`<p>${esc(entry.impact)}</p>`:''}</div>`).join('')||'<div class="cc-life-impact-item"><strong>No recorded shared points yet</strong><small>Add both characters to a story point or manual life event.</small></div>'}</div></div>`,`<button class="button secondary" type="button" data-cc-life-open-bio="${esc(target.id)}">Open Bio</button><button class="button" type="button" data-cc-life-open-story="${esc(target.id)}">Open Life Story</button>`);
+  }
+
+  document.addEventListener('change',event=>{
+    const select=event.target.closest?.('[data-cc-life-connect-story]');if(!select)return;
+    const story=(state.storyGraphs||[]).find(item=>item.id===select.value);const target=el.modal.querySelector('[data-cc-life-connect-target]');if(!target)return;
+    target.innerHTML=(story?.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0)).map(node=>`<option value="${esc(node.id)}">${esc(storyPointTitle(story,node))}</option>`).join('');
+  });
+  document.addEventListener('click',event=>{
+    const life=event.target.closest?.('[data-cc-life-story]');if(life){event.preventDefault();navigate('character-life',life.dataset.ccLifeStory);return;}
+    const bio=event.target.closest?.('[data-cc-life-bio]');if(bio){event.preventDefault();navigate('characters',bio.dataset.ccLifeBio);return;}
+    const filter=event.target.closest?.('[data-cc-life-filter]');if(filter){event.preventDefault();const [characterId,value]=filter.dataset.ccLifeFilter.split('|');ccLifeFilters.set(characterId,value);const character=getItem('characters',characterId);if(character)renderCharacterLifeStory(character);return;}
+    const add=event.target.closest?.('[data-cc-life-add-event]');if(add){event.preventDefault();ccLifeShowEventEditor(add.dataset.ccLifeAddEvent);return;}
+    const origin=event.target.closest?.('[data-cc-life-add-origin]');if(origin){event.preventDefault();ccLifeShowEventEditor(origin.dataset.ccLifeAddOrigin,'',true);return;}
+    const edit=event.target.closest?.('[data-cc-life-edit-event]');if(edit){event.preventDefault();const [characterId,eventId]=edit.dataset.ccLifeEditEvent.split('|');ccLifeShowEventEditor(characterId,eventId);return;}
+    if(event.target.closest?.('[data-cc-life-save-event]')){event.preventDefault();ccLifeSaveEvent();return;}
+    const del=event.target.closest?.('[data-cc-life-delete-event]');if(del){event.preventDefault();const [characterId,eventId]=del.dataset.ccLifeDeleteEvent.split('|');const character=getItem('characters',characterId);if(!character)return;if(!confirm('Delete this manual life event?'))return;character.lifeEvents=(character.lifeEvents||[]).filter(item=>item.id!==eventId);scheduleSave('Deleting life event…');closeModal();if(route.view==='character-life'&&route.id===characterId)renderCharacterLifeStory(character);toast('Life event deleted.');return;}
+    const impact=event.target.closest?.('[data-cc-life-impact]');if(impact){event.preventDefault();const [subjectId,targetId]=impact.dataset.ccLifeImpact.split('|');ccLifeShowImpact(subjectId,targetId);return;}
+    const openBio=event.target.closest?.('[data-cc-life-open-bio]');if(openBio){event.preventDefault();closeModal();navigate('characters',openBio.dataset.ccLifeOpenBio);return;}
+    const openStory=event.target.closest?.('[data-cc-life-open-story]');if(openStory){event.preventDefault();closeModal();navigate('character-life',openStory.dataset.ccLifeOpenStory);return;}
+    const connect=event.target.closest?.('[data-cc-life-connect-point]');if(connect){event.preventDefault();const [storyId,nodeId]=connect.dataset.ccLifeConnectPoint.split('|');ccLifeShowConnectPoint(storyId,nodeId);return;}
+    const saveConnect=event.target.closest?.('[data-cc-life-save-connect]');if(saveConnect){event.preventDefault();const [storyId,nodeId]=saveConnect.dataset.ccLifeSaveConnect.split('|');const targetStoryId=el.modal.querySelector('[data-cc-life-connect-story]')?.value||'';const targetNodeId=el.modal.querySelector('[data-cc-life-connect-target]')?.value||'';const label=el.modal.querySelector('[data-cc-life-connect-label]')?.value.trim()||'Shared convergence';if(!targetStoryId||!targetNodeId){toast('Choose a story and story point.','error');return;}ccEnsureSharedStoryPoint(storyId,nodeId,targetStoryId,targetNodeId,label);scheduleSave('Saving shared convergence…');closeModal();render();toast('Story paths connected at this shared point.');return;}
+  },true);
+
+  // The main app can render the initial route before this extension is installed.
+  // Refresh only the current character route once so every template gets the view switch
+  // and a direct #/character-life/... route opens immediately on page load.
+  if(route.view==='character-life'&&route.id){
+    requestAnimationFrame(()=>render());
+  }else if(route.view==='characters'&&route.id){
+    const initialCharacter=getItem('characters',route.id);
+    if(initialCharacter)requestAnimationFrame(()=>ccLifeInjectBioTabs(initialCharacter));
+  }
+
+})();
+
 })();
 
 </script>
@@ -18805,325 +19143,7 @@ initFirebase();
 @media(max-width:900px){.cc-life-summary{grid-template-columns:repeat(2,1fr)}.cc-life-row{grid-template-columns:85px 38px minmax(0,1fr)}.cc-life-graph::before{left:103px}.cc-life-people{grid-column:3;margin-bottom:10px;grid-template-columns:repeat(2,minmax(0,1fr))}.cc-life-people-label{grid-column:1/-1}}
 @media(max-width:640px){.cc-life-hero{grid-template-columns:auto 1fr}.cc-life-hero-actions{grid-column:1/-1;justify-content:flex-start}.cc-life-summary{grid-template-columns:1fr 1fr}.cc-life-row{grid-template-columns:28px minmax(0,1fr);gap:10px;padding:8px 0}.cc-life-graph::before{left:13px}.cc-life-time{grid-column:2;text-align:left;order:2}.cc-life-node-wrap{grid-column:1;grid-row:1/4}.cc-life-card{grid-column:2}.cc-life-people{grid-column:2;grid-template-columns:1fr}.cc-life-event-grid{grid-template-columns:1fr}.cc-life-event-grid .wide{grid-column:auto}.cc-life-people-picker{grid-template-columns:1fr}}
 </style>
-<script id="cc-character-life-story-script">
-(() => {
-  const ccLifeFilters = new Map();
 
-  function ccLifeFindNode(storyId,nodeId){
-    const story=(state.storyGraphs||[]).find(item=>item.id===storyId)||null;
-    const node=story?.nodes?.find(item=>item.id===nodeId)||null;
-    return {story,node};
-  }
-  function ccLifeSharedId(story,node){
-    if(node?.sharedPointId)return node.sharedPointId;
-    const hit=(state.storyIntersections||[]).find(item=>(item.storyAId===story?.id&&item.nodeAId===node?.id)||(item.storyBId===story?.id&&item.nodeBId===node?.id));
-    return hit?.sharedPointId||'';
-  }
-  function ccSharedPointMembers(sharedId){
-    if(!sharedId)return [];
-    const members=[];
-    for(const story of state.storyGraphs||[]) for(const node of story.nodes||[]) if(node.sharedPointId===sharedId)members.push({story,node});
-    return members;
-  }
-  function ccMergeSharedPointGroups(fromId,toId){
-    if(!fromId||!toId||fromId===toId)return;
-    for(const story of state.storyGraphs||[])for(const node of story.nodes||[])if(node.sharedPointId===fromId)node.sharedPointId=toId;
-    for(const item of state.storyIntersections||[])if(item.sharedPointId===fromId)item.sharedPointId=toId;
-  }
-  window.ccEnsureSharedStoryPoint=function(storyAId,nodeAId,storyBId,nodeBId,label='Shared convergence'){
-    const a=ccLifeFindNode(storyAId,nodeAId),b=ccLifeFindNode(storyBId,nodeBId);
-    if(!a.node||!b.node)return '';
-    let sharedId=a.node.sharedPointId||b.node.sharedPointId||id('shared-point');
-    if(a.node.sharedPointId&&b.node.sharedPointId&&a.node.sharedPointId!==b.node.sharedPointId){
-      ccMergeSharedPointGroups(b.node.sharedPointId,a.node.sharedPointId);sharedId=a.node.sharedPointId;
-    }
-    a.node.sharedPointId=sharedId;b.node.sharedPointId=sharedId;
-    let intersection=(state.storyIntersections||[]).find(item=>(item.storyAId===storyAId&&item.nodeAId===nodeAId&&item.storyBId===storyBId&&item.nodeBId===nodeBId)||(item.storyAId===storyBId&&item.nodeAId===nodeBId&&item.storyBId===storyAId&&item.nodeBId===nodeAId));
-    if(!intersection){
-      intersection={id:id('intersection'),storyAId,nodeAId,storyBId,nodeBId,label,description:'Shared convergence point',sharedPointId};
-      state.storyIntersections.push(intersection);
-    }else{
-      intersection.sharedPointId=sharedId;
-      if(!intersection.label)intersection.label=label;
-    }
-    return sharedId;
-  };
-  function ccUpgradeSharedStoryPoints(){
-    state.storyIntersections ||= [];
-    for(const story of state.storyGraphs||[])for(const node of story.nodes||[])node.sharedPointId ||= '';
-    for(const item of state.storyIntersections||[]){
-      const a=ccLifeFindNode(item.storyAId,item.nodeAId),b=ccLifeFindNode(item.storyBId,item.nodeBId);
-      if(!a.node||!b.node)continue;
-      const shared=ccEnsureSharedStoryPoint(item.storyAId,item.nodeAId,item.storyBId,item.nodeBId,item.label||'Shared convergence');
-      item.sharedPointId=shared;
-    }
-  }
-
-  const ccLifeNormalizeBase=normalizeState;
-  normalizeState=function(){
-    ccLifeNormalizeBase();
-    for(const character of state.characters||[]){
-      character.lifeEvents ||= [];
-      for(const event of character.lifeEvents){
-        event.id ||= id('life-event');event.type ||= 'event';event.title ||= 'Life event';event.summary ||= '';event.dateLabel ||= '';event.locationId ||= '';event.peopleIds ||= [];event.impact ||= '';event.order=Number(event.order)||0;
-      }
-    }
-    for(const story of state.storyGraphs||[])for(const turn of story.rpTurns||[])turn.storyPointStoryId ||= '';
-    ccUpgradeSharedStoryPoints();
-  };
-  normalizeState();
-
-  if(typeof addStoryIntersection==='function'){
-    const ccLifeBaseAddStoryIntersection=addStoryIntersection;
-    addStoryIntersection=function(storyId){
-      const otherStoryId=document.getElementById('intersectionOtherStory')?.value||'';
-      const nodeAId=document.getElementById('intersectionThisPoint')?.value||'';
-      const nodeBId=document.getElementById('intersectionOtherPoint')?.value||'';
-      const label=document.getElementById('intersectionLabel')?.value.trim()||'Shared convergence';
-      ccLifeBaseAddStoryIntersection(storyId);
-      if(otherStoryId&&nodeAId&&nodeBId){ccEnsureSharedStoryPoint(storyId,nodeAId,otherStoryId,nodeBId,label);scheduleSave('Saving shared story point…');}
-    };
-  }
-
-  function ccSharedPointConnections(story,node){
-    const sharedId=ccLifeSharedId(story,node);
-    if(!sharedId)return [];
-    return ccSharedPointMembers(sharedId).filter(item=>!(item.story.id===story.id&&item.node.id===node.id));
-  }
-
-  if(typeof cc2InspectorHtml==='function'){
-    const ccLifeBaseInspector=cc2InspectorHtml;
-    cc2InspectorHtml=function(story,node){
-      let html=ccLifeBaseInspector(story,node);if(!story||!node)return html;
-      const connected=ccSharedPointConnections(story,node);
-      const sharedId=ccLifeSharedId(story,node);
-      const section=`<div class="cc-shared-story-section"><div><strong>${sharedId?'Shared convergence':'Connected stories'}</strong><p>${sharedId?'This story point sits on more than one story path. Each story can continue in its own direction afterward.':'Connect this point to a point in another story when the paths temporarily intersect.'}</p></div>${connected.length?`<div class="cc-shared-story-list">${connected.map(item=>`<button type="button" data-story-point="${esc(storyRouteValue(item.story.id,item.node.id))}"><span><strong>${esc(item.story.name)}</strong><small>${esc(storyPointTitle(item.story,item.node))}</small></span><span>Open →</span></button>`).join('')}</div>`:''}<button class="button secondary small" type="button" data-cc-life-connect-point="${esc(story.id)}|${esc(node.id)}">${connected.length?'Add another story':'Connect another story'}</button></div>`;
-      const marker='<div class="graph-inspector-actions';
-      return html.includes(marker)?html.replace(marker,section+marker):html+section;
-    };
-  }
-
-  function ccLifeShowConnectPoint(storyId,nodeId){
-    const source=ccLifeFindNode(storyId,nodeId);if(!source.story||!source.node)return;
-    const otherStories=(state.storyGraphs||[]).filter(story=>story.id!==storyId&&story.nodes?.length);
-    if(!otherStories.length){toast('Create another story with at least one story point first.','error');return;}
-    const first=otherStories[0];
-    const pointOptions=owner=>(owner.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0)).map(node=>`<option value="${esc(node.id)}">${esc(storyPointTitle(owner,node))}</option>`).join('');
-    showModal('Connect shared story point',`<div class="cc-connect-point-grid"><p class="muted"><strong>${esc(storyPointTitle(source.story,source.node))}</strong> will become a shared convergence with the point you choose. The stories remain separate before and after this node.</p><label><span>Other story</span><select class="select" data-cc-life-connect-story>${otherStories.map(story=>`<option value="${esc(story.id)}">${esc(story.name)}</option>`).join('')}</select></label><label><span>Story point</span><select class="select" data-cc-life-connect-target>${pointOptions(first)}</select></label><label><span>Convergence label</span><input class="input" data-cc-life-connect-label value="${esc(`Shared · ${storyPointTitle(source.story,source.node)}`)}"></label></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-cc-life-save-connect="${esc(storyId)}|${esc(nodeId)}">Connect stories</button>`);
-  }
-
-  function ccLifeCharacterImage(character){
-    if(typeof ccrhCharacterImage==='function')return ccrhCharacterImage(character)||'';
-    return character?.profileImage?.src||character?.dossierMainImage?.src||'';
-  }
-  function ccLifeTabs(characterId,active){
-    return `<nav class="cc-character-view-tabs" aria-label="Character view"><button class="${active==='bio'?'is-active':''}" type="button" data-cc-life-bio="${esc(characterId)}">Character Bio</button><button class="${active==='life'?'is-active':''}" type="button" data-cc-life-story="${esc(characterId)}">Life Story</button></nav>`;
-  }
-  function ccLifeInjectBioTabs(item){
-    if(document.querySelector('.cc-character-view-switch,.cc-character-view-tabs'))return;
-    const dossier=document.querySelector('.practical-dossier-page');
-    if(dossier){
-      const left=dossier.querySelector('.dossier-top-left')||dossier.querySelector('.dossier-topbar');
-      left?.insertAdjacentHTML('beforeend',`<nav class="cc-character-view-switch" aria-label="Character view"><button class="is-active" type="button" data-cc-life-bio="${esc(item.id)}">Bio</button><button type="button" data-cc-life-story="${esc(item.id)}">Life Story</button></nav>`);
-      return;
-    }
-    el.main?.insertAdjacentHTML('afterbegin',ccLifeTabs(item.id,'bio'));
-  }
-
-  function ccLifePointPeople(point){
-    if(typeof cc2AllPeople==='function')return cc2AllPeople(point);
-    return [...new Set([...(point?.participantIds||[]),...(point?.affectedIds||[]),...(point?.mentionedIds||[]),...(point?.povIds||[])])];
-  }
-  function ccLifePointTurns(ownerStory,node){
-    const turns=[];
-    const seen=new Set();
-    for(const story of state.storyGraphs||[]){
-      const docs=ensureStoryDocument(story);
-      for(const turn of docs){
-        const ownerId=turn.storyPointStoryId||story.id;
-        if(turn.storyPointId===node.id&&ownerId===ownerStory.id&&!seen.has(turn.id)){turns.push(turn);seen.add(turn.id);}
-      }
-    }
-    const range=storyPointRange(ownerStory,node);
-    for(const turn of range.turns||[])if(!seen.has(turn.id)){turns.push(turn);seen.add(turn.id);}
-    return turns;
-  }
-  function ccLifeParseDate(value){
-    const raw=String(value||'').trim();if(!raw)return null;
-    const t=new Date(raw.length===10?`${raw}T00:00:00`:raw).getTime();return Number.isFinite(t)?t:null;
-  }
-  function ccLifeSharedStories(sharedId){
-    return ccSharedPointMembers(sharedId).map(item=>item.story).filter((story,index,list)=>list.findIndex(x=>x.id===story.id)===index);
-  }
-  function ccCharacterLifeEntries(character,{includePlaceholders=true}={}){
-    const entries=[];let seq=0;
-    const manual=(character.lifeEvents||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0));
-    for(const event of manual){
-      entries.push({key:`manual:${event.id}`,kind:'manual',manualId:event.id,type:event.type||'event',title:event.title||'Life event',summary:event.summary||'',impact:event.impact||'',time:event.dateLabel||'',dateScore:ccLifeParseDate(event.dateLabel),sequence:seq++,locationIds:event.locationId?[event.locationId]:[],peopleIds:[...(event.peopleIds||[])],stories:[],sharedId:'',origin:event.type==='origin'});
-    }
-    if(includePlaceholders&&!manual.some(event=>event.type==='origin'))entries.push({key:'origin-placeholder',kind:'origin-placeholder',type:'origin',title:'Origin not recorded yet',summary:'Add an origin point to begin this character’s life path.',impact:'',time:'Beginning',dateScore:null,sequence:-100000,locationIds:[],peopleIds:[],stories:[],sharedId:'',origin:true});
-
-    for(const event of state.events||[]){
-      if(!(event.characterIds||[]).includes(character.id))continue;
-      entries.push({key:`event:${event.id}`,kind:'event',sourceId:event.id,type:'world event',title:event.name||'Timeline event',summary:event.description||event.notes||'',impact:event.consequences||'',time:event.date||'',dateScore:ccLifeParseDate(event.date),sequence:seq++,locationIds:[],peopleIds:(event.characterIds||[]).filter(idValue=>idValue!==character.id),stories:[],sharedId:''});
-    }
-
-    const storyEntries=[];
-    for(const story of state.storyGraphs||[]){
-      for(const node of (story.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0))){
-        const point=typeof cc2Point==='function'?cc2Point(story,node):(node.point||{});
-        const pointPeople=ccLifePointPeople(point);
-        const turns=ccLifePointTurns(story,node);
-        const turnPeople=turns.map(turn=>turn.characterId).filter(Boolean);
-        if(!pointPeople.includes(character.id)&&!turnPeople.includes(character.id))continue;
-        const people=[...new Set([...pointPeople,...turnPeople])].filter(idValue=>idValue&&idValue!==character.id&&getItem('characters',idValue));
-        const sharedId=ccLifeSharedId(story,node);
-        storyEntries.push({key:`story:${story.id}:${node.id}`,kind:'story',sourceStoryId:story.id,sourceNodeId:node.id,type:sharedId?'shared convergence':'story point',title:storyPointTitle(story,node),summary:point.summary||ensureStoryPassage(node).summary||'',impact:point.consequences||point.afterState||'',time:typeof cc2TimeLabel==='function'?cc2TimeLabel(story,node):(point.exactDate||`Story point ${node.order||''}`),dateScore:ccLifeParseDate(point.exactDate),sequence:seq++,locationIds:[...(point.locationIds||[])],peopleIds:people,stories:[story],sharedId,origin:false});
-      }
-    }
-    const grouped=new Map();
-    for(const entry of storyEntries){
-      if(!entry.sharedId){entries.push(entry);continue;}
-      const key=`shared:${entry.sharedId}`;
-      if(!grouped.has(key)){entry.key=key;entry.stories=ccLifeSharedStories(entry.sharedId);grouped.set(key,entry);continue;}
-      const target=grouped.get(key);
-      target.peopleIds=[...new Set([...target.peopleIds,...entry.peopleIds])];
-      target.locationIds=[...new Set([...target.locationIds,...entry.locationIds])];
-      if(!target.summary&&entry.summary)target.summary=entry.summary;
-      if(!target.impact&&entry.impact)target.impact=entry.impact;
-      if(target.dateScore==null&&entry.dateScore!=null){target.dateScore=entry.dateScore;target.time=entry.time;}
-    }
-    entries.push(...grouped.values());
-    entries.sort((a,b)=>{
-      if(a.origin!==b.origin)return a.origin?-1:1;
-      if(a.dateScore!=null&&b.dateScore!=null)return a.dateScore-b.dateScore||a.sequence-b.sequence;
-      if(a.dateScore!=null)return -1;if(b.dateScore!=null)return 1;
-      return a.sequence-b.sequence;
-    });
-    if(includePlaceholders){
-      const locations=character.currentLocationIds||[];
-      entries.push({key:'current',kind:'current',type:'present day',title:'Present Day',summary:[character.status,character.mood,character.position].filter(Boolean).join(' · ')||'This is the character’s current point in the world.',impact:'',time:'Now',dateScore:Infinity,sequence:Infinity,locationIds:[...locations],peopleIds:[],stories:[],sharedId:'',current:true});
-    }
-    return entries;
-  }
-
-  function ccLifeEntryActions(entry){
-    if(entry.kind==='story'){
-      const members=entry.sharedId?ccSharedPointMembers(entry.sharedId):[];
-      const routes=members.length?members:[ccLifeFindNode(entry.sourceStoryId,entry.sourceNodeId)];
-      return routes.filter(item=>item.story&&item.node).map(item=>`<button class="button secondary small" type="button" data-story-point="${esc(storyRouteValue(item.story.id,item.node.id))}">${esc(item.story.name)} →</button>`).join('');
-    }
-    if(entry.kind==='event')return `<button class="button secondary small" type="button" data-open="events:${esc(entry.sourceId)}">Open event →</button>`;
-    if(entry.kind==='manual')return `<button class="button ghost small" type="button" data-cc-life-edit-event="${esc(entry.characterId||'')}|${esc(entry.manualId)}">Edit</button>`;
-    return '';
-  }
-  function ccLifePeopleMarkup(character,entry){
-    const people=(entry.peopleIds||[]).map(idValue=>getItem('characters',idValue)).filter(Boolean);
-    if(!people.length)return '';
-    return `<aside class="cc-life-people"><span class="cc-life-people-label">Intersects with</span>${people.slice(0,5).map(person=>{const image=ccLifeCharacterImage(person);return `<button class="cc-life-person" type="button" data-cc-life-impact="${esc(character.id)}|${esc(person.id)}"><span class="cc-life-person-avatar">${image?`<img src="${esc(image)}" alt="">`:esc(initials(person.name||'?'))}</span><span><strong>${esc(person.name)}</strong><small>View impact / path</small></span></button>`;}).join('')}${people.length>5?`<span class="muted">+${people.length-5} more</span>`:''}</aside>`;
-  }
-  function ccLifeEntryHtml(character,entry){
-    const locations=(entry.locationIds||[]).map(idValue=>getItem('locations',idValue)).filter(Boolean);
-    const sharedStories=entry.sharedId?ccLifeSharedStories(entry.sharedId):[];
-    const rowClass=[entry.origin?'is-origin':'',entry.current?'is-current':'',entry.sharedId?'is-shared':''].filter(Boolean).join(' ');
-    let actions='';
-    if(entry.kind==='manual')actions=`<button class="button ghost small" type="button" data-cc-life-edit-event="${esc(character.id)}|${esc(entry.manualId)}">Edit</button>`;
-    else actions=ccLifeEntryActions(entry);
-    if(entry.kind==='origin-placeholder')actions=`<button class="button small" type="button" data-cc-life-add-origin="${esc(character.id)}">Set origin</button>`;
-    const meta=[...locations.map(location=>`<button type="button" data-open="locations:${esc(location.id)}">${esc(location.name)}</button>`),...(sharedStories.length>1?[`<span>${sharedStories.length} story paths</span>`]:[])].join('');
-    return `<div class="cc-life-row ${rowClass}"><div class="cc-life-time">${esc(entry.time||'Undated')}</div><div class="cc-life-node-wrap"><span class="cc-life-node"></span></div><article class="cc-life-card"><div class="cc-life-card-head"><div><span class="cc-life-type">${esc(entry.type||'life event')}</span><h3>${esc(entry.title)}</h3></div></div>${entry.summary?`<p>${esc(entry.summary)}</p>`:''}${entry.impact?`<p><strong>Impact:</strong> ${esc(entry.impact)}</p>`:''}${meta?`<div class="cc-life-meta">${meta}</div>`:''}${actions?`<div class="cc-life-card-actions">${actions}</div>`:''}</article>${ccLifePeopleMarkup(character,entry)}</div>`;
-  }
-  function ccLifeFilterEntries(entries,filter){
-    if(filter==='relationships')return entries.filter(entry=>entry.origin||entry.current||(entry.peopleIds||[]).length);
-    if(filter==='story')return entries.filter(entry=>entry.origin||entry.current||entry.kind==='story');
-    return entries;
-  }
-  function renderCharacterLifeStory(character){
-    const filter=ccLifeFilters.get(character.id)||'all';
-    const allEntries=ccCharacterLifeEntries(character);
-    const entries=ccLifeFilterEntries(allEntries,filter);
-    const storyCount=new Set(allEntries.flatMap(entry=>(entry.stories||[]).map(story=>story.id))).size;
-    const peopleCount=new Set(allEntries.flatMap(entry=>entry.peopleIds||[])).size;
-    const sharedCount=allEntries.filter(entry=>entry.sharedId).length;
-    const image=ccLifeCharacterImage(character);
-    el.main.innerHTML=`<div class="cc-life-page">${ccLifeTabs(character.id,'life')}<section class="cc-life-hero"><div class="cc-life-avatar">${image?`<img src="${esc(image)}" alt="${esc(character.name)}">`:esc(initials(character.name||'?'))}</div><div><span class="eyebrow">Character Life Story</span><h1>${esc(character.name)}</h1><p>One connected history from origin to present day, built from story points, timeline events, locations, relationships, and your manual life events.</p></div><div class="cc-life-hero-actions"><button class="button secondary" type="button" data-cc-life-bio="${esc(character.id)}">Open Bio</button><button class="button" type="button" data-cc-life-add-event="${esc(character.id)}">Add life event</button></div></section><div class="cc-life-summary"><article><strong>${allEntries.filter(entry=>!entry.current&&!entry.origin).length}</strong><span>Life points</span></article><article><strong>${storyCount}</strong><span>Story paths</span></article><article><strong>${peopleCount}</strong><span>People intersected</span></article><article><strong>${sharedCount}</strong><span>Shared convergences</span></article></div><div class="cc-life-tools"><div class="cc-life-filters"><button type="button" class="${filter==='all'?'is-active':''}" data-cc-life-filter="${esc(character.id)}|all">Full Life</button><button type="button" class="${filter==='relationships'?'is-active':''}" data-cc-life-filter="${esc(character.id)}|relationships">Relationships</button><button type="button" class="${filter==='story'?'is-active':''}" data-cc-life-filter="${esc(character.id)}|story">Story / RP only</button></div><span class="muted">Click a person to see how their paths intersect.</span></div>${entries.length?`<section class="cc-life-graph">${entries.map(entry=>ccLifeEntryHtml(character,entry)).join('')}</section>`:`<section class="cc-life-empty"><h3>No life-story points match this view</h3><p>Add a manual event or connect this character to a story point.</p></section>`}</div>`;
-  }
-
-  const ccLifeCollectionBase=collectionForView;
-  collectionForView=function(view){return view==='character-life'?'characters':ccLifeCollectionBase(view);};
-  if(typeof navButton==='function'){
-    const ccLifeNavButtonBase=navButton;
-    navButton=function(view,label,icon,count=''){
-      let html=ccLifeNavButtonBase(view,label,icon,count);
-      if(view==='characters'&&route.view==='character-life'&&!html.includes('nav-item active'))html=html.replace('nav-item ','nav-item active ');
-      return html;
-    };
-  }
-  if(typeof renderBreadcrumbs==='function'){
-    const ccLifeBreadcrumbsBase=renderBreadcrumbs;
-    renderBreadcrumbs=function(){
-      ccLifeBreadcrumbsBase();
-      if(route.view==='character-life'){
-        const first=[...el.breadcrumbs.querySelectorAll('[data-nav="character-life"]')][0];
-        if(first)first.dataset.nav='characters';
-      }
-    };
-  }
-  const ccLifeRenderEntityBase=renderEntity;
-  renderEntity=function(kind,itemId){
-    const item=getItem(kind,itemId);
-    if(kind==='characters'&&item&&route.view==='character-life'){renderCharacterLifeStory(item);return;}
-    ccLifeRenderEntityBase(kind,itemId);
-    if(kind==='characters'&&item)requestAnimationFrame(()=>ccLifeInjectBioTabs(item));
-  };
-
-  function ccLifeShowEventEditor(characterId,eventId='',forceOrigin=false){
-    const character=getItem('characters',characterId);if(!character)return;
-    const existing=(character.lifeEvents||[]).find(event=>event.id===eventId)||null;
-    const draft=existing||{id:'',type:forceOrigin?'origin':'event',title:'',summary:'',dateLabel:'',locationId:'',peopleIds:[],impact:''};
-    const people=(state.characters||[]).filter(person=>person.id!==characterId);
-    showModal(existing?'Edit life event':(forceOrigin?'Set character origin':'Add life event'),`<div class="cc-life-event-editor" data-cc-life-event-character="${esc(characterId)}" data-cc-life-event-id="${esc(existing?.id||'')}"><div class="cc-life-event-grid"><label><span>Type</span><select class="select" data-cc-life-event-field="type"><option value="origin" ${draft.type==='origin'?'selected':''}>Origin</option><option value="event" ${draft.type==='event'?'selected':''}>Life event</option><option value="milestone" ${draft.type==='milestone'?'selected':''}>Milestone</option><option value="relationship" ${draft.type==='relationship'?'selected':''}>Relationship</option><option value="travel" ${draft.type==='travel'?'selected':''}>Travel</option><option value="transformation" ${draft.type==='transformation'?'selected':''}>Transformation</option></select></label><label><span>Date / period</span><input class="input" data-cc-life-event-field="dateLabel" value="${esc(draft.dateLabel||'')}" placeholder="1240 AR, childhood, three years earlier…"></label><label class="wide"><span>Title</span><input class="input" data-cc-life-event-field="title" value="${esc(draft.title||'')}" placeholder="Born in Ashfall Dominion"></label><label class="wide"><span>What happened</span><textarea class="textarea" rows="4" data-cc-life-event-field="summary">${esc(draft.summary||'')}</textarea></label><label><span>Location</span><select class="select" data-cc-life-event-field="locationId"><option value="">No location</option>${(state.locations||[]).slice().sort((a,b)=>a.name.localeCompare(b.name)).map(location=>`<option value="${esc(location.id)}" ${draft.locationId===location.id?'selected':''}>${esc(location.name)}</option>`).join('')}</select></label><label class="wide"><span>How this changed or impacted ${esc(character.name)}</span><textarea class="textarea" rows="3" data-cc-life-event-field="impact">${esc(draft.impact||'')}</textarea></label></div><div><strong>People connected to this event</strong><div class="cc-life-people-picker">${people.map(person=>`<label><input type="checkbox" value="${esc(person.id)}" data-cc-life-event-person ${draft.peopleIds?.includes(person.id)?'checked':''}>${esc(person.name)}</label>`).join('')||'<span class="muted">No other characters yet.</span>'}</div></div></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button>${existing?`<button class="button danger" type="button" data-cc-life-delete-event="${esc(characterId)}|${esc(existing.id)}">Delete</button>`:''}<button class="button" type="button" data-cc-life-save-event>Save life event</button>`);
-  }
-  function ccLifeSaveEvent(){
-    const root=el.modal.querySelector('[data-cc-life-event-character]');if(!root)return;
-    const character=getItem('characters',root.dataset.ccLifeEventCharacter);if(!character)return;
-    const eventId=root.dataset.ccLifeEventId||'';
-    let event=(character.lifeEvents||[]).find(item=>item.id===eventId)||null;
-    if(!event){event={id:id('life-event'),order:(character.lifeEvents||[]).reduce((max,item)=>Math.max(max,Number(item.order)||0),0)+1};character.lifeEvents.push(event);}
-    const value=field=>root.querySelector(`[data-cc-life-event-field="${field}"]`)?.value||'';
-    event.type=value('type')||'event';event.title=value('title').trim()||(event.type==='origin'?'Origin':'Life event');event.dateLabel=value('dateLabel').trim();event.summary=value('summary').trim();event.locationId=value('locationId');event.impact=value('impact').trim();event.peopleIds=[...root.querySelectorAll('[data-cc-life-event-person]:checked')].map(input=>input.value);event.updatedAt=nowISO();
-    if(event.type==='origin')for(const other of character.lifeEvents)if(other.id!==event.id&&other.type==='origin')other.type='event';
-    character.updatedAt=nowISO();scheduleSave('Saving life story…');closeModal();renderEntity('characters',character.id);toast('Life event saved.');
-  }
-  function ccLifeShowImpact(subjectId,targetId){
-    const subject=getItem('characters',subjectId),target=getItem('characters',targetId);if(!subject||!target)return;
-    const shared=ccCharacterLifeEntries(subject,{includePlaceholders:false}).filter(entry=>(entry.peopleIds||[]).includes(targetId));
-    const first=shared[0];const targetImage=ccLifeCharacterImage(target);
-    showModal(`${target.name} × ${subject.name}`,`<div class="cc-life-event-editor"><div style="display:grid;grid-template-columns:58px 1fr;gap:12px;align-items:center"><div class="cc-life-avatar" style="width:58px;height:58px">${targetImage?`<img src="${esc(targetImage)}" alt="">`:esc(initials(target.name||'?'))}</div><div><strong>${esc(target.name)}</strong><p class="muted">${shared.length} recorded intersection${shared.length===1?'':'s'} with ${esc(subject.name)}${first?` · first shown here at ${esc(first.title)}`:''}</p></div></div><div class="cc-life-impact-list">${shared.slice(0,10).map(entry=>`<div class="cc-life-impact-item"><strong>${esc(entry.title)}</strong><small>${esc(entry.time||entry.type||'')}</small>${entry.impact?`<p>${esc(entry.impact)}</p>`:''}</div>`).join('')||'<div class="cc-life-impact-item"><strong>No recorded shared points yet</strong><small>Add both characters to a story point or manual life event.</small></div>'}</div></div>`,`<button class="button secondary" type="button" data-cc-life-open-bio="${esc(target.id)}">Open Bio</button><button class="button" type="button" data-cc-life-open-story="${esc(target.id)}">Open Life Story</button>`);
-  }
-
-  document.addEventListener('change',event=>{
-    const select=event.target.closest?.('[data-cc-life-connect-story]');if(!select)return;
-    const story=(state.storyGraphs||[]).find(item=>item.id===select.value);const target=el.modal.querySelector('[data-cc-life-connect-target]');if(!target)return;
-    target.innerHTML=(story?.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0)).map(node=>`<option value="${esc(node.id)}">${esc(storyPointTitle(story,node))}</option>`).join('');
-  });
-  document.addEventListener('click',event=>{
-    const life=event.target.closest?.('[data-cc-life-story]');if(life){event.preventDefault();navigate('character-life',life.dataset.ccLifeStory);return;}
-    const bio=event.target.closest?.('[data-cc-life-bio]');if(bio){event.preventDefault();navigate('characters',bio.dataset.ccLifeBio);return;}
-    const filter=event.target.closest?.('[data-cc-life-filter]');if(filter){event.preventDefault();const [characterId,value]=filter.dataset.ccLifeFilter.split('|');ccLifeFilters.set(characterId,value);const character=getItem('characters',characterId);if(character)renderCharacterLifeStory(character);return;}
-    const add=event.target.closest?.('[data-cc-life-add-event]');if(add){event.preventDefault();ccLifeShowEventEditor(add.dataset.ccLifeAddEvent);return;}
-    const origin=event.target.closest?.('[data-cc-life-add-origin]');if(origin){event.preventDefault();ccLifeShowEventEditor(origin.dataset.ccLifeAddOrigin,'',true);return;}
-    const edit=event.target.closest?.('[data-cc-life-edit-event]');if(edit){event.preventDefault();const [characterId,eventId]=edit.dataset.ccLifeEditEvent.split('|');ccLifeShowEventEditor(characterId,eventId);return;}
-    if(event.target.closest?.('[data-cc-life-save-event]')){event.preventDefault();ccLifeSaveEvent();return;}
-    const del=event.target.closest?.('[data-cc-life-delete-event]');if(del){event.preventDefault();const [characterId,eventId]=del.dataset.ccLifeDeleteEvent.split('|');const character=getItem('characters',characterId);if(!character)return;if(!confirm('Delete this manual life event?'))return;character.lifeEvents=(character.lifeEvents||[]).filter(item=>item.id!==eventId);scheduleSave('Deleting life event…');closeModal();if(route.view==='character-life'&&route.id===characterId)renderCharacterLifeStory(character);toast('Life event deleted.');return;}
-    const impact=event.target.closest?.('[data-cc-life-impact]');if(impact){event.preventDefault();const [subjectId,targetId]=impact.dataset.ccLifeImpact.split('|');ccLifeShowImpact(subjectId,targetId);return;}
-    const openBio=event.target.closest?.('[data-cc-life-open-bio]');if(openBio){event.preventDefault();closeModal();navigate('characters',openBio.dataset.ccLifeOpenBio);return;}
-    const openStory=event.target.closest?.('[data-cc-life-open-story]');if(openStory){event.preventDefault();closeModal();navigate('character-life',openStory.dataset.ccLifeOpenStory);return;}
-    const connect=event.target.closest?.('[data-cc-life-connect-point]');if(connect){event.preventDefault();const [storyId,nodeId]=connect.dataset.ccLifeConnectPoint.split('|');ccLifeShowConnectPoint(storyId,nodeId);return;}
-    const saveConnect=event.target.closest?.('[data-cc-life-save-connect]');if(saveConnect){event.preventDefault();const [storyId,nodeId]=saveConnect.dataset.ccLifeSaveConnect.split('|');const targetStoryId=el.modal.querySelector('[data-cc-life-connect-story]')?.value||'';const targetNodeId=el.modal.querySelector('[data-cc-life-connect-target]')?.value||'';const label=el.modal.querySelector('[data-cc-life-connect-label]')?.value.trim()||'Shared convergence';if(!targetStoryId||!targetNodeId){toast('Choose a story and story point.','error');return;}ccEnsureSharedStoryPoint(storyId,nodeId,targetStoryId,targetNodeId,label);scheduleSave('Saving shared convergence…');closeModal();render();toast('Story paths connected at this shared point.');return;}
-  },true);
-})();
-</script>
 
 </body>
 </html>
