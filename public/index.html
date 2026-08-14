@@ -7251,6 +7251,32 @@ window.CODEX_BUILD = "approved-badge-animals-layout-2026-08-12";
     return `<div class="breadcrumb-trail">${chain.map((x,i)=>`${i?'<span>›</span>':''}<button class="breadcrumb-pill" type="button" data-open="locations:${x.id}">${esc(x.name)}</button>`).join('')}</div>`;
   }
 
+  function timelineEventRpConnections(eventId){
+    const out=[];
+    for(const story of state.storyGraphs||[]){
+      for(const node of story.nodes||[]){
+        const point=typeof cc2Point==='function'?cc2Point(story,node):(node.point||{});
+        if((point.timelineEventIds||[]).includes(eventId)){
+          out.push({type:'point',story,node,title:storyPointTitle(story,node),copy:`${story.name} · whole story point`});
+        }
+      }
+      for(const turn of ensureStoryDocument(story)){
+        const ids=[...new Set([...(turn.timelineEventIds||[]),turn.timelineEventId].filter(Boolean))];
+        if(!ids.includes(eventId))continue;
+        const pointId=ccrhTurnStoryPointId(story,turn);
+        const pointStory=storyById(turn.storyPointStoryId||story.id)||story;
+        const node=pointId?(pointStory.nodes||[]).find(item=>item.id===pointId):null;
+        out.push({type:'post',story:pointStory,node,turn,title:node?storyPointTitle(pointStory,node):story.name,copy:`${pointStory.name} · ${shortText(turn.text||'',90)}`});
+      }
+    }
+    return out;
+  }
+  function timelineEventRpConnectionsHtml(eventId){
+    const links=timelineEventRpConnections(eventId);
+    if(!links.length)return '<span class="property-help">No RP portions connected yet. In Roleplay Hub, attach this event to an exact post, or connect it to an entire Story Point.</span>';
+    return `<div class="children-list">${links.map(link=>`<div class="child-row"><button class="button ghost small" type="button" ${link.type==='post'?`data-ccrh-open-linked-post="${esc(link.story.id)}|${esc(link.node?.id||'')}|${esc(link.turn.id)}"`:`data-story-point="${esc(storyRouteValue(link.story.id,link.node.id))}"`}>${link.type==='post'?'RP post':'Story point'} · ${esc(link.title)}</button><span class="cell-muted">${esc(link.copy)}</span></div>`).join('')}</div>`;
+  }
+
   function renderProperties(kind,item) {
     if (kind === 'locations') {
       const children = childrenOf(item.id);
@@ -7315,6 +7341,7 @@ window.CODEX_BUILD = "approved-badge-animals-layout-2026-08-12";
       ${propertyTextarea('Description','description',item.description,kind,item.id)}
       ${propertyTextarea('Consequences','consequences',item.consequences,kind,item.id)}
       <div class="property-row"><label>Involved people</label>${linkedPills('characters',item.characterIds)}</div>
+      <div class="property-row"><label>Connected RP portions</label>${timelineEventRpConnectionsHtml(item.id)}</div>
       ${propertyTextarea('Notes','notes',item.notes,kind,item.id)}
     </div>`;
   }
@@ -8455,6 +8482,17 @@ window.CODEX_BUILD = "approved-badge-animals-layout-2026-08-12";
       state.locations.forEach(x=>x.keyCharacterIds=(x.keyCharacterIds||[]).filter(id=>id!==itemId));
       state.factions.forEach(x=>x.keyMemberIds=(x.keyMemberIds||[]).filter(id=>id!==itemId));
       state.events.forEach(x=>x.characterIds=(x.characterIds||[]).filter(id=>id!==itemId));
+    }
+    if(kind==='events'){
+      for(const story of state.storyGraphs||[]){
+        for(const node of story.nodes||[]){
+          if(node.point)node.point.timelineEventIds=(node.point.timelineEventIds||[]).filter(id=>id!==itemId);
+        }
+        for(const turn of ensureStoryDocument(story)){
+          if(turn.timelineEventId===itemId)turn.timelineEventId='';
+          turn.timelineEventIds=(turn.timelineEventIds||[]).filter(id=>id!==itemId);
+        }
+      }
     }
     logActivity(`Deleted ${item.name}`); scheduleSave(); navigate(kind);
   }
@@ -13173,6 +13211,7 @@ const CC2_VERSION = 'story-timeline-2026-08';
     point.parentPointId ||= '';
     point.rejoinPointId ||= '';
     point.locationIds = cc2Unique(point.locationIds);
+    point.timelineEventIds = cc2Unique(point.timelineEventIds);
     point.participantIds = cc2Unique(point.participantIds);
     point.affectedIds = cc2Unique(point.affectedIds);
     point.mentionedIds = cc2Unique(point.mentionedIds);
@@ -13520,7 +13559,7 @@ const CC2_VERSION = 'story-timeline-2026-08';
       at:nowISO(),by:cc2UserName(),
       title:p.title,summary:p.summary,type:p.type,status:p.status,exactDate:p.exactDate,timeLabel:p.timeLabel,
       chronologyOrder:p.chronologyOrder,arc:p.arc,chapter:p.chapter,branch:p.branch,parentPointId:p.parentPointId,rejoinPointId:p.rejoinPointId,
-      locationIds:[...p.locationIds],participantIds:[...p.participantIds],affectedIds:[...p.affectedIds],mentionedIds:[...p.mentionedIds],povIds:[...p.povIds],
+      locationIds:[...p.locationIds],timelineEventIds:[...(p.timelineEventIds||[])],participantIds:[...p.participantIds],affectedIds:[...p.affectedIds],mentionedIds:[...p.mentionedIds],povIds:[...p.povIds],
       roles:{...p.roles},knowledge:{...p.knowledge},consequences:p.consequences,beforeState:p.beforeState,afterState:p.afterState,
       anchorTurnId:ensureStoryPassage(node).anchorTurnId
     };
@@ -13544,9 +13583,10 @@ const CC2_VERSION = 'story-timeline-2026-08';
       return `<div class="cc2-character-role-row"><strong>${esc(character.name)}</strong>${Object.entries(participantRoleLabels).map(([key,label])=>`<label><input type="checkbox" data-cc2-character-list="${key}" value="${esc(charId)}" ${p[`${key.slice(0,-1)}Ids`]?.includes?.(charId) || (key==='participants'&&p.participantIds.includes(charId)) || (key==='affected'&&p.affectedIds.includes(charId)) || (key==='mentioned'&&p.mentionedIds.includes(charId)) || (key==='pov'&&p.povIds.includes(charId))?'checked':''}> ${label}</label>`).join('')}<select class="select" data-cc2-knowledge="${esc(charId)}">${knowledgeStates.map(([value,label])=>`<option value="${value}" ${p.knowledge?.[charId]===value?'selected':''}>${label}</option>`).join('')}</select><input class="input" data-cc2-role="${esc(charId)}" value="${esc(p.roles?.[charId] || '')}" placeholder="Role in scene"></div>`;
     }).join('');
     const locationRows=state.locations.map(location=>`<label><input type="checkbox" data-cc2-location value="${esc(location.id)}" ${p.locationIds.includes(location.id)?'checked':''}> ${esc(location.name)}</label>`).join('');
+    const timelineEventRows=(state.events||[]).map(event=>`<label><input type="checkbox" data-cc2-timeline-event value="${esc(event.id)}" ${(p.timelineEventIds||[]).includes(event.id)?'checked':''}> ${esc(event.name)}${event.date?` <small class="cell-muted">· ${esc(event.date)}</small>`:''}</label>`).join('');
     const revisionRows=(p.revisions || []).slice().reverse().map((revision,index)=>`<div class="cc2-revision-row"><span>${esc(fmtTime(revision.at))} · ${esc(revision.by || 'Editor')}</span><button class="button ghost small" type="button" data-cc2-restore-revision="${esc(story.id)}|${esc(node.id)}|${(p.revisions || []).length-1-index}">Restore</button></div>`).join('');
     const commentRows=(p.comments || []).map(comment=>`<div class="cc2-comment-row"><strong>${esc(comment.author || 'Editor')}</strong><small>${esc(fmtTime(comment.createdAt))}</small><p>${esc(comment.text)}</p></div>`).join('');
-    showModal(isNew?'Create story point':`Edit ${p.title || 'story point'}`,`<div class="cc2-point-editor" data-cc2-editor-story="${esc(story.id)}" data-cc2-editor-node="${esc(node.id)}" data-cc2-editor-new="${isNew?'1':'0'}"><div class="cc2-point-editor-grid"><label class="wide"><span>Story point title</span><input class="input" data-cc2-field="title" value="${esc(p.title)}" placeholder="Astra + Braum, The Inn, Bond Breaking..."></label><label class="wide"><span>Summary</span><textarea class="textarea" rows="3" data-cc2-field="summary">${esc(p.summary)}</textarea></label><label><span>Point type</span><select class="select" data-cc2-field="type">${cc2TypeDefinitions({includeDisabled:false,includeType:p.type}).map(item=>`<option value="${esc(item.id)}" ${p.type===item.id?'selected':''}>${esc(item.symbol)} · ${esc(item.label)}</option>`).join('')}</select><small class="cc2-field-help">Person, location, event, scene, condition, or any custom type you create.</small></label><label><span>Status</span><select class="select" data-cc2-field="status"><option value="written" ${p.status==='written'?'selected':''}>Written</option><option value="planned" ${p.status==='planned'?'selected':''}>Planned</option></select></label><label><span>Exact date</span><div class="input"><input type="date" data-cc2-field="exactDate" value="${esc(p.exactDate)}" style="width:100%;border:0;background:transparent"></div></label><label><span>Relative time label</span><input class="input" data-cc2-field="timeLabel" value="${esc(p.timeLabel)}" placeholder="Three days later, that evening..."></label><label><span>Chronology order</span><input class="input" type="number" step="1" data-cc2-field="chronologyOrder" value="${Number(p.chronologyOrder)||node.order}"></label><label><span>Story order</span><input class="input" type="number" step="1" min="1" data-cc2-field="storyOrder" value="${node.order}"></label><label><span>Arc or act</span><input class="input" data-cc2-field="arc" value="${esc(p.arc)}" placeholder="Act II · The Breaking"></label><label><span>Chapter</span><input class="input" data-cc2-field="chapter" value="${esc(p.chapter)}" placeholder="Chapter 7"></label><label><span>Branch or lane</span><input class="input" data-cc2-field="branch" value="${esc(p.branch==='main'?'':p.branch)}" placeholder="Leave blank for main path"></label><label><span>Branches from</span><select class="select" data-cc2-field="parentPointId"><option value="">No branch parent</option>${otherOptions.replace(`value="${esc(p.parentPointId)}"`,`value="${esc(p.parentPointId)}" selected`)}</select></label><label><span>Rejoins at</span><select class="select" data-cc2-field="rejoinPointId"><option value="">Does not rejoin yet</option>${otherOptions.replace(`value="${esc(p.rejoinPointId)}"`,`value="${esc(p.rejoinPointId)}" selected`)}</select></label><label><span>RP bookmark</span><select class="select" data-cc2-field="anchorTurnId">${storyAnchorOptions(story,node)}</select></label></div><section class="cc2-editor-section"><h3>Characters and what they do here</h3><p class="cc2-editor-note">A character can be present, affected later, mentioned, or the point of view. Knowledge tracking is optional.</p><div class="cc2-character-role-grid">${characterRows || '<p class="cc2-empty">Create characters first.</p>'}</div></section><section class="cc2-editor-section"><h3>Locations</h3><div class="cc2-location-grid">${locationRows || '<p class="cc2-empty">Create locations first.</p>'}</div><label style="margin-top:10px"><span><input type="checkbox" data-cc2-update-current> Set the first selected location as the current location for characters marked Present</span></label></section><section class="cc2-editor-section"><h3>What changes</h3><div class="cc2-point-editor-grid"><label class="wide"><span>Before</span><textarea class="textarea" rows="2" data-cc2-field="beforeState">${esc(p.beforeState)}</textarea></label><label class="wide"><span>Consequences</span><textarea class="textarea" rows="3" data-cc2-field="consequences">${esc(p.consequences)}</textarea></label><label class="wide"><span>After</span><textarea class="textarea" rows="2" data-cc2-field="afterState">${esc(p.afterState)}</textarea></label></div></section><section class="cc2-editor-section"><h3>Comments</h3><div class="cc2-comment-list">${commentRows || '<p class="cc2-empty">No comments yet.</p>'}</div><div style="display:flex;gap:8px;margin-top:10px"><input class="input" data-cc2-new-comment placeholder="Add a planning comment"><button class="button secondary" type="button" data-cc2-add-comment>Add comment</button></div></section><details class="cc2-editor-section"><summary>Revision history (${p.revisions.length})</summary><div class="cc2-revision-list">${revisionRows || '<p class="cc2-empty">Revisions appear after the first edit.</p>'}</div></details></div>`,`<button class="button secondary" type="button" data-cc2-cancel-point="${esc(story.id)}|${esc(node.id)}|${isNew?'1':'0'}">Cancel</button>${!isNew?`<button class="button danger" type="button" data-cc2-delete-point="${esc(story.id)}|${esc(node.id)}">Delete</button>`:''}<button class="button" type="button" data-cc2-save-point>Save story point</button>`);
+    showModal(isNew?'Create story point':`Edit ${p.title || 'story point'}`,`<div class="cc2-point-editor" data-cc2-editor-story="${esc(story.id)}" data-cc2-editor-node="${esc(node.id)}" data-cc2-editor-new="${isNew?'1':'0'}"><div class="cc2-point-editor-grid"><label class="wide"><span>Story point title</span><input class="input" data-cc2-field="title" value="${esc(p.title)}" placeholder="Astra + Braum, The Inn, Bond Breaking..."></label><label class="wide"><span>Summary</span><textarea class="textarea" rows="3" data-cc2-field="summary">${esc(p.summary)}</textarea></label><label><span>Point type</span><select class="select" data-cc2-field="type">${cc2TypeDefinitions({includeDisabled:false,includeType:p.type}).map(item=>`<option value="${esc(item.id)}" ${p.type===item.id?'selected':''}>${esc(item.symbol)} · ${esc(item.label)}</option>`).join('')}</select><small class="cc2-field-help">Person, location, event, scene, condition, or any custom type you create.</small></label><label><span>Status</span><select class="select" data-cc2-field="status"><option value="written" ${p.status==='written'?'selected':''}>Written</option><option value="planned" ${p.status==='planned'?'selected':''}>Planned</option></select></label><label><span>Exact date</span><div class="input"><input type="date" data-cc2-field="exactDate" value="${esc(p.exactDate)}" style="width:100%;border:0;background:transparent"></div></label><label><span>Relative time label</span><input class="input" data-cc2-field="timeLabel" value="${esc(p.timeLabel)}" placeholder="Three days later, that evening..."></label><label><span>Chronology order</span><input class="input" type="number" step="1" data-cc2-field="chronologyOrder" value="${Number(p.chronologyOrder)||node.order}"></label><label><span>Story order</span><input class="input" type="number" step="1" min="1" data-cc2-field="storyOrder" value="${node.order}"></label><label><span>Arc or act</span><input class="input" data-cc2-field="arc" value="${esc(p.arc)}" placeholder="Act II · The Breaking"></label><label><span>Chapter</span><input class="input" data-cc2-field="chapter" value="${esc(p.chapter)}" placeholder="Chapter 7"></label><label><span>Branch or lane</span><input class="input" data-cc2-field="branch" value="${esc(p.branch==='main'?'':p.branch)}" placeholder="Leave blank for main path"></label><label><span>Branches from</span><select class="select" data-cc2-field="parentPointId"><option value="">No branch parent</option>${otherOptions.replace(`value="${esc(p.parentPointId)}"`,`value="${esc(p.parentPointId)}" selected`)}</select></label><label><span>Rejoins at</span><select class="select" data-cc2-field="rejoinPointId"><option value="">Does not rejoin yet</option>${otherOptions.replace(`value="${esc(p.rejoinPointId)}"`,`value="${esc(p.rejoinPointId)}" selected`)}</select></label><label><span>RP bookmark</span><select class="select" data-cc2-field="anchorTurnId">${storyAnchorOptions(story,node)}</select></label></div><section class="cc2-editor-section"><h3>Characters and what they do here</h3><p class="cc2-editor-note">A character can be present, affected later, mentioned, or the point of view. Knowledge tracking is optional.</p><div class="cc2-character-role-grid">${characterRows || '<p class="cc2-empty">Create characters first.</p>'}</div></section><section class="cc2-editor-section"><h3>Locations</h3><div class="cc2-location-grid">${locationRows || '<p class="cc2-empty">Create locations first.</p>'}</div><label style="margin-top:10px"><span><input type="checkbox" data-cc2-update-current> Set the first selected location as the current location for characters marked Present</span></label></section><section class="cc2-editor-section"><h3>Timeline events</h3><p class="cc2-editor-note">Connect this whole story point to one or more world timeline events. This is useful when the event spans several RP posts instead of one exact post.</p><div class="cc2-location-grid">${timelineEventRows || '<p class="cc2-empty">Create timeline events first.</p>'}</div></section><section class="cc2-editor-section"><h3>What changes</h3><div class="cc2-point-editor-grid"><label class="wide"><span>Before</span><textarea class="textarea" rows="2" data-cc2-field="beforeState">${esc(p.beforeState)}</textarea></label><label class="wide"><span>Consequences</span><textarea class="textarea" rows="3" data-cc2-field="consequences">${esc(p.consequences)}</textarea></label><label class="wide"><span>After</span><textarea class="textarea" rows="2" data-cc2-field="afterState">${esc(p.afterState)}</textarea></label></div></section><section class="cc2-editor-section"><h3>Comments</h3><div class="cc2-comment-list">${commentRows || '<p class="cc2-empty">No comments yet.</p>'}</div><div style="display:flex;gap:8px;margin-top:10px"><input class="input" data-cc2-new-comment placeholder="Add a planning comment"><button class="button secondary" type="button" data-cc2-add-comment>Add comment</button></div></section><details class="cc2-editor-section"><summary>Revision history (${p.revisions.length})</summary><div class="cc2-revision-list">${revisionRows || '<p class="cc2-empty">Revisions appear after the first edit.</p>'}</div></details></div>`,`<button class="button secondary" type="button" data-cc2-cancel-point="${esc(story.id)}|${esc(node.id)}|${isNew?'1':'0'}">Cancel</button>${!isNew?`<button class="button danger" type="button" data-cc2-delete-point="${esc(story.id)}|${esc(node.id)}">Delete</button>`:''}<button class="button" type="button" data-cc2-save-point>Save story point</button>`);
     requestAnimationFrame(()=>el.modal.querySelector('[data-cc2-field="title"]')?.focus());
   }
 
@@ -13564,6 +13604,7 @@ const CC2_VERSION = 'story-timeline-2026-08';
     p.beforeState=field('beforeState').trim(); p.consequences=field('consequences').trim(); p.afterState=field('afterState').trim();
     p.participantIds=cc2ReadEditorLists(root,'participants'); p.affectedIds=cc2ReadEditorLists(root,'affected'); p.mentionedIds=cc2ReadEditorLists(root,'mentioned'); p.povIds=cc2ReadEditorLists(root,'pov');
     p.locationIds=[...root.querySelectorAll('[data-cc2-location]:checked')].map(input=>input.value);
+    p.timelineEventIds=[...root.querySelectorAll('[data-cc2-timeline-event]:checked')].map(input=>input.value);
     p.roles={}; root.querySelectorAll('[data-cc2-role]').forEach(input=>{if(input.value.trim())p.roles[input.dataset.cc2Role]=input.value.trim();});
     p.knowledge={}; root.querySelectorAll('[data-cc2-knowledge]').forEach(select=>{if(select.value)p.knowledge[select.dataset.cc2Knowledge]=select.value;});
     p.updatedAt=nowISO(); p.updatedBy=cc2UserName(); if(!p.createdBy)p.createdBy=p.updatedBy;
@@ -15574,16 +15615,16 @@ initFirebase();
   function ccrhLoadDraftData(story){
     try{
       const raw=localStorage.getItem(ccrhDraftKey(story))||'';
-      if(!raw)return {text:'',speaker:'',customName:'',locationChoice:'inherit',storyPointId:''};
+      if(!raw)return {text:'',speaker:'',customName:'',locationChoice:'inherit',storyPointId:'',timelineEventId:''};
       if(raw.trim().startsWith('{')){
         const parsed=JSON.parse(raw);
         if(parsed&&typeof parsed==='object')return {
           text:String(parsed.text||''),speaker:String(parsed.speaker||''),customName:String(parsed.customName||''),
-          locationChoice:String(parsed.locationChoice||'inherit'),storyPointId:String(parsed.storyPointId||'')
+          locationChoice:String(parsed.locationChoice||'inherit'),storyPointId:String(parsed.storyPointId||''),timelineEventId:String(parsed.timelineEventId||'')
         };
       }
-      return {text:raw,speaker:'',customName:'',locationChoice:'inherit',storyPointId:''};
-    }catch{return {text:'',speaker:'',customName:'',locationChoice:'inherit',storyPointId:''};}
+      return {text:raw,speaker:'',customName:'',locationChoice:'inherit',storyPointId:'',timelineEventId:''};
+    }catch{return {text:'',speaker:'',customName:'',locationChoice:'inherit',storyPointId:'',timelineEventId:''};}
   }
   function ccrhLoadDraft(story){ return ccrhLoadDraftData(story).text; }
   function ccrhSaveDraft(story,value,meta={}){
@@ -15631,12 +15672,22 @@ initFirebase();
     const sceneName=storyLocationName(scene.locationId,scene.detail)||'not set';
     return `<option value="inherit" ${selected==='inherit'?'selected':''}>Use inherited scene location</option><option value="none" ${selected==='none'?'selected':''}>No location for this post</option>${state.locations.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))).map(location=>`<option value="location:${esc(location.id)}" ${selected===`location:${location.id}`?'selected':''}>${esc(location.name)}</option>`).join('')}`;
   }
+  function ccrhTimelineEventOptions(selected=''){
+    const value=String(selected||'');
+    const events=(state.events||[]).slice().sort((a,b)=>{
+      const ao=Number(a.timelineOrder||a.order||0),bo=Number(b.timelineOrder||b.order||0);
+      if(ao!==bo)return ao-bo;
+      return String(a.date||'').localeCompare(String(b.date||''))||String(a.name||'').localeCompare(String(b.name||''));
+    });
+    return `<option value="" ${!value?'selected':''}>No timeline event selected</option>${events.map(event=>`<option value="${esc(event.id)}" ${value===event.id?'selected':''}>${esc(event.name||'Untitled event')}${event.date?` · ${esc(event.date)}`:''}</option>`).join('')}`;
+  }
   function ccrhComposerDraftMeta(){
     return {
       speaker:document.querySelector('[data-ccrh-speaker]')?.value||'',
       customName:document.querySelector('[data-ccrh-custom-name]')?.value||'',
       locationChoice:document.querySelector('[data-ccrh-location]')?.value||'inherit',
-      storyPointId:document.querySelector('[data-ccrh-story-point]')?.value||''
+      storyPointId:document.querySelector('[data-ccrh-story-point]')?.value||'',
+      timelineEventId:document.querySelector('[data-ccrh-timeline-event]')?.value||''
     };
   }
   function ccrhPersistComposerDraft(){
@@ -15840,8 +15891,10 @@ initFirebase();
           const point=explicitPointId?(pointStory.nodes||[]).find(item=>item.id===explicitPointId):null;
           const place=storyTurnLocation(story,index);
           const location=place.locationId?getItem('locations',place.locationId):null;
-          if(!point&&!location&&!place.detail)return '';
-          return `<div class="ccrh-post-context">${point?`<button class="ccrh-context-chip" type="button" data-story-point="${esc(storyRouteValue(pointStory.id,point.id))}">Story point: ${esc(storyPointTitle(pointStory,point))}${pointStory.id!==story.id?` · ${esc(pointStory.name)}`:''}</button>`:''}${location?`<button class="ccrh-context-chip" type="button" data-open="locations:${esc(location.id)}">Location: ${esc(storyLocationName(location.id,place.detail))}</button>`:place.detail?`<span class="ccrh-context-chip">Location: ${esc(place.detail)}</span>`:''}</div>`;
+          const timelineEventIds=[...new Set([...(turn.timelineEventIds||[]),turn.timelineEventId].filter(Boolean))];
+          const timelineEvents=timelineEventIds.map(eventId=>getItem('events',eventId)).filter(Boolean);
+          if(!point&&!location&&!place.detail&&!timelineEvents.length)return '';
+          return `<div class="ccrh-post-context">${point?`<button class="ccrh-context-chip" type="button" data-story-point="${esc(storyRouteValue(pointStory.id,point.id))}">Story point: ${esc(storyPointTitle(pointStory,point))}${pointStory.id!==story.id?` · ${esc(pointStory.name)}`:''}</button>`:''}${location?`<button class="ccrh-context-chip" type="button" data-open="locations:${esc(location.id)}">Location: ${esc(storyLocationName(location.id,place.detail))}</button>`:place.detail?`<span class="ccrh-context-chip">Location: ${esc(place.detail)}</span>`:''}${timelineEvents.map(eventItem=>`<button class="ccrh-context-chip" type="button" data-open="events:${esc(eventItem.id)}">Timeline event: ${esc(eventItem.name)}</button>`).join('')}</div>`;
         })()}
         <div class="ccrh-post-body">${ccrhBbcode(turn.text||'')}</div>
         <div class="ccrh-post-action-popup" hidden>
@@ -15876,6 +15929,7 @@ initFirebase();
       : (ccrhTypingStoryId===story.id ? ccrhTypingValue : storedDraft.text);
     const composerLocationChoice=editingTurn?ccrhLocationChoice(editingTurn):(storedDraft.locationChoice||'inherit');
     const composerStoryPointId=editingTurn?ccrhTurnStoryPointRef(story,editingTurn):(storedDraft.storyPointId||(node?storyRouteValue(story.id,node.id):''));
+    const composerTimelineEventId=editingTurn?String(editingTurn.timelineEventId||editingTurn.timelineEventIds?.[0]||''):(storedDraft.timelineEventId||'');
     const incomingPosts=ccrhKnownPostCount&&turns.length>ccrhKnownPostCount;
     if(!ccrhTypingStoryId||ccrhTypingStoryId!==story.id)ccrhKnownPostCount=turns.length;
     const anchorChips=(ordered||[]).map(point=>{
@@ -15899,6 +15953,7 @@ initFirebase();
         <div class="ccrh-compose-context">
           <label>Location<select class="select" data-ccrh-location>${ccrhLocationChoiceOptions(story,composerLocationChoice)}</select></label>
           <label>Story point<select class="select" data-ccrh-story-point>${ccrhStoryPointOptions(story,composerStoryPointId)}</select></label>
+          <label>Timeline event<select class="select" data-ccrh-timeline-event>${ccrhTimelineEventOptions(composerTimelineEventId)}</select></label>
         </div>
         <div class="ccrh-bb-toolbar">
           <button type="button" data-ccrh-tag="b">B</button><button type="button" data-ccrh-tag="i"><i>I</i></button><button type="button" data-ccrh-tag="u"><u>U</u></button><button type="button" data-ccrh-tag="s"><s>S</s></button>
@@ -15990,6 +16045,9 @@ initFirebase();
       turn.storyPointStoryId='';
       turn.storyPointId='';
     }
+    const selectedTimelineEventId=document.querySelector('[data-ccrh-timeline-event]')?.value||'';
+    turn.timelineEventId=selectedTimelineEventId;
+    turn.timelineEventIds=selectedTimelineEventId?[selectedTimelineEventId]:[];
     if(existing){
       ccrhEditingPostId='';
       ccrhTypingStoryId='';
@@ -16063,6 +16121,16 @@ initFirebase();
   };
 
   document.addEventListener('click',async event=>{
+    const linkedPost=event.target.closest('[data-ccrh-open-linked-post]');
+    if(linkedPost){
+      event.preventDefault();
+      const [storyId,nodeId,turnId]=String(linkedPost.dataset.ccrhOpenLinkedPost||'').split('|');
+      if(storyId&&turnId){
+        navigate('story',storyRouteValue(storyId,nodeId||''));
+        requestAnimationFrame(()=>setTimeout(()=>document.getElementById(`rp-post-${CSS.escape(turnId)}`)?.scrollIntoView({behavior:'smooth',block:'center'}),80));
+      }
+      return;
+    }
     const storyScroll=event.target.closest('[data-ccrh-story-scroll]');
     if(storyScroll){
       event.preventDefault();
@@ -16072,7 +16140,7 @@ initFirebase();
     const tag=event.target.closest('[data-ccrh-tag]'); if(tag){event.preventDefault();const t=tag.dataset.ccrhTag;ccrhInsert(`[${t}]`,`[/${t}]`);return;}
     const wrap=event.target.closest('[data-ccrh-wrap]'); if(wrap){event.preventDefault();const [a,b='']=wrap.dataset.ccrhWrap.split('|');ccrhInsert(a,b);return;}
     const tab=event.target.closest('[data-ccrh-tab]'); if(tab){event.preventDefault();ccrhPreviewMode=tab.dataset.ccrhTab==='preview';const area=document.querySelector('[data-ccrh-editor]');if(area&&!ccrhEditingPostId)ccrhSaveDraft(ccrhStoryFromRoute().story,area.value,ccrhComposerDraftMeta());ccrhRenderReader();return;}
-    if(event.target.closest('[data-ccrh-clear-reply]')){event.preventDefault();const {story,node}=ccrhStoryFromRoute();const area=document.querySelector('[data-ccrh-editor]');if(!story||!area)return;if(area.value&&!window.confirm('Clear this reply? This will remove the text in the reply box and reset its draft options.'))return;area.value='';ccrhTypingStoryId='';ccrhTypingValue='';const speaker=document.querySelector('[data-ccrh-speaker]');if(speaker){if([...speaker.options].some(option=>option.value==='narrator'))speaker.value='narrator';else speaker.selectedIndex=0;}const customWrap=document.querySelector('[data-ccrh-custom-wrap]');if(customWrap)customWrap.hidden=true;const customName=document.querySelector('[data-ccrh-custom-name]');if(customName)customName.value='';const locationSelect=document.querySelector('[data-ccrh-location]');if(locationSelect)locationSelect.value='inherit';const pointSelect=document.querySelector('[data-ccrh-story-point]');if(pointSelect)pointSelect.value=node?storyRouteValue(story.id,node.id):'';ccrhClearDraft(story);const count=document.querySelector('[data-ccrh-count]');if(count)count.textContent='0';const preview=document.querySelector('[data-ccrh-preview]');if(preview)preview.innerHTML='<span class="muted">Your preview will appear here.</span>';area.focus();toast('Reply cleared.');return;}
+    if(event.target.closest('[data-ccrh-clear-reply]')){event.preventDefault();const {story,node}=ccrhStoryFromRoute();const area=document.querySelector('[data-ccrh-editor]');if(!story||!area)return;if(area.value&&!window.confirm('Clear this reply? This will remove the text in the reply box and reset its draft options.'))return;area.value='';ccrhTypingStoryId='';ccrhTypingValue='';const speaker=document.querySelector('[data-ccrh-speaker]');if(speaker){if([...speaker.options].some(option=>option.value==='narrator'))speaker.value='narrator';else speaker.selectedIndex=0;}const customWrap=document.querySelector('[data-ccrh-custom-wrap]');if(customWrap)customWrap.hidden=true;const customName=document.querySelector('[data-ccrh-custom-name]');if(customName)customName.value='';const locationSelect=document.querySelector('[data-ccrh-location]');if(locationSelect)locationSelect.value='inherit';const pointSelect=document.querySelector('[data-ccrh-story-point]');if(pointSelect)pointSelect.value=node?storyRouteValue(story.id,node.id):'';const eventSelect=document.querySelector('[data-ccrh-timeline-event]');if(eventSelect)eventSelect.value='';ccrhClearDraft(story);const count=document.querySelector('[data-ccrh-count]');if(count)count.textContent='0';const preview=document.querySelector('[data-ccrh-preview]');if(preview)preview.innerHTML='<span class="muted">Your preview will appear here.</span>';area.focus();toast('Reply cleared.');return;}
     if(event.target.closest('[data-ccrh-save-draft]')){event.preventDefault();const {story}=ccrhStoryFromRoute();const area=document.querySelector('[data-ccrh-editor]');ccrhSaveDraft(story,area?.value||'',ccrhComposerDraftMeta());toast('Draft saved.');return;}
     if(event.target.closest('[data-ccrh-submit]')){event.preventDefault();await ccrhSubmit();return;}
     const quote=event.target.closest('[data-ccrh-quote]'); if(quote){event.preventDefault();const {story}=ccrhStoryFromRoute();const turn=ensureStoryDocument(story).find(x=>x.id===quote.dataset.ccrhQuote);if(turn){const speaker=storySpeakerMeta(turn);document.getElementById('rp-composer')?.scrollIntoView({behavior:'smooth'});setTimeout(()=>ccrhInsert(`[quote="${speaker.name}"]\n${turn.text}\n[/quote]\n\n`,''),250);}return;}
@@ -16112,7 +16180,7 @@ initFirebase();
   },true);
   document.addEventListener('change',event=>{
     const speaker=event.target.closest('[data-ccrh-speaker]');if(speaker){const wrap=document.querySelector('[data-ccrh-custom-wrap]');if(wrap)wrap.hidden=speaker.value!=='custom';ccrhPersistComposerDraft();return;}
-    if(event.target.closest('[data-ccrh-location]')||event.target.closest('[data-ccrh-story-point]')){ccrhPersistComposerDraft();return;}
+    if(event.target.closest('[data-ccrh-location]')||event.target.closest('[data-ccrh-story-point]')||event.target.closest('[data-ccrh-timeline-event]')){ccrhPersistComposerDraft();return;}
   },true);
   document.addEventListener('input',event=>{
     if(event.target.closest('[data-ccrh-custom-name]'))ccrhPersistComposerDraft();
@@ -17789,6 +17857,8 @@ initFirebase();
      use routing, state, renderers, and save helpers on every character template. */
 (() => {
   const ccLifeFilters = new Map();
+  const ccLifeArrangeMode = new Set();
+  let ccLifeDragged = null;
 
   function ccLifeFindNode(storyId,nodeId){
     const story=(state.storyGraphs||[]).find(item=>item.id===storyId)||null;
@@ -17845,9 +17915,15 @@ initFirebase();
     ccLifeNormalizeBase();
     for(const character of state.characters||[]){
       character.lifeEvents ||= [];
+      character.lifeStoryOrder = Array.isArray(character.lifeStoryOrder) ? character.lifeStoryOrder.filter(Boolean) : [];
       for(const event of character.lifeEvents){
         event.id ||= id('life-event');event.type ||= 'event';event.title ||= 'Life event';event.summary ||= '';event.dateLabel ||= '';event.locationId ||= '';event.peopleIds ||= [];event.impact ||= '';event.order=Number(event.order)||0;
       }
+    }
+    state.workspace ||= {};
+    state.workspace.timelineContradictions = Array.isArray(state.workspace.timelineContradictions) ? state.workspace.timelineContradictions : [];
+    for(const item of state.workspace.timelineContradictions){
+      item.id ||= id('contradiction');item.title ||= 'Continuity question';item.details ||= '';item.status ||= 'Open';item.eventAId ||= '';item.eventBId ||= '';item.characterId ||= '';item.storyId ||= '';item.nodeId ||= '';item.lifeEntryKey ||= '';item.createdAt ||= nowISO();
     }
     for(const story of state.storyGraphs||[])for(const turn of story.rpTurns||[])turn.storyPointStoryId ||= '';
     ccUpgradeSharedStoryPoints();
@@ -17981,6 +18057,18 @@ initFirebase();
       if(a.dateScore!=null)return -1;if(b.dateScore!=null)return 1;
       return a.sequence-b.sequence;
     });
+    const savedOrder=Array.isArray(character.lifeStoryOrder)?character.lifeStoryOrder:[];
+    if(savedOrder.length){
+      const rank=new Map(savedOrder.map((key,index)=>[key,index]));
+      const originEntries=entries.filter(entry=>entry.origin);
+      const normalEntries=entries.filter(entry=>!entry.origin);
+      normalEntries.sort((a,b)=>{
+        const ar=rank.has(a.key)?rank.get(a.key):Number.MAX_SAFE_INTEGER;
+        const br=rank.has(b.key)?rank.get(b.key):Number.MAX_SAFE_INTEGER;
+        return ar-br || a.sequence-b.sequence;
+      });
+      entries.splice(0,entries.length,...originEntries,...normalEntries);
+    }
     if(includePlaceholders){
       const locations=character.currentLocationIds||[];
       entries.push({key:'current',kind:'current',type:'present day',title:'Present Day',summary:[character.status,character.mood,character.position].filter(Boolean).join(' · ')||'This is the character’s current point in the world.',impact:'',time:'Now',dateScore:Infinity,sequence:Infinity,locationIds:[...locations],peopleIds:[],stories:[],sharedId:'',current:true});
@@ -18003,16 +18091,18 @@ initFirebase();
     if(!people.length)return '';
     return `<aside class="cc-life-people"><span class="cc-life-people-label">Intersects with</span>${people.slice(0,5).map(person=>{const image=ccLifeCharacterImage(person);return `<button class="cc-life-person" type="button" data-cc-life-impact="${esc(character.id)}|${esc(person.id)}"><span class="cc-life-person-avatar">${image?`<img src="${esc(image)}" alt="">`:esc(initials(person.name||'?'))}</span><span><strong>${esc(person.name)}</strong><small>View impact / path</small></span></button>`;}).join('')}${people.length>5?`<span class="muted">+${people.length-5} more</span>`:''}</aside>`;
   }
-  function ccLifeEntryHtml(character,entry){
+  function ccLifeEntryHtml(character,entry,arrangeInfo=null){
     const locations=(entry.locationIds||[]).map(idValue=>getItem('locations',idValue)).filter(Boolean);
     const sharedStories=entry.sharedId?ccLifeSharedStories(entry.sharedId):[];
-    const rowClass=[entry.origin?'is-origin':'',entry.current?'is-current':'',entry.sharedId?'is-shared':''].filter(Boolean).join(' ');
+    const rowClass=[entry.origin?'is-origin':'',entry.current?'is-current':'',entry.sharedId?'is-shared':'',arrangeInfo?'is-arranging':''].filter(Boolean).join(' ');
     let actions='';
     if(entry.kind==='manual')actions=`<button class="button ghost small" type="button" data-cc-life-edit-event="${esc(character.id)}|${esc(entry.manualId)}">Edit</button>`;
     else actions=ccLifeEntryActions(entry);
     if(entry.kind==='origin-placeholder')actions=`<button class="button small" type="button" data-cc-life-add-origin="${esc(character.id)}">Set origin</button>`;
+    if(!entry.origin&&!entry.current&&entry.kind!=='origin-placeholder')actions+=`<button class="button ghost small" type="button" data-cc-life-flag="${esc(character.id)}|${encodeURIComponent(entry.key)}">⚠ Flag contradiction</button>`;
     const meta=[...locations.map(location=>`<button type="button" data-open="locations:${esc(location.id)}">${esc(location.name)}</button>`),...(sharedStories.length>1?[`<span>${sharedStories.length} story paths</span>`]:[])].join('');
-    return `<div class="cc-life-row ${rowClass}"><div class="cc-life-time">${esc(entry.time||'Undated')}</div><div class="cc-life-node-wrap"><span class="cc-life-node"></span></div><article class="cc-life-card"><div class="cc-life-card-head"><div><span class="cc-life-type">${esc(entry.type||'life event')}</span><h3>${esc(entry.title)}</h3></div></div>${entry.summary?`<p>${esc(entry.summary)}</p>`:''}${entry.impact?`<p><strong>Impact:</strong> ${esc(entry.impact)}</p>`:''}${meta?`<div class="cc-life-meta">${meta}</div>`:''}${actions?`<div class="cc-life-card-actions">${actions}</div>`:''}</article>${ccLifePeopleMarkup(character,entry)}</div>`;
+    const reorder=arrangeInfo?`<div class="cc-life-reorder"><button class="cc-life-drag-handle" type="button" draggable="true" data-cc-life-drag-key="${esc(character.id)}|${encodeURIComponent(entry.key)}" title="Drag to reorder" aria-label="Drag ${esc(entry.title)} to reorder">⋮⋮</button><button type="button" data-cc-life-move="${esc(character.id)}|${encodeURIComponent(entry.key)}|up" ${arrangeInfo.index===0?'disabled':''} aria-label="Move earlier">↑</button><button type="button" data-cc-life-move="${esc(character.id)}|${encodeURIComponent(entry.key)}|down" ${arrangeInfo.index===arrangeInfo.total-1?'disabled':''} aria-label="Move later">↓</button></div>`:'';
+    return `<div class="cc-life-row ${rowClass}" ${arrangeInfo?`data-cc-life-drop-key="${esc(character.id)}|${encodeURIComponent(entry.key)}"`:''}><div class="cc-life-time">${esc(entry.time||'Undated')}</div><div class="cc-life-node-wrap"><span class="cc-life-node"></span></div><article class="cc-life-card"><div class="cc-life-card-head"><div><span class="cc-life-type">${esc(entry.type||'life event')}</span><h3>${esc(entry.title)}</h3></div>${reorder}</div>${entry.summary?`<p>${esc(entry.summary)}</p>`:''}${entry.impact?`<p><strong>Impact:</strong> ${esc(entry.impact)}</p>`:''}${meta?`<div class="cc-life-meta">${meta}</div>`:''}${actions?`<div class="cc-life-card-actions">${actions}</div>`:''}</article>${ccLifePeopleMarkup(character,entry)}</div>`;
   }
   function ccLifeFilterEntries(entries,filter){
     if(filter==='relationships')return entries.filter(entry=>entry.origin||entry.current||(entry.peopleIds||[]).length);
@@ -18020,14 +18110,18 @@ initFirebase();
     return entries;
   }
   function renderCharacterLifeStory(character){
-    const filter=ccLifeFilters.get(character.id)||'all';
+    let filter=ccLifeFilters.get(character.id)||'all';
+    const arranging=ccLifeArrangeMode.has(character.id);
+    if(arranging&&filter!=='all'){filter='all';ccLifeFilters.set(character.id,'all');}
     const allEntries=ccCharacterLifeEntries(character);
     const entries=ccLifeFilterEntries(allEntries,filter);
+    const movable=entries.filter(entry=>!entry.origin&&!entry.current&&entry.kind!=='origin-placeholder');
+    const movableIndex=new Map(movable.map((entry,index)=>[entry.key,index]));
     const storyCount=new Set(allEntries.flatMap(entry=>(entry.stories||[]).map(story=>story.id))).size;
     const peopleCount=new Set(allEntries.flatMap(entry=>entry.peopleIds||[])).size;
     const sharedCount=allEntries.filter(entry=>entry.sharedId).length;
     const image=ccLifeCharacterImage(character);
-    el.main.innerHTML=`<div class="cc-life-page">${ccLifeTabs(character.id,'life')}<section class="cc-life-hero"><div class="cc-life-avatar">${image?`<img src="${esc(image)}" alt="${esc(character.name)}">`:esc(initials(character.name||'?'))}</div><div><span class="eyebrow">Character Life Story</span><h1>${esc(character.name)}</h1><p>One connected history from origin to present day, built from story points, timeline events, locations, relationships, and your manual life events.</p></div><div class="cc-life-hero-actions"><button class="button secondary" type="button" data-cc-life-bio="${esc(character.id)}">Open Bio</button><button class="button" type="button" data-cc-life-add-event="${esc(character.id)}">Add life event</button></div></section><div class="cc-life-summary"><article><strong>${allEntries.filter(entry=>!entry.current&&!entry.origin).length}</strong><span>Life points</span></article><article><strong>${storyCount}</strong><span>Story paths</span></article><article><strong>${peopleCount}</strong><span>People intersected</span></article><article><strong>${sharedCount}</strong><span>Shared convergences</span></article></div><div class="cc-life-tools"><div class="cc-life-filters"><button type="button" class="${filter==='all'?'is-active':''}" data-cc-life-filter="${esc(character.id)}|all">Full Life</button><button type="button" class="${filter==='relationships'?'is-active':''}" data-cc-life-filter="${esc(character.id)}|relationships">Relationships</button><button type="button" class="${filter==='story'?'is-active':''}" data-cc-life-filter="${esc(character.id)}|story">Story / RP only</button></div><span class="muted">Click a person to see how their paths intersect.</span></div>${entries.length?`<section class="cc-life-graph">${entries.map(entry=>ccLifeEntryHtml(character,entry)).join('')}</section>`:`<section class="cc-life-empty"><h3>No life-story points match this view</h3><p>Add a manual event or connect this character to a story point.</p></section>`}</div>`;
+    el.main.innerHTML=`<div class="cc-life-page">${ccLifeTabs(character.id,'life')}<section class="cc-life-hero"><div class="cc-life-avatar">${image?`<img src="${esc(image)}" alt="${esc(character.name)}">`:esc(initials(character.name||'?'))}</div><div><span class="eyebrow">Character Life Story</span><h1>${esc(character.name)}</h1><p>One connected history from origin to present day, built from story points, timeline events, locations, relationships, and your manual life events.</p></div><div class="cc-life-hero-actions"><button class="button secondary" type="button" data-cc-life-bio="${esc(character.id)}">Open Bio</button><button class="button" type="button" data-cc-life-add-event="${esc(character.id)}">Add life event</button></div></section><div class="cc-life-summary"><article><strong>${allEntries.filter(entry=>!entry.current&&!entry.origin).length}</strong><span>Life points</span></article><article><strong>${storyCount}</strong><span>Story paths</span></article><article><strong>${peopleCount}</strong><span>People intersected</span></article><article><strong>${sharedCount}</strong><span>Shared convergences</span></article></div><div class="cc-life-tools"><div class="cc-life-filters"><button type="button" class="${filter==='all'?'is-active':''}" data-cc-life-filter="${esc(character.id)}|all">Full Life</button><button type="button" class="${filter==='relationships'?'is-active':''}" data-cc-life-filter="${esc(character.id)}|relationships">Relationships</button><button type="button" class="${filter==='story'?'is-active':''}" data-cc-life-filter="${esc(character.id)}|story">Story / RP only</button></div><div class="cc-life-arrange-actions"><button class="button ${arranging?'':'secondary'} small" type="button" data-cc-life-arrange="${esc(character.id)}">${arranging?'Done arranging':'Arrange points'}</button>${character.lifeStoryOrder?.length?`<button class="button ghost small" type="button" data-cc-life-reset-order="${esc(character.id)}">Reset automatic order</button>`:''}</div></div>${arranging?`<div class="cc-life-arrange-note"><strong>Manual Life Story order:</strong> Drag points or use ↑ / ↓. This only changes this character’s Life Story display; it does not rewrite the underlying RP or Timeline dates. Use <em>Flag contradiction</em> when the source information itself conflicts.</div>`:`<div class="muted">Click a person to see how their paths intersect. If a point is in the wrong place, use Arrange points; if the underlying facts conflict, flag a contradiction for the Timeline.</div>`}${entries.length?`<section class="cc-life-graph">${entries.map(entry=>ccLifeEntryHtml(character,entry,arranging&&movableIndex.has(entry.key)?{index:movableIndex.get(entry.key),total:movable.length}:null)).join('')}</section>`:`<section class="cc-life-empty"><h3>No life-story points match this view</h3><p>Add a manual event or connect this character to a story point.</p></section>`}</div>`;
   }
 
   const ccLifeCollectionBase=collectionForView;
@@ -18083,15 +18177,87 @@ initFirebase();
     showModal(`${target.name} × ${subject.name}`,`<div class="cc-life-event-editor"><div style="display:grid;grid-template-columns:58px 1fr;gap:12px;align-items:center"><div class="cc-life-avatar" style="width:58px;height:58px">${targetImage?`<img src="${esc(targetImage)}" alt="">`:esc(initials(target.name||'?'))}</div><div><strong>${esc(target.name)}</strong><p class="muted">${shared.length} recorded intersection${shared.length===1?'':'s'} with ${esc(subject.name)}${first?` · first shown here at ${esc(first.title)}`:''}</p></div></div><div class="cc-life-impact-list">${shared.slice(0,10).map(entry=>`<div class="cc-life-impact-item"><strong>${esc(entry.title)}</strong><small>${esc(entry.time||entry.type||'')}</small>${entry.impact?`<p>${esc(entry.impact)}</p>`:''}</div>`).join('')||'<div class="cc-life-impact-item"><strong>No recorded shared points yet</strong><small>Add both characters to a story point or manual life event.</small></div>'}</div></div>`,`<button class="button secondary" type="button" data-cc-life-open-bio="${esc(target.id)}">Open Bio</button><button class="button" type="button" data-cc-life-open-story="${esc(target.id)}">Open Life Story</button>`);
   }
 
+  function ccLifeMovableEntries(character){
+    return ccCharacterLifeEntries(character).filter(entry=>!entry.origin&&!entry.current&&entry.kind!=='origin-placeholder');
+  }
+  function ccLifeEnsureOrder(character){
+    const current=ccLifeMovableEntries(character).map(entry=>entry.key);
+    const saved=Array.isArray(character.lifeStoryOrder)?character.lifeStoryOrder:[];
+    const merged=[...saved.filter(key=>current.includes(key)),...current.filter(key=>!saved.includes(key))];
+    character.lifeStoryOrder=merged;
+    return merged;
+  }
+  function ccLifeMovePoint(characterId,key,direction){
+    const character=getItem('characters',characterId);if(!character)return;
+    const order=ccLifeEnsureOrder(character),index=order.indexOf(key);if(index<0)return;
+    const target=direction==='up'?index-1:index+1;if(target<0||target>=order.length)return;
+    [order[index],order[target]]=[order[target],order[index]];character.lifeStoryOrder=order;character.updatedAt=nowISO();scheduleSave('Saving Life Story order…');renderCharacterLifeStory(character);
+  }
+  function ccLifeDropPoint(characterId,dragKey,targetKey,after=false){
+    const character=getItem('characters',characterId);if(!character||dragKey===targetKey)return;
+    const order=ccLifeEnsureOrder(character);const from=order.indexOf(dragKey);if(from<0)return;
+    order.splice(from,1);let at=order.indexOf(targetKey);if(at<0)at=order.length;if(after)at+=1;order.splice(at,0,dragKey);character.lifeStoryOrder=order;character.updatedAt=nowISO();scheduleSave('Saving Life Story order…');renderCharacterLifeStory(character);
+  }
+  function ccTimelineContradictions(){state.workspace ||= {};state.workspace.timelineContradictions ||= [];return state.workspace.timelineContradictions;}
+  function ccContradictionStoryPointLabel(item){if(!item.storyId||!item.nodeId)return '';const found=ccLifeFindNode(item.storyId,item.nodeId);return found.story&&found.node?`${found.story.name} · ${storyPointTitle(found.story,found.node)}`:'';}
+  function ccContradictionLinks(item){
+    const links=[];const eventA=getItem('events',item.eventAId),eventB=getItem('events',item.eventBId),character=getItem('characters',item.characterId);
+    if(eventA)links.push(`<button type="button" data-open="events:${esc(eventA.id)}">Event: ${esc(eventA.name)}</button>`);
+    if(eventB)links.push(`<button type="button" data-open="events:${esc(eventB.id)}">Event: ${esc(eventB.name)}</button>`);
+    if(character)links.push(`<button type="button" data-cc-life-story="${esc(character.id)}">Character: ${esc(character.name)}</button>`);
+    const pointLabel=ccContradictionStoryPointLabel(item);if(pointLabel)links.push(`<button type="button" data-story-point="${esc(storyRouteValue(item.storyId,item.nodeId))}">RP: ${esc(pointLabel)}</button>`);
+    return links.join('');
+  }
+  function ccTimelineContradictionsHtml(){
+    const items=ccTimelineContradictions().slice().sort((a,b)=>(a.status==='Resolved')-(b.status==='Resolved')||String(b.createdAt||'').localeCompare(String(a.createdAt||'')));const open=items.filter(item=>item.status!=='Resolved').length;
+    return `<section class="cc-contradictions-panel"><header><div><span class="eyebrow">Continuity check</span><h2>Contradictions</h2><p>Keep questionable dates, RP order, character history, and conflicting facts here until you decide which version is correct.</p></div><div class="cc-contradictions-head-actions"><span class="tag">${open} open</span><button class="button secondary small" type="button" data-cc-contradiction-new>Add contradiction</button></div></header>${items.length?`<div class="cc-contradictions-list">${items.map(item=>`<article class="cc-contradiction ${item.status==='Resolved'?'is-resolved':''}"><div class="cc-contradiction-main"><div><span class="cc-contradiction-status">${esc(item.status||'Open')}</span><strong>${esc(item.title||'Continuity question')}</strong></div>${item.details?`<p>${esc(item.details)}</p>`:''}${ccContradictionLinks(item)?`<div class="cc-contradiction-links">${ccContradictionLinks(item)}</div>`:''}</div><div class="cc-contradiction-actions"><button class="button ghost small" type="button" data-cc-contradiction-edit="${esc(item.id)}">Edit</button><button class="button secondary small" type="button" data-cc-contradiction-toggle="${esc(item.id)}">${item.status==='Resolved'?'Reopen':'Resolve'}</button></div></article>`).join('')}</div>`:`<div class="cc-contradictions-empty">No contradictions flagged yet. You can add one here or flag a point directly from a Character Life Story.</div>`}</section>`;
+  }
+  function ccShowContradictionEditor(itemId='',prefill={}){
+    const existing=ccTimelineContradictions().find(item=>item.id===itemId)||null;const draft={title:'',details:'',status:'Open',eventAId:'',eventBId:'',characterId:'',storyId:'',nodeId:'',lifeEntryKey:'',...(existing||{}),...prefill};
+    const eventOptions=selected=>`<option value="">No event</option>${(state.events||[]).map(event=>`<option value="${esc(event.id)}" ${event.id===selected?'selected':''}>${esc(event.name)}</option>`).join('')}`;
+    const storyPointOptions=()=>`<option value="">No RP story point</option>${(state.storyGraphs||[]).map(story=>`<optgroup label="${esc(story.name)}">${(story.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0)).map(node=>`<option value="${esc(story.id)}|${esc(node.id)}" ${draft.storyId===story.id&&draft.nodeId===node.id?'selected':''}>${esc(storyPointTitle(story,node))}</option>`).join('')}</optgroup>`).join('')}`;
+    showModal(existing?'Edit contradiction':'Add contradiction',`<div class="cc-contradiction-editor" data-cc-contradiction-id="${esc(existing?.id||'')}"><label><span>Title</span><input class="input" data-cc-contradiction-field="title" value="${esc(draft.title)}" placeholder="Astra reaches the Inn before she leaves Ashfall"></label><label><span>What conflicts?</span><textarea class="textarea" rows="4" data-cc-contradiction-field="details" placeholder="Describe both versions and what needs to be checked.">${esc(draft.details)}</textarea></label><div class="cc-contradiction-editor-grid"><label><span>Status</span><select class="select" data-cc-contradiction-field="status"><option ${draft.status!=='Resolved'?'selected':''}>Open</option><option ${draft.status==='Resolved'?'selected':''}>Resolved</option></select></label><label><span>Character</span><select class="select" data-cc-contradiction-field="characterId"><option value="">No character</option>${(state.characters||[]).slice().sort((a,b)=>a.name.localeCompare(b.name)).map(character=>`<option value="${esc(character.id)}" ${draft.characterId===character.id?'selected':''}>${esc(character.name)}</option>`).join('')}</select></label><label><span>Timeline event A</span><select class="select" data-cc-contradiction-field="eventAId">${eventOptions(draft.eventAId)}</select></label><label><span>Timeline event B</span><select class="select" data-cc-contradiction-field="eventBId">${eventOptions(draft.eventBId)}</select></label><label class="wide"><span>RP / Story point</span><select class="select" data-cc-contradiction-story-point>${storyPointOptions()}</select></label></div><input type="hidden" data-cc-contradiction-life-key value="${esc(draft.lifeEntryKey||'')}"></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button>${existing?`<button class="button danger" type="button" data-cc-contradiction-delete="${esc(existing.id)}">Delete</button>`:''}<button class="button" type="button" data-cc-contradiction-save>Save contradiction</button>`);
+  }
+  function ccSaveContradiction(){
+    const root=el.modal.querySelector('[data-cc-contradiction-id]');if(!root)return;const list=ccTimelineContradictions(),itemId=root.dataset.ccContradictionId||'';let item=list.find(x=>x.id===itemId)||null;if(!item){item={id:id('contradiction'),createdAt:nowISO()};list.push(item);}
+    const value=field=>root.querySelector(`[data-cc-contradiction-field="${field}"]`)?.value||'';item.title=value('title').trim()||'Continuity question';item.details=value('details').trim();item.status=value('status')||'Open';item.characterId=value('characterId');item.eventAId=value('eventAId');item.eventBId=value('eventBId');item.lifeEntryKey=root.querySelector('[data-cc-contradiction-life-key]')?.value||'';const point=root.querySelector('[data-cc-contradiction-story-point]')?.value||'';const [storyId,nodeId]=point.split('|');item.storyId=storyId||'';item.nodeId=nodeId||'';item.updatedAt=nowISO();scheduleSave('Saving contradiction…');closeModal();if(route.view==='events'&&!route.id)renderCollection('events');else render();toast('Contradiction saved to Timeline.');
+  }
+  function ccFlagLifeContradiction(characterId,key){
+    const character=getItem('characters',characterId);if(!character)return;const entry=ccCharacterLifeEntries(character).find(item=>item.key===key);if(!entry)return;const prefill={title:`Check order · ${entry.title}`,details:`This point looks out of place in ${character.name}’s Life Story. Confirm the date, RP sequence, or source information before resolving.`,characterId,lifeEntryKey:key};if(entry.kind==='event')prefill.eventAId=entry.sourceId||'';if(entry.kind==='story'){prefill.storyId=entry.sourceStoryId||'';prefill.nodeId=entry.sourceNodeId||'';}ccShowContradictionEditor('',prefill);
+  }
+
+  const ccLifeRenderCollectionBase=renderCollection;
+  renderCollection=function(kind){ccLifeRenderCollectionBase(kind);if(kind==='events'&&!route.id){const toolbar=el.main.querySelector('.collection-toolbar');if(toolbar&&!el.main.querySelector('.cc-contradictions-panel'))toolbar.insertAdjacentHTML('afterend',ccTimelineContradictionsHtml());}};
+
   document.addEventListener('change',event=>{
     const select=event.target.closest?.('[data-cc-life-connect-story]');if(!select)return;
     const story=(state.storyGraphs||[]).find(item=>item.id===select.value);const target=el.modal.querySelector('[data-cc-life-connect-target]');if(!target)return;
     target.innerHTML=(story?.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0)).map(node=>`<option value="${esc(node.id)}">${esc(storyPointTitle(story,node))}</option>`).join('');
   });
+  document.addEventListener('dragstart',event=>{
+    const handle=event.target.closest?.('[data-cc-life-drag-key]');if(!handle)return;const [characterId,keyEncoded]=handle.dataset.ccLifeDragKey.split('|');ccLifeDragged={characterId,key:decodeURIComponent(keyEncoded)};event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',keyEncoded);handle.closest('.cc-life-row')?.classList.add('is-dragging');
+  });
+  document.addEventListener('dragover',event=>{
+    const row=event.target.closest?.('[data-cc-life-drop-key]');if(!row||!ccLifeDragged)return;const [characterId,keyEncoded]=row.dataset.ccLifeDropKey.split('|');if(characterId!==ccLifeDragged.characterId||decodeURIComponent(keyEncoded)===ccLifeDragged.key)return;event.preventDefault();document.querySelectorAll('.cc-life-row.drop-before,.cc-life-row.drop-after').forEach(node=>node.classList.remove('drop-before','drop-after'));const rect=row.getBoundingClientRect();row.classList.add(event.clientY>rect.top+rect.height/2?'drop-after':'drop-before');
+  });
+  document.addEventListener('drop',event=>{
+    const row=event.target.closest?.('[data-cc-life-drop-key]');if(!row||!ccLifeDragged)return;event.preventDefault();const [characterId,keyEncoded]=row.dataset.ccLifeDropKey.split('|');if(characterId!==ccLifeDragged.characterId)return;const rect=row.getBoundingClientRect(),targetKey=decodeURIComponent(keyEncoded),dragKey=ccLifeDragged.key;ccLifeDragged=null;ccLifeDropPoint(characterId,dragKey,targetKey,event.clientY>rect.top+rect.height/2);
+  });
+  document.addEventListener('dragend',()=>{ccLifeDragged=null;document.querySelectorAll('.cc-life-row').forEach(row=>row.classList.remove('is-dragging','drop-before','drop-after'));});
+
   document.addEventListener('click',event=>{
     const life=event.target.closest?.('[data-cc-life-story]');if(life){event.preventDefault();navigate('character-life',life.dataset.ccLifeStory);return;}
     const bio=event.target.closest?.('[data-cc-life-bio]');if(bio){event.preventDefault();navigate('characters',bio.dataset.ccLifeBio);return;}
     const filter=event.target.closest?.('[data-cc-life-filter]');if(filter){event.preventDefault();const [characterId,value]=filter.dataset.ccLifeFilter.split('|');ccLifeFilters.set(characterId,value);const character=getItem('characters',characterId);if(character)renderCharacterLifeStory(character);return;}
+    const arrange=event.target.closest?.('[data-cc-life-arrange]');if(arrange){event.preventDefault();const characterId=arrange.dataset.ccLifeArrange;if(ccLifeArrangeMode.has(characterId))ccLifeArrangeMode.delete(characterId);else{ccLifeArrangeMode.add(characterId);ccLifeFilters.set(characterId,'all');}const character=getItem('characters',characterId);if(character)renderCharacterLifeStory(character);return;}
+    const resetOrder=event.target.closest?.('[data-cc-life-reset-order]');if(resetOrder){event.preventDefault();const character=getItem('characters',resetOrder.dataset.ccLifeResetOrder);if(character&&confirm('Return this Life Story to automatic chronological/story order?')){character.lifeStoryOrder=[];character.updatedAt=nowISO();scheduleSave('Resetting Life Story order…');renderCharacterLifeStory(character);}return;}
+    const movePoint=event.target.closest?.('[data-cc-life-move]');if(movePoint){event.preventDefault();event.stopImmediatePropagation();const [characterId,keyEncoded,direction]=movePoint.dataset.ccLifeMove.split('|');ccLifeMovePoint(characterId,decodeURIComponent(keyEncoded),direction);return;}
+    const flag=event.target.closest?.('[data-cc-life-flag]');if(flag){event.preventDefault();const [characterId,keyEncoded]=flag.dataset.ccLifeFlag.split('|');ccFlagLifeContradiction(characterId,decodeURIComponent(keyEncoded));return;}
+    const contradictionNew=event.target.closest?.('[data-cc-contradiction-new]');if(contradictionNew){event.preventDefault();ccShowContradictionEditor();return;}
+    const contradictionEdit=event.target.closest?.('[data-cc-contradiction-edit]');if(contradictionEdit){event.preventDefault();ccShowContradictionEditor(contradictionEdit.dataset.ccContradictionEdit);return;}
+    const contradictionToggle=event.target.closest?.('[data-cc-contradiction-toggle]');if(contradictionToggle){event.preventDefault();const item=ccTimelineContradictions().find(x=>x.id===contradictionToggle.dataset.ccContradictionToggle);if(item){item.status=item.status==='Resolved'?'Open':'Resolved';item.updatedAt=nowISO();scheduleSave('Updating contradiction…');renderCollection('events');}return;}
+    if(event.target.closest?.('[data-cc-contradiction-save]')){event.preventDefault();ccSaveContradiction();return;}
+    const contradictionDelete=event.target.closest?.('[data-cc-contradiction-delete]');if(contradictionDelete){event.preventDefault();if(!confirm('Delete this contradiction?'))return;state.workspace.timelineContradictions=ccTimelineContradictions().filter(item=>item.id!==contradictionDelete.dataset.ccContradictionDelete);scheduleSave('Deleting contradiction…');closeModal();if(route.view==='events'&&!route.id)renderCollection('events');else render();return;}
     const add=event.target.closest?.('[data-cc-life-add-event]');if(add){event.preventDefault();ccLifeShowEventEditor(add.dataset.ccLifeAddEvent);return;}
     const origin=event.target.closest?.('[data-cc-life-add-origin]');if(origin){event.preventDefault();ccLifeShowEventEditor(origin.dataset.ccLifeAddOrigin,'',true);return;}
     const edit=event.target.closest?.('[data-cc-life-edit-event]');if(edit){event.preventDefault();const [characterId,eventId]=edit.dataset.ccLifeEditEvent.split('|');ccLifeShowEventEditor(characterId,eventId);return;}
@@ -18112,6 +18278,8 @@ initFirebase();
   }else if(route.view==='characters'&&route.id){
     const initialCharacter=getItem('characters',route.id);
     if(initialCharacter)requestAnimationFrame(()=>ccLifeInjectBioTabs(initialCharacter));
+  }else if(route.view==='events'&&!route.id){
+    requestAnimationFrame(()=>renderCollection('events'));
   }
 
 })();
@@ -19140,8 +19308,10 @@ initFirebase();
 .cc-life-event-editor{display:grid;gap:12px}.cc-life-event-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.cc-life-event-grid .wide{grid-column:1/-1}.cc-life-people-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;max-height:210px;overflow:auto;border:1px solid var(--border);border-radius:12px;padding:9px;background:var(--panel-soft)}.cc-life-people-picker label{display:flex;gap:7px;align-items:center;font-size:12px}
 .cc-shared-story-section{border:1px solid color-mix(in srgb,var(--accent) 45%,var(--border));border-radius:12px;background:color-mix(in srgb,var(--accent-soft) 45%,var(--panel));padding:11px;display:grid;gap:8px}.cc-shared-story-list{display:grid;gap:6px}.cc-shared-story-list button{width:100%;display:flex;justify-content:space-between;gap:10px;border:1px solid var(--border);border-radius:9px;background:var(--panel);color:inherit;padding:8px;text-align:left;cursor:pointer}.cc-shared-story-list small{color:var(--muted)}
 .cc-connect-point-grid{display:grid;gap:10px}.cc-connect-point-grid label{display:grid;gap:5px}
+.cc-life-arrange-actions{display:flex;gap:7px;flex-wrap:wrap;align-items:center}.cc-life-arrange-note{border:1px solid color-mix(in srgb,var(--accent) 45%,var(--border));border-radius:12px;background:color-mix(in srgb,var(--accent-soft) 45%,var(--panel));padding:10px 12px;color:var(--muted);font-size:12px}.cc-life-reorder{display:flex;align-items:center;gap:4px}.cc-life-reorder button{min-width:30px;height:30px;border:1px solid var(--border);border-radius:8px;background:var(--panel-soft);color:var(--text);cursor:pointer}.cc-life-reorder button:disabled{opacity:.35;cursor:not-allowed}.cc-life-drag-handle{cursor:grab!important}.cc-life-row.is-dragging{opacity:.45}.cc-life-row.drop-before::after,.cc-life-row.drop-after::after{content:"";position:absolute;left:160px;right:0;height:3px;border-radius:99px;background:var(--accent);z-index:5}.cc-life-row.drop-before::after{top:-2px}.cc-life-row.drop-after::after{bottom:-2px}
+.cc-contradictions-panel{border:1px solid var(--section-line,var(--border));border-radius:16px;background:var(--section-panel,var(--panel));padding:14px 16px;margin:0 0 16px;display:grid;gap:12px}.cc-contradictions-panel>header{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.cc-contradictions-panel h2{margin:2px 0 4px;font-size:20px}.cc-contradictions-panel p{margin:0;color:var(--section-muted,var(--muted));line-height:1.45}.cc-contradictions-head-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.cc-contradictions-list{display:grid;gap:8px}.cc-contradiction{display:flex;justify-content:space-between;gap:12px;border:1px solid var(--section-line,var(--border));border-radius:12px;background:var(--section-card,var(--panel-soft));padding:11px 12px}.cc-contradiction.is-resolved{opacity:.62}.cc-contradiction-main{display:grid;gap:6px;min-width:0}.cc-contradiction-main>div:first-child{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.cc-contradiction-status{border-radius:999px;padding:3px 7px;background:var(--accent-soft);color:var(--accent-strong);font-size:10px;font-weight:900;text-transform:uppercase}.cc-contradiction.is-resolved .cc-contradiction-status{background:var(--panel);color:var(--muted)}.cc-contradiction-links{display:flex;gap:6px;flex-wrap:wrap}.cc-contradiction-links button{border:1px solid var(--border);border-radius:999px;background:var(--panel);color:var(--text);padding:4px 7px;font-size:10px;cursor:pointer}.cc-contradiction-actions{display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap}.cc-contradictions-empty{border:1px dashed var(--border);border-radius:11px;padding:14px;color:var(--muted);text-align:center}.cc-contradiction-editor{display:grid;gap:11px}.cc-contradiction-editor label{display:grid;gap:5px}.cc-contradiction-editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.cc-contradiction-editor-grid .wide{grid-column:1/-1}
 @media(max-width:900px){.cc-life-summary{grid-template-columns:repeat(2,1fr)}.cc-life-row{grid-template-columns:85px 38px minmax(0,1fr)}.cc-life-graph::before{left:103px}.cc-life-people{grid-column:3;margin-bottom:10px;grid-template-columns:repeat(2,minmax(0,1fr))}.cc-life-people-label{grid-column:1/-1}}
-@media(max-width:640px){.cc-life-hero{grid-template-columns:auto 1fr}.cc-life-hero-actions{grid-column:1/-1;justify-content:flex-start}.cc-life-summary{grid-template-columns:1fr 1fr}.cc-life-row{grid-template-columns:28px minmax(0,1fr);gap:10px;padding:8px 0}.cc-life-graph::before{left:13px}.cc-life-time{grid-column:2;text-align:left;order:2}.cc-life-node-wrap{grid-column:1;grid-row:1/4}.cc-life-card{grid-column:2}.cc-life-people{grid-column:2;grid-template-columns:1fr}.cc-life-event-grid{grid-template-columns:1fr}.cc-life-event-grid .wide{grid-column:auto}.cc-life-people-picker{grid-template-columns:1fr}}
+@media(max-width:640px){.cc-life-hero{grid-template-columns:auto 1fr}.cc-life-hero-actions{grid-column:1/-1;justify-content:flex-start}.cc-life-summary{grid-template-columns:1fr 1fr}.cc-life-row{grid-template-columns:28px minmax(0,1fr);gap:10px;padding:8px 0}.cc-life-graph::before{left:13px}.cc-life-time{grid-column:2;text-align:left;order:2}.cc-life-node-wrap{grid-column:1;grid-row:1/4}.cc-life-card{grid-column:2}.cc-life-people{grid-column:2;grid-template-columns:1fr}.cc-life-event-grid{grid-template-columns:1fr}.cc-life-event-grid .wide{grid-column:auto}.cc-life-people-picker{grid-template-columns:1fr}.cc-life-row.drop-before::after,.cc-life-row.drop-after::after{left:38px}.cc-contradictions-panel>header,.cc-contradiction{display:grid}.cc-contradictions-head-actions{justify-content:flex-start}.cc-contradiction-editor-grid{grid-template-columns:1fr}.cc-contradiction-editor-grid .wide{grid-column:auto}}
 </style>
 
 
