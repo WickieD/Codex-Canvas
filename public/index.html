@@ -13587,6 +13587,7 @@ const CC2_VERSION = 'story-timeline-2026-08';
     const revisionRows=(p.revisions || []).slice().reverse().map((revision,index)=>`<div class="cc2-revision-row"><span>${esc(fmtTime(revision.at))} · ${esc(revision.by || 'Editor')}</span><button class="button ghost small" type="button" data-cc2-restore-revision="${esc(story.id)}|${esc(node.id)}|${(p.revisions || []).length-1-index}">Restore</button></div>`).join('');
     const commentRows=(p.comments || []).map(comment=>`<div class="cc2-comment-row"><strong>${esc(comment.author || 'Editor')}</strong><small>${esc(fmtTime(comment.createdAt))}</small><p>${esc(comment.text)}</p></div>`).join('');
     showModal(isNew?'Create story point':`Edit ${p.title || 'story point'}`,`<div class="cc2-point-editor" data-cc2-editor-story="${esc(story.id)}" data-cc2-editor-node="${esc(node.id)}" data-cc2-editor-new="${isNew?'1':'0'}"><div class="cc2-point-editor-grid"><label class="wide"><span>Story point title</span><input class="input" data-cc2-field="title" value="${esc(p.title)}" placeholder="Astra + Braum, The Inn, Bond Breaking..."></label><label class="wide"><span>Summary</span><textarea class="textarea" rows="3" data-cc2-field="summary">${esc(p.summary)}</textarea></label><label><span>Point type</span><select class="select" data-cc2-field="type">${cc2TypeDefinitions({includeDisabled:false,includeType:p.type}).map(item=>`<option value="${esc(item.id)}" ${p.type===item.id?'selected':''}>${esc(item.symbol)} · ${esc(item.label)}</option>`).join('')}</select><small class="cc2-field-help">Person, location, event, scene, condition, or any custom type you create.</small></label><label><span>Status</span><select class="select" data-cc2-field="status"><option value="written" ${p.status==='written'?'selected':''}>Written</option><option value="planned" ${p.status==='planned'?'selected':''}>Planned</option></select></label><label><span>Exact date</span><div class="input"><input type="date" data-cc2-field="exactDate" value="${esc(p.exactDate)}" style="width:100%;border:0;background:transparent"></div></label><label><span>Relative time label</span><input class="input" data-cc2-field="timeLabel" value="${esc(p.timeLabel)}" placeholder="Three days later, that evening..."></label><label><span>Chronology order</span><input class="input" type="number" step="1" data-cc2-field="chronologyOrder" value="${Number(p.chronologyOrder)||node.order}"></label><label><span>Story order</span><input class="input" type="number" step="1" min="1" data-cc2-field="storyOrder" value="${node.order}"></label><label><span>Arc or act</span><input class="input" data-cc2-field="arc" value="${esc(p.arc)}" placeholder="Act II · The Breaking"></label><label><span>Chapter</span><input class="input" data-cc2-field="chapter" value="${esc(p.chapter)}" placeholder="Chapter 7"></label><label><span>Branch or lane</span><input class="input" data-cc2-field="branch" value="${esc(p.branch==='main'?'':p.branch)}" placeholder="Leave blank for main path"></label><label><span>Branches from</span><select class="select" data-cc2-field="parentPointId"><option value="">No branch parent</option>${otherOptions.replace(`value="${esc(p.parentPointId)}"`,`value="${esc(p.parentPointId)}" selected`)}</select></label><label><span>Rejoins at</span><select class="select" data-cc2-field="rejoinPointId"><option value="">Does not rejoin yet</option>${otherOptions.replace(`value="${esc(p.rejoinPointId)}"`,`value="${esc(p.rejoinPointId)}" selected`)}</select></label><label><span>RP bookmark</span><select class="select" data-cc2-field="anchorTurnId">${storyAnchorOptions(story,node)}</select></label></div><section class="cc2-editor-section"><h3>Characters and what they do here</h3><p class="cc2-editor-note">A character can be present, affected later, mentioned, or the point of view. Knowledge tracking is optional.</p><div class="cc2-character-role-grid">${characterRows || '<p class="cc2-empty">Create characters first.</p>'}</div></section><section class="cc2-editor-section"><h3>Locations</h3><div class="cc2-location-grid">${locationRows || '<p class="cc2-empty">Create locations first.</p>'}</div><label style="margin-top:10px"><span><input type="checkbox" data-cc2-update-current> Set the first selected location as the current location for characters marked Present</span></label></section><section class="cc2-editor-section"><h3>Timeline events</h3><p class="cc2-editor-note">Connect this whole story point to one or more world timeline events. This is useful when the event spans several RP posts instead of one exact post.</p><div class="cc2-location-grid">${timelineEventRows || '<p class="cc2-empty">Create timeline events first.</p>'}</div></section><section class="cc2-editor-section"><h3>What changes</h3><div class="cc2-point-editor-grid"><label class="wide"><span>Before</span><textarea class="textarea" rows="2" data-cc2-field="beforeState">${esc(p.beforeState)}</textarea></label><label class="wide"><span>Consequences</span><textarea class="textarea" rows="3" data-cc2-field="consequences">${esc(p.consequences)}</textarea></label><label class="wide"><span>After</span><textarea class="textarea" rows="2" data-cc2-field="afterState">${esc(p.afterState)}</textarea></label></div></section><section class="cc2-editor-section"><h3>Comments</h3><div class="cc2-comment-list">${commentRows || '<p class="cc2-empty">No comments yet.</p>'}</div><div style="display:flex;gap:8px;margin-top:10px"><input class="input" data-cc2-new-comment placeholder="Add a planning comment"><button class="button secondary" type="button" data-cc2-add-comment>Add comment</button></div></section><details class="cc2-editor-section"><summary>Revision history (${p.revisions.length})</summary><div class="cc2-revision-list">${revisionRows || '<p class="cc2-empty">Revisions appear after the first edit.</p>'}</div></details></div>`,`<button class="button secondary" type="button" data-cc2-cancel-point="${esc(story.id)}|${esc(node.id)}|${isNew?'1':'0'}">Cancel</button>${!isNew?`<button class="button danger" type="button" data-cc2-delete-point="${esc(story.id)}|${esc(node.id)}">Delete</button>`:''}<button class="button" type="button" data-cc2-save-point>Save story point</button>`);
+    el.modal.querySelector('.modal')?.classList.add('cc2-point-editor-modal');
     requestAnimationFrame(()=>el.modal.querySelector('[data-cc2-field="title"]')?.focus());
   }
 
@@ -17987,9 +17988,31 @@ initFirebase();
     el.main?.insertAdjacentHTML('afterbegin',ccLifeTabs(item.id,'bio'));
   }
 
-  function ccLifePointPeople(point){
-    if(typeof cc2AllPeople==='function')return cc2AllPeople(point);
-    return [...new Set([...(point?.participantIds||[]),...(point?.affectedIds||[]),...(point?.mentionedIds||[]),...(point?.povIds||[])])];
+  function ccLifeHasExplicitSceneRoles(point){
+    return ['participantIds','affectedIds','mentionedIds','povIds'].some(key=>Array.isArray(point?.[key])&&point[key].length);
+  }
+  function ccLifePointRoleState(point,characterId,turnPeople=[]){
+    const hasExplicitRoles=ccLifeHasExplicitSceneRoles(point);
+    // Once a Story Point has explicit role checkboxes, those boxes are the source of
+    // truth for that scene. Turn authors are only used as a legacy fallback for older
+    // Story Points that have no role data at all; this prevents posts elsewhere in a
+    // broad RP range from making a character look present in the wrong scene.
+    const present=(point?.participantIds||[]).includes(characterId)||(!hasExplicitRoles&&(turnPeople||[]).includes(characterId));
+    const pov=(point?.povIds||[]).includes(characterId);
+    const affected=(point?.affectedIds||[]).includes(characterId);
+    const mentioned=(point?.mentionedIds||[]).includes(characterId);
+    // Life Story inclusion is scene-based, not story-based. Mentioned alone does not
+    // make the scene part of a character's life. Present/POV are direct participation;
+    // Affected is retained as an indirect-impact point.
+    return {present,pov,affected,mentioned,include:present||pov||affected,indirect:affected&&!present&&!pov,hasExplicitRoles};
+  }
+  function ccLifePointPeople(point,turnPeople=[]){
+    // Only people who actually participate in, view, or are affected by the scene count
+    // as intersections. A person who is merely mentioned is not treated as having met
+    // or intersected with the character at this point. As above, turn authors are only
+    // a fallback for legacy points with no explicit scene-role data.
+    const fallbackTurns=ccLifeHasExplicitSceneRoles(point)?[]:(turnPeople||[]);
+    return [...new Set([...(point?.participantIds||[]),...(point?.povIds||[]),...(point?.affectedIds||[]),...fallbackTurns])];
   }
   function ccLifePointTurns(ownerStory,node){
     const turns=[];
@@ -18029,14 +18052,15 @@ initFirebase();
     for(const story of state.storyGraphs||[]){
       for(const node of (story.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0))){
         const point=typeof cc2Point==='function'?cc2Point(story,node):(node.point||{});
-        const pointPeople=ccLifePointPeople(point);
         const turns=ccLifePointTurns(story,node);
         const turnPeople=turns.map(turn=>turn.characterId).filter(Boolean);
-        if(!pointPeople.includes(character.id)&&!turnPeople.includes(character.id))continue;
-        const people=[...new Set([...pointPeople,...turnPeople])].filter(idValue=>idValue&&idValue!==character.id&&getItem('characters',idValue));
+        const roleState=ccLifePointRoleState(point,character.id,turnPeople);
+        if(!roleState.include)continue;
+        const pointPeople=ccLifePointPeople(point,turnPeople);
+        const people=pointPeople.filter(idValue=>idValue&&idValue!==character.id&&getItem('characters',idValue));
         const sharedId=ccLifeSharedId(story,node);
         const timelineEventIds=[...new Set((point.timelineEventIds||[]).filter(eventId=>getItem('events',eventId)))];
-        storyEntries.push({key:`story:${story.id}:${node.id}`,kind:'story',sourceStoryId:story.id,sourceNodeId:node.id,type:sharedId?'shared convergence':'story point',title:storyPointTitle(story,node),summary:point.summary||ensureStoryPassage(node).summary||'',impact:point.consequences||point.afterState||'',time:typeof cc2TimeLabel==='function'?cc2TimeLabel(story,node):(point.exactDate||`Story point ${node.order||''}`),dateScore:ccLifeParseDate(point.exactDate),sequence:seq++,locationIds:[...(point.locationIds||[])],peopleIds:people,stories:[story],sharedId,sharedIds:sharedId?[sharedId]:[],timelineEventIds,origin:false});
+        storyEntries.push({key:`story:${story.id}:${node.id}`,kind:'story',sourceStoryId:story.id,sourceNodeId:node.id,type:roleState.indirect?(sharedId?'shared convergence · indirect impact':'indirect impact'):(sharedId?'shared convergence':'story point'),title:storyPointTitle(story,node),summary:point.summary||ensureStoryPassage(node).summary||'',impact:point.consequences||point.afterState||'',time:typeof cc2TimeLabel==='function'?cc2TimeLabel(story,node):(point.exactDate||`Story point ${node.order||''}`),dateScore:ccLifeParseDate(point.exactDate),sequence:seq++,locationIds:[...(point.locationIds||[])],peopleIds:people,stories:[story],sharedId,sharedIds:sharedId?[sharedId]:[],timelineEventIds,indirectImpact:roleState.indirect,participation:{present:roleState.present,pov:roleState.pov,affected:roleState.affected},origin:false});
       }
     }
     const grouped=new Map();
@@ -18048,6 +18072,8 @@ initFirebase();
       target.peopleIds=[...new Set([...target.peopleIds,...entry.peopleIds])];
       target.locationIds=[...new Set([...target.locationIds,...entry.locationIds])];
       target.timelineEventIds=[...new Set([...(target.timelineEventIds||[]),...(entry.timelineEventIds||[])])];
+      target.indirectImpact=Boolean(target.indirectImpact&&entry.indirectImpact);
+      if(!target.indirectImpact)target.type='shared convergence';
       target.orderKeys=[...new Set([...(target.orderKeys||[target.key]),entry.key,`story:${entry.sourceStoryId}:${entry.sourceNodeId}`])];
       if(!target.summary&&entry.summary)target.summary=entry.summary;
       if(!target.impact&&entry.impact)target.impact=entry.impact;
@@ -18113,12 +18139,15 @@ initFirebase();
       const sharedIds=[...new Set(componentStories.flatMap(entry=>entry.sharedIds|| (entry.sharedId?[entry.sharedId]:[])).filter(Boolean))];
       const allDateScores=[...componentEvents,...componentStories].map(entry=>entry.dateScore).filter(value=>value!=null&&Number.isFinite(value));
       const allImpacts=[...new Set(componentEvents.map(entry=>entry.impact).filter(Boolean))];
+      const hasDirectTimelineInvolvement=componentEvents.some(entry=>directCharacterEventIds.has(entry.sourceId));
+      const mergedIndirect=!hasDirectTimelineInvolvement&&componentStories.length>0&&componentStories.every(entry=>entry.indirectImpact);
       mergedEntries.push({
         key:primary.key,
         orderKeys:[...new Set([...componentEvents.map(entry=>entry.key),...componentStories.flatMap(entry=>entry.orderKeys||[entry.key])])],
         kind:'event-story',sourceId:primary.sourceId,eventIds:componentEvents.map(entry=>entry.sourceId),
         sourceStoryId:portions[0]?.storyId||'',sourceNodeId:portions[0]?.nodeId||'',
-        type:portions.length===1?'world event · RP story point':'world event · RP sequence',
+        type:mergedIndirect?'world event · indirect RP impact':(portions.length===1?'world event · RP story point':'world event · RP sequence'),
+        indirectImpact:mergedIndirect,
         title:primary.title,summary:primary.summary||componentStories.find(entry=>entry.summary)?.summary||'',
         impact:allImpacts.join(' · ')||componentStories.find(entry=>entry.impact)?.impact||'',
         time:primary.time||componentStories.find(entry=>entry.time)?.time||'',
@@ -18193,7 +18222,7 @@ initFirebase();
     const meta=[...locations.map(location=>`<button type="button" data-open="locations:${esc(location.id)}">${esc(location.name)}</button>`),...(sharedStories.length>1?[`<span>${sharedStories.length} story paths</span>`]:[])].join('');
     const reorder=arrangeInfo?`<div class="cc-life-reorder"><button class="cc-life-drag-handle" type="button" draggable="true" data-cc-life-drag-key="${esc(character.id)}|${encodeURIComponent(entry.key)}" title="Drag to reorder" aria-label="Drag ${esc(entry.title)} to reorder">⋮⋮</button><button type="button" data-cc-life-move="${esc(character.id)}|${encodeURIComponent(entry.key)}|up" ${arrangeInfo.index===0?'disabled':''} aria-label="Move earlier">↑</button><button type="button" data-cc-life-move="${esc(character.id)}|${encodeURIComponent(entry.key)}|down" ${arrangeInfo.index===arrangeInfo.total-1?'disabled':''} aria-label="Move later">↓</button></div>`:'';
     const rpPortions=entry.kind==='event-story'&&entry.rpPortions?.length?`<div class="cc-life-rp-portions"><span class="cc-life-rp-label">Connected RP portion${entry.rpPortions.length===1?'':'s'}</span>${entry.rpPortions.map(portion=>`<button type="button" data-story-point="${esc(storyRouteValue(portion.storyId,portion.nodeId))}"><span><strong>${esc(portion.title)}</strong><small>${esc(portion.storyName)}</small></span><small>${portion.posts} post${portion.posts===1?'':'s'} →</small></button>`).join('')}</div>`:'';
-    return `<div class="cc-life-row ${rowClass}" ${arrangeInfo?`data-cc-life-drop-key="${esc(character.id)}|${encodeURIComponent(entry.key)}"`:''}><div class="cc-life-time">${esc(entry.time||'Undated')}</div><div class="cc-life-node-wrap"><span class="cc-life-node"></span></div><article class="cc-life-card"><div class="cc-life-card-head"><div><span class="cc-life-type">${esc(entry.type||'life event')}</span><h3>${esc(entry.title)}</h3></div>${reorder}</div>${entry.summary?`<p>${esc(entry.summary)}</p>`:''}${entry.impact?`<p><strong>Impact:</strong> ${esc(entry.impact)}</p>`:''}${meta?`<div class="cc-life-meta">${meta}</div>`:''}${rpPortions}${actions?`<div class="cc-life-card-actions">${actions}</div>`:''}</article>${ccLifePeopleMarkup(character,entry)}</div>`;
+    return `<div class="cc-life-row ${rowClass}" ${arrangeInfo?`data-cc-life-drop-key="${esc(character.id)}|${encodeURIComponent(entry.key)}"`:''}><div class="cc-life-time">${esc(entry.time||'Undated')}</div><div class="cc-life-node-wrap"><span class="cc-life-node"></span></div><article class="cc-life-card"><div class="cc-life-card-head"><div><span class="cc-life-type">${esc(entry.type||'life event')}</span><h3>${esc(entry.title)}</h3></div>${reorder}</div>${entry.indirectImpact?`<p class="cc-life-indirect-note"><strong>Indirect impact:</strong> This scene affected ${esc(character.name)} but they are not marked Present or Point of view here.</p>`:''}${entry.summary?`<p>${esc(entry.summary)}</p>`:''}${entry.impact?`<p><strong>Impact:</strong> ${esc(entry.impact)}</p>`:''}${meta?`<div class="cc-life-meta">${meta}</div>`:''}${rpPortions}${actions?`<div class="cc-life-card-actions">${actions}</div>`:''}</article>${ccLifePeopleMarkup(character,entry)}</div>`;
   }
 
   function ccLifeFilterEntries(entries,filter){
@@ -18948,6 +18977,49 @@ initFirebase();
 .cc2-revision-row,.cc2-comment-row{display:flex;justify-content:space-between;gap:10px;border-top:1px solid var(--border);padding-top:8px;font-size:12px}
 .cc2-comment-row{display:block}
 .cc2-comment-row small{color:var(--muted)}
+
+/* Story point editor: use the available browser window before introducing scrollbars. */
+.modal.cc2-point-editor-modal{
+  width:min(1080px,calc(100vw - 40px));
+  max-height:calc(100dvh - 40px);
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+.modal.cc2-point-editor-modal .modal-head,
+.modal.cc2-point-editor-modal .modal-foot{flex:0 0 auto}
+.modal.cc2-point-editor-modal .modal-body{
+  flex:1 1 auto;
+  min-height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+}
+.modal.cc2-point-editor-modal .cc2-character-role-grid{
+  max-height:min(52dvh,620px);
+  overflow-y:auto;
+  overflow-x:hidden;
+}
+.modal.cc2-point-editor-modal .cc2-location-grid{
+  max-height:min(38dvh,440px);
+  overflow-y:auto;
+  overflow-x:hidden;
+}
+.modal.cc2-point-editor-modal .cc2-character-role-row{
+  grid-template-columns:minmax(150px,1.2fr) repeat(4,minmax(72px,.55fr)) minmax(130px,.8fr) minmax(170px,1.05fr);
+}
+@media(max-width:980px){
+  .modal.cc2-point-editor-modal{width:min(920px,calc(100vw - 20px));max-height:calc(100dvh - 20px)}
+  .modal.cc2-point-editor-modal .cc2-character-role-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .modal.cc2-point-editor-modal .cc2-character-role-row strong,
+  .modal.cc2-point-editor-modal .cc2-character-role-row select,
+  .modal.cc2-point-editor-modal .cc2-character-role-row .input{grid-column:1/-1}
+}
+@media(max-width:760px){
+  .modal.cc2-point-editor-modal{width:calc(100vw - 12px);max-height:calc(100dvh - 12px)}
+  .modal.cc2-point-editor-modal .modal-body{padding:14px}
+  .modal.cc2-point-editor-modal .cc2-character-role-grid,
+  .modal.cc2-point-editor-modal .cc2-location-grid{max-height:min(48dvh,520px)}
+}
 .cc2-story-manager-list{display:grid;gap:9px;margin-top:12px}
 .cc2-manager-point{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid var(--border);border-radius:11px;background:var(--panel-strong);padding:10px}
 .cc2-manager-handle{color:var(--muted);font-weight:900;cursor:grab}
@@ -19394,7 +19466,8 @@ initFirebase();
 .cc-life-rp-label{font-size:9px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-strong)}
 .cc-life-rp-portions>button{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;border:1px solid var(--border);border-radius:9px;background:var(--panel);color:var(--text);padding:7px 9px;text-align:left;cursor:pointer}
 .cc-life-rp-portions>button:hover{border-color:var(--accent)}.cc-life-rp-portions>button span{display:grid;gap:2px}.cc-life-rp-portions>button small{color:var(--muted);font-size:9px}.cc-life-rp-portions>button>small{white-space:nowrap}
-.cc-life-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.cc-life-card h3{margin:0;font-size:17px}.cc-life-card p{margin:0;color:var(--muted);line-height:1.5}
+.cc-life-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.cc-life-card h3{margin:0;font-size:17px}.cc-life-indirect-note{padding:8px 10px;border-left:3px solid var(--accent);border-radius:6px;background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.cc-life-card p{margin:0;color:var(--muted);line-height:1.5}
 .cc-life-type{display:inline-flex;width:max-content;max-width:100%;border-radius:999px;background:var(--accent-soft);color:var(--accent-strong);padding:4px 8px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}
 .cc-life-meta{display:flex;gap:6px;flex-wrap:wrap}.cc-life-meta span,.cc-life-meta button{border:1px solid var(--border);border-radius:999px;background:var(--panel-soft);color:var(--muted);padding:5px 8px;font-size:10px}.cc-life-meta button{cursor:pointer;color:var(--text)}
 .cc-life-card-actions{display:flex;gap:7px;flex-wrap:wrap}.cc-life-card-actions button{font-size:11px}
