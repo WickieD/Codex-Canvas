@@ -802,6 +802,63 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .world-quick-link strong { font-size: 14px; }
 .world-quick-link small { color: var(--muted); font-size: 12px; }
 
+.world-links-panel {
+  max-width: 760px;
+  margin-top: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  overflow: hidden;
+}
+.world-links-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.world-links-head h2 { margin: 0; font-size: 1.28rem; }
+.world-links-head p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+.world-links-actions { display: flex; flex-wrap: wrap; gap: 7px; justify-content: flex-end; }
+.world-links-list { display: grid; gap: 7px; padding: 12px; }
+.world-links-list .world-quick-link { max-width: none; }
+.world-links-empty { padding: 24px 14px; color: var(--muted); text-align: center; }
+.world-links-manager { display: grid; gap: 12px; }
+.world-link-manager-help { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.world-link-manager-list { display: grid; gap: 10px; }
+.world-link-manager-row {
+  display: grid;
+  grid-template-columns: 32px minmax(135px,.9fr) minmax(180px,1.25fr) minmax(165px,.95fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel-soft);
+}
+.world-link-manager-row.is-dragging { opacity: .45; }
+.world-link-manager-row.is-drop-before { box-shadow: inset 0 3px 0 var(--accent); }
+.world-link-drag {
+  width: 32px; height: 38px; border: 0; background: transparent; color: var(--muted);
+  display: grid; place-items: center; cursor: grab; font-size: 18px; user-select: none;
+}
+.world-link-drag:active { cursor: grabbing; }
+.world-link-manager-row .input, .world-link-manager-row .select { min-width: 0; width: 100%; }
+.world-link-row-actions { display: flex; gap: 5px; }
+.world-link-row-actions .icon-button { width: 34px; height: 34px; }
+.world-link-url-row { grid-column: 2 / -1; display: grid; grid-template-columns: 110px 1fr; gap: 8px; align-items: center; }
+.world-link-url-row span { color: var(--muted); font-size: 12px; }
+@media (max-width: 820px) {
+  .world-links-head { flex-direction: column; }
+  .world-links-actions { justify-content: flex-start; }
+  .world-link-manager-row { grid-template-columns: 30px 1fr auto; }
+  .world-link-manager-row > [data-world-link-field="copy"],
+  .world-link-manager-row > [data-world-link-field="target"] { grid-column: 2 / 3; }
+  .world-link-row-actions { grid-column: 3; grid-row: 1 / span 3; flex-direction: column; }
+  .world-link-url-row { grid-column: 2 / 3; grid-template-columns: 1fr; }
+}
+
 /* Character image layout editor */
 .block-toolbar-help { margin-left: auto; align-self: center; color: var(--muted); font-size: 11px; }
 .character-editor-surface { overflow: visible; }
@@ -6140,6 +6197,36 @@ window.CODEX_BUILD = "approved-badge-animals-layout-2026-08-12";
       if (member.email) state.workspace.access[member.email.toLowerCase()] = member.role;
     }
     state.activity ||= [];
+    state.world ||= {id:'world',name:'World Overview',blocks:[]};
+    state.world.blocks ||= [];
+    const importedWorldQuickLinkIds = new Set(['b69','b70','b71','b72','b73','b74','b75','b76','b77','b78']);
+    // Older imports contained two hard-coded copies of the same Quick Links list.
+    // Remove those imported link blocks once, then let the editable Quick Links collection own this area.
+    const hadImportedWorldQuickLinks=state.world.blocks.some(block=>importedWorldQuickLinkIds.has(block?.id));
+    state.world.blocks = state.world.blocks.filter(block=>!importedWorldQuickLinkIds.has(block?.id));
+    if(hadImportedWorldQuickLinks){
+      for(let i=state.world.blocks.length-1;i>=0;i--){
+        const content=stripMd(state.world.blocks[i]?.content||'').trim();
+        if(/^quick links$/i.test(content) || /^use these links to jump around quickly:?$/i.test(content)) state.world.blocks.splice(i,1);
+      }
+    }
+    if(!Array.isArray(state.world.quickLinks)){
+      state.world.quickLinks = [
+        {id:id('world-link'),label:'Characters',copy:'Profiles, relationships, and current status',target:'characters'},
+        {id:id('world-link'),label:'Locations',copy:'Parent locations, children, and connected places',target:'locations'},
+        {id:id('world-link'),label:'Species',copy:'Peoples, lineages, traits, and social tensions',target:'species'},
+        {id:id('world-link'),label:'Timeline / Events',copy:'The world history and current events',target:'events'},
+        {id:id('world-link'),label:'Open Threads',copy:'Search unresolved questions, goals, and mysteries',target:'search',prefill:'thread'}
+      ];
+    }
+    state.world.quickLinks = state.world.quickLinks.filter(Boolean).map(link=>({
+      id:link.id||id('world-link'),
+      label:String(link.label||'Untitled link'),
+      copy:String(link.copy||''),
+      target:String(link.target||'dashboard'),
+      url:String(link.url||''),
+      prefill:String(link.prefill||'')
+    }));
     // Earlier Codex Canvas builds used the Factions database for species and peoples.
     // Move that existing data into Species once, then start a separate Factions database.
     if (!Array.isArray(state.species)) {
@@ -6535,10 +6622,181 @@ window.CODEX_BUILD = "approved-badge-animals-layout-2026-08-12";
     return `<button class="quick-card" type="button" data-nav="${view}"><span class="quick-title">${esc(title)}</span><span class="quick-copy">${esc(copy)}</span></button>`;
   }
 
+  const WORLD_QUICK_LINK_TARGETS = [
+    ['dashboard','Home'],
+    ['world','World Overview'],
+    ['graph','Graphs'],
+    ['story','Roleplay Hub'],
+    ['search','All Search'],
+    ['characters','Characters'],
+    ['locations','Locations'],
+    ['species','Species'],
+    ['factions','Factions'],
+    ['events','Timeline / Events'],
+    ['share','Members'],
+    ['emoji-library','Emoji Library'],
+    ['settings','Settings'],
+    ['external','External URL']
+  ];
+
+  function worldQuickLinks(){
+    state.world.quickLinks ||= [];
+    return state.world.quickLinks;
+  }
+
+  function worldQuickLinkTargetLabel(target){
+    return WORLD_QUICK_LINK_TARGETS.find(([value])=>value===target)?.[1] || 'Internal page';
+  }
+
+  function renderWorldQuickLinks(){
+    const links=worldQuickLinks();
+    return `<section class="world-links-panel" aria-label="Quick Links">
+      <div class="world-links-head">
+        <div><h2>Quick Links</h2><p>Create your own shortcuts, edit them, and arrange them in any order.</p></div>
+        <div class="world-links-actions">
+          <button class="button secondary small" type="button" data-world-link-add>Add link</button>
+          <button class="button secondary small" type="button" data-world-links-manage>Manage links</button>
+        </div>
+      </div>
+      <div class="world-links-list">
+        ${links.length ? links.map(link=>{
+          const isExternal=link.target==='external';
+          const attrs=isExternal
+            ? `data-world-quick-url="${esc(link.url)}"`
+            : `data-world-quick-nav="${esc(link.target)}" ${link.prefill?`data-world-quick-prefill="${esc(link.prefill)}"`:''}`;
+          return `<button class="world-quick-link" type="button" ${attrs}><span><strong>${esc(link.label)}</strong><small>${esc(link.copy||worldQuickLinkTargetLabel(link.target))}</small></span><span aria-hidden="true">→</span></button>`;
+        }).join('') : '<div class="world-links-empty">No quick links yet. Use “Add link” to create one.</div>'}
+      </div>
+    </section>`;
+  }
+
+  function worldQuickLinkManagerRow(link,index,total){
+    const isExternal=link.target==='external';
+    return `<div class="world-link-manager-row" data-world-link-row="${index}">
+      <span class="world-link-drag" draggable="true" data-world-link-drag="${index}" title="Drag to reorder" aria-label="Drag to reorder">⋮⋮</span>
+      <input class="input" value="${esc(link.label)}" placeholder="Link name" data-world-link-field="label" data-world-link-index="${index}">
+      <input class="input" value="${esc(link.copy)}" placeholder="Short description" data-world-link-field="copy" data-world-link-index="${index}">
+      <select class="select" data-world-link-field="target" data-world-link-index="${index}">${WORLD_QUICK_LINK_TARGETS.map(([value,label])=>`<option value="${esc(value)}" ${link.target===value?'selected':''}>${esc(label)}</option>`).join('')}</select>
+      <div class="world-link-row-actions">
+        <button class="icon-button" type="button" data-world-link-move="${index}:-1" ${index===0?'disabled':''} title="Move up" aria-label="Move up">↑</button>
+        <button class="icon-button" type="button" data-world-link-move="${index}:1" ${index===total-1?'disabled':''} title="Move down" aria-label="Move down">↓</button>
+        <button class="icon-button" type="button" data-world-link-delete="${index}" title="Delete link" aria-label="Delete link">×</button>
+      </div>
+      ${isExternal?`<label class="world-link-url-row"><span>Website URL</span><input class="input" value="${esc(link.url)}" placeholder="https://example.com" data-world-link-field="url" data-world-link-index="${index}"></label>`:''}
+    </div>`;
+  }
+
+  function showWorldQuickLinksManager(existingDraft=null){
+    const draft=(existingDraft||worldQuickLinks()).map(link=>({...link}));
+    const body=`<div class="world-links-manager">
+      <p class="world-link-manager-help">Drag rows to reorder them, or use the ↑ and ↓ buttons. You can link to another Codex Canvas area or choose External URL.</p>
+      <div class="world-link-manager-list">${draft.map((link,index)=>worldQuickLinkManagerRow(link,index,draft.length)).join('')||'<div class="world-links-empty">No links yet.</div>'}</div>
+      <button class="button secondary" type="button" data-world-link-manager-add>+ Add another link</button>
+    </div>`;
+    showModal('Manage Quick Links',body,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-world-links-save>Save links</button>`);
+    el.modal._worldQuickLinksDraft=draft;
+    const modal=el.modal.querySelector('.modal');
+    if(modal){modal.style.width='min(1040px,calc(100vw - 28px))';modal.style.maxHeight='min(820px,calc(100dvh - 24px))';}
+  }
+
+  function addWorldQuickLinkAndOpen(){
+    const draft=worldQuickLinks().map(link=>({...link}));
+    draft.push({id:id('world-link'),label:'New link',copy:'',target:'dashboard',url:'',prefill:''});
+    showWorldQuickLinksManager(draft);
+    requestAnimationFrame(()=>el.modal.querySelector(`[data-world-link-index="${draft.length-1}"][data-world-link-field="label"]`)?.select());
+  }
+
   function renderWorld() {
     el.main.innerHTML = `${pageHead('World bible',state.world.name,'The central overview imported from your Notion World Codex. Edit it using blocks just like any other page.', `<button class="button secondary" type="button" data-nav="graph">View world graph</button>`)}
-      <div class="editor-surface">${renderBlockEditor('world', state.world.id, state.world.blocks, state.world.name)}</div>`;
+      <div class="editor-surface">${renderBlockEditor('world', state.world.id, state.world.blocks, state.world.name)}${renderWorldQuickLinks()}</div>`;
   }
+
+
+  document.addEventListener('click',event=>{
+    const manage=event.target.closest('[data-world-links-manage]');
+    if(manage){event.preventDefault();event.stopImmediatePropagation();showWorldQuickLinksManager();return;}
+    const add=event.target.closest('[data-world-link-add]');
+    if(add){event.preventDefault();event.stopImmediatePropagation();addWorldQuickLinkAndOpen();return;}
+    const managerAdd=event.target.closest('[data-world-link-manager-add]');
+    if(managerAdd){
+      event.preventDefault();event.stopImmediatePropagation();
+      const draft=(el.modal._worldQuickLinksDraft||[]).map(link=>({...link}));
+      draft.push({id:id('world-link'),label:'New link',copy:'',target:'dashboard',url:'',prefill:''});
+      showWorldQuickLinksManager(draft);return;
+    }
+    const move=event.target.closest('[data-world-link-move]');
+    if(move){
+      event.preventDefault();event.stopImmediatePropagation();
+      const draft=(el.modal._worldQuickLinksDraft||[]).map(link=>({...link}));
+      const [indexRaw,deltaRaw]=move.dataset.worldLinkMove.split(':');
+      const index=Number(indexRaw),next=index+Number(deltaRaw);
+      if(index>=0&&next>=0&&index<draft.length&&next<draft.length){const [link]=draft.splice(index,1);draft.splice(next,0,link);showWorldQuickLinksManager(draft);}return;
+    }
+    const remove=event.target.closest('[data-world-link-delete]');
+    if(remove){
+      event.preventDefault();event.stopImmediatePropagation();
+      const draft=(el.modal._worldQuickLinksDraft||[]).map(link=>({...link}));
+      draft.splice(Number(remove.dataset.worldLinkDelete),1);showWorldQuickLinksManager(draft);return;
+    }
+    const save=event.target.closest('[data-world-links-save]');
+    if(save){
+      event.preventDefault();event.stopImmediatePropagation();
+      state.world.quickLinks=(el.modal._worldQuickLinksDraft||[]).map(link=>({...link,label:String(link.label||'Untitled link').trim()||'Untitled link',copy:String(link.copy||'').trim(),url:String(link.url||'').trim()}));
+      state.world.updatedAt=nowISO();scheduleSave('Saving quick links…');closeModal();renderWorld();toast('Quick Links saved.');return;
+    }
+    const nav=event.target.closest('[data-world-quick-nav]');
+    if(nav){
+      event.preventDefault();event.stopImmediatePropagation();
+      const prefill=nav.dataset.worldQuickPrefill||'';
+      if(prefill&&nav.dataset.worldQuickNav==='search')el.search.value=prefill;
+      navigate(nav.dataset.worldQuickNav);return;
+    }
+    const external=event.target.closest('[data-world-quick-url]');
+    if(external){
+      event.preventDefault();event.stopImmediatePropagation();
+      let url=String(external.dataset.worldQuickUrl||'').trim();
+      if(!url){toast('Add a website URL to this link first.','error');return;}
+      if(!/^(https?:|mailto:|tel:)/i.test(url))url=`https://${url}`;
+      window.open(url,'_blank','noopener,noreferrer');return;
+    }
+  },true);
+
+  document.addEventListener('input',event=>{
+    const field=event.target.closest?.('[data-world-link-field]');if(!field)return;
+    const draft=el.modal._worldQuickLinksDraft;if(!draft)return;
+    const index=Number(field.dataset.worldLinkIndex);if(!draft[index])return;
+    draft[index][field.dataset.worldLinkField]=field.value;
+  },true);
+
+  document.addEventListener('change',event=>{
+    const field=event.target.closest?.('[data-world-link-field="target"]');if(!field)return;
+    const draft=el.modal._worldQuickLinksDraft;if(!draft)return;
+    const index=Number(field.dataset.worldLinkIndex);if(!draft[index])return;
+    draft[index].target=field.value;
+    if(field.value!=='external')draft[index].url='';
+    showWorldQuickLinksManager(draft);
+  },true);
+
+  let worldQuickLinkDragIndex=-1;
+  document.addEventListener('dragstart',event=>{
+    const handle=event.target.closest?.('[data-world-link-drag]');if(!handle)return;
+    const row=handle.closest('[data-world-link-row]');worldQuickLinkDragIndex=Number(handle.dataset.worldLinkDrag);row?.classList.add('is-dragging');
+    event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',String(worldQuickLinkDragIndex));
+  },true);
+  document.addEventListener('dragover',event=>{
+    const row=event.target.closest?.('[data-world-link-row]');if(!row||worldQuickLinkDragIndex<0)return;
+    event.preventDefault();
+    el.modal.querySelectorAll('[data-world-link-row]').forEach(node=>node.classList.remove('is-drop-before'));
+    row.classList.add('is-drop-before');
+  },true);
+  document.addEventListener('drop',event=>{
+    const row=event.target.closest?.('[data-world-link-row]');if(!row||worldQuickLinkDragIndex<0)return;
+    event.preventDefault();event.stopImmediatePropagation();
+    const draft=(el.modal._worldQuickLinksDraft||[]).map(link=>({...link}));
+    const to=Number(row.dataset.worldLinkRow),from=worldQuickLinkDragIndex;worldQuickLinkDragIndex=-1;
+    if(from!==to&&from>=0&&from<draft.length&&to>=0&&to<draft.length){const [link]=draft.splice(from,1);draft.splice(to,0,link);}showWorldQuickLinksManager(draft);
+  },true);
+  document.addEventListener('dragend',()=>{worldQuickLinkDragIndex=-1;el.modal.querySelectorAll('[data-world-link-row]').forEach(node=>node.classList.remove('is-dragging','is-drop-before'));},true);
 
   function renderCollection(kind) {
     const meta = COLLECTIONS[kind];
@@ -18362,118 +18620,5 @@ initFirebase();
  .ccf-picker-modal{width:calc(100vw - 18px)}
 }
 </style>
-
-
-<!-- CC SPECIES INLINE EDITOR UPDATE -->
-<style id="cc-species-inline-editor-style">
-/* Species entries read like a normal editable document instead of stacked cards. */
-.cc4-approved .cc-species-inline-editor{
-  position:relative;
-  overflow:visible;
-  isolation:isolate;
-}
-.cc4-approved .cc-species-inline-toolbar{
-  margin:0 0 18px;
-}
-.cc4-approved .cc-species-inline-list{
-  display:block;
-  min-width:0;
-}
-.cc4-approved .cc-species-inline-list>.block-row{
-  margin:0;
-  border-radius:7px;
-}
-.cc4-approved .cc-species-inline-list>.block-row:has(.block-content[data-type="h2"]){
-  margin-top:24px;
-}
-.cc4-approved .cc-species-inline-list>.block-row:first-child:has(.block-content[data-type="h2"]){
-  margin-top:0;
-}
-.cc4-approved .cc-species-inline-list .block-content[data-type="h2"]{
-  font-family:Georgia,serif;
-  font-size:23px;
-  font-weight:750;
-  line-height:1.25;
-  color:var(--section-ink);
-  padding:9px 5px 7px;
-  border-bottom:1px solid color-mix(in srgb,var(--section-line) 72%,transparent);
-}
-.cc4-approved .cc-species-inline-list .block-content[data-type="h3"]{
-  margin-top:10px;
-  font-size:18px;
-  font-weight:760;
-  color:var(--section-ink);
-}
-.cc4-approved .cc-species-inline-list .block-content[data-type="text"],
-.cc4-approved .cc-species-inline-list .block-content[data-type="bullet"],
-.cc4-approved .cc-species-inline-list .block-content[data-type="quote"]{
-  line-height:1.65;
-}
-.cc4-approved .cc-species-inline-list .block-content[contenteditable="true"]:focus{
-  outline:none;
-  background:color-mix(in srgb,var(--section-accent) 8%,transparent);
-  box-shadow:0 0 0 2px color-mix(in srgb,var(--section-accent) 22%,transparent);
-  border-radius:6px;
-}
-.cc4-approved .cc-species-inline-list .cc8-block-actions{
-  opacity:0;
-}
-.cc4-approved .cc-species-inline-list>.block-row:hover>.cc8-block-actions,
-.cc4-approved .cc-species-inline-list>.block-row:focus-within>.cc8-block-actions{
-  opacity:1;
-}
-.cc4-approved .cc-species-inline-help{
-  margin-left:auto;
-  color:var(--muted);
-  font-size:11px;
-}
-@media(max-width:760px){
-  .cc4-approved .cc-species-inline-help{flex-basis:100%;margin-left:0}
-  .cc4-approved .cc-species-inline-list>.block-row:has(.block-content[data-type="h2"]){margin-top:20px}
-}
-</style>
-<script id="cc-species-inline-editor-script">
-(function(){
-  const previousEditor=window.cc4Editor;
-  if(typeof previousEditor!=='function')return;
-
-  function inlineSpeciesEditor(kind,item,openCount=2){
-    if(kind!=='species')return previousEditor(kind,item,openCount);
-
-    const blocks=Array.isArray(item?.blocks)?item.blocks:[];
-    const toolbar=`<div class="cc8-toolbar cc-species-inline-toolbar" data-editor="species:${item.id}">
-      <button class="block-tool" type="button" data-add-block="text" title="Add text">T</button>
-      <button class="block-tool" type="button" data-add-block="h2" title="Add heading">H</button>
-      <button class="block-tool" type="button" data-add-block="bullet" title="Add bullet">•</button>
-      <button class="block-tool" type="button" data-add-block="quote" title="Add quote">❝</button>
-      <button class="block-tool" type="button" data-add-block="divider" title="Add divider">―</button>
-      <label class="block-tool cc9-toolbar-upload" title="Add image">▧<input type="file" accept="image/*" data-cc5-image-input="species:${item.id}"></label>
-      <span class="cc-species-inline-help">Click any heading or text to edit it directly.</span>
-    </div>`;
-
-    const content=blocks.length
-      ? blocks.map((block,index)=>renderBlock('species',item.id,block,index)).join('')
-      : '<div class="block-placeholder">Use the toolbar to add the first part of this species entry.</div>';
-
-    const maxY=blocks
-      .filter(block=>block?.type==='image'&&['front','behind'].includes(block.layout))
-      .reduce((max,block)=>Math.max(max,(Number(block.y)||0)+(Number(block.width)||360)/(Number(block.ratio)||1)+80),0);
-
-    return `<div class="cc8-editor cc-species-inline-editor" style="min-height:${Math.max(300,Math.ceil(maxY))}px">${toolbar}<div class="block-list cc-species-inline-list" data-block-list="species:${item.id}">${content}</div></div>`;
-  }
-
-  window.cc4Editor=inlineSpeciesEditor;
-  try{cc4Editor=inlineSpeciesEditor;}catch(error){}
-
-  requestAnimationFrame(()=>{
-    try{
-      if(typeof route!=='undefined'&&route?.view==='species'&&route?.id&&typeof renderEntity==='function'){
-        renderEntity('species',route.id);
-      }
-    }catch(error){}
-  });
-})();
-</script>
-
 </body>
 </html>
