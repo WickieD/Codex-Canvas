@@ -18411,6 +18411,487 @@ initFirebase();
     const saveConnect=event.target.closest?.('[data-cc-life-save-connect]');if(saveConnect){event.preventDefault();const [storyId,nodeId]=saveConnect.dataset.ccLifeSaveConnect.split('|');const targetStoryId=el.modal.querySelector('[data-cc-life-connect-story]')?.value||'';const targetNodeId=el.modal.querySelector('[data-cc-life-connect-target]')?.value||'';const label=el.modal.querySelector('[data-cc-life-connect-label]')?.value.trim()||'Shared convergence';if(!targetStoryId||!targetNodeId){toast('Choose a story and story point.','error');return;}ccEnsureSharedStoryPoint(storyId,nodeId,targetStoryId,targetNodeId,label);scheduleSave('Saving shared convergence…');closeModal();render();toast('Story paths connected at this shared point.');return;}
   },true);
 
+
+  /* === Character clean view / explicit edit mode === */
+  let ccActiveProfileEditId='';
+  let ccActiveLifeEditId='';
+  const ccProfileEditSnapshots=new Map();
+  const ccLifeEditSnapshots=new Map();
+
+  function ccIsProfileEditing(characterId){return Boolean(characterId)&&ccActiveProfileEditId===characterId;}
+  function ccIsLifeEditing(characterId){return Boolean(characterId)&&ccActiveLifeEditId===characterId;}
+  function ccHasText(value){return String(value??'').trim().length>0;}
+  function ccVisibleCharacterBlock(block){
+    if(!block)return false;
+    if(block.type==='image')return Boolean(block.src);
+    if(block.type==='divider')return true;
+    const text=String(typeof cleanedBlockContent==='function'?cleanedBlockContent(block):block.content||'').trim();
+    if(!text)return false;
+    if(/^(?:start writing here…?|new heading|add text here…?)$/i.test(text))return false;
+    return true;
+  }
+  function ccCharacterHasWriting(item){return (item?.blocks||[]).some(ccVisibleCharacterBlock);}
+
+  function ccCharacterModeBar(characterId,active='bio',editing=false){
+    const tabs=`<nav class="cc-character-view-switch cc-clean-view-switch" aria-label="Character view"><button class="${active==='bio'?'is-active':''}" type="button" data-cc-life-bio="${esc(characterId)}">Bio</button><button class="${active==='life'?'is-active':''}" type="button" data-cc-life-story="${esc(characterId)}">Life Story</button></nav>`;
+    const mode=editing
+      ? `<div class="cc-character-mode-actions"><button class="cc-character-mode-done" type="button" data-cc-${active==='life'?'life':'profile'}-edit-done="${esc(characterId)}" title="Done editing" aria-label="Done editing">✓</button><button class="cc-character-mode-cancel" type="button" data-cc-${active==='life'?'life':'profile'}-edit-cancel="${esc(characterId)}" title="Cancel changes" aria-label="Cancel changes">×</button></div>`
+      : `<button class="cc-character-edit-pencil" type="button" data-cc-${active==='life'?'life':'profile'}-edit-start="${esc(characterId)}" title="Edit ${active==='life'?'Life Story':'character profile'}" aria-label="Edit ${active==='life'?'Life Story':'character profile'}">✎</button>`;
+    return `<div class="cc-character-modebar" data-cc-character-modebar="${esc(active)}">${tabs}<div class="cc-character-mode-spacer"></div>${mode}</div>`;
+  }
+
+  function ccSnapshotProfile(character){
+    return {
+      character:deepClone(character),
+      relationships:(state.characters||[]).map(item=>({id:item.id,relationshipIds:deepClone(item.relationshipIds||[])})),
+      speciesMembers:(state.species||[]).map(item=>({id:item.id,keyMemberIds:deepClone(item.keyMemberIds||[])}))
+    };
+  }
+  function ccRestoreProfileSnapshot(characterId,snapshot){
+    const character=getItem('characters',characterId);if(!character||!snapshot)return;
+    for(const key of Object.keys(character))delete character[key];
+    Object.assign(character,deepClone(snapshot.character));
+    for(const saved of snapshot.relationships||[]){const target=getItem('characters',saved.id);if(target)target.relationshipIds=deepClone(saved.relationshipIds||[]);}
+    for(const saved of snapshot.speciesMembers||[]){const target=getItem('species',saved.id);if(target)target.keyMemberIds=deepClone(saved.keyMemberIds||[]);}
+    if(typeof ccSynchronizeSpeciesMembership==='function')ccSynchronizeSpeciesMembership();
+  }
+  function ccBeginProfileEdit(characterId){
+    const character=getItem('characters',characterId);if(!character)return;
+    if(ccActiveProfileEditId&&ccActiveProfileEditId!==characterId)ccProfileEditSnapshots.delete(ccActiveProfileEditId);
+    ccActiveProfileEditId=characterId;
+    ccProfileEditSnapshots.set(characterId,ccSnapshotProfile(character));
+    renderEntity('characters',characterId);
+  }
+  function ccDoneProfileEdit(characterId){
+    if(ccActiveProfileEditId===characterId)ccActiveProfileEditId='';
+    ccProfileEditSnapshots.delete(characterId);
+    renderEntity('characters',characterId);
+  }
+  function ccCancelProfileEdit(characterId){
+    const snapshot=ccProfileEditSnapshots.get(characterId);
+    if(snapshot){ccRestoreProfileSnapshot(characterId,snapshot);scheduleSave('Reverting profile changes…');}
+    if(ccActiveProfileEditId===characterId)ccActiveProfileEditId='';
+    ccProfileEditSnapshots.delete(characterId);
+    renderEntity('characters',characterId);
+    toast('Profile changes cancelled.');
+  }
+
+  function ccSnapshotLife(character){
+    return {character:deepClone(character),contradictions:deepClone(state.workspace?.timelineContradictions||[])};
+  }
+  function ccRestoreLifeSnapshot(characterId,snapshot){
+    const character=getItem('characters',characterId);if(!character||!snapshot)return;
+    for(const key of Object.keys(character))delete character[key];
+    Object.assign(character,deepClone(snapshot.character));
+    state.workspace ||= {};
+    state.workspace.timelineContradictions=deepClone(snapshot.contradictions||[]);
+  }
+  function ccBeginLifeEdit(characterId){
+    const character=getItem('characters',characterId);if(!character)return;
+    if(ccActiveLifeEditId&&ccActiveLifeEditId!==characterId)ccLifeEditSnapshots.delete(ccActiveLifeEditId);
+    ccActiveLifeEditId=characterId;
+    ccLifeEditSnapshots.set(characterId,ccSnapshotLife(character));
+    renderCharacterLifeStory(character);
+    requestAnimationFrame(()=>ccApplyLifeStoryPresentation(character,true));
+  }
+  function ccDoneLifeEdit(characterId){
+    ccLifeArrangeMode.delete(characterId);
+    if(ccActiveLifeEditId===characterId)ccActiveLifeEditId='';
+    ccLifeEditSnapshots.delete(characterId);
+    const character=getItem('characters',characterId);if(character){renderCharacterLifeStory(character);requestAnimationFrame(()=>ccApplyLifeStoryPresentation(character,false));}
+  }
+  function ccCancelLifeEdit(characterId){
+    const snapshot=ccLifeEditSnapshots.get(characterId);
+    if(snapshot){ccRestoreLifeSnapshot(characterId,snapshot);scheduleSave('Reverting Life Story changes…');}
+    ccLifeArrangeMode.delete(characterId);
+    if(ccActiveLifeEditId===characterId)ccActiveLifeEditId='';
+    ccLifeEditSnapshots.delete(characterId);
+    const character=getItem('characters',characterId);if(character){renderCharacterLifeStory(character);requestAnimationFrame(()=>ccApplyLifeStoryPresentation(character,false));}
+    toast('Life Story changes cancelled.');
+  }
+
+  const ccEditModeRenderCharacterCover=renderCharacterCover;
+  renderCharacterCover=function(item){
+    if(ccIsProfileEditing(item?.id))return ccEditModeRenderCharacterCover(item);
+    if(!characterCoverVisible(item)||!item?.headerImage?.src)return '';
+    const media=item.headerImage;
+    return `<div class="entity-cover character-cover-slot has-image cc-static-character-media"><img src="${esc(media.src)}" alt="${esc(media.alt||`${item.name} cover image`)}" style="${characterMediaStyle(media,'header')}"></div>`;
+  };
+
+  const ccEditModeRenderCharacterPortrait=renderCharacterPortrait;
+  renderCharacterPortrait=function(item){
+    if(ccIsProfileEditing(item?.id))return ccEditModeRenderCharacterPortrait(item);
+    const media=item?.profileImage||null;if(!media?.src)return '';
+    return `<div class="character-portrait-slot has-image cc-static-character-media"><img src="${esc(media.src)}" alt="${esc(media.alt||`${item.name} portrait`)}" style="${characterMediaStyle(media,'profile')}"></div>`;
+  };
+
+  const ccEditModeDossierLabelButton=dossierLabelButton;
+  dossierLabelButton=function(item,key,className=''){
+    if(ccIsProfileEditing(item?.id))return ccEditModeDossierLabelButton(item,key,className);
+    return `<span class="dossier-label-static ${esc(className)}">${esc(dossierLabel(item,key))}</span>`;
+  };
+  const ccEditModeDossierEditButton=dossierEditButton;
+  dossierEditButton=function(item,field,label){return ccIsProfileEditing(item?.id)?ccEditModeDossierEditButton(item,field,label):'';};
+
+  const ccEditModeRenderDossierSection=renderDossierSection;
+  renderDossierSection=function(item,field,labelKey,content,extraClass=''){
+    if(ccIsProfileEditing(item?.id))return ccEditModeRenderDossierSection(item,field,labelKey,content,extraClass);
+    if(!ccHasText(item?.[field]))return '';
+    return `<section class="dossier-section ${esc(extraClass)}"><h3>${dossierLabelButton(item,labelKey)}</h3>${content}</section>`;
+  };
+
+  const ccEditModeRenderDossierMediaSlot=renderDossierMediaSlot;
+  renderDossierMediaSlot=function(item,slot,titleKey,helpKey,className=''){
+    if(ccIsProfileEditing(item?.id))return ccEditModeRenderDossierMediaSlot(item,slot,titleKey,helpKey,className);
+    const media=item?.[characterMediaKey(slot)]||null;if(!media?.src)return '';
+    const title=dossierLabel(item,titleKey),help=dossierLabel(item,helpKey);
+    return `<article class="dossier-media-card ${esc(className)} cc-static-dossier-media"><div class="dossier-media-head"><span><span class="dossier-label-static media-title">${esc(title)}</span></span>${ccHasText(help)?`<span><span class="dossier-label-static media-help">${esc(help)}</span></span>`:''}</div><div class="dossier-media-slot has-image"><img src="${esc(media.src)}" alt="${esc(media.alt||`${item.name} ${title}`)}" style="${characterMediaStyle(media,slot)}"></div></article>`;
+  };
+
+  const ccEditModeRenderBlockEditor=renderBlockEditor;
+  renderBlockEditor=function(kind,itemId,blocks=[],pageTitle=''){
+    if(kind!=='characters'||ccIsProfileEditing(itemId))return ccEditModeRenderBlockEditor(kind,itemId,blocks,pageTitle);
+    const displayBlocks=(blocks||[]).map((block,index)=>({block,index})).filter(({block})=>{
+      const sameAsTitle=/^h[1-3]$/.test(block.type)&&stripMd(block.content).toLowerCase()===stripMd(pageTitle).toLowerCase();
+      if(sameAsTitle||isImportedCharacterSummary(block))return false;
+      return ccVisibleCharacterBlock(block);
+    });
+    if(!displayBlocks.length)return '';
+    const imageBlocks=displayBlocks.filter(({block})=>block.type==='image');
+    const floatingTextBlocks=displayBlocks.filter(({block})=>block.type!=='image'&&textElementLayout(block)!=='inline');
+    const writingBlocks=displayBlocks.filter(({block})=>block.type!=='image'&&textElementLayout(block)==='inline');
+    const writingHtml=writingBlocks.map(({block,index})=>renderBlock(kind,itemId,block,index)).join('');
+    const mode=typeof canvasPlacementMode==='function'?canvasPlacementMode():'free';
+    const size=typeof canvasGridSize==='function'?canvasGridSize():20;
+    const minHeight=characterCanvasMinHeight(blocks);
+    return `<div class="block-list character-block-list cc-readonly-character-canvas canvas-placement-${esc(mode)}" data-block-list="${kind}:${esc(itemId)}" data-character-drop-zone="${esc(itemId)}" data-canvas-placement="${esc(mode)}" style="--canvas-grid-size:${size}px;min-height:${minHeight}px">${imageBlocks.map(({block,index})=>renderBlock(kind,itemId,block,index)).join('')}${floatingTextBlocks.map(({block,index})=>renderBlock(kind,itemId,block,index)).join('')}<div class="character-flow-layer" data-character-flow="${esc(itemId)}"></div><div class="character-writing-source">${writingHtml}</div></div>`;
+  };
+
+  const ccEditModeTemplateToolbar=renderCharacterTemplateToolbar;
+  renderCharacterTemplateToolbar=function(item){
+    if(!ccIsProfileEditing(item?.id))return ccCharacterModeBar(item.id,'bio',false);
+    const html=ccEditModeTemplateToolbar(item);
+    return html.replace('</div>\n    </div>',`<div class="cc-character-mode-actions"><button class="cc-character-mode-done" type="button" data-cc-profile-edit-done="${esc(item.id)}" title="Done editing" aria-label="Done editing">✓</button><button class="cc-character-mode-cancel" type="button" data-cc-profile-edit-cancel="${esc(item.id)}" title="Cancel changes" aria-label="Cancel changes">×</button></div></div>\n    </div>`);
+  };
+
+  function ccReadonlyPropertiesHtml(item){
+    const rows=[];
+    const textRow=(label,value)=>{if(ccHasText(value))rows.push(`<div class="property-row cc-readonly-property"><label>${esc(label)}</label><div class="cc-readonly-property-value">${esc(cleanNotionRefs(value))}</div></div>`);};
+    const htmlRow=(label,html)=>{if(html)rows.push(`<div class="property-row cc-readonly-property"><label>${esc(label)}</label>${html}</div>`);};
+    textRow('Age',item.age);
+    const species=typeof ccSpeciesRecords==='function'?ccSpeciesRecords(item):[];
+    if(species.length)htmlRow('Species / race',`<div class="property-links">${species.map(record=>`<button class="link-pill" type="button" data-open="species:${esc(record.id)}">${esc(record.name)}</button>`).join('')}</div>`);else textRow('Species / race',item.speciesRace);
+    textRow('Alignment',item.alignment);textRow('Role / occupation',item.role);if(item.occupation!==item.role)textRow('Dossier occupation',item.occupation);
+    textRow('Aliases',item.aliases);textRow('Status',item.status);textRow('Current mood',item.mood);textRow('Current outfit',item.outfit);textRow('Current position',item.position);
+    const locations=(item.currentLocationIds||[]).map(idValue=>getItem('locations',idValue)).filter(Boolean);
+    if(locations.length)htmlRow('Current location',`<div class="property-links">${locations.map(location=>`<button class="link-pill" type="button" data-open="locations:${esc(location.id)}">${esc(location.name)}</button>`).join('')}</div>`);
+    textRow('Personality',item.personality);textRow('Backstory',item.backstory);textRow('Strengths',item.strengths);textRow('Weaknesses',item.weaknesses);textRow('Skills / abilities',item.skillsAbilities);textRow('Traits',item.traits);textRow('Reputation / code',item.reputationCode);textRow('Distinguishing features',item.distinguishingFeatures);textRow('Motivations / principles',item.motivations);textRow('Relationships',item.relationshipsText);
+    const related=(item.relationshipIds||[]).map(idValue=>getItem('characters',idValue)).filter(Boolean);if(related.length)htmlRow('Linked people',`<div class="property-links">${related.map(person=>`<button class="link-pill" type="button" data-open="characters:${esc(person.id)}">${esc(person.name)}</button>`).join('')}</div>`);
+    textRow('Secrets',item.secrets);textRow('Quote',item.quote);textRow('Tags',item.tags);textRow('Notes',item.notes);
+    return rows.join('');
+  }
+
+  function ccReplaceTitleWithStatic(item){
+    const input=el.main?.querySelector('.entity-title-input');if(!input)return;
+    const title=document.createElement('h1');title.className=`cc-static-character-title${input.classList.contains('dossier-title-input')?' dossier-static-title':''}`;title.textContent=item.name||'';input.replaceWith(title);
+  }
+  function ccStripCharacterEditorControls(root=el.main){
+    if(!root)return;
+    root.querySelectorAll('.block-toolbar,.block-handle,.flow-element-controls,.flow-resize-dot,.text-selection-actions,.text-edit-toolbar,.text-resize-dot,.image-selection-edit,.image-edit-toolbar,.image-resize-dot,.dossier-section-edit,.dossier-summary-rename,.dossier-media-edit,.character-cover-upload,.character-portrait-upload,.favorite-button').forEach(node=>node.remove());
+    root.querySelectorAll('[data-flow-select],[data-flow-edit],[data-text-select],[data-text-start-edit],[data-image-select],[data-image-start-edit],[data-character-media-select],[data-character-media-drop],[data-character-media-trigger],[data-character-media-edit]').forEach(node=>{
+      for(const name of [...node.attributes].map(attr=>attr.name))if(name.startsWith('data-flow-')||name.startsWith('data-text-')||name.startsWith('data-image-')||name.startsWith('data-character-media-'))node.removeAttribute(name);
+      node.removeAttribute('role');node.removeAttribute('tabindex');node.removeAttribute('title');
+    });
+    root.querySelectorAll('[contenteditable="true"]').forEach(node=>node.removeAttribute('contenteditable'));
+    root.querySelectorAll('[data-character-drop-zone]').forEach(node=>node.removeAttribute('data-character-drop-zone'));
+  }
+  function ccCleanSnapshot(item){
+    const snapshot=el.main?.querySelector('.character-snapshot');if(!snapshot)return;
+    snapshot.querySelectorAll('.snapshot-field').forEach(field=>{
+      const links=field.querySelector('[data-open]');
+      const text=(field.textContent||'').replace(/\s+/g,' ').trim();
+      if(!links&&/(Not set)$/i.test(text))field.remove();
+    });
+    const portrait=snapshot.querySelector('.character-portrait-slot');if(portrait&&!portrait.querySelector('img'))portrait.remove();
+    const hasContent=snapshot.querySelector('img,.snapshot-field,.snapshot-relationships');if(!hasContent)snapshot.remove();
+  }
+  function ccCleanStoryHub(){
+    el.main?.querySelectorAll('.cc2-story-hub').forEach(hub=>{
+      hub.querySelectorAll('[data-cc2-manage-relations],[data-edit-current-details],[data-cc2-manage-species]').forEach(button=>button.remove());
+      hub.querySelectorAll('.cc2-hub-row').forEach(row=>{const hasLink=row.querySelector('[data-open],[data-story-point]');const empty=row.querySelector('.cc2-empty');if(empty&&!hasLink)row.remove();});
+      if(!hub.querySelector('.cc2-hub-row'))hub.remove();
+    });
+    el.main?.querySelectorAll('.character-related-links').forEach(nav=>{if(nav.querySelector('.character-related-empty'))nav.remove();});
+  }
+  function ccCleanDossierView(item){
+    const dossier=el.main?.querySelector('.practical-dossier-page');if(!dossier)return;
+    const topbar=dossier.querySelector('.dossier-topbar');if(topbar)topbar.outerHTML=ccCharacterModeBar(item.id,'bio',false);
+    ccReplaceTitleWithStatic(item);
+    dossier.querySelector('.dossier-cover-meta')?.remove();
+    const cover=dossier.querySelector('.dossier-cover');if(cover&&!cover.querySelector('img'))cover.remove();
+    const tagline=dossier.querySelector('.dossier-tagline');if(tagline&&!ccHasText(item.tagline))tagline.remove();
+    dossier.querySelectorAll('.dossier-stat').forEach(stat=>{const value=stat.querySelector('.dossier-stat-value');if(!value)return;const text=(value.textContent||'').trim();if(!text||/^Not set$/i.test(text)){stat.remove();return;}const span=document.createElement('span');span.className='dossier-stat-value cc-static-dossier-value';span.textContent=text;value.replaceWith(span);});
+    const identity=dossier.querySelector('.dossier-identity');if(identity&&!identity.querySelector('.dossier-stat'))identity.classList.add('cc-dossier-identity-name-only');
+    dossier.querySelectorAll('.dossier-label-button').forEach(button=>{const span=document.createElement('span');span.className=button.className.replace('dossier-label-button','dossier-label-static');span.textContent=button.textContent;button.replaceWith(span);});
+    dossier.querySelectorAll('.dossier-media-card').forEach(card=>{if(!card.querySelector('img'))card.remove();});
+    dossier.querySelectorAll('.dossier-side-stack').forEach(stack=>{if(!stack.querySelector('.dossier-media-card'))stack.remove();});
+    const imageGrid=dossier.querySelector('.dossier-image-grid');if(imageGrid&&!imageGrid.querySelector('img'))imageGrid.remove();
+    dossier.querySelectorAll('.dossier-section').forEach(section=>{if(section.querySelector('.dossier-empty'))section.remove();});
+    const currentDetails=[item.status,item.mood,item.outfit,locationNames(item.currentLocationIds).join(', ')].filter(ccHasText).join(' · ');
+    dossier.querySelectorAll('.dossier-section').forEach(section=>{if(/No current details set\.?/i.test(section.textContent||'')&&!currentDetails)section.remove();});
+    dossier.querySelectorAll('.dossier-main-column,.dossier-side-column,.dossier-content-grid,.dossier-footer-grid').forEach(container=>{if(!container.querySelector('.dossier-section'))container.classList.add('cc-empty-dossier-container');});
+    const additional=dossier.querySelector('.dossier-additional');if(additional&&!ccCharacterHasWriting(item))additional.remove();
+    ccStripCharacterEditorControls(dossier);
+  }
+
+  function ccApplyCharacterProfilePresentation(item,editing=ccIsProfileEditing(item?.id)){
+    if(!el.main||!item)return;
+    el.main.classList.toggle('cc-character-view-mode',!editing);el.main.classList.toggle('cc-character-edit-mode',editing);el.main.classList.remove('cc-life-view-mode','cc-life-edit-mode');
+    if(editing){
+      const dossier=el.main.querySelector('.practical-dossier-page');
+      if(dossier){
+        const actions=dossier.querySelector('.dossier-top-actions');
+        if(actions&&!actions.querySelector('.cc-character-mode-actions'))actions.insertAdjacentHTML('beforeend',`<div class="cc-character-mode-actions"><button class="cc-character-mode-done" type="button" data-cc-profile-edit-done="${esc(item.id)}" title="Done editing" aria-label="Done editing">✓</button><button class="cc-character-mode-cancel" type="button" data-cc-profile-edit-cancel="${esc(item.id)}" title="Cancel changes" aria-label="Cancel changes">×</button></div>`);
+      }else{
+        const toolbar=el.main.querySelector('.character-template-toolbar');
+        if(toolbar&&!toolbar.querySelector('.cc-character-mode-actions'))toolbar.insertAdjacentHTML('beforeend',`<div class="cc-character-mode-actions"><button class="cc-character-mode-done" type="button" data-cc-profile-edit-done="${esc(item.id)}" title="Done editing" aria-label="Done editing">✓</button><button class="cc-character-mode-cancel" type="button" data-cc-profile-edit-cancel="${esc(item.id)}" title="Cancel changes" aria-label="Cancel changes">×</button></div>`);
+      }
+      return;
+    }
+    if(item.pageTemplate==='practical-dossier')ccCleanDossierView(item);else{
+      const toolbar=el.main.querySelector('.character-template-toolbar');if(toolbar)toolbar.outerHTML=ccCharacterModeBar(item.id,'bio',false);
+      ccReplaceTitleWithStatic(item);ccCleanSnapshot(item);
+      const properties=el.main.querySelector('.properties-panel');if(properties){const html=ccReadonlyPropertiesHtml(item);if(html)properties.innerHTML=`<div class="panel-head cc-readonly-properties-head" style="padding:0 0 14px"><h2>Details</h2></div><div class="property-list cc-readonly-properties">${html}</div>`;else{properties.remove();el.main.querySelector('.entity-layout')?.classList.add('cc-character-single-column');}}
+      const hero=el.main.querySelector('.entity-hero');if(hero&&!hero.querySelector('.entity-cover')&&!(item.name||'').trim())hero.remove();
+      ccStripCharacterEditorControls(el.main);
+    }
+    ccCleanStoryHub();
+  }
+
+  function ccApplyLifeStoryPresentation(character,editing=ccIsLifeEditing(character?.id)){
+    if(!el.main||!character)return;
+    el.main.classList.remove('cc-character-view-mode','cc-character-edit-mode');el.main.classList.toggle('cc-life-view-mode',!editing);el.main.classList.toggle('cc-life-edit-mode',editing);
+    const tabs=el.main.querySelector('.cc-character-view-tabs');if(tabs){const wrapper=document.createElement('div');wrapper.innerHTML=ccCharacterModeBar(character.id,'life',editing);tabs.replaceWith(wrapper.firstElementChild);}
+    if(editing)return;
+    el.main.querySelectorAll('[data-cc-life-add-event],[data-cc-life-arrange],[data-cc-life-reset-order],[data-cc-life-edit-event],[data-cc-life-add-origin],[data-cc-life-flag],.cc-life-reorder').forEach(node=>node.remove());
+    const arrangeActions=el.main.querySelector('.cc-life-arrange-actions');if(arrangeActions&&!arrangeActions.children.length)arrangeActions.remove();
+    const note=el.main.querySelector('.cc-life-tools + .muted');if(note)note.textContent='Click a person to see how their path intersects with this character.';
+    el.main.querySelectorAll('.cc-life-card-actions').forEach(actions=>{if(!actions.children.length)actions.remove();});
+  }
+
+  const ccEditModeInstallCharacterImageInteractions=installCharacterImageInteractions;
+  installCharacterImageInteractions=function(){
+    const list=document.querySelector('.character-block-list');
+    const characterId=list?.dataset?.characterDropZone||route.id||'';
+    if(characterId&&!ccIsProfileEditing(characterId)){if(list)requestAnimationFrame(()=>layoutCharacterFlow(list));return;}
+    return ccEditModeInstallCharacterImageInteractions();
+  };
+
+  const ccEditModeNavigateBase=navigate;
+  navigate=function(view,entityId=''){
+    if(ccActiveProfileEditId&&!(view==='characters'&&entityId===ccActiveProfileEditId)){ccProfileEditSnapshots.delete(ccActiveProfileEditId);ccActiveProfileEditId='';}
+    if(ccActiveLifeEditId&&!(view==='character-life'&&entityId===ccActiveLifeEditId)){ccLifeArrangeMode.delete(ccActiveLifeEditId);ccLifeEditSnapshots.delete(ccActiveLifeEditId);ccActiveLifeEditId='';}
+    el.main?.classList.remove('cc-character-view-mode','cc-character-edit-mode','cc-life-view-mode','cc-life-edit-mode');
+    return ccEditModeNavigateBase(view,entityId);
+  };
+
+  const ccEditModeRenderCharacterLifeStoryBase=renderCharacterLifeStory;
+  renderCharacterLifeStory=function(character){
+    ccEditModeRenderCharacterLifeStoryBase(character);
+    const apply=()=>ccApplyLifeStoryPresentation(character,ccIsLifeEditing(character?.id));
+    apply();requestAnimationFrame(()=>{apply();requestAnimationFrame(apply);});
+  };
+
+  const ccCharacterEditRenderEntityBase=renderEntity;
+  renderEntity=function(kind,itemId){
+    ccCharacterEditRenderEntityBase(kind,itemId);
+    if(kind!=='characters'){el.main?.classList.remove('cc-character-view-mode','cc-character-edit-mode','cc-life-view-mode','cc-life-edit-mode');return;}
+    const item=getItem('characters',itemId);if(!item)return;
+    if(route.view==='character-life'){
+      const apply=()=>ccApplyLifeStoryPresentation(item,ccIsLifeEditing(item.id));apply();requestAnimationFrame(()=>{apply();requestAnimationFrame(apply);});
+    }else{
+      const apply=()=>ccApplyCharacterProfilePresentation(item,ccIsProfileEditing(item.id));apply();requestAnimationFrame(()=>{apply();requestAnimationFrame(apply);});
+    }
+  };
+
+  document.addEventListener('click',event=>{
+    const profileStart=event.target.closest?.('[data-cc-profile-edit-start]');if(profileStart){event.preventDefault();event.stopImmediatePropagation();ccBeginProfileEdit(profileStart.dataset.ccProfileEditStart);return;}
+    const profileDone=event.target.closest?.('[data-cc-profile-edit-done]');if(profileDone){event.preventDefault();event.stopImmediatePropagation();ccDoneProfileEdit(profileDone.dataset.ccProfileEditDone);return;}
+    const profileCancel=event.target.closest?.('[data-cc-profile-edit-cancel]');if(profileCancel){event.preventDefault();event.stopImmediatePropagation();ccCancelProfileEdit(profileCancel.dataset.ccProfileEditCancel);return;}
+    const lifeStart=event.target.closest?.('[data-cc-life-edit-start]');if(lifeStart){event.preventDefault();event.stopImmediatePropagation();ccBeginLifeEdit(lifeStart.dataset.ccLifeEditStart);return;}
+    const lifeDone=event.target.closest?.('[data-cc-life-edit-done]');if(lifeDone){event.preventDefault();event.stopImmediatePropagation();ccDoneLifeEdit(lifeDone.dataset.ccLifeEditDone);return;}
+    const lifeCancel=event.target.closest?.('[data-cc-life-edit-cancel]');if(lifeCancel){event.preventDefault();event.stopImmediatePropagation();ccCancelLifeEdit(lifeCancel.dataset.ccLifeEditCancel);return;}
+  },true);
+
+
+  /* === Character rich writing editor === */
+  let ccRichBlockRef='';
+  let ccRichLifeSource=null;
+  let ccRichSubdialog=null;
+
+  function ccRichLegacyToBbcode(value){
+    let text=String(value||'');
+    text=text.replace(/\*\*([^*\n]+?)\*\*/g,'[b]$1[/b]');
+    text=text.replace(/__([^_\n]+?)__/g,'[b]$1[/b]');
+    text=text.replace(/`([^`\n]+?)`/g,'[code]$1[/code]');
+    text=text.replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g,'$1[i]$2[/i]');
+    return text;
+  }
+  function ccCharacterRichRender(value){
+    return ccrhBbcode(ccRichLegacyToBbcode(String(value||'')));
+  }
+  function ccCharacterRichPlain(value){
+    return String(value||'')
+      .replace(/\[media\s+url="[^"]+"\s+align=(?:left|right|center|full)\s+width=(?:[0-9]+|100%)\s*\]/gi,' ')
+      .replace(/\[img(?:=(?:left|right|center|full))?\][\s\S]*?\[\/img\]/gi,' ')
+      .replace(/\[url=[^\]]+\]([\s\S]*?)\[\/url\]/gi,'$1')
+      .replace(/\[spoiler(?:=[^\]]+)?\]([\s\S]*?)\[\/spoiler\]/gi,'$1')
+      .replace(/\[quote(?:=[^\]]+)?\]([\s\S]*?)\[\/quote\]/gi,'$1')
+      .replace(/\[(?:\/?(?:b|i|u|s|center|right|left|ooc|list|code)|color=[^\]]+|size=[^\]]+)\]/gi,'')
+      .replace(/\[\*\]/g,'• ')
+      .replace(/\[hr\s*\]/gi,' ');
+  }
+
+  const ccRichFlowTokensBase=flowTokens;
+  flowTokens=function(markdown=''){return ccRichFlowTokensBase(ccCharacterRichPlain(markdown));};
+
+  renderCharacterInlineBlock=function(kind,itemId,block,index){
+    normalizeBlockHeadingSyntax(block);
+    const ref=`${kind}:${itemId}:${index}`;
+    const selected=activeInlineTextRef===ref?' is-selected':'';
+    const content=block.type==='divider'?`<span class="block-divider"></span>`:`<div class="cc-character-rich-output">${ccCharacterRichRender(cleanedBlockContent(block))}</div>`;
+    const surfaceClass=block.type==='divider'?'character-inline-divider-button':'character-inline-writing block-content';
+    const typeAttr=block.type==='divider'?'':` data-type="${esc(block.type)}"`;
+    return `<div class="block-row character-inline-element${selected}" data-block-row="${ref}" data-inline-ref="${ref}"><div class="${surfaceClass} character-inline-surface" role="button" tabindex="0" data-flow-select="${ref}" data-flow-edit="${ref}"${typeAttr} aria-label="Select ${esc(unifiedTextTypeLabel(block.type))}">${content}</div><div class="flow-element-controls" aria-label="Selected writing controls"><button type="button" data-flow-open-settings="${ref}">Shape</button><button type="button" data-flow-move="${ref}" title="Drag to place this anywhere">Move</button></div><button class="flow-resize-dot" type="button" data-flow-resize="${ref}" aria-label="Drag to make this a movable box and resize it"></button></div>`;
+  };
+
+  renderCharacterTextElement=function(kind,itemId,block,index){
+    normalizeBlockHeadingSyntax(block);
+    const ref=`${kind}:${itemId}:${index}`;
+    const layout=textElementLayout(block)==='inline'?'front':textElementLayout(block);
+    const width=Math.max(90,Number(block.width)||(block.type==='divider'?420:/^h/.test(block.type)?390:320));
+    const height=unifiedTextHeight(block),padding=Math.max(0,Math.min(100,Number(block.padding)||16));
+    const xPct=Math.max(0,Math.min(100,Number(block.xPct)||0)),y=Math.max(0,Number(block.y)||0);
+    const z=Math.max(-20,Math.min(50,Number(block.z)||(layout==='behind'?-2:layout==='front'?8:4)));
+    const selected=activeTextElementRef===ref?' is-selected':'',editing=editingTextElementRef===ref?' is-editing':'',manual=height>0?' has-manual-height':'';
+    const content=block.type==='divider'?`<div class="character-text-divider" aria-label="Horizontal line"></div>`:`<div class="character-text-content block-content cc-character-rich-output" data-type="${esc(block.type)}">${ccCharacterRichRender(cleanedBlockContent(block))}</div>`;
+    return `<section class="character-text-block text-layout-${layout}${selected}${editing}${manual}" data-text-block="${ref}" data-block-row="${ref}" style="--text-width:${width}px;--text-height:${height||40}px;--text-gap:${padding}px;--text-z:${z};left:${xPct}%;top:${y}px;"><div class="character-text-surface" data-text-select="${ref}" title="Click to select, then drag anywhere">${content}</div><div class="text-selection-actions" aria-label="Selected element controls"><button type="button" data-text-open-settings="${ref}">Shape</button><button type="button" data-text-move="${ref}" title="Drag this button or the selected box">Move</button></div><button class="text-resize-dot" type="button" data-text-resize="${ref}" aria-label="Drag to resize width and height" title="Drag to resize"></button></section>`;
+  };
+
+  function ccRichToolbar(){
+    return `<div class="cc-rich-toolbar"><button class="cc-rich-tool-icon" type="button" data-cc-rich-tag="b" title="Bold"><strong>B</strong></button><button class="cc-rich-tool-icon" type="button" data-cc-rich-tag="i" title="Italic"><em>I</em></button><button class="cc-rich-tool-icon" type="button" data-cc-rich-tag="u" title="Underline"><u>U</u></button><button class="cc-rich-tool-icon" type="button" data-cc-rich-tag="s" title="Strikethrough"><s>S</s></button><button type="button" data-cc-rich-wrap="[size=18]|[/size]">Size</button><input type="color" value="#8f6aae" data-cc-rich-color-value title="Text color"><button type="button" data-cc-rich-color>Color</button><button type="button" data-cc-rich-wrap="[quote]|[/quote]">Quote</button><button type="button" data-cc-rich-wrap="[list]\n[*]|\n[/list]">List</button><button type="button" data-cc-rich-wrap="[url=https://]|[/url]">Link</button><button type="button" data-cc-rich-media-toggle>Image/GIF</button><button type="button" data-cc-rich-emoji-toggle>Emoji</button><button type="button" data-cc-rich-wrap="[center]|[/center]">Center</button><button type="button" data-cc-rich-wrap="[right]|[/right]">Right</button><button type="button" data-cc-rich-wrap="[spoiler=Hidden]|[/spoiler]">Spoiler</button><button type="button" data-cc-rich-wrap="[hr]|">Line</button></div>`;
+  }
+  function ccRichEditorShell(value='',extraAttr=''){
+    const emoji=(typeof CC_EMOJI_STANDARD!=='undefined'?CC_EMOJI_STANDARD.slice(0,48):[['😀',''],['😊',''],['😂',''],['😍',''],['😎',''],['🤔',''],['😭',''],['😡',''],['❤️',''],['✨',''],['🔥',''],['🌙','']]);
+    return `<div class="cc-rich-writing-shell">${ccRichToolbar()}<div class="cc-rich-media-panel" data-cc-rich-media-panel hidden><div class="cc-rich-media-grid"><label class="cc-rich-media-url">Hosted image or GIF URL<input class="input" data-cc-rich-media-url placeholder="GIPHY page or direct image URL"></label><label>Alignment<select class="select" data-cc-rich-media-align><option value="center">Center</option><option value="left">Left</option><option value="right">Right</option><option value="full">Full width</option></select></label><label>Width<select class="select" data-cc-rich-media-width><option value="320">Small</option><option value="500">Medium</option><option value="700" selected>Large</option><option value="1000">Extra large</option><option value="100%">Full available</option></select></label><button class="button small" type="button" data-cc-rich-media-insert>Insert</button></div></div><div class="cc-rich-emoji-panel" data-cc-rich-emoji-panel hidden><div class="cc-rich-emoji-grid">${emoji.map(pair=>`<button type="button" data-cc-rich-emoji="${esc(pair[0])}" title="${esc(pair[1]||'Emoji')}">${pair[0]}</button>`).join('')}</div></div><div class="cc-rich-editor-tabs"><button class="is-active" type="button" data-cc-rich-tab="write">Write</button><button type="button" data-cc-rich-tab="preview">Preview</button></div><textarea class="cc-rich-editor" data-cc-rich-editor ${extraAttr} spellcheck="true">${esc(value)}</textarea><div class="cc-rich-preview cc-character-rich-output" data-cc-rich-preview hidden></div><div class="cc-rich-count" data-cc-rich-count>${String(value||'').length.toLocaleString()} characters</div></div>`;
+  }
+  function ccRichShellFrom(node){return node?.closest?.('.cc-rich-writing-shell')||document.querySelector('.cc-rich-writing-shell');}
+  function ccRichEditorFrom(node){return ccRichShellFrom(node)?.querySelector('[data-cc-rich-editor]')||null;}
+  function ccRichInsert(editor,open,close=''){
+    if(!editor)return;const start=editor.selectionStart??editor.value.length,end=editor.selectionEnd??start,selected=editor.value.slice(start,end);editor.setRangeText(open+selected+close,start,end,'end');editor.focus();editor.dispatchEvent(new Event('input',{bubbles:true}));
+  }
+  function ccRichRefreshPreview(shell){
+    const editor=shell?.querySelector('[data-cc-rich-editor]'),preview=shell?.querySelector('[data-cc-rich-preview]');if(preview)preview.innerHTML=ccCharacterRichRender(editor?.value||'')||'<span class="muted">Nothing to preview yet.</span>';
+  }
+
+  function ccOpenRichBlockEditor(ref){
+    const info=blockFromRef(ref);if(!info.block||info.block.type==='image'||info.block.type==='divider')return;
+    if(info.kind==='characters'&&!ccIsProfileEditing(info.itemId))return;
+    ccRichBlockRef=ref;closeTextActionPopover();finishInPlaceTextEdit(false);
+    showModal(`Edit ${textElementLabel(info.block).toLowerCase()}`,`<p class="cc-rich-writing-help">Format this writing the same way as a Roleplay Hub post. Existing plain text and older **bold** / *italic* writing still work.</p>${ccRichEditorShell(cleanedBlockContent(info.block))}`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-cc-rich-save-block="${esc(ref)}">Save writing</button>`);
+    el.modal.querySelector('.modal')?.classList.add('cc-rich-writing-modal');requestAnimationFrame(()=>el.modal.querySelector('[data-cc-rich-editor]')?.focus());
+  }
+
+  openTextActionChooser=function(event,ref){
+    const info=blockFromRef(ref);if(!info.block||info.block.type==='image')return;closeTextActionPopover();
+    const visual=textVisualAtClick(ref,event);pendingTextAction={ref,offset:visual.offset||0,node:visual.node,x:event?.clientX||window.innerWidth/2,y:event?.clientY||window.innerHeight/2};
+    const popover=document.createElement('div');popover.className='text-action-popover';popover.setAttribute('role','dialog');popover.setAttribute('aria-label','Choose how to edit this element');
+    const wordButton=info.block.type==='divider'?'':`<button type="button" data-text-action="words"><strong>Edit writing</strong><small>Bold, italic, spoilers, images, links, lists & more</small></button>`;
+    popover.innerHTML=`<div class="text-action-popover-title">What do you want to edit?</div>${wordButton}<button type="button" data-text-action="shape"><strong>Edit layout</strong><small>Move, resize, wrap, or layer the whole element</small></button>`;
+    document.body.append(popover);const rect=popover.getBoundingClientRect();popover.style.left=`${Math.max(8,Math.min(window.innerWidth-rect.width-8,(event?.clientX||window.innerWidth/2)+10))}px`;popover.style.top=`${Math.max(8,Math.min(window.innerHeight-rect.height-8,(event?.clientY||window.innerHeight/2)+10))}px`;textActionPopover=popover;requestAnimationFrame(()=>popover.querySelector('button')?.focus());
+  };
+  startInPlaceTextEdit=function(ref){ccOpenRichBlockEditor(ref);};
+
+  showTextElementEditor=function(ref){
+    const info=blockFromRef(ref);if(!info.block||info.block.type==='image')return;normalizeBlockHeadingSyntax(info.block);
+    const block=info.block,layout=textElementLayout(block),isDivider=block.type==='divider',width=Math.max(100,Number(block.width)||(isDivider?360:300)),padding=Math.max(0,Math.min(100,Number(block.padding)||16)),z=Number(block.z)||(layout==='behind'?-2:layout==='front'?8:4);
+    showModal(`Edit ${isDivider?'line':'writing'} layout`,`<div class="text-element-modal"><p class="text-element-help">Use <strong>Edit writing</strong> from the text pop-up to change words and formatting. These controls only change placement and shape.</p><label><span>Behavior</span><select class="select" data-text-element-layout="${esc(ref)}"><option value="inline" ${layout==='inline'?'selected':''}>In the writing flow</option><option value="wrap" ${layout==='wrap'?'selected':''}>Fit other writing around it</option><option value="front" ${layout==='front'?'selected':''}>In front of other elements</option><option value="behind" ${layout==='behind'?'selected':''}>Behind other elements</option></select></label><label><span>Element width</span><input type="range" min="100" max="760" step="10" value="${width}" data-text-element-width="${esc(ref)}"><output data-text-element-width-output>${width}px</output></label><label data-text-element-cushion-row ${layout!=='wrap'?'hidden':''}><span>Space around element</span><input type="range" min="0" max="100" step="2" value="${padding}" data-text-element-padding="${esc(ref)}"><output data-text-element-padding-output>${padding}px</output></label><label><span>Layer order</span><input class="input" type="number" min="-20" max="50" value="${z}" data-text-element-z="${esc(ref)}"><small>Higher numbers sit above lower numbers when elements overlap.</small></label><p class="text-element-help" data-text-element-help>${layout==='inline'?'This element stays in normal reading order.':'Save, then select the element to drag and resize it freely.'}</p></div>`,`<button class="button danger" type="button" data-delete-text-element="${esc(ref)}">Delete element</button><button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-save-text-element="${esc(ref)}">Save layout</button>`);
+  };
+  editCharacterFlowBlock=showTextElementEditor;
+
+  const ccRichDossierTextBase=dossierText;
+  dossierText=function(value,fallback='Not added yet.'){
+    return value?`<div class="cc-character-rich-output dossier-rich-copy">${ccCharacterRichRender(value)}</div>`:`<p class="dossier-empty">${esc(fallback)}</p>`;
+  };
+  const ccRichDossierBulletsBase=dossierBullets;
+  dossierBullets=function(value,fallback='Add details'){
+    const items=dossierList(value);return items.length?`<ul>${items.map(entry=>`<li><div class="cc-character-rich-output">${ccCharacterRichRender(entry)}</div></li>`).join('')}</ul>`:`<p class="dossier-empty">${esc(fallback)}</p>`;
+  };
+  const ccRichDossierEditorBase=showDossierFieldEditor;
+  const CC_RICH_DOSSIER_FIELDS=new Set(['personality','backstory','strengths','weaknesses','skillsAbilities','relationshipsText','distinguishingFeatures','notes','quote','secrets']);
+  showDossierFieldEditor=function(characterId,field,label){
+    if(!CC_RICH_DOSSIER_FIELDS.has(field))return ccRichDossierEditorBase(characterId,field,label);
+    const item=getItem('characters',characterId);if(!item)return;
+    const listField=['strengths','weaknesses','skillsAbilities','notes'].includes(field);
+    showModal(`Edit ${label}`,`<p class="cc-rich-writing-help">${listField?'Keep separate list items on separate lines. You can still format words, add spoilers, links, or images inside the field.':'Use the same formatting tools as Roleplay Hub posts.'}</p>${ccRichEditorShell(item[field]||'',`data-dossier-field-input="${esc(characterId)}:${esc(field)}"`)}`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-dossier-save="${esc(characterId)}:${esc(field)}">Save</button>`);
+    el.modal.querySelector('.modal')?.classList.add('cc-rich-writing-modal');requestAnimationFrame(()=>el.modal.querySelector('[data-cc-rich-editor]')?.focus());
+  };
+
+  ccReadonlyPropertiesHtml=function(item){
+    const rows=[];const textRow=(label,value)=>{if(ccHasText(value))rows.push(`<div class="property-row cc-readonly-property"><label>${esc(label)}</label><div class="cc-readonly-property-value">${esc(cleanNotionRefs(value))}</div></div>`);};
+    const richRow=(label,value)=>{if(ccHasText(value))rows.push(`<div class="property-row cc-readonly-property"><label>${esc(label)}</label><div class="cc-readonly-property-value cc-character-rich-output">${ccCharacterRichRender(value)}</div></div>`);};
+    const htmlRow=(label,html)=>{if(html)rows.push(`<div class="property-row cc-readonly-property"><label>${esc(label)}</label>${html}</div>`);};
+    textRow('Age',item.age);const species=typeof ccSpeciesRecords==='function'?ccSpeciesRecords(item):[];if(species.length)htmlRow('Species / race',`<div class="property-links">${species.map(record=>`<button class="link-pill" type="button" data-open="species:${esc(record.id)}">${esc(record.name)}</button>`).join('')}</div>`);else textRow('Species / race',item.speciesRace);
+    textRow('Alignment',item.alignment);textRow('Role / occupation',item.role);if(item.occupation!==item.role)textRow('Dossier occupation',item.occupation);textRow('Aliases',item.aliases);textRow('Status',item.status);textRow('Current mood',item.mood);textRow('Current outfit',item.outfit);textRow('Current position',item.position);
+    const locations=(item.currentLocationIds||[]).map(idValue=>getItem('locations',idValue)).filter(Boolean);if(locations.length)htmlRow('Current location',`<div class="property-links">${locations.map(location=>`<button class="link-pill" type="button" data-open="locations:${esc(location.id)}">${esc(location.name)}</button>`).join('')}</div>`);
+    richRow('Personality',item.personality);richRow('Backstory',item.backstory);richRow('Strengths',item.strengths);richRow('Weaknesses',item.weaknesses);richRow('Skills / abilities',item.skillsAbilities);textRow('Traits',item.traits);textRow('Reputation / code',item.reputationCode);richRow('Distinguishing features',item.distinguishingFeatures);textRow('Motivations / principles',item.motivations);richRow('Relationships',item.relationshipsText);
+    const related=(item.relationshipIds||[]).map(idValue=>getItem('characters',idValue)).filter(Boolean);if(related.length)htmlRow('Linked people',`<div class="property-links">${related.map(person=>`<button class="link-pill" type="button" data-open="characters:${esc(person.id)}">${esc(person.name)}</button>`).join('')}</div>`);
+    richRow('Secrets',item.secrets);richRow('Quote',item.quote);textRow('Tags',item.tags);richRow('Notes',item.notes);return rows.join('');
+  };
+
+  const ccRichLifeEntryBase=ccLifeEntryHtml;
+  ccLifeEntryHtml=function(character,entry,arrangeInfo=null){
+    let html=ccRichLifeEntryBase(character,entry,arrangeInfo);
+    if(entry.summary){const old=`<p>${esc(entry.summary)}</p>`,next=`<div class="cc-life-rich-copy cc-character-rich-output">${ccCharacterRichRender(entry.summary)}</div>`;html=html.replace(old,next);}
+    if(entry.impact){const old=`<p><strong>Impact:</strong> ${esc(entry.impact)}</p>`,next=`<div class="cc-life-rich-impact"><strong>Impact:</strong><div class="cc-character-rich-output">${ccCharacterRichRender(entry.impact)}</div></div>`;html=html.replace(old,next);}
+    return html;
+  };
+
+  ccLifeShowEventEditor=function(characterId,eventId='',forceOrigin=false){
+    const character=getItem('characters',characterId);if(!character)return;const existing=(character.lifeEvents||[]).find(event=>event.id===eventId)||null;const draft=existing||{id:'',type:forceOrigin?'origin':'event',title:'',summary:'',dateLabel:'',locationId:'',peopleIds:[],impact:''};const people=(state.characters||[]).filter(person=>person.id!==characterId);
+    showModal(existing?'Edit life event':(forceOrigin?'Set character origin':'Add life event'),`<div class="cc-life-event-editor" data-cc-life-event-character="${esc(characterId)}" data-cc-life-event-id="${esc(existing?.id||'')}"><div class="cc-life-event-grid"><label><span>Type</span><select class="select" data-cc-life-event-field="type"><option value="origin" ${draft.type==='origin'?'selected':''}>Origin</option><option value="event" ${draft.type==='event'?'selected':''}>Life event</option><option value="milestone" ${draft.type==='milestone'?'selected':''}>Milestone</option><option value="relationship" ${draft.type==='relationship'?'selected':''}>Relationship</option><option value="travel" ${draft.type==='travel'?'selected':''}>Travel</option><option value="transformation" ${draft.type==='transformation'?'selected':''}>Transformation</option></select></label><label><span>Date / period</span><input class="input" data-cc-life-event-field="dateLabel" value="${esc(draft.dateLabel||'')}" placeholder="1240 AR, childhood, three years earlier…"></label><label class="wide"><span>Title</span><input class="input" data-cc-life-event-field="title" value="${esc(draft.title||'')}" placeholder="Born in Ashfall Dominion"></label><div class="wide cc-life-rich-field"><div class="cc-life-rich-field-head"><span>What happened</span><button type="button" data-cc-life-rich-open="summary">Format writing ✎</button></div><textarea class="textarea" rows="4" data-cc-life-event-field="summary">${esc(draft.summary||'')}</textarea></div><label><span>Location</span><select class="select" data-cc-life-event-field="locationId"><option value="">No location</option>${(state.locations||[]).slice().sort((a,b)=>a.name.localeCompare(b.name)).map(location=>`<option value="${esc(location.id)}" ${draft.locationId===location.id?'selected':''}>${esc(location.name)}</option>`).join('')}</select></label><div class="wide cc-life-rich-field"><div class="cc-life-rich-field-head"><span>How this changed or impacted ${esc(character.name)}</span><button type="button" data-cc-life-rich-open="impact">Format writing ✎</button></div><textarea class="textarea" rows="3" data-cc-life-event-field="impact">${esc(draft.impact||'')}</textarea></div></div><div><strong>People connected to this event</strong><div class="cc-life-people-picker">${people.map(person=>`<label><input type="checkbox" value="${esc(person.id)}" data-cc-life-event-person ${draft.peopleIds?.includes(person.id)?'checked':''}>${esc(person.name)}</label>`).join('')||'<span class="muted">No other characters yet.</span>'}</div></div></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button>${existing?`<button class="button danger" type="button" data-cc-life-delete-event="${esc(characterId)}|${esc(existing.id)}">Delete</button>`:''}<button class="button" type="button" data-cc-life-save-event>Save life event</button>`);
+  };
+
+  function ccCloseRichSubdialog(){ccRichSubdialog?.remove();ccRichSubdialog=null;ccRichLifeSource=null;}
+  function ccOpenLifeRichSubdialog(field){
+    const source=el.modal.querySelector(`[data-cc-life-event-field="${CSS.escape(field)}"]`);if(!source)return;ccCloseRichSubdialog();ccRichLifeSource=source;
+    const title=field==='impact'?'Format life-event impact':'Format life-event description';const wrap=document.createElement('div');wrap.className='cc-rich-subdialog';wrap.innerHTML=`<section class="cc-rich-subdialog-card" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="cc-rich-subdialog-head"><h2>${esc(title)}</h2><button class="icon-button" type="button" data-cc-rich-sub-cancel aria-label="Close">×</button></div><div class="cc-rich-subdialog-body">${ccRichEditorShell(source.value||'')}</div><div class="cc-rich-subdialog-foot"><button class="button secondary" type="button" data-cc-rich-sub-cancel>Cancel</button><button class="button" type="button" data-cc-rich-sub-save>Use formatted writing</button></div></section>`;document.body.append(wrap);ccRichSubdialog=wrap;requestAnimationFrame(()=>wrap.querySelector('[data-cc-rich-editor]')?.focus());
+  }
+
+  document.addEventListener('input',event=>{
+    const editor=event.target.closest?.('[data-cc-rich-editor]');if(!editor)return;const shell=ccRichShellFrom(editor),count=shell?.querySelector('[data-cc-rich-count]');if(count)count.textContent=`${editor.value.length.toLocaleString()} characters`;
+  },true);
+
+  document.addEventListener('click',event=>{
+    const tag=event.target.closest?.('[data-cc-rich-tag]');if(tag){event.preventDefault();event.stopImmediatePropagation();const editor=ccRichEditorFrom(tag);if(editor)ccRichInsert(editor,`[${tag.dataset.ccRichTag}]`,`[/${tag.dataset.ccRichTag}]`);return;}
+    const wrap=event.target.closest?.('[data-cc-rich-wrap]');if(wrap){event.preventDefault();event.stopImmediatePropagation();const editor=ccRichEditorFrom(wrap);if(editor){const parts=wrap.dataset.ccRichWrap.split('|');ccRichInsert(editor,parts[0]||'',parts[1]||'');}return;}
+    const color=event.target.closest?.('[data-cc-rich-color]');if(color){event.preventDefault();event.stopImmediatePropagation();const shell=ccRichShellFrom(color),editor=ccRichEditorFrom(color),value=shell?.querySelector('[data-cc-rich-color-value]')?.value||'#8f6aae';if(editor)ccRichInsert(editor,`[color=${value}]`,`[/color]`);return;}
+    const mediaToggle=event.target.closest?.('[data-cc-rich-media-toggle]');if(mediaToggle){event.preventDefault();event.stopImmediatePropagation();const shell=ccRichShellFrom(mediaToggle),panel=shell?.querySelector('[data-cc-rich-media-panel]');if(panel)panel.hidden=!panel.hidden;const emoji=shell?.querySelector('[data-cc-rich-emoji-panel]');if(emoji)emoji.hidden=true;return;}
+    const emojiToggle=event.target.closest?.('[data-cc-rich-emoji-toggle]');if(emojiToggle){event.preventDefault();event.stopImmediatePropagation();const shell=ccRichShellFrom(emojiToggle),panel=shell?.querySelector('[data-cc-rich-emoji-panel]');if(panel)panel.hidden=!panel.hidden;const media=shell?.querySelector('[data-cc-rich-media-panel]');if(media)media.hidden=true;return;}
+    const emoji=event.target.closest?.('[data-cc-rich-emoji]');if(emoji){event.preventDefault();event.stopImmediatePropagation();const editor=ccRichEditorFrom(emoji);if(editor)ccRichInsert(editor,emoji.dataset.ccRichEmoji,'');return;}
+    const mediaInsert=event.target.closest?.('[data-cc-rich-media-insert]');if(mediaInsert){event.preventDefault();event.stopImmediatePropagation();const shell=ccRichShellFrom(mediaInsert),editor=ccRichEditorFrom(mediaInsert);let url=shell?.querySelector('[data-cc-rich-media-url]')?.value.trim()||'';if(typeof ccPostMediaNormalizeUrl==='function')url=ccPostMediaNormalizeUrl(url);if(!/^https?:\/\//i.test(url)){toast('Paste a valid hosted image or GIF link.','error');return;}const align=shell?.querySelector('[data-cc-rich-media-align]')?.value||'center',width=shell?.querySelector('[data-cc-rich-media-width]')?.value||'700';ccRichInsert(editor,`[media url="${url}" align=${align} width=${width}]`,'');const panel=shell?.querySelector('[data-cc-rich-media-panel]');if(panel)panel.hidden=true;return;}
+    const tab=event.target.closest?.('[data-cc-rich-tab]');if(tab){event.preventDefault();event.stopImmediatePropagation();const shell=ccRichShellFrom(tab),editor=shell?.querySelector('[data-cc-rich-editor]'),preview=shell?.querySelector('[data-cc-rich-preview]'),write=tab.dataset.ccRichTab==='write';shell?.querySelectorAll('[data-cc-rich-tab]').forEach(button=>button.classList.toggle('is-active',button===tab));if(editor)editor.hidden=!write;if(preview){preview.hidden=write;if(!write)ccRichRefreshPreview(shell);}if(write)requestAnimationFrame(()=>editor?.focus());return;}
+    const saveBlock=event.target.closest?.('[data-cc-rich-save-block]');if(saveBlock){event.preventDefault();event.stopImmediatePropagation();const ref=saveBlock.dataset.ccRichSaveBlock,info=blockFromRef(ref),editor=el.modal.querySelector('[data-cc-rich-editor]');if(info.block&&editor){info.block.content=editor.value.replace(/^\s*#{1,6}\s+/,'');info.target.updatedAt=nowISO();scheduleSave('Saving formatted writing…');closeModal();renderEntity(info.kind,info.itemId);toast('Writing updated.');}return;}
+    const lifeOpen=event.target.closest?.('[data-cc-life-rich-open]');if(lifeOpen){event.preventDefault();event.stopImmediatePropagation();ccOpenLifeRichSubdialog(lifeOpen.dataset.ccLifeRichOpen);return;}
+    if(event.target.closest?.('[data-cc-rich-sub-cancel]')){event.preventDefault();event.stopImmediatePropagation();ccCloseRichSubdialog();return;}
+    if(event.target.closest?.('[data-cc-rich-sub-save]')){event.preventDefault();event.stopImmediatePropagation();const editor=ccRichSubdialog?.querySelector('[data-cc-rich-editor]');if(ccRichLifeSource&&editor){ccRichLifeSource.value=editor.value;ccRichLifeSource.dispatchEvent(new Event('input',{bubbles:true}));}ccCloseRichSubdialog();return;}
+  },true);
+
+  /* === End Character rich writing editor === */
+
+  window.CODEX_BUILD='character-rich-writing-edit-mode-2026-08-14';
+  /* === End Character clean view / explicit edit mode === */
+
   // The main app can render the initial route before this extension is installed.
   // Refresh only the current character route once so every template gets the view switch
   // and a direct #/character-life/... route opens immediately on page load.
@@ -18418,7 +18899,7 @@ initFirebase();
     requestAnimationFrame(()=>render());
   }else if(route.view==='characters'&&route.id){
     const initialCharacter=getItem('characters',route.id);
-    if(initialCharacter)requestAnimationFrame(()=>ccLifeInjectBioTabs(initialCharacter));
+    if(initialCharacter)requestAnimationFrame(()=>render());
   }else if(route.view==='events'&&!route.id){
     requestAnimationFrame(()=>renderCollection('events'));
   }
@@ -19505,6 +19986,92 @@ initFirebase();
 @media(max-width:640px){.cc-life-hero{grid-template-columns:auto 1fr}.cc-life-hero-actions{grid-column:1/-1;justify-content:flex-start}.cc-life-summary{grid-template-columns:1fr 1fr}.cc-life-row{grid-template-columns:28px minmax(0,1fr);gap:10px;padding:8px 0}.cc-life-graph::before{left:13px}.cc-life-time{grid-column:2;text-align:left;order:2}.cc-life-node-wrap{grid-column:1;grid-row:1/4}.cc-life-card{grid-column:2}.cc-life-people{grid-column:2;grid-template-columns:1fr}.cc-life-event-grid{grid-template-columns:1fr}.cc-life-event-grid .wide{grid-column:auto}.cc-life-people-picker{grid-template-columns:1fr}.cc-life-row.drop-before::after,.cc-life-row.drop-after::after{left:38px}.cc-contradictions-panel>header,.cc-contradiction{display:grid}.cc-contradictions-head-actions{justify-content:flex-start}.cc-contradiction-editor-grid{grid-template-columns:1fr}.cc-contradiction-editor-grid .wide{grid-column:auto}}
 </style>
 
+
+<style id="cc-character-clean-view-edit-mode-style">
+.cc-character-modebar{display:flex;align-items:center;gap:10px;margin:0 0 14px;padding:6px 8px;border:1px solid var(--border);border-radius:14px;background:var(--panel);min-height:46px}
+.practical-dossier-page>.cc-character-modebar{margin:12px 18px 14px;border-color:var(--dossier-line);background:var(--dossier-panel);color:var(--dossier-ink)}
+.cc-character-mode-spacer{flex:1 1 auto}.cc-character-mode-actions{display:flex;align-items:center;gap:6px;margin-left:auto}
+.cc-character-edit-pencil,.cc-character-mode-done,.cc-character-mode-cancel{width:34px;height:34px;display:inline-grid;place-items:center;border:1px solid var(--border);border-radius:10px;background:var(--panel-soft);color:var(--text);font:inherit;font-size:17px;font-weight:900;cursor:pointer;line-height:1}
+.practical-dossier-page .cc-character-edit-pencil,.practical-dossier-page .cc-character-mode-done,.practical-dossier-page .cc-character-mode-cancel{border-color:var(--dossier-line);background:var(--dossier-panel);color:var(--dossier-ink)}
+.cc-character-edit-pencil:hover,.cc-character-mode-done:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-strong)}
+.cc-character-mode-cancel:hover{border-color:#a64b4b;background:color-mix(in srgb,#a64b4b 10%,var(--panel));color:#a64b4b}
+.cc-static-character-title{margin:0;flex:1;min-width:0;font-family:Georgia,serif;font-size:clamp(30px,5vw,48px);line-height:1.08;font-weight:600;overflow-wrap:anywhere}.dossier-static-title{font-family:inherit;color:var(--dossier-ink);font-size:clamp(30px,5vw,48px)}
+.cc-character-view-mode .entity-title-row{align-items:center}.cc-character-view-mode .favorite-button{display:none!important}
+.cc-character-view-mode .entity-layout.cc-character-single-column{grid-template-columns:minmax(0,1fr)}
+.cc-character-view-mode .cc-readonly-properties .cc-readonly-property-value{white-space:pre-wrap;line-height:1.5;color:var(--text)}
+.cc-character-view-mode .cc-readonly-properties .property-row{padding:10px 0}.cc-readonly-properties-head h2{margin:0}
+.cc-character-view-mode .cc-readonly-character-canvas .character-inline-surface,.cc-character-view-mode .cc-readonly-character-canvas .character-text-surface,.cc-character-view-mode .cc-readonly-character-canvas .character-image-block img{cursor:default!important}
+.cc-character-view-mode .cc-readonly-character-canvas .character-inline-element,.cc-character-view-mode .cc-readonly-character-canvas .character-text-block,.cc-character-view-mode .cc-readonly-character-canvas .character-image-block{user-select:text}
+.cc-character-view-mode .block-toolbar,.cc-character-view-mode .block-handle,.cc-character-view-mode .flow-element-controls,.cc-character-view-mode .flow-resize-dot,.cc-character-view-mode .text-selection-actions,.cc-character-view-mode .text-edit-toolbar,.cc-character-view-mode .text-resize-dot,.cc-character-view-mode .image-selection-edit,.cc-character-view-mode .image-edit-toolbar,.cc-character-view-mode .image-resize-dot,.cc-character-view-mode .dossier-section-edit,.cc-character-view-mode .dossier-summary-rename,.cc-character-view-mode .dossier-media-edit,.cc-character-view-mode .character-cover-upload,.cc-character-view-mode .character-portrait-upload{display:none!important}
+.cc-character-view-mode .character-cover-slot,.cc-character-view-mode .character-portrait-slot,.cc-character-view-mode .dossier-media-slot{cursor:default!important}
+.cc-character-view-mode .dossier-label-static{display:inline;color:inherit}.cc-character-view-mode .cc-static-dossier-value{display:block;color:var(--dossier-ink);font-weight:800}
+.cc-character-view-mode .cc-empty-dossier-container{display:none!important}
+.cc-character-view-mode .dossier-image-grid:empty,.cc-character-view-mode .dossier-content-grid:empty,.cc-character-view-mode .dossier-footer-grid:empty{display:none!important}
+.cc-character-view-mode .dossier-cover-meta{display:none!important}
+.cc-character-view-mode .dossier-identity.cc-dossier-identity-name-only{grid-template-columns:minmax(0,1fr)}
+.cc-character-view-mode .dossier-identity.cc-dossier-identity-name-only .dossier-name-wrap{grid-column:1}
+.cc-character-edit-mode .character-template-toolbar .cc-character-mode-actions{margin-left:auto}
+.cc-character-edit-mode .dossier-top-actions>.cc-character-mode-actions{margin-left:2px}
+.cc-life-view-mode [data-cc-life-add-event],.cc-life-view-mode [data-cc-life-arrange],.cc-life-view-mode [data-cc-life-reset-order],.cc-life-view-mode [data-cc-life-edit-event],.cc-life-view-mode [data-cc-life-add-origin],.cc-life-view-mode [data-cc-life-flag],.cc-life-view-mode .cc-life-reorder{display:none!important}
+.cc-life-page>.cc-character-modebar{margin-bottom:0}
+@media(max-width:640px){.cc-character-modebar{align-items:center}.cc-character-mode-spacer{display:block}.cc-character-edit-pencil,.cc-character-mode-done,.cc-character-mode-cancel{width:32px;height:32px}.practical-dossier-page>.cc-character-modebar{margin:10px}}
+</style>
+
+
+<style id="cc-character-rich-writing-style">
+.cc-rich-writing-modal{width:min(900px,calc(100vw - 28px));max-height:min(860px,92vh)}
+.cc-rich-writing-shell{display:grid;gap:12px}
+.cc-rich-writing-help{margin:0;color:var(--muted);font-size:12px;line-height:1.45}
+.cc-rich-toolbar{display:flex;align-items:center;gap:5px;flex-wrap:wrap;border:1px solid var(--border);border-radius:10px;background:var(--panel-soft);padding:8px}
+.cc-rich-toolbar button,.cc-rich-toolbar select,.cc-rich-toolbar input[type=color]{min-height:32px;border:1px solid var(--border);border-radius:7px;background:var(--panel);color:var(--text);padding:5px 9px;font:inherit;font-size:12px;font-weight:750}
+.cc-rich-toolbar button:hover,.cc-rich-toolbar select:hover{border-color:var(--accent)}
+.cc-rich-toolbar .cc-rich-tool-icon{min-width:34px;padding-inline:7px}
+.cc-rich-toolbar input[type=color]{width:38px;padding:3px;cursor:pointer}
+.cc-rich-editor-tabs{display:flex;justify-content:flex-end;gap:5px}
+.cc-rich-editor-tabs button{border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);padding:7px 10px;font:inherit;font-size:12px;font-weight:850;cursor:pointer}
+.cc-rich-editor-tabs button.is-active{color:var(--text);border-color:var(--accent)}
+.cc-rich-editor{width:100%;min-height:320px;resize:vertical;border:1px solid var(--border);border-radius:10px;background:var(--panel-strong);color:var(--text);padding:14px;font:14px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;outline:none}
+.cc-rich-editor:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 16%,transparent)}
+.cc-rich-preview{min-height:320px;overflow:auto;border:1px solid var(--border);border-radius:10px;background:var(--panel-strong);padding:18px;line-height:1.65}
+.cc-rich-media-panel,.cc-rich-emoji-panel{display:grid;gap:9px;border:1px solid var(--border);border-radius:10px;background:var(--panel-soft);padding:11px}
+.cc-rich-media-grid{display:grid;grid-template-columns:minmax(0,1fr) 150px 150px auto;gap:8px;align-items:end}
+.cc-rich-media-grid label{display:grid;gap:4px;color:var(--muted);font-size:11px;font-weight:800}
+.cc-rich-media-grid .cc-rich-media-url{min-width:0}
+.cc-rich-emoji-grid{display:flex;flex-wrap:wrap;gap:5px;max-height:150px;overflow:auto}
+.cc-rich-emoji-grid button{width:34px;height:34px;border:1px solid var(--border);border-radius:7px;background:var(--panel);font-size:18px;cursor:pointer}
+.cc-rich-count{color:var(--muted);font-size:11px;text-align:right}
+.cc-character-rich-output{overflow-wrap:anywhere}
+.cc-character-rich-output::after{content:"";display:block;clear:both}
+.cc-character-rich-output p{margin:0 0 10px}
+.cc-character-rich-output img,.cc-character-rich-output .ccrh-post-media{display:block;max-width:100%;height:auto;border-radius:10px;margin:12px auto}
+.cc-character-rich-output .ccrh-float-left{float:left;max-width:45%;margin:5px 16px 10px 0}
+.cc-character-rich-output .ccrh-float-right{float:right;max-width:45%;margin:5px 0 10px 16px}
+.cc-character-rich-output .ccrh-media-full{width:100%;max-width:100%!important}
+.cc-character-rich-output blockquote{margin:12px 0;padding:10px 13px;border-left:3px solid var(--accent);border-radius:0 8px 8px 0;background:var(--panel-soft)}
+.cc-character-rich-output details{margin:10px 0;border:1px solid var(--border);border-radius:9px;background:var(--panel-soft);padding:8px 10px}
+.cc-character-rich-output details>summary{cursor:pointer;font-weight:800;color:var(--accent-strong)}
+.cc-character-rich-output .ccrh-ooc{margin:10px 0;padding:10px 12px;border:1px dashed var(--border);border-radius:9px;background:var(--panel-soft);color:var(--muted)}
+.cc-character-rich-output ul{margin:8px 0 8px 22px;padding:0}
+.cc-character-rich-output pre{max-width:100%;overflow:auto;border-radius:8px;background:var(--panel-soft);padding:10px}
+.cc-character-rich-output a{color:var(--accent-strong);text-decoration:underline}
+.dossier-section .cc-character-rich-output{color:var(--dossier-ink);line-height:1.55}
+.dossier-section .cc-character-rich-output details{border-color:var(--dossier-line);background:color-mix(in srgb,var(--dossier-panel) 92%,transparent)}
+.dossier-section .cc-character-rich-output blockquote{border-color:var(--dossier-accent);background:color-mix(in srgb,var(--dossier-panel) 92%,transparent)}
+.cc-readonly-property-value.cc-character-rich-output{white-space:normal!important}
+.cc-life-rich-copy{color:var(--muted);line-height:1.5}
+.cc-life-rich-impact{color:var(--muted)}
+.cc-life-rich-field{display:grid;gap:6px}
+.cc-life-rich-field-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cc-life-rich-field-head>span{color:var(--muted);font-size:12px;font-weight:750}
+.cc-life-rich-field-head button{border:1px solid var(--border);border-radius:8px;background:var(--panel);color:var(--text);padding:5px 8px;font:inherit;font-size:11px;font-weight:800;cursor:pointer}
+.cc-rich-subdialog{position:fixed;inset:0;z-index:180;display:grid;place-items:center;padding:16px;background:rgba(18,17,15,.62)}
+.cc-rich-subdialog-card{width:min(900px,calc(100vw - 28px));max-height:92vh;overflow:auto;border:1px solid var(--border);border-radius:16px;background:var(--panel);box-shadow:var(--shadow)}
+.cc-rich-subdialog-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:15px 17px;border-bottom:1px solid var(--border)}
+.cc-rich-subdialog-head h2{margin:0;font-size:20px}
+.cc-rich-subdialog-body{padding:16px}
+.cc-rich-subdialog-foot{display:flex;justify-content:flex-end;gap:8px;padding:13px 17px;border-top:1px solid var(--border)}
+@media(max-width:760px){.cc-rich-media-grid{grid-template-columns:1fr 1fr}.cc-rich-media-grid .cc-rich-media-url{grid-column:1/-1}.cc-rich-media-grid button{grid-column:1/-1}.cc-rich-editor,.cc-rich-preview{min-height:260px}}
+</style>
 
 </body>
 </html>
