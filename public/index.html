@@ -14319,8 +14319,8 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-cc4-jump]'
   const originalRenderBlock=renderBlock;
   renderBlock=function(kind,itemId,block,index){
     let html=originalRenderBlock(kind,itemId,block,index);
-    if(!['species','locations'].includes(kind)) return html;
-    if(block?.type==='image') return html;
+    if(!['species','locations','factions'].includes(kind)) return html;
+    if(block?.type==='image'&&kind!=='factions') return html;
     const ref=`${kind}:${itemId}:${index}`;
     const actions=`<span class="cc8-block-actions">
       <button type="button" data-cc8-block-up="${esc(ref)}" title="Move this part up">↑</button>
@@ -18798,7 +18798,7 @@ initFirebase();
     const info=blockFromRef(ref);if(!info.block||info.block.type==='image'||info.block.type==='divider')return;
     if(info.kind==='characters'&&!ccIsProfileEditing(info.itemId))return;
     ccRichBlockRef=ref;closeTextActionPopover();finishInPlaceTextEdit(false);
-    showModal(`Edit ${textElementLabel(info.block).toLowerCase()}`,`<p class="cc-rich-writing-help">Format this writing the same way as a Roleplay Hub post. Existing plain text and older **bold** / *italic* writing still work.</p>${ccRichEditorShell(cleanedBlockContent(info.block))}`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-cc-rich-save-block="${esc(ref)}">Save writing</button>`);
+    showModal(`Edit ${textElementLabel(info.block).toLowerCase()}`,`${ccRichEditorShell(cleanedBlockContent(info.block))}`,`<button class="button danger" type="button" data-cc-rich-delete-block="${esc(ref)}">Delete part</button><button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-cc-rich-save-block="${esc(ref)}">Save writing</button>`);
     el.modal.querySelector('.modal')?.classList.add('cc-rich-writing-modal');requestAnimationFrame(()=>el.modal.querySelector('[data-cc-rich-editor]')?.focus());
   }
 
@@ -18833,7 +18833,7 @@ initFirebase();
     if(!CC_RICH_DOSSIER_FIELDS.has(field))return ccRichDossierEditorBase(characterId,field,label);
     const item=getItem('characters',characterId);if(!item)return;
     const listField=['strengths','weaknesses','skillsAbilities','notes'].includes(field);
-    showModal(`Edit ${label}`,`<p class="cc-rich-writing-help">${listField?'Keep separate list items on separate lines. You can still format words, add spoilers, links, or images inside the field.':'Use the same formatting tools as Roleplay Hub posts.'}</p>${ccRichEditorShell(item[field]||'',`data-dossier-field-input="${esc(characterId)}:${esc(field)}"`)}`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-dossier-save="${esc(characterId)}:${esc(field)}">Save</button>`);
+    showModal(`Edit ${label}`,`${ccRichEditorShell(item[field]||'',`data-dossier-field-input="${esc(characterId)}:${esc(field)}"`)}`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-dossier-save="${esc(characterId)}:${esc(field)}">Save</button>`);
     el.modal.querySelector('.modal')?.classList.add('cc-rich-writing-modal');requestAnimationFrame(()=>el.modal.querySelector('[data-cc-rich-editor]')?.focus());
   };
 
@@ -18881,6 +18881,7 @@ initFirebase();
     const emoji=event.target.closest?.('[data-cc-rich-emoji]');if(emoji){event.preventDefault();event.stopImmediatePropagation();const editor=ccRichEditorFrom(emoji);if(editor)ccRichInsert(editor,emoji.dataset.ccRichEmoji,'');return;}
     const mediaInsert=event.target.closest?.('[data-cc-rich-media-insert]');if(mediaInsert){event.preventDefault();event.stopImmediatePropagation();const shell=ccRichShellFrom(mediaInsert),editor=ccRichEditorFrom(mediaInsert);let url=shell?.querySelector('[data-cc-rich-media-url]')?.value.trim()||'';if(typeof ccPostMediaNormalizeUrl==='function')url=ccPostMediaNormalizeUrl(url);if(!/^https?:\/\//i.test(url)){toast('Paste a valid hosted image or GIF link.','error');return;}const align=shell?.querySelector('[data-cc-rich-media-align]')?.value||'center',width=shell?.querySelector('[data-cc-rich-media-width]')?.value||'700';ccRichInsert(editor,`[media url="${url}" align=${align} width=${width}]`,'');const panel=shell?.querySelector('[data-cc-rich-media-panel]');if(panel)panel.hidden=true;return;}
     const tab=event.target.closest?.('[data-cc-rich-tab]');if(tab){event.preventDefault();event.stopImmediatePropagation();const shell=ccRichShellFrom(tab),editor=shell?.querySelector('[data-cc-rich-editor]'),preview=shell?.querySelector('[data-cc-rich-preview]'),write=tab.dataset.ccRichTab==='write';shell?.querySelectorAll('[data-cc-rich-tab]').forEach(button=>button.classList.toggle('is-active',button===tab));if(editor)editor.hidden=!write;if(preview){preview.hidden=write;if(!write)ccRichRefreshPreview(shell);}if(write)requestAnimationFrame(()=>editor?.focus());return;}
+    const deleteRichBlock=event.target.closest?.('[data-cc-rich-delete-block]');if(deleteRichBlock){event.preventDefault();event.stopImmediatePropagation();const ref=deleteRichBlock.dataset.ccRichDeleteBlock,info=blockFromRef(ref);if(info.block&&confirm('Delete this part?')){info.target.blocks.splice(info.index,1);info.target.updatedAt=nowISO();scheduleSave('Saving…');closeModal();renderEntity(info.kind,info.itemId);toast('Part deleted.');}return;}
     const saveBlock=event.target.closest?.('[data-cc-rich-save-block]');if(saveBlock){event.preventDefault();event.stopImmediatePropagation();const ref=saveBlock.dataset.ccRichSaveBlock,info=blockFromRef(ref),editor=el.modal.querySelector('[data-cc-rich-editor]');if(info.block&&editor){info.block.content=editor.value.replace(/^\s*#{1,6}\s+/,'');info.target.updatedAt=nowISO();scheduleSave('Saving formatted writing…');closeModal();renderEntity(info.kind,info.itemId);toast('Writing updated.');}return;}
     const lifeOpen=event.target.closest?.('[data-cc-life-rich-open]');if(lifeOpen){event.preventDefault();event.stopImmediatePropagation();ccOpenLifeRichSubdialog(lifeOpen.dataset.ccLifeRichOpen);return;}
     if(event.target.closest?.('[data-cc-rich-sub-cancel]')){event.preventDefault();event.stopImmediatePropagation();ccCloseRichSubdialog();return;}
@@ -18900,7 +18901,10 @@ initFirebase();
     .cc-faction-rich-property-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
     .cc-faction-rich-property-head label{margin:0!important}
     .cc-faction-rich-edit-button{min-width:31px;height:29px;border:1px solid var(--border);border-radius:7px;background:var(--panel);color:var(--muted);font-size:15px;line-height:1;cursor:pointer}
+    .cc-faction-rich-property-actions{display:inline-flex;align-items:center;gap:5px}
     .cc-faction-rich-edit-button:hover{border-color:var(--accent);color:var(--accent-strong)}
+    .cc-faction-rich-delete-button{min-width:31px;height:29px;border:1px solid var(--border);border-radius:7px;background:var(--panel);color:var(--danger);font-size:16px;line-height:1;cursor:pointer}
+    .cc-faction-rich-delete-button:hover{border-color:var(--danger);background:color-mix(in srgb,var(--danger) 10%,var(--panel))}
     .cc-faction-rich-property-value{width:100%;min-height:46px;border:1px solid var(--border);border-radius:9px;background:var(--panel-strong);padding:9px 10px;text-align:left;color:var(--text);overflow:hidden;cursor:pointer}
     .cc-faction-rich-property-value:hover{border-color:var(--accent)}
     .cc-faction-rich-property-value.is-empty{color:var(--muted);font-style:italic}
@@ -18915,7 +18919,7 @@ initFirebase();
 
   function ccFactionRichPropertyHtml(label,field,value,itemId){
     const has=String(value||'').trim().length>0;
-    return `<div class="property-row cc-faction-rich-property"><div class="cc-faction-rich-property-head"><label>${esc(label)}</label><button class="cc-faction-rich-edit-button" type="button" data-cc-faction-rich-open="${esc(itemId)}:${esc(field)}" title="Format ${esc(label)}" aria-label="Format ${esc(label)}">✎</button></div><button class="cc-faction-rich-property-value cc-character-rich-output${has?'':' is-empty'}" type="button" data-cc-faction-rich-open="${esc(itemId)}:${esc(field)}">${has?ccCharacterRichRender(value):`Add ${esc(label.toLowerCase())}…`}</button></div>`;
+    return `<div class="property-row cc-faction-rich-property"><div class="cc-faction-rich-property-head"><label>${esc(label)}</label><span class="cc-faction-rich-property-actions"><button class="cc-faction-rich-edit-button" type="button" data-cc-faction-rich-open="${esc(itemId)}:${esc(field)}" title="Edit ${esc(label)}" aria-label="Edit ${esc(label)}">✎</button>${has?`<button class="cc-faction-rich-delete-button" type="button" data-cc-faction-rich-clear="${esc(itemId)}:${esc(field)}" title="Clear ${esc(label)}" aria-label="Clear ${esc(label)}">×</button>`:''}</span></div><button class="cc-faction-rich-property-value cc-character-rich-output${has?'':' is-empty'}" type="button" data-cc-faction-rich-open="${esc(itemId)}:${esc(field)}">${has?ccCharacterRichRender(value):`Add ${esc(label.toLowerCase())}…`}</button></div>`;
   }
 
   const ccFactionPropertyTextareaBase=propertyTextarea;
@@ -18927,7 +18931,7 @@ initFirebase();
   function ccOpenFactionRichProperty(itemId,field){
     const item=getItem('factions',itemId);if(!item||!CC_RICH_FACTION_FIELDS.has(field))return;
     const label=ccFactionRichLabels[field]||field;
-    showModal(`Edit ${label}`,`<p class="cc-rich-writing-help">Format this faction writing the same way as a Roleplay Hub post. You can use bold, italic, spoilers, lists, links, images or GIFs, text color, alignment, and more.</p>${ccRichEditorShell(item[field]||'',`data-cc-faction-rich-field="${esc(itemId)}:${esc(field)}"`)}`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-cc-faction-rich-save="${esc(itemId)}:${esc(field)}">Save writing</button>`);
+    showModal(`Edit ${label}`,`${ccRichEditorShell(item[field]||'',`data-cc-faction-rich-field="${esc(itemId)}:${esc(field)}"`)}`,`<button class="button danger" type="button" data-cc-faction-rich-clear="${esc(itemId)}:${esc(field)}">Clear field</button><button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-cc-faction-rich-save="${esc(itemId)}:${esc(field)}">Save writing</button>`);
     el.modal.querySelector('.modal')?.classList.add('cc-rich-writing-modal');requestAnimationFrame(()=>el.modal.querySelector('[data-cc-rich-editor]')?.focus());
   }
 
@@ -18938,7 +18942,8 @@ initFirebase();
     const ref=`${kind}:${itemId}:${index}`;
     const labelClass=/^\s*(?:\*\*|__)[^\n]+?(?:\*\*|__)\s*$/.test(String(block.content||''))?' markdown-label-block':'';
     const content=String(cleanedBlockContent(block)||'').trim();
-    return `<div class="block-row" data-block-row="${ref}"><span class="block-handle">⋮⋮</span><button class="block-content cc-faction-rich-block cc-character-rich-output${labelClass}" type="button" data-type="${esc(block.type)}" data-cc-faction-block-edit="${esc(ref)}" aria-label="Edit faction writing">${content?ccCharacterRichRender(content):'<span class="muted">Click to add writing…</span>'}</button></div>`;
+    const actions=`<span class="cc8-block-actions"><button type="button" data-cc8-block-up="${esc(ref)}" title="Move this part up">↑</button><button type="button" data-cc8-block-down="${esc(ref)}" title="Move this part down">↓</button><button class="danger" type="button" data-cc8-block-delete="${esc(ref)}" title="Delete this part">Delete</button></span>`;
+    return `<div class="block-row" data-block-row="${ref}">${actions}<span class="block-handle">⋮⋮</span><button class="block-content cc-faction-rich-block cc-character-rich-output${labelClass}" type="button" data-type="${esc(block.type)}" data-cc-faction-block-edit="${esc(ref)}" aria-label="Edit faction writing">${content?ccCharacterRichRender(content):'<span class="muted">Click to add writing…</span>'}</button></div>`;
   };
 
   const ccFactionCardMetaBase=cardMeta;
@@ -18965,6 +18970,7 @@ initFirebase();
 
   document.addEventListener('click',event=>{
     const fieldButton=event.target.closest?.('[data-cc-faction-rich-open]');if(fieldButton){event.preventDefault();event.stopImmediatePropagation();const [itemId,field]=fieldButton.dataset.ccFactionRichOpen.split(':');ccOpenFactionRichProperty(itemId,field);return;}
+    const clearField=event.target.closest?.('[data-cc-faction-rich-clear]');if(clearField){event.preventDefault();event.stopImmediatePropagation();const [itemId,field]=clearField.dataset.ccFactionRichClear.split(':');const item=getItem('factions',itemId);if(item&&CC_RICH_FACTION_FIELDS.has(field)&&confirm(`Clear ${ccFactionRichLabels[field]||field}?`)){item[field]='';item.updatedAt=nowISO();scheduleSave('Saving faction…');closeModal();renderEntity('factions',itemId);toast('Faction field cleared.');}return;}
     const blockButton=event.target.closest?.('[data-cc-faction-block-edit]');if(blockButton){event.preventDefault();event.stopImmediatePropagation();ccOpenRichBlockEditor(blockButton.dataset.ccFactionBlockEdit);return;}
     const save=event.target.closest?.('[data-cc-faction-rich-save]');if(save){event.preventDefault();event.stopImmediatePropagation();const [itemId,field]=save.dataset.ccFactionRichSave.split(':');const item=getItem('factions',itemId),editor=el.modal.querySelector('[data-cc-rich-editor]');if(item&&editor&&CC_RICH_FACTION_FIELDS.has(field)){item[field]=editor.value;item.updatedAt=nowISO();scheduleSave('Saving faction writing…');closeModal();renderEntity('factions',itemId);toast('Faction writing updated.');}return;}
   },true);
