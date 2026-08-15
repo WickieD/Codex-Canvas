@@ -6915,7 +6915,11 @@ window.CODEX_BUILD = "approved-badge-animals-layout-2026-08-12";
     return `object-position:${x}% ${y}%;transform:scale(${zoom});transform-origin:${x}% ${y}%;object-fit:${fit};`;
   }
 
+  function characterCoverVisible(item) { return item?.characterCoverVisible !== false; }
+  function characterCoverMetaVisible(item) { return item?.characterCoverMetaVisible !== false; }
+
   function renderCharacterCover(item) {
+    if (!characterCoverVisible(item)) return '';
     const media = item.headerImage || null;
     const image = media?.src || '';
     return `<div class="entity-cover character-cover-slot ${image ? 'has-image' : ''}" data-character-media-select="header:${item.id}" data-character-media-drop="header:${item.id}" ${image ? `tabindex="0" role="button" aria-label="Select the cover image for ${esc(item.name)}"` : ''}>
@@ -7006,7 +7010,7 @@ window.CODEX_BUILD = "approved-badge-animals-layout-2026-08-12";
     return `<div class="character-template-toolbar">
       <div class="character-template-label"><span>Character template</span><strong>${esc(characterTemplateName(item.pageTemplate))}</strong></div>
       <nav class="cc-character-view-switch cc-character-view-standard" aria-label="Character view"><button class="is-active" type="button" data-cc-life-bio="${esc(item.id)}">Bio</button><button type="button" data-cc-life-story="${esc(item.id)}">Life Story</button></nav>
-      <button class="button secondary small" type="button" data-character-template-picker="${item.id}">Change template</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="button secondary small" type="button" data-character-cover-options="${item.id}">Cover options</button><button class="button secondary small" type="button" data-character-template-picker="${item.id}">Change template</button></div>
     </div>`;
   }
 
@@ -7102,12 +7106,14 @@ window.CODEX_BUILD = "approved-badge-animals-layout-2026-08-12";
     const locationText = locationNames(item.currentLocationIds).join(', ');
     const occupation = item.occupation || item.role || '';
     const coverMedia = item.headerImage;
+    const showCover = characterCoverVisible(item);
+    const showCoverMeta = characterCoverMetaVisible(item);
     return `<section class="practical-dossier-page" data-dossier-character="${item.id}" data-dossier-theme="${esc(item.dossierTheme||'classic-parchment')}" style="${dossierThemeStyle(item)}">
-      <div class="dossier-topbar"><div class="dossier-top-left"><div class="dossier-template-name"><span>Template:</span>${dossierLabelButton(item,'templateName','template-title')}</div><nav class="cc-character-view-switch" aria-label="Character view"><button class="is-active" type="button" data-cc-life-bio="${esc(item.id)}">Bio</button><button type="button" data-cc-life-story="${esc(item.id)}">Life Story</button></nav></div><div class="dossier-top-actions"><button class="button secondary small" type="button" data-dossier-theme-picker="${item.id}">Colors: ${esc(dossierThemeName(item))}</button><button class="button secondary small" type="button" data-dossier-labels="${item.id}">Rename labels</button><button class="button secondary small" type="button" data-character-template-picker="${item.id}">Change template</button><button class="button small" type="button" data-dossier-edit="${item.id}:tagline:${encodeURIComponent('Subtitle / tagline')}">Edit subtitle</button></div></div>
-      <div class="dossier-cover">
-        <div class="dossier-cover-meta">${dossierLabelButton(item,'coverTitle','cover-title')}<span>${dossierLabelButton(item,'coverHelp','cover-help')}</span></div>
+      <div class="dossier-topbar"><div class="dossier-top-left"><div class="dossier-template-name"><span>Template:</span>${dossierLabelButton(item,'templateName','template-title')}</div><nav class="cc-character-view-switch" aria-label="Character view"><button class="is-active" type="button" data-cc-life-bio="${esc(item.id)}">Bio</button><button type="button" data-cc-life-story="${esc(item.id)}">Life Story</button></nav></div><div class="dossier-top-actions"><button class="button secondary small" type="button" data-dossier-theme-picker="${item.id}">Colors: ${esc(dossierThemeName(item))}</button><button class="button secondary small" type="button" data-dossier-labels="${item.id}">Rename labels</button><button class="button secondary small" type="button" data-character-template-picker="${item.id}">Change template</button><button class="button secondary small" type="button" data-character-cover-options="${item.id}">Cover options</button><button class="button small" type="button" data-dossier-edit="${item.id}:tagline:${encodeURIComponent('Subtitle / tagline')}">Edit subtitle</button></div></div>
+      ${showCover ? `<div class="dossier-cover">
+        ${showCoverMeta ? `<div class="dossier-cover-meta">${dossierLabelButton(item,'coverTitle','cover-title')}<span>${dossierLabelButton(item,'coverHelp','cover-help')}</span></div>` : ''}
         ${coverMedia?.src ? `<div class="character-cover-slot has-image" data-character-media-select="header:${item.id}" data-character-media-drop="header:${item.id}" tabindex="0" role="button" aria-label="Select the cover image for ${esc(item.name)}"><img src="${esc(coverMedia.src)}" alt="${esc(coverMedia.alt || `${item.name} cover image`)}" style="${characterMediaStyle(coverMedia,'header')}"><button class="dossier-media-edit" type="button" data-character-media-edit="header:${item.id}">Edit cover</button><input type="file" accept="image/*" hidden data-character-media-input="header:${item.id}"></div>` : `<div class="dossier-cover-placeholder"><button class="character-cover-upload" type="button" data-character-media-trigger="header:${item.id}"><span><strong>Add ${esc(dossierLabel(item,'coverTitle'))}</strong><span>${esc(dossierLabel(item,'coverHelp'))}</span></span></button><input type="file" accept="image/*" hidden data-character-media-input="header:${item.id}"></div>`}
-      </div>
+      </div>` : ''}
       <div class="dossier-identity">
         <div class="dossier-name-wrap"><textarea class="dossier-title-input entity-title-input" rows="1" aria-label="Character name" data-title-kind="characters" data-title-id="${item.id}">${esc(item.name)}</textarea><div class="dossier-tagline">${esc(item.tagline || item.mood || 'Add a short character description')}</div></div>
         <div class="dossier-stat">${dossierLabelButton(item,'age','dossier-stat-label')}<button class="dossier-stat-value" type="button" data-dossier-edit="${item.id}:age:${encodeURIComponent(dossierLabel(item,'age'))}">${esc(item.age || 'Not set')}</button></div>
@@ -7158,6 +7164,17 @@ window.CODEX_BUILD = "approved-badge-animals-layout-2026-08-12";
     const current=dossierLabel(item,key), fallback=DOSSIER_LABEL_DEFAULTS[key]||key;
     showModal('Rename dossier label', `<label class="dossier-label-single"><span>Label</span><input class="input" type="text" value="${esc(current)}" data-dossier-label-input="${esc(characterId)}:${esc(key)}"><small>Default: ${esc(fallback)}</small></label>`, `<button class="button secondary" type="button" data-dossier-label-reset="${esc(characterId)}:${esc(key)}">Use default</button><button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-dossier-label-save="${esc(characterId)}:${esc(key)}">Save label</button>`);
     requestAnimationFrame(()=>{const input=el.modal.querySelector('[data-dossier-label-input]');input?.focus();input?.select();});
+  }
+
+  function showCharacterCoverOptions(characterId) {
+    const item=getItem('characters',characterId); if(!item) return;
+    const hasCover=Boolean(item.headerImage?.src);
+    const isDossier=item.pageTemplate==='practical-dossier';
+    showModal('Character cover options', `<div style="display:grid;gap:12px">
+      <label class="badge-toggle-row"><span><strong>Show cover image area</strong><small style="display:block;color:var(--muted);margin-top:3px">Turn this off to remove the entire cover/header from this character page without deleting the saved image.</small></span><input type="checkbox" ${characterCoverVisible(item)?'checked':''} data-character-cover-visible></label>
+      ${isDossier?`<label class="badge-toggle-row"><span><strong>Show cover label bubble</strong><small style="display:block;color:var(--muted);margin-top:3px">Controls the “${esc(dossierLabel(item,'coverTitle'))} · ${esc(dossierLabel(item,'coverHelp'))}” bubble over the image.</small></span><input type="checkbox" ${characterCoverMetaVisible(item)?'checked':''} data-character-cover-meta-visible></label>`:''}
+      ${hasCover?`<div style="padding-top:4px"><button class="button danger small" type="button" data-character-cover-delete-image="${esc(characterId)}">Delete saved cover image</button><p class="property-help">Deleting removes the image itself. Hiding the cover area above keeps the image available if you turn it back on later.</p></div>`:''}
+    </div>`, `<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-character-cover-options-save="${esc(characterId)}">Save</button>`);
   }
 
   function showDossierLabelsEditor(characterId) {
@@ -9212,6 +9229,9 @@ window.CODEX_BUILD = "approved-badge-animals-layout-2026-08-12";
     const characterCropRemove=event.target.closest('[data-character-crop-remove]');if(characterCropRemove){const [slot,characterId]=characterCropRemove.dataset.characterCropRemove.split(':');const label=characterMediaLabel(slot);if(confirm(`Remove this ${label}?`)){closeModal();removeCharacterPageImage(characterId,slot);}return;}
     const characterMediaTrigger=event.target.closest('[data-character-media-trigger]');if(characterMediaTrigger){const ref=characterMediaTrigger.dataset.characterMediaTrigger;const input=document.querySelector(`[data-character-media-input="${CSS.escape(ref)}"]`);if(input){input.value='';input.click();}return;}
     const characterMediaRemove=event.target.closest('[data-character-media-remove]');if(characterMediaRemove){const [slot,characterId]=characterMediaRemove.dataset.characterMediaRemove.split(':');const label=characterMediaLabel(slot);if(confirm(`Remove this ${label}?`))removeCharacterPageImage(characterId,slot);return;}
+    const coverOptions=event.target.closest('[data-character-cover-options]');if(coverOptions){showCharacterCoverOptions(coverOptions.dataset.characterCoverOptions);return;}
+    const coverOptionsSave=event.target.closest('[data-character-cover-options-save]');if(coverOptionsSave){const characterId=coverOptionsSave.dataset.characterCoverOptionsSave,item=getItem('characters',characterId);if(item){item.characterCoverVisible=Boolean(el.modal.querySelector('[data-character-cover-visible]')?.checked);const meta=el.modal.querySelector('[data-character-cover-meta-visible]');if(meta)item.characterCoverMetaVisible=Boolean(meta.checked);item.updatedAt=nowISO();scheduleSave();closeModal();renderEntity('characters',characterId);toast('Cover options saved.');}return;}
+    const coverDeleteImage=event.target.closest('[data-character-cover-delete-image]');if(coverDeleteImage){const characterId=coverDeleteImage.dataset.characterCoverDeleteImage;if(confirm('Delete this character’s saved cover image?')){closeModal();removeCharacterPageImage(characterId,'header');}return;}
     const templatePicker=event.target.closest('[data-character-template-picker]');if(templatePicker){showCharacterTemplatePicker(templatePicker.dataset.characterTemplatePicker);return;}
     const templateApply=event.target.closest('[data-character-template-apply]');if(templateApply){const [template,characterId]=templateApply.dataset.characterTemplateApply.split(':');applyCharacterTemplate(characterId,template);return;}
     const dossierLabelEdit=event.target.closest('[data-dossier-label-edit]');if(dossierLabelEdit){const [characterId,key]=dossierLabelEdit.dataset.dossierLabelEdit.split(':');showDossierLabelEditor(characterId,key);return;}
