@@ -18975,6 +18975,221 @@ initFirebase();
     const save=event.target.closest?.('[data-cc-faction-rich-save]');if(save){event.preventDefault();event.stopImmediatePropagation();const [itemId,field]=save.dataset.ccFactionRichSave.split(':');const item=getItem('factions',itemId),editor=el.modal.querySelector('[data-cc-rich-editor]');if(item&&editor&&CC_RICH_FACTION_FIELDS.has(field)){item[field]=editor.value;item.updatedAt=nowISO();scheduleSave('Saving faction writing…');closeModal();renderEntity('factions',itemId);toast('Faction writing updated.');}return;}
   },true);
 
+
+
+  /* === Faction clean view / explicit edit mode + member links === */
+  let ccActiveFactionEditId='';
+  const ccFactionEditSnapshots=new Map();
+
+  function ccIsFactionEditing(factionId){return Boolean(factionId)&&ccActiveFactionEditId===factionId;}
+  function ccFactionHasText(value){return String(value??'').trim().length>0;}
+  function ccFactionMembershipsForCharacter(characterId){
+    return (state.factions||[]).filter(faction=>(faction.keyMemberIds||[]).includes(characterId));
+  }
+  function ccFactionMemberLinks(item){
+    const members=(item.keyMemberIds||[]).map(idValue=>getItem('characters',idValue)).filter(Boolean);
+    return members.map(person=>`<button class="link-pill" type="button" data-open="characters:${esc(person.id)}">${esc(person.name)}</button>`).join('');
+  }
+  function ccFactionReadonlyPropertiesHtml(item){
+    const rows=[];
+    const plain=(label,value)=>{if(ccFactionHasText(value))rows.push(`<div class="property-row cc-faction-readonly-row"><label>${esc(label)}</label><div class="cc-faction-readonly-value">${esc(cleanNotionRefs(value))}</div></div>`);};
+    const rich=(label,value)=>{if(ccFactionHasText(value))rows.push(`<div class="property-row cc-faction-readonly-row"><label>${esc(label)}</label><div class="cc-faction-readonly-value cc-character-rich-output">${ccCharacterRichRender(value)}</div></div>`);};
+    plain('Power level',item.power);
+    rich('Goal / purpose',item.goal);
+    rich('Allies / enemies',item.alliesEnemies);
+    const members=ccFactionMemberLinks(item);
+    if(members)rows.push(`<div class="property-row cc-faction-readonly-row"><label>Key members</label><div class="property-links">${members}</div></div>`);
+    rich('Notes',item.notes);
+    return rows.join('');
+  }
+  function ccFactionMemberEditorHtml(item){
+    const members=(item.keyMemberIds||[]).map(idValue=>getItem('characters',idValue)).filter(Boolean);
+    const chips=members.map(person=>`<span class="cc-faction-member-chip"><button type="button" data-open="characters:${esc(person.id)}">${esc(person.name)}</button><button class="cc-faction-member-remove" type="button" data-cc-faction-member-remove="${esc(item.id)}|${esc(person.id)}" title="Remove ${esc(person.name)} from this faction" aria-label="Remove ${esc(person.name)} from this faction">×</button></span>`).join('');
+    return `<div class="property-row cc-faction-members-editor"><div class="cc-faction-members-head"><label>Key members</label><button class="button secondary small" type="button" data-cc-faction-member-add="${esc(item.id)}">+ Add member</button></div><div class="cc-faction-member-chips">${chips||'<span class="property-help">None linked yet.</span>'}</div></div>`;
+  }
+
+  const ccFactionViewRenderPropertiesBase=renderProperties;
+  renderProperties=function(kind,item){
+    if(kind!=='factions')return ccFactionViewRenderPropertiesBase(kind,item);
+    if(!ccIsFactionEditing(item.id)){
+      const html=ccFactionReadonlyPropertiesHtml(item);
+      return `<div class="property-list cc-faction-readonly-properties">${html||'<span class="property-help">No faction details added yet.</span>'}</div>`;
+    }
+    return `<div class="property-list">
+      <div class="property-row"><label>Personalized badge</label><div class="faction-badge-summary"><button class="faction-badge-button" type="button" data-badge-designer="${esc(item.id)}" title="Edit faction badge">${renderFactionBadge(item)}</button><div><strong>${esc(item.badgeText||initials(item.name))}</strong><p class="property-help">${esc(item.badgeMotto||'Choose a shape, animal or symbol, colors, and words.')}</p><button class="button secondary small" type="button" data-badge-designer="${esc(item.id)}">Design badge</button></div></div></div>
+      ${propertySelect('Power level','power',item.power,['Minor','Moderate','Major','Dominant','Hidden'],kind,item.id,true)}
+      ${ccFactionRichPropertyHtml('Goal / purpose','goal',item.goal,item.id)}
+      ${ccFactionRichPropertyHtml('Allies / enemies','alliesEnemies',item.alliesEnemies,item.id)}
+      ${ccFactionMemberEditorHtml(item)}
+      ${ccFactionRichPropertyHtml('Notes','notes',item.notes,item.id)}
+    </div>`;
+  };
+
+  function ccFactionModeBar(factionId,editing=false){
+    if(editing)return `<div class="cc-faction-modebar cc-faction-modebar-edit"><div class="cc-faction-mode-spacer"></div><div class="cc-faction-mode-actions"><button class="cc-faction-mode-done" type="button" data-cc-faction-edit-done="${esc(factionId)}" title="Done editing" aria-label="Done editing">✓</button><button class="cc-faction-mode-cancel" type="button" data-cc-faction-edit-cancel="${esc(factionId)}" title="Cancel changes" aria-label="Cancel changes">×</button></div></div>`;
+    return `<div class="cc-faction-modebar"><div class="cc-faction-mode-spacer"></div><button class="cc-faction-edit-pencil" type="button" data-cc-faction-edit-start="${esc(factionId)}" title="Edit faction" aria-label="Edit faction">✎</button></div>`;
+  }
+
+  const ccFactionSectionToolbarBase=sectionDesignToolbar;
+  sectionDesignToolbar=function(kind){
+    if(kind!=='factions')return ccFactionSectionToolbarBase(kind);
+    const factionId=route.view==='factions'?route.id:'';
+    if(!factionId||!ccIsFactionEditing(factionId))return ccFactionModeBar(factionId,false);
+    return `<div class="cc-faction-edit-toolbar">${ccFactionSectionToolbarBase(kind)}${ccFactionModeBar(factionId,true)}</div>`;
+  };
+
+  function ccSnapshotFaction(item){
+    return {faction:deepClone(item),design:deepClone(sectionDesign('factions'))};
+  }
+  function ccRestoreFactionSnapshot(factionId,snapshot){
+    const item=getItem('factions',factionId);if(!item||!snapshot)return;
+    for(const key of Object.keys(item))delete item[key];
+    Object.assign(item,deepClone(snapshot.faction));
+    state.workspace ||= {};state.workspace.sectionDesigns ||= {};
+    state.workspace.sectionDesigns.factions=deepClone(snapshot.design);
+  }
+  function ccBeginFactionEdit(factionId){
+    const item=getItem('factions',factionId);if(!item)return;
+    if(ccActiveFactionEditId&&ccActiveFactionEditId!==factionId)ccFactionEditSnapshots.delete(ccActiveFactionEditId);
+    ccActiveFactionEditId=factionId;ccFactionEditSnapshots.set(factionId,ccSnapshotFaction(item));
+    renderEntity('factions',factionId);
+  }
+  function ccDoneFactionEdit(factionId){
+    if(ccActiveFactionEditId===factionId)ccActiveFactionEditId='';
+    ccFactionEditSnapshots.delete(factionId);renderEntity('factions',factionId);
+  }
+  function ccCancelFactionEdit(factionId){
+    const snapshot=ccFactionEditSnapshots.get(factionId);
+    if(snapshot){ccRestoreFactionSnapshot(factionId,snapshot);scheduleSave('Reverting faction changes…');}
+    if(ccActiveFactionEditId===factionId)ccActiveFactionEditId='';
+    ccFactionEditSnapshots.delete(factionId);renderEntity('factions',factionId);toast('Faction changes cancelled.');
+  }
+
+  function ccFactionStaticTitle(item,root){
+    const input=root?.querySelector('.entity-title-input');if(!input)return;
+    const title=document.createElement('h1');title.className='cc-static-faction-title';title.textContent=item.name||'';input.replaceWith(title);
+  }
+  function ccFactionCleanWriting(root){
+    root.querySelectorAll('.cc8-toolbar,.block-toolbar,.cc8-block-actions,.cc8-section-actions,.block-handle,.cc8-help').forEach(node=>node.remove());
+    root.querySelectorAll('.cc4-section.is-empty').forEach(section=>section.remove());
+    root.querySelectorAll('.cc8-section-title').forEach(input=>{const strong=document.createElement('strong');strong.className='cc-faction-static-section-title';strong.textContent=input.value||'';input.replaceWith(strong);});
+    root.querySelectorAll('button.cc-faction-rich-block').forEach(button=>{
+      const content=(button.textContent||'').replace(/Click to add writing…/i,'').trim();
+      if(!content&&!button.querySelector('img,.ccrh-post-media,details,blockquote,ul,ol')){button.closest('.block-row')?.remove();return;}
+      const div=document.createElement('div');div.className=button.className.replace('cc-faction-rich-block','cc-faction-rich-static');div.innerHTML=button.innerHTML;button.replaceWith(div);
+    });
+    root.querySelectorAll('[contenteditable="true"]').forEach(node=>node.removeAttribute('contenteditable'));
+    root.querySelectorAll('.cc4-section-body').forEach(body=>{if(!body.querySelector('.block-row,.cc-final-page-image,.cc-page-image,.section-page-image,img')&&!(body.textContent||'').trim())body.closest('.cc4-section')?.remove();});
+    root.querySelectorAll('.cc3-writing-panel,.editor-surface').forEach(panel=>{if(panel.classList.contains('properties-panel'))return;const has=panel.querySelector('.block-row,.cc4-section,.cc-final-page-image,.cc-page-image,.section-page-image,img');if(!has&&/^(?:History, identity, and purpose|Agenda, influence, and strategy|Intelligence report|Living record)?$/i.test((panel.textContent||'').trim()))panel.remove();});
+  }
+  function ccFactionCleanMedia(root){
+    root.querySelectorAll('.cc-final-media-edit,.cc15-replace-image,.section-media-controls,[data-section-media-remove],[data-cc-final-media-edit]').forEach(node=>node.remove());
+    root.querySelectorAll('input[type="file"][data-cc15-media-input],input[type="file"][data-section-media-input],input[type="file"][data-cc15-page-image-input],input[type="file"][data-cc8-image-input]').forEach(input=>input.remove());
+    root.querySelectorAll('.cc-final-cover').forEach(box=>{if(!box.querySelector('img'))box.remove();});
+    root.querySelectorAll('.section-media-portrait-card,.cc-final-profile-card').forEach(card=>{if(!card.querySelector('img'))card.remove();else card.querySelector('.section-media-portrait-label')?.remove();});
+    root.querySelectorAll('.cc-final-media-empty,.section-media-placeholder,.section-media-placeholder-compact').forEach(node=>node.remove());
+  }
+  function ccApplyFactionPresentation(item,editing=ccIsFactionEditing(item?.id)){
+    if(!el.main||!item)return;
+    el.main.classList.toggle('cc-faction-view-mode',!editing);el.main.classList.toggle('cc-faction-edit-mode',editing);
+    const root=el.main.querySelector('.section-kind-factions')||el.main;
+    if(editing)return;
+    const toolbar=root.querySelector('.section-design-toolbar,.cc-faction-edit-toolbar');if(toolbar)toolbar.outerHTML=ccFactionModeBar(item.id,false);
+    ccFactionStaticTitle(item,root);
+    root.querySelectorAll('.favorite-button,[data-delete^="factions:"],[data-badge-designer]').forEach(node=>node.remove());
+    ccFactionCleanWriting(root);ccFactionCleanMedia(root);
+  }
+
+  function ccShowFactionMemberPicker(factionId){
+    const item=getItem('factions',factionId);if(!item)return;
+    const selected=new Set(item.keyMemberIds||[]);
+    const people=(state.characters||[]).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+    const rows=people.map(person=>`<label class="cc-faction-member-choice" data-cc-faction-member-choice="${esc((person.name||'').toLowerCase())}"><input type="checkbox" value="${esc(person.id)}" data-cc-faction-member-checkbox ${selected.has(person.id)?'checked':''}><span>${esc(person.name||'Unnamed character')}</span></label>`).join('');
+    showModal('Add faction members',`<div class="cc-faction-member-picker"><input class="input" type="search" placeholder="Search characters…" data-cc-faction-member-search><div class="cc-faction-member-choice-list">${rows||'<p class="property-help">No characters have been created yet.</p>'}</div></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-cc-faction-member-save="${esc(factionId)}">Save members</button>`);
+    requestAnimationFrame(()=>el.modal.querySelector('[data-cc-faction-member-search]')?.focus());
+  }
+  function ccSaveFactionMembers(factionId){
+    const item=getItem('factions',factionId);if(!item)return;
+    item.keyMemberIds=[...el.modal.querySelectorAll('[data-cc-faction-member-checkbox]:checked')].map(input=>input.value);
+    item.updatedAt=nowISO();scheduleSave('Saving faction members…');closeModal();renderEntity('factions',factionId);toast('Faction members updated.');
+  }
+  function ccRemoveFactionMember(factionId,characterId){
+    const item=getItem('factions',factionId);if(!item)return;
+    item.keyMemberIds=(item.keyMemberIds||[]).filter(idValue=>idValue!==characterId);item.updatedAt=nowISO();scheduleSave('Saving faction members…');renderEntity('factions',factionId);
+  }
+
+  /* Show faction membership automatically on character profiles. */
+  const ccFactionReadonlyCharacterBase=ccReadonlyPropertiesHtml;
+  ccReadonlyPropertiesHtml=function(item){
+    let html=ccFactionReadonlyCharacterBase(item);
+    const memberships=ccFactionMembershipsForCharacter(item.id);
+    if(memberships.length)html+=`<div class="property-row cc-readonly-property cc-character-faction-links"><label>Factions / affiliations</label><div class="property-links">${memberships.map(faction=>`<button class="link-pill" type="button" data-open="factions:${esc(faction.id)}">${esc(faction.name)}</button>`).join('')}</div></div>`;
+    return html;
+  };
+  const ccFactionCleanDossierBase=ccCleanDossierView;
+  ccCleanDossierView=function(item){
+    ccFactionCleanDossierBase(item);
+    const dossier=el.main?.querySelector('.practical-dossier-page');if(!dossier||dossier.querySelector('.cc-character-faction-dossier'))return;
+    const memberships=ccFactionMembershipsForCharacter(item.id);if(!memberships.length)return;
+    const target=dossier.querySelector('.dossier-side-column')||dossier.querySelector('.dossier-main-column')||dossier.querySelector('.dossier-body');if(!target)return;
+    target.insertAdjacentHTML('beforeend',`<section class="dossier-section cc-character-faction-dossier"><h3>Factions / Affiliations</h3><div class="property-links">${memberships.map(faction=>`<button class="link-pill" type="button" data-open="factions:${esc(faction.id)}">${esc(faction.name)}</button>`).join('')}</div></section>`);
+  };
+
+  const ccFactionNavigateBase=navigate;
+  navigate=function(view,entityId=''){
+    if(ccActiveFactionEditId&&!(view==='factions'&&entityId===ccActiveFactionEditId)){ccFactionEditSnapshots.delete(ccActiveFactionEditId);ccActiveFactionEditId='';}
+    el.main?.classList.remove('cc-faction-view-mode','cc-faction-edit-mode');
+    return ccFactionNavigateBase(view,entityId);
+  };
+
+  const ccFactionViewRenderEntityBase=renderEntity;
+  renderEntity=function(kind,itemId){
+    ccFactionViewRenderEntityBase(kind,itemId);
+    if(kind!=='factions'){el.main?.classList.remove('cc-faction-view-mode','cc-faction-edit-mode');return;}
+    const item=getItem('factions',itemId);if(!item)return;
+    const apply=()=>ccApplyFactionPresentation(item,ccIsFactionEditing(item.id));apply();requestAnimationFrame(()=>{apply();requestAnimationFrame(apply);});
+  };
+
+  const ccFactionViewStyle=document.createElement('style');
+  ccFactionViewStyle.id='cc-faction-clean-view-member-style';
+  ccFactionViewStyle.textContent=`
+    .cc-faction-modebar{display:flex;align-items:center;justify-content:flex-end;gap:7px;min-height:44px;margin:0 0 14px;padding:5px 7px;border:1px solid var(--border);border-radius:14px;background:var(--panel)}
+    .section-kind-factions .cc-faction-modebar{border-color:var(--section-line,var(--border));background:var(--section-panel,var(--panel));color:var(--section-ink,var(--text))}
+    .cc-faction-mode-spacer{flex:1 1 auto}.cc-faction-mode-actions{display:flex;align-items:center;gap:6px;margin-left:auto}
+    .cc-faction-edit-pencil,.cc-faction-mode-done,.cc-faction-mode-cancel{width:34px;height:34px;display:inline-grid;place-items:center;border:1px solid var(--section-line,var(--border));border-radius:10px;background:var(--section-panel,var(--panel-soft));color:var(--section-ink,var(--text));font:inherit;font-size:17px;font-weight:900;cursor:pointer;line-height:1}
+    .cc-faction-edit-pencil:hover,.cc-faction-mode-done:hover{border-color:var(--section-accent,var(--accent));background:color-mix(in srgb,var(--section-accent,var(--accent)) 12%,var(--section-panel,var(--panel)));color:var(--section-accent,var(--accent-strong))}
+    .cc-faction-mode-cancel:hover{border-color:var(--danger);color:var(--danger)}
+    .cc-faction-edit-toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start;margin-bottom:14px}.cc-faction-edit-toolbar>.section-design-toolbar{margin:0}.cc-faction-edit-toolbar>.cc-faction-modebar{margin:0;min-height:100%}
+    .cc-static-faction-title{margin:0;font-family:Georgia,serif;font-size:clamp(30px,5vw,48px);line-height:1.08;font-weight:600;overflow-wrap:anywhere;color:inherit}
+    .cc-faction-readonly-value{white-space:pre-wrap;line-height:1.55;color:var(--section-ink,var(--text))}.cc-faction-readonly-value.cc-character-rich-output{white-space:normal}
+    .cc-faction-readonly-row{padding:9px 0}.cc-faction-view-mode .cc3-title-actions:empty{display:none}.cc-faction-view-mode .cc3-title-row{align-items:center}
+    .cc-faction-view-mode .cc8-toolbar,.cc-faction-view-mode .cc8-block-actions,.cc-faction-view-mode .cc8-section-actions,.cc-faction-view-mode .block-handle,.cc-faction-view-mode .cc-final-media-edit,.cc-faction-view-mode .cc15-replace-image,.cc-faction-view-mode [data-badge-designer]{display:none!important}
+    .cc-faction-view-mode .cc-faction-rich-static{display:block;width:100%;color:inherit;line-height:1.55}.cc-faction-static-section-title{font:inherit;font-weight:800;color:inherit}
+    .cc-faction-members-editor{display:grid;gap:8px}.cc-faction-members-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.cc-faction-members-head label{margin:0!important}
+    .cc-faction-member-chips{display:flex;flex-wrap:wrap;gap:6px}.cc-faction-member-chip{display:inline-flex;align-items:center;border:1px solid var(--border);border-radius:999px;background:var(--panel-strong);overflow:hidden}.cc-faction-member-chip>button:first-child{border:0;background:transparent;color:inherit;padding:5px 7px 5px 9px;font:inherit;font-size:12px;cursor:pointer}.cc-faction-member-remove{width:27px;align-self:stretch;border:0;border-left:1px solid var(--border);background:transparent;color:var(--danger);font-weight:900;cursor:pointer}.cc-faction-member-remove:hover{background:color-mix(in srgb,var(--danger) 10%,transparent)}
+    .cc-faction-member-picker{display:grid;gap:11px}.cc-faction-member-choice-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;max-height:52vh;overflow:auto;padding:2px}.cc-faction-member-choice{display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:9px;background:var(--panel-strong);padding:9px;cursor:pointer}.cc-faction-member-choice:hover{border-color:var(--accent)}
+    .cc-character-faction-links .property-links,.cc-character-faction-dossier .property-links{display:flex;flex-wrap:wrap;gap:6px}
+    @media(max-width:680px){.cc-faction-edit-toolbar{grid-template-columns:1fr}.cc-faction-edit-toolbar>.cc-faction-modebar{min-height:44px}.cc-faction-member-choice-list{grid-template-columns:1fr}}
+  `;
+  document.head.append(ccFactionViewStyle);
+
+  document.addEventListener('input',event=>{
+    const search=event.target.closest?.('[data-cc-faction-member-search]');if(!search)return;
+    const q=search.value.trim().toLowerCase();el.modal.querySelectorAll('[data-cc-faction-member-choice]').forEach(row=>row.hidden=Boolean(q)&&!row.dataset.ccFactionMemberChoice.includes(q));
+  },true);
+
+  document.addEventListener('click',event=>{
+    const start=event.target.closest?.('[data-cc-faction-edit-start]');if(start){event.preventDefault();event.stopImmediatePropagation();ccBeginFactionEdit(start.dataset.ccFactionEditStart);return;}
+    const done=event.target.closest?.('[data-cc-faction-edit-done]');if(done){event.preventDefault();event.stopImmediatePropagation();ccDoneFactionEdit(done.dataset.ccFactionEditDone);return;}
+    const cancel=event.target.closest?.('[data-cc-faction-edit-cancel]');if(cancel){event.preventDefault();event.stopImmediatePropagation();ccCancelFactionEdit(cancel.dataset.ccFactionEditCancel);return;}
+    const add=event.target.closest?.('[data-cc-faction-member-add]');if(add){event.preventDefault();event.stopImmediatePropagation();ccShowFactionMemberPicker(add.dataset.ccFactionMemberAdd);return;}
+    const remove=event.target.closest?.('[data-cc-faction-member-remove]');if(remove){event.preventDefault();event.stopImmediatePropagation();const [factionId,characterId]=remove.dataset.ccFactionMemberRemove.split('|');ccRemoveFactionMember(factionId,characterId);return;}
+    const save=event.target.closest?.('[data-cc-faction-member-save]');if(save){event.preventDefault();event.stopImmediatePropagation();ccSaveFactionMembers(save.dataset.ccFactionMemberSave);return;}
+  },true);
+
+  window.CODEX_FACTION_VIEW_MEMBERS='2026-08-14';
+  if(route.view==='factions'&&route.id)requestAnimationFrame(()=>render());
+
   window.CodexFactionRichPlain=ccCharacterRichPlain;
   window.CodexFactionRichRender=ccCharacterRichRender;
   window.CODEX_FACTION_RICH_WRITING='2026-08-14';
