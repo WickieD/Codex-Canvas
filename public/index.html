@@ -18887,6 +18887,94 @@ initFirebase();
     if(event.target.closest?.('[data-cc-rich-sub-save]')){event.preventDefault();event.stopImmediatePropagation();const editor=ccRichSubdialog?.querySelector('[data-cc-rich-editor]');if(ccRichLifeSource&&editor){ccRichLifeSource.value=editor.value;ccRichLifeSource.dispatchEvent(new Event('input',{bubbles:true}));}ccCloseRichSubdialog();return;}
   },true);
 
+
+
+  /* === Faction rich writing editor === */
+  const CC_RICH_FACTION_FIELDS=new Set(['goal','alliesEnemies','notes']);
+  const ccFactionRichLabels={goal:'Goal',alliesEnemies:'Allies / enemies',notes:'Notes'};
+
+  const ccFactionRichStyle=document.createElement('style');
+  ccFactionRichStyle.id='cc-faction-rich-writing-style';
+  ccFactionRichStyle.textContent=`
+    .cc-faction-rich-property{display:grid;gap:7px}
+    .cc-faction-rich-property-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .cc-faction-rich-property-head label{margin:0!important}
+    .cc-faction-rich-edit-button{min-width:31px;height:29px;border:1px solid var(--border);border-radius:7px;background:var(--panel);color:var(--muted);font-size:15px;line-height:1;cursor:pointer}
+    .cc-faction-rich-edit-button:hover{border-color:var(--accent);color:var(--accent-strong)}
+    .cc-faction-rich-property-value{width:100%;min-height:46px;border:1px solid var(--border);border-radius:9px;background:var(--panel-strong);padding:9px 10px;text-align:left;color:var(--text);overflow:hidden;cursor:pointer}
+    .cc-faction-rich-property-value:hover{border-color:var(--accent)}
+    .cc-faction-rich-property-value.is-empty{color:var(--muted);font-style:italic}
+    .cc-faction-rich-property-value .ccrh-post-media{max-width:100%!important}
+    .cc-faction-rich-block{display:block;width:100%;border:0;background:transparent;text-align:left;color:inherit;font:inherit;cursor:pointer}
+    .cc-faction-rich-block:hover{background:color-mix(in srgb,var(--accent-soft) 45%,transparent)}
+    .cc-faction-rich-block:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+    .cc-faction-rich-block.cc-character-rich-output img,.cc-faction-rich-block .ccrh-post-media{max-width:100%;height:auto}
+    .cc-faction-rich-hint{margin-left:auto;color:var(--muted);font-size:11px;align-self:center}
+  `;
+  document.head.append(ccFactionRichStyle);
+
+  function ccFactionRichPropertyHtml(label,field,value,itemId){
+    const has=String(value||'').trim().length>0;
+    return `<div class="property-row cc-faction-rich-property"><div class="cc-faction-rich-property-head"><label>${esc(label)}</label><button class="cc-faction-rich-edit-button" type="button" data-cc-faction-rich-open="${esc(itemId)}:${esc(field)}" title="Format ${esc(label)}" aria-label="Format ${esc(label)}">✎</button></div><button class="cc-faction-rich-property-value cc-character-rich-output${has?'':' is-empty'}" type="button" data-cc-faction-rich-open="${esc(itemId)}:${esc(field)}">${has?ccCharacterRichRender(value):`Add ${esc(label.toLowerCase())}…`}</button></div>`;
+  }
+
+  const ccFactionPropertyTextareaBase=propertyTextarea;
+  propertyTextarea=function(label,field,value,kind,itemId){
+    if(kind==='factions'&&CC_RICH_FACTION_FIELDS.has(field))return ccFactionRichPropertyHtml(label,field,value,itemId);
+    return ccFactionPropertyTextareaBase(label,field,value,kind,itemId);
+  };
+
+  function ccOpenFactionRichProperty(itemId,field){
+    const item=getItem('factions',itemId);if(!item||!CC_RICH_FACTION_FIELDS.has(field))return;
+    const label=ccFactionRichLabels[field]||field;
+    showModal(`Edit ${label}`,`<p class="cc-rich-writing-help">Format this faction writing the same way as a Roleplay Hub post. You can use bold, italic, spoilers, lists, links, images or GIFs, text color, alignment, and more.</p>${ccRichEditorShell(item[field]||'',`data-cc-faction-rich-field="${esc(itemId)}:${esc(field)}"`)}`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-cc-faction-rich-save="${esc(itemId)}:${esc(field)}">Save writing</button>`);
+    el.modal.querySelector('.modal')?.classList.add('cc-rich-writing-modal');requestAnimationFrame(()=>el.modal.querySelector('[data-cc-rich-editor]')?.focus());
+  }
+
+  const ccFactionRenderBlockBase=renderBlock;
+  renderBlock=function(kind,itemId,block,index){
+    if(kind!=='factions'||block.type==='divider'||block.type==='image')return ccFactionRenderBlockBase(kind,itemId,block,index);
+    normalizeBlockHeadingSyntax(block);
+    const ref=`${kind}:${itemId}:${index}`;
+    const labelClass=/^\s*(?:\*\*|__)[^\n]+?(?:\*\*|__)\s*$/.test(String(block.content||''))?' markdown-label-block':'';
+    const content=String(cleanedBlockContent(block)||'').trim();
+    return `<div class="block-row" data-block-row="${ref}"><span class="block-handle">⋮⋮</span><button class="block-content cc-faction-rich-block cc-character-rich-output${labelClass}" type="button" data-type="${esc(block.type)}" data-cc-faction-block-edit="${esc(ref)}" aria-label="Edit faction writing">${content?ccCharacterRichRender(content):'<span class="muted">Click to add writing…</span>'}</button></div>`;
+  };
+
+  const ccFactionCardMetaBase=cardMeta;
+  cardMeta=function(kind,item){
+    if(kind==='factions')return {meta:item.power||'Faction',copy:ccCharacterRichPlain(item.goal||item.notes),tags:[item.power]};
+    return ccFactionCardMetaBase(kind,item);
+  };
+  const ccFactionTableCellsBase=tableCells;
+  tableCells=function(kind,item){
+    if(kind==='factions')return `<td class="cell-title">${esc(item.name)}</td><td>${esc(item.power)}</td><td class="cell-muted">${esc(shortText(ccCharacterRichPlain(item.goal),100))}</td><td>${item.keyMemberIds?.length||0}</td>`;
+    return ccFactionTableCellsBase(kind,item);
+  };
+
+  renderFactionHeraldic=function(items){
+    return `<div class="faction-heraldic-grid">${items.map(item=>`<button class="faction-heraldic-card" type="button" data-open="factions:${item.id}"><span class="faction-heraldic-banner">${typeof factionBadgeHtml==='function'?factionBadgeHtml(item):`<span class="faction-crest">${esc(initials(item.name))}</span>`}</span><span class="faction-heraldic-body"><span class="location-atlas-type">${esc(item.power||'Faction')}</span><h3>${esc(item.name)}</h3><p>${esc(shortText(ccCharacterRichPlain(item.goal||item.notes),175)||'No stated goal yet.')}</p><span class="tag-row"><span class="tag">${item.keyMemberIds?.length||0} key members</span></span></span></button>`).join('')}</div>`;
+  };
+  renderFactionInfluence=function(items){
+    const groups=[...new Set(items.map(i=>i.power||'Unspecified'))].sort((a,b)=>factionPowerOrder(a)-factionPowerOrder(b)||a.localeCompare(b));
+    return `<div class="faction-influence-board">${groups.map(group=>{const entries=items.filter(i=>(i.power||'Unspecified')===group);return `<section class="faction-influence-column"><h3><span>${esc(group)}</span><span>${entries.length}</span></h3>${entries.map(item=>`<button class="faction-influence-card" type="button" data-open="factions:${item.id}">${typeof factionBadgeHtml==='function'?factionBadgeHtml(item):''}<span><strong>${esc(item.name)}</strong><span class="cell-muted">${esc(shortText(ccCharacterRichPlain(item.goal||item.notes),110))}</span></span></button>`).join('')}</section>`;}).join('')}</div>`;
+  };
+  renderFactionIntel=function(items){
+    return `<div class="faction-intel-list">${items.map((item,index)=>`<button class="faction-intel-card" type="button" data-open="factions:${item.id}"><span class="faction-intel-code">F-${String(index+1).padStart(2,'0')}</span><span><strong>${esc(item.name)}</strong><small class="cell-muted">${esc(shortText(ccCharacterRichPlain(item.goal||item.notes),145))}</small></span><span class="tag">${esc(item.power||'Unspecified')}</span></button>`).join('')}</div>`;
+  };
+
+  document.addEventListener('click',event=>{
+    const fieldButton=event.target.closest?.('[data-cc-faction-rich-open]');if(fieldButton){event.preventDefault();event.stopImmediatePropagation();const [itemId,field]=fieldButton.dataset.ccFactionRichOpen.split(':');ccOpenFactionRichProperty(itemId,field);return;}
+    const blockButton=event.target.closest?.('[data-cc-faction-block-edit]');if(blockButton){event.preventDefault();event.stopImmediatePropagation();ccOpenRichBlockEditor(blockButton.dataset.ccFactionBlockEdit);return;}
+    const save=event.target.closest?.('[data-cc-faction-rich-save]');if(save){event.preventDefault();event.stopImmediatePropagation();const [itemId,field]=save.dataset.ccFactionRichSave.split(':');const item=getItem('factions',itemId),editor=el.modal.querySelector('[data-cc-rich-editor]');if(item&&editor&&CC_RICH_FACTION_FIELDS.has(field)){item[field]=editor.value;item.updatedAt=nowISO();scheduleSave('Saving faction writing…');closeModal();renderEntity('factions',itemId);toast('Faction writing updated.');}return;}
+  },true);
+
+  window.CodexFactionRichPlain=ccCharacterRichPlain;
+  window.CodexFactionRichRender=ccCharacterRichRender;
+  window.CODEX_FACTION_RICH_WRITING='2026-08-14';
+  if(route.view==='factions'&&route.id)requestAnimationFrame(()=>render());
+  /* === End Faction rich writing editor === */
+
   /* === End Character rich writing editor === */
 
   window.CODEX_BUILD='character-rich-writing-edit-mode-2026-08-14';
@@ -19192,7 +19280,7 @@ initFirebase();
   function ccfPowerScore(item){return ({Hidden:20,Minor:35,Moderate:55,Major:78,Dominant:96})[item.power]||48;}
   function ccfFactionType(item){return item.type||item.category||item.power||'Faction';}
   function ccfRegion(item){const loc=getItem('locations',item.locationId||item.regionId);return loc?.name||item.region||'Unassigned';}
-  function ccfRelations(item){return String(item.alliesEnemies||'').split(/[,;\n]/).map(x=>x.trim()).filter(Boolean).length;}
+  function ccfRelations(item){return String(window.CodexFactionRichPlain?.(item.alliesEnemies)||item.alliesEnemies||'').split(/[,;\n]/).map(x=>x.trim()).filter(Boolean).length;}
   function ccfStats(items){
     const major=items.filter(x=>['Major','Dominant'].includes(x.power)).length;
     const members=items.reduce((sum,x)=>sum+(x.keyMemberIds?.length||0),0);
@@ -19204,7 +19292,7 @@ initFirebase();
   renderFactionHeraldic=function(items){
     const selected=items[0];
     const rows=items.map((item,index)=>`<button class="ccf-ledger-entry ${index===0?'is-selected':''}" type="button" data-open="factions:${esc(item.id)}"><span class="ccf-ledger-name">${ccfBadge(item)}<strong>${esc(item.name)}</strong></span><span>${esc(ccfFactionType(item))}</span><span>${esc(ccfRegion(item))}</span><span>${esc(item.power||'Unspecified')}</span></button>`).join('');
-    const detail=selected?`<aside class="ccf-ledger-detail"><div class="ccf-ledger-emblem">${renderFactionBadge(selected,'large')}</div><div><small class="cell-muted">${esc(ccfFactionType(selected))}</small><h2>${esc(selected.name)}</h2></div><p>${esc(selected.goal||selected.notes||'No faction summary has been added yet.')}</p><div class="tag-row">${cc3Tag(selected.power||'Unspecified')}${cc3Tag(`${selected.keyMemberIds?.length||0} members`)}${cc3Tag(ccfRegion(selected))}</div><div class="ccf-bars"><div class="ccf-bar"><span>Influence</span><div class="ccf-bar-track"><i style="width:${ccfPowerScore(selected)}%"></i></div><b>${ccfPowerScore(selected)}</b></div><div class="ccf-bar"><span>Membership</span><div class="ccf-bar-track"><i style="width:${Math.min(100,(selected.keyMemberIds?.length||0)*12)}%"></i></div><b>${selected.keyMemberIds?.length||0}</b></div><div class="ccf-bar"><span>Connections</span><div class="ccf-bar-track"><i style="width:${Math.min(100,ccfRelations(selected)*16)}%"></i></div><b>${ccfRelations(selected)}</b></div></div><button class="button" type="button" data-open="factions:${esc(selected.id)}">Open full faction</button></aside>`:'<aside class="ccf-ledger-detail"><p>No factions yet.</p></aside>';
+    const detail=selected?`<aside class="ccf-ledger-detail"><div class="ccf-ledger-emblem">${renderFactionBadge(selected,'large')}</div><div><small class="cell-muted">${esc(ccfFactionType(selected))}</small><h2>${esc(selected.name)}</h2></div><p>${esc((window.CodexFactionRichPlain?.(selected.goal||selected.notes)||'No faction summary has been added yet.'))}</p><div class="tag-row">${cc3Tag(selected.power||'Unspecified')}${cc3Tag(`${selected.keyMemberIds?.length||0} members`)}${cc3Tag(ccfRegion(selected))}</div><div class="ccf-bars"><div class="ccf-bar"><span>Influence</span><div class="ccf-bar-track"><i style="width:${ccfPowerScore(selected)}%"></i></div><b>${ccfPowerScore(selected)}</b></div><div class="ccf-bar"><span>Membership</span><div class="ccf-bar-track"><i style="width:${Math.min(100,(selected.keyMemberIds?.length||0)*12)}%"></i></div><b>${selected.keyMemberIds?.length||0}</b></div><div class="ccf-bar"><span>Connections</span><div class="ccf-bar-track"><i style="width:${Math.min(100,ccfRelations(selected)*16)}%"></i></div><b>${ccfRelations(selected)}</b></div></div><button class="button" type="button" data-open="factions:${esc(selected.id)}">Open full faction</button></aside>`:'<aside class="ccf-ledger-detail"><p>No factions yet.</p></aside>';
     return `<div class="ccf-collection">${ccfTop(items)}<div class="ccf-ledger"><section class="ccf-ledger-list"><div class="ccf-ledger-header"><span>Faction</span><span>Type</span><span>Region</span><span>Influence</span></div>${rows||'<div class="empty-state">No factions yet.</div>'}</section>${detail}</div></div>`;
   };
 
@@ -19212,13 +19300,13 @@ initFirebase();
     const powers=['Dominant','Major','Moderate','Minor','Hidden','Unspecified'];
     const nonempty=powers.map(p=>({p,items:items.filter(x=>(x.power||'Unspecified')===p)})).filter(g=>g.items.length);
     const groups=(nonempty.length?nonempty:[{p:'All factions',items}]).slice(0,3);
-    return `<div class="ccf-collection">${ccfTop(items)}<div class="ccf-board-groups">${groups.map(group=>`<section class="ccf-board-column"><div class="ccf-board-ribbon">${esc(group.p)}</div>${group.items.map(item=>`<button class="ccf-board-card" type="button" data-open="factions:${esc(item.id)}">${ccfBadge(item,'large')}<span><h3>${esc(item.name)}</h3><p>${esc(shortText(item.goal||item.notes,110)||'No description yet.')}</p><span class="ccf-board-meta">${cc3Tag(ccfFactionType(item))}${cc3Tag(`${item.keyMemberIds?.length||0} members`)}${cc3Tag(ccfRegion(item))}</span></span></button>`).join('')||'<p class="cell-muted">No factions in this group.</p>'}</section>`).join('')}</div></div>`;
+    return `<div class="ccf-collection">${ccfTop(items)}<div class="ccf-board-groups">${groups.map(group=>`<section class="ccf-board-column"><div class="ccf-board-ribbon">${esc(group.p)}</div>${group.items.map(item=>`<button class="ccf-board-card" type="button" data-open="factions:${esc(item.id)}">${ccfBadge(item,'large')}<span><h3>${esc(item.name)}</h3><p>${esc(shortText(window.CodexFactionRichPlain?.(item.goal||item.notes)||(item.goal||item.notes),110)||'No description yet.')}</p><span class="ccf-board-meta">${cc3Tag(ccfFactionType(item))}${cc3Tag(`${item.keyMemberIds?.length||0} members`)}${cc3Tag(ccfRegion(item))}</span></span></button>`).join('')||'<p class="cell-muted">No factions in this group.</p>'}</section>`).join('')}</div></div>`;
   };
 
   renderFactionIntel=function(items){
     const types={};items.forEach(x=>{const k=ccfFactionType(x);types[k]=(types[k]||0)+1;});
     const regions={};items.forEach(x=>{const k=ccfRegion(x);regions[k]=(regions[k]||0)+1;});
-    return `<div class="ccf-collection">${ccfTop(items)}<div class="ccf-grid-layout"><div class="ccf-card-grid">${items.map(item=>`<button class="ccf-grid-card" type="button" data-open="factions:${esc(item.id)}">${ccfBadge(item,'large')}<span><small class="cell-muted">${esc(ccfFactionType(item))}</small><h3>${esc(item.name)}</h3><p>${esc(shortText(item.goal||item.notes,105)||'No description yet.')}</p><span class="ccf-grid-meta">${cc3Tag(item.power||'Unspecified')}${cc3Tag(`${item.keyMemberIds?.length||0} members`)}</span></span></button>`).join('')||'<div class="empty-state">No factions yet.</div>'}</div><aside class="ccf-overview"><h3>Faction overview</h3><div class="ccf-overview-list"><div><span>Recorded</span><strong>${items.length}</strong></div><div><span>Major powers</span><strong>${items.filter(x=>['Major','Dominant'].includes(x.power)).length}</strong></div><div><span>Linked members</span><strong>${items.reduce((s,x)=>s+(x.keyMemberIds?.length||0),0)}</strong></div></div><h3>By type</h3><div class="ccf-overview-list">${Object.entries(types).slice(0,7).map(([k,v])=>`<div><span>${esc(k)}</span><strong>${v}</strong></div>`).join('')||'<span class="cell-muted">No types yet.</span>'}</div><h3>By region</h3><div class="ccf-overview-list">${Object.entries(regions).slice(0,6).map(([k,v])=>`<div><span>${esc(k)}</span><strong>${v}</strong></div>`).join('')||'<span class="cell-muted">No regions yet.</span>'}</div></aside></div></div>`;
+    return `<div class="ccf-collection">${ccfTop(items)}<div class="ccf-grid-layout"><div class="ccf-card-grid">${items.map(item=>`<button class="ccf-grid-card" type="button" data-open="factions:${esc(item.id)}">${ccfBadge(item,'large')}<span><small class="cell-muted">${esc(ccfFactionType(item))}</small><h3>${esc(item.name)}</h3><p>${esc(shortText(window.CodexFactionRichPlain?.(item.goal||item.notes)||(item.goal||item.notes),105)||'No description yet.')}</p><span class="ccf-grid-meta">${cc3Tag(item.power||'Unspecified')}${cc3Tag(`${item.keyMemberIds?.length||0} members`)}</span></span></button>`).join('')||'<div class="empty-state">No factions yet.</div>'}</div><aside class="ccf-overview"><h3>Faction overview</h3><div class="ccf-overview-list"><div><span>Recorded</span><strong>${items.length}</strong></div><div><span>Major powers</span><strong>${items.filter(x=>['Major','Dominant'].includes(x.power)).length}</strong></div><div><span>Linked members</span><strong>${items.reduce((s,x)=>s+(x.keyMemberIds?.length||0),0)}</strong></div></div><h3>By type</h3><div class="ccf-overview-list">${Object.entries(types).slice(0,7).map(([k,v])=>`<div><span>${esc(k)}</span><strong>${v}</strong></div>`).join('')||'<span class="cell-muted">No types yet.</span>'}</div><h3>By region</h3><div class="ccf-overview-list">${Object.entries(regions).slice(0,6).map(([k,v])=>`<div><span>${esc(k)}</span><strong>${v}</strong></div>`).join('')||'<span class="cell-muted">No regions yet.</span>'}</div></aside></div></div>`;
   };
 
 
