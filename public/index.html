@@ -18161,6 +18161,16 @@ initFirebase();
       const allImpacts=[...new Set(componentEvents.map(entry=>entry.impact).filter(Boolean))];
       const hasDirectTimelineInvolvement=componentEvents.some(entry=>directCharacterEventIds.has(entry.sourceId));
       const mergedIndirect=!hasDirectTimelineInvolvement&&componentStories.length>0&&componentStories.every(entry=>entry.indirectImpact);
+      // Once a Timeline Event is attached to an RP Story Point, the character's Life Story
+      // should place the merged card where that RP scene occurs in the character's story.
+      // The world Timeline date remains on the source event, but it no longer pulls the
+      // merged Life Story card earlier or later than its connected scene.
+      const storyAnchor=componentStories.slice().sort((a,b)=>{
+        if(a.dateScore!=null&&b.dateScore!=null)return a.dateScore-b.dateScore||a.sequence-b.sequence;
+        if(a.dateScore!=null)return -1;
+        if(b.dateScore!=null)return 1;
+        return a.sequence-b.sequence;
+      })[0]||null;
       mergedEntries.push({
         key:primary.key,
         orderKeys:[...new Set([...componentEvents.map(entry=>entry.key),...componentStories.flatMap(entry=>entry.orderKeys||[entry.key])])],
@@ -18170,9 +18180,10 @@ initFirebase();
         indirectImpact:mergedIndirect,
         title:primary.title,summary:primary.summary||componentStories.find(entry=>entry.summary)?.summary||'',
         impact:allImpacts.join(' · ')||componentStories.find(entry=>entry.impact)?.impact||'',
-        time:primary.time||componentStories.find(entry=>entry.time)?.time||'',
-        dateScore:primary.dateScore!=null?primary.dateScore:(allDateScores.length?Math.min(...allDateScores):null),
-        sequence:Math.min(...[...componentEvents,...componentStories].map(entry=>entry.sequence)),
+        time:storyAnchor?.time||primary.time||'',
+        dateScore:storyAnchor?storyAnchor.dateScore:(primary.dateScore!=null?primary.dateScore:(allDateScores.length?Math.min(...allDateScores):null)),
+        sequence:storyAnchor?storyAnchor.sequence:Math.min(...[...componentEvents,...componentStories].map(entry=>entry.sequence)),
+        lifeStoryAnchor:storyAnchor?{storyId:storyAnchor.sourceStoryId,nodeId:storyAnchor.sourceNodeId,key:storyAnchor.key}:null,
         locationIds:[...new Set(componentStories.flatMap(entry=>entry.locationIds||[]))],
         peopleIds:[...new Set([...componentEvents.flatMap(entry=>entry.peopleIds||[]),...componentStories.flatMap(entry=>entry.peopleIds||[])])],
         stories:uniqueStories,sharedId:sharedIds.length===1?sharedIds[0]:'',sharedIds,
