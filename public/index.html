@@ -13759,7 +13759,7 @@ const CC2_VERSION = 'story-timeline-2026-08';
   function cc2ShowStoryManager(storyId){
     const story=cc2Story(storyId); if(!story)return;
     const rows=cc2Ordered(story).map((node,index)=>{const p=cc2Point(story,node);return `<div class="cc2-manager-point" draggable="true" data-cc2-manager-drag="${esc(node.id)}"><span class="cc2-manager-handle">⋮⋮</span><span><strong>${esc(p.title)}</strong><small>${node.order} · ${esc(cc2TypeLabel(p.type))} · ${esc(p.status)}${p.branch!=='main'?` · ${esc(p.branch)}`:''}${cc2LocationNames(p).length?` · ${esc(cc2LocationNames(p).join(', '))}`:''}</small></span><div class="cc2-manager-actions"><button class="button ghost small" type="button" data-cc2-move-point="${esc(story.id)}|${esc(node.id)}|up" ${index===0?'disabled':''}>Up</button><button class="button ghost small" type="button" data-cc2-move-point="${esc(story.id)}|${esc(node.id)}|down" ${index===story.nodes.length-1?'disabled':''}>Down</button><button class="button secondary small" type="button" data-cc2-edit-point="${esc(story.id)}|${esc(node.id)}">Edit</button></div></div>`;}).join('');
-    showModal(`Manage ${story.name}`,`<div class="story-manager"><div class="story-manager-grid"><label><span>Story name</span><input class="input" value="${esc(story.name)}" data-cc2-story-name="${esc(story.id)}"></label><label><span>Description</span><textarea class="textarea" rows="3" data-cc2-story-description="${esc(story.id)}">${esc(story.description || '')}</textarea></label></div><section class="story-manager-section"><div class="dossier-section-heading"><h3>Story points</h3><button class="button" type="button" data-cc2-new-point="${esc(story.id)}">Add story point</button></div><p class="page-subtitle">Each point can connect multiple people, locations, timing, consequences, and an exact RP post.</p><div class="cc2-story-manager-list">${rows || '<p class="cc2-empty">No points yet.</p>'}</div></section></div>`,`<button class="button secondary" type="button" data-close-modal>Done</button><button class="button" type="button" data-cc2-open-map="${esc(story.id)}">Open timeline</button>`);
+    showModal(`Manage ${story.name}`,`<div class="story-manager"><div class="story-manager-grid"><label><span>Story name</span><input class="input" value="${esc(story.name)}" data-cc2-story-name="${esc(story.id)}"></label><label><span>Description</span><textarea class="textarea" rows="3" data-cc2-story-description="${esc(story.id)}">${esc(story.description || '')}</textarea></label></div><section class="story-manager-section"><div class="dossier-section-heading"><h3>Story points</h3><button class="button" type="button" data-cc2-new-point="${esc(story.id)}">Add story point</button></div><p class="page-subtitle">Each point can connect multiple people, locations, timing, consequences, and an exact RP post.</p><div class="cc2-story-manager-list">${rows || '<p class="cc2-empty">No points yet.</p>'}</div></section></div>`,`<button class="button secondary" type="button" data-close-modal>Done</button><button class="button secondary" type="button" data-ccrh-download="${esc(story.id)}">Download</button><button class="button" type="button" data-cc2-open-map="${esc(story.id)}">Open timeline</button>`);
   }
   showStoryManager=cc2ShowStoryManager;
 
@@ -15619,6 +15619,103 @@ initFirebase();
     return Number.isNaN(date.getTime())?'Previous post':date.toLocaleString(undefined,{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
   }
   function ccrhCharacterImage(character){ return ccpCharacterImage(character); }
+
+  function ccrhExportFileName(value,extension){
+    const base=String(value||'Roleplay').trim().replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim()||'Roleplay';
+    return `${base}.${extension}`;
+  }
+  function ccrhExportAttrs(attributeText){
+    const attrs={};
+    String(attributeText||'').replace(/([a-z]+)="([^"]*)"/gi,(match,key,value)=>{attrs[key.toLowerCase()]=value;return match;});
+    return attrs;
+  }
+  function ccrhExportPlainText(raw){
+    let text=String(raw||'').replace(/\r\n?/g,'\n');
+    text=text.replace(/\[img(?:=(?:left|right|center|full))?\]((?:https?:\/\/|data:image\/)[^\[]+?)\[\/img\]/gi,'');
+    text=text.replace(/\[url=([^\]]+)\]([\s\S]*?)\[\/url\]/gi,'$2');
+    text=text.replace(/\[quote(?:="[^"]*"|=[^\]]+)?\]([\s\S]*?)\[\/quote\]/gi,'$1');
+    text=text.replace(/\[spoiler(?:=[^\]]+)?\]([\s\S]*?)\[\/spoiler\]/gi,'$1');
+    text=text.replace(/\[ooc\]([\s\S]*?)\[\/ooc\]/gi,'$1');
+    text=text.replace(/\[code\]([\s\S]*?)\[\/code\]/gi,'$1');
+    text=text.replace(/\[\*\]/g,'• ');
+    text=text.replace(/\[\/?(?:b|i|u|s|center|left|right|list|ul|ol)\]/gi,'');
+    text=text.replace(/\[(?:color|size)=[^\]]+\]/gi,'').replace(/\[\/(?:color|size)\]/gi,'');
+    text=text.replace(/\n[ \t]+/g,'\n').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n');
+    return text.trim();
+  }
+  function ccrhExportTurnEntries(turn,story){
+    const raw=String(turn?.text||'');
+    const dialogueEntries=[];
+    const withoutCards=raw.replace(/\[dialogue\s+([^\]]+)\]([\s\S]*?)\[\/dialogue\]/gi,(whole,attributeText,body)=>{
+      const attrs=ccrhExportAttrs(attributeText);
+      const character=getItem('characters',attrs.character||'');
+      const name=String(attrs.name||character?.name||'Character').trim()||'Character';
+      const dialogue=ccrhExportPlainText(body);
+      const blurb=ccrhExportPlainText(attrs.blurb||'');
+      if(dialogue)dialogueEntries.push({name,text:dialogue,kind:'dialogue'});
+      if(blurb&&blurb!==dialogue)dialogueEntries.push({name,text:blurb,kind:'blurb'});
+      return '\n';
+    });
+    const entries=[];
+    const mainText=ccrhExportPlainText(withoutCards);
+    if(mainText){
+      const speaker=storySpeakerMeta(turn);
+      entries.push({name:String(speaker?.name||turn?.speakerName||'Narrator').trim()||'Narrator',text:mainText,kind:'post'});
+    }
+    entries.push(...dialogueEntries);
+    return entries;
+  }
+  function ccrhExportEntries(story){
+    if(!story)return [];
+    return ensureStoryDocument(story).flatMap(turn=>ccrhExportTurnEntries(turn,story)).filter(entry=>entry.text);
+  }
+  function ccrhDownloadBlob(blob,fileName){
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('a');
+    link.href=url;link.download=fileName;link.style.display='none';
+    document.body.appendChild(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+  function ccrhDownloadTxt(story){
+    const entries=ccrhExportEntries(story);
+    if(!entries.length){toast('There are no roleplay posts to download.','error');return;}
+    const content=entries.map(entry=>`${entry.name}\n\n${entry.text}`).join('\n\n\n');
+    ccrhDownloadBlob(new Blob([content],{type:'text/plain;charset=utf-8'}),ccrhExportFileName(story.name,'txt'));
+    toast('TXT downloaded.');
+  }
+  function ccrhExportXml(value){
+    return String(value??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+  }
+  function ccrhDocxTextRuns(value,bold=false){
+    const lines=String(value||'').replace(/\r\n?/g,'\n').split('\n');
+    const props=bold?'<w:rPr><w:b/></w:rPr>':'';
+    return lines.map((line,index)=>`<w:r>${props}<w:t xml:space="preserve">${ccrhExportXml(line)}</w:t>${index<lines.length-1?'<w:br/>':''}</w:r>`).join('');
+  }
+  async function ccrhDownloadDocx(story){
+    const entries=ccrhExportEntries(story);
+    if(!entries.length){toast('There are no roleplay posts to download.','error');return;}
+    if(!window.JSZip){toast('Word download support did not load.','error');return;}
+    const paragraphs=[];
+    for(const entry of entries){
+      paragraphs.push(`<w:p><w:pPr><w:spacing w:after="80"/></w:pPr>${ccrhDocxTextRuns(entry.name,true)}</w:p>`);
+      paragraphs.push(`<w:p><w:pPr><w:spacing w:after="220"/></w:pPr>${ccrhDocxTextRuns(entry.text,false)}</w:p>`);
+    }
+    const documentXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${paragraphs.join('')}<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+    const zip=new JSZip();
+    zip.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
+    zip.folder('_rels').file('.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
+    zip.folder('word').file('document.xml',documentXml);
+    const blob=await zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+    ccrhDownloadBlob(blob,ccrhExportFileName(story.name,'docx'));
+    toast('Word document downloaded.');
+  }
+  function ccrhOpenDownloadModal(storyId=''){
+    const routeStory=ccrhStoryFromRoute().story;
+    const story=storyId ? ((typeof cc2Story==='function' ? cc2Story(storyId) : null) || storyById(storyId)) : routeStory;
+    if(!story)return;
+    const entries=ccrhExportEntries(story);
+    showModal('Download roleplay',`<div class="ccrh-download-copy"><p>Download <strong>${esc(story.name)}</strong> as a clean transcript.</p><p class="muted">The file contains only the character name and post text. Embedded Dialogue Cards become separate posts for that character, and a saved character blurb becomes another separate post for that same character.</p><p><strong>${entries.length}</strong> transcript entr${entries.length===1?'y':'ies'} will be exported.</p></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button secondary" type="button" data-ccrh-download-format="${esc(story.id)}|txt">Download TXT</button><button class="button" type="button" data-ccrh-download-format="${esc(story.id)}|docx">Download Word (.docx)</button>`);
+  }
   function ccrhEscapeAttr(value){ return esc(String(value||'')); }
   function ccrhBbcode(raw){
     let text=esc(String(raw||''));
@@ -16161,6 +16258,22 @@ initFirebase();
         navigate('story',storyRouteValue(storyId,nodeId||''));
         requestAnimationFrame(()=>setTimeout(()=>document.getElementById(`rp-post-${CSS.escape(turnId)}`)?.scrollIntoView({behavior:'smooth',block:'center'}),80));
       }
+      return;
+    }
+    const downloadButton=event.target.closest('[data-ccrh-download]');
+    if(downloadButton){event.preventDefault();ccrhOpenDownloadModal(downloadButton.dataset.ccrhDownload||'');return;}
+    const downloadFormat=event.target.closest('[data-ccrh-download-format]');
+    if(downloadFormat){
+      event.preventDefault();
+      const raw=String(downloadFormat.dataset.ccrhDownloadFormat||'');
+      const splitAt=raw.lastIndexOf('|');
+      const storyId=splitAt>=0?raw.slice(0,splitAt):'';
+      const format=splitAt>=0?raw.slice(splitAt+1):raw;
+      const story=storyId ? ((typeof cc2Story==='function' ? cc2Story(storyId) : null) || storyById(storyId)) : ccrhStoryFromRoute().story;
+      if(!story)return;
+      if(format==='txt')ccrhDownloadTxt(story);
+      else if(format==='docx')await ccrhDownloadDocx(story);
+      closeModal();
       return;
     }
     const storyScroll=event.target.closest('[data-ccrh-story-scroll]');
