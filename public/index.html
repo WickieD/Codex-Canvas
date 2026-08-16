@@ -18319,7 +18319,9 @@ initFirebase();
       for(const node of (story.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0))){
         const point=typeof cc2Point==='function'?cc2Point(story,node):(node.point||{});const turns=ccLifePointTurns(story,node);const turnPeople=turns.map(turn=>turn.characterId).filter(Boolean);
         const aRole=ccLifePointRoleState(point,subjectId,turnPeople),bRole=ccLifePointRoleState(point,targetId,turnPeople);
-        if(!(aRole.present||aRole.pov)||!(bRole.present||bRole.pov))continue;
+        const aInPosts=turns.some(turn=>ccRelDialogueCardsFromText(turn?.text||'',subjectId).length);
+        const bInPosts=turns.some(turn=>ccRelDialogueCardsFromText(turn?.text||'',targetId).length);
+        if(!(((aRole.present||aRole.pov)&&(bRole.present||bRole.pov))||(aInPosts&&bInPosts)))continue;
         const token=ccRelSceneToken(story,node);const rank=rankMap.has(`${story.id}:${node.id}`)?rankMap.get(`${story.id}:${node.id}`):100000+(fallback++);
         const candidate={token,storyId:story.id,nodeId:node.id,story,node,point,title:storyPointTitle(story,node),time:typeof cc2TimeLabel==='function'?cc2TimeLabel(story,node):(point.exactDate||`Story point ${node.order||''}`),rank};
         const existing=dedupe.get(token);if(!existing||candidate.rank<existing.rank)dedupe.set(token,candidate);
@@ -18340,26 +18342,39 @@ initFirebase();
     if(!milestone?.storyId||!milestone?.nodeId)return null;const found=ccLifeFindNode(milestone.storyId,milestone.nodeId);if(!found.story||!found.node)return null;
     const point=typeof cc2Point==='function'?cc2Point(found.story,found.node):(found.node.point||{});return {storyId:found.story.id,nodeId:found.node.id,story:found.story,node:found.node,point,title:storyPointTitle(found.story,found.node),time:typeof cc2TimeLabel==='function'?cc2TimeLabel(found.story,found.node):(point.exactDate||`Story point ${found.node.order||''}`)};
   }
-  function ccRelDialogueBlurbsFromText(raw,characterId){
+  function ccRelDialogueCardsFromText(raw,characterId){
     const matches=[];const wanted=String(characterId||'');
-    String(raw||'').replace(/\[dialogue\s+([^\]]+)\]/gi,(whole,attributeText)=>{
+    String(raw||'').replace(/\[dialogue\s+([^\]]+)\]([\s\S]*?)\[\/dialogue\]/gi,(whole,attributeText,body)=>{
       const attrs={};attributeText.replace(/([a-z]+)="([^"]*)"/gi,(m,key,value)=>{attrs[key.toLowerCase()]=value;return m;});
-      if(String(attrs.character||'')===wanted&&String(attrs.blurb||'').trim())matches.push(String(attrs.blurb).trim());
+      if(String(attrs.character||'')===wanted){
+        matches.push({
+          characterId:wanted,
+          name:String(attrs.name||''),
+          state:String(attrs.subtitle||'').trim(),
+          blurb:String(attrs.blurb||'').trim(),
+          dialogue:String(body||'').trim()
+        });
+      }
       return whole;
     });
     return matches;
   }
+  function ccRelDialogueBlurbsFromText(raw,characterId){return ccRelDialogueCardsFromText(raw,characterId).map(card=>card.blurb).filter(Boolean);}
+  function ccRelStateKey(value){return String(value||'').trim().toLocaleLowerCase();}
+  function ccRelStatePaletteColor(value){
+    const text=ccRelStateKey(value);if(!text)return CC_REL_NEUTRAL;
+    const palette=['#b85f62','#c79345','#5c91c7','#7766c8','#62a377','#ae6fa7','#c86f4a','#6e9a9a','#9c7a55','#7d8494'];
+    let hash=0;for(let i=0;i<text.length;i++)hash=((hash<<5)-hash+text.charCodeAt(i))|0;
+    return palette[Math.abs(hash)%palette.length];
+  }
+  function ccRelAutoColor(record,characterId,state){
+    const perspective=ccRelPerspective(record,characterId);perspective.stateColors ||= {};
+    const key=ccRelStateKey(state);return ccRelColor(perspective.stateColors[key],ccRelStatePaletteColor(state));
+  }
   function ccRelRpBlurb(scene,characterId){
     if(!scene||!characterId)return '';
-    // The Roleplay Hub dialogue-card blurb is the live character thought shown on the post.
-    // Prefer the latest matching post blurb inside this Story Point so Relationship History
-    // stays in sync when that RP card is edited. Fall back to the older Story Point perspective.
-    const turns=typeof ccLifePointTurns==='function'?ccLifePointTurns(scene.story,scene.node):[];
-    let latest='';
-    for(const turn of turns||[]){
-      const blurbs=ccRelDialogueBlurbsFromText(turn?.text||'',characterId);
-      if(blurbs.length)latest=blurbs[blurbs.length-1];
-    }
+    const turns=typeof ccLifePointTurns==='function'?ccLifePointTurns(scene.story,scene.node):[];let latest='';
+    for(const turn of turns||[]){const cards=ccRelDialogueCardsFromText(turn?.text||'',characterId);if(cards.length){const found=[...cards].reverse().find(card=>card.blurb);if(found)latest=found.blurb;}}
     if(latest)return latest;
     return String(scene?.point?.characterReactions?.[characterId]?.text||'').trim();
   }
@@ -18368,57 +18383,125 @@ initFirebase();
     if(perspective.blurbSource==='custom')return String(perspective.customBlurb||'').trim();return ccRelRpBlurb(ccRelSceneForMilestone(milestone),characterId);
   }
   function ccRelAutoNodeBlurb(scene,characterId){return ccRelRpBlurb(scene,characterId);}
+  function ccRelPostHistory(subjectId,targetId){
+    const scenes=ccRelSharedScenes(subjectId,targetId);const byPerson={[subjectId]:[],[targetId]:[]};
+    for(const scene of scenes){
+      const turns=typeof ccLifePointTurns==='function'?ccLifePointTurns(scene.story,scene.node):[];
+      const allTurns=typeof ensureStoryDocument==='function'?ensureStoryDocument(scene.story):(scene.story.rpTurns||[]);
+      for(let localIndex=0;localIndex<turns.length;localIndex++){
+        const turn=turns[localIndex];const globalIndex=Math.max(0,allTurns.findIndex(item=>item.id===turn.id));
+        for(const personId of [subjectId,targetId]){
+          const cards=ccRelDialogueCardsFromText(turn?.text||'',personId);
+          cards.forEach((card,cardIndex)=>byPerson[personId].push({
+            personId,storyId:scene.storyId,nodeId:scene.nodeId,turnId:turn.id,story:scene.story,node:scene.node,scene,
+            sceneTitle:scene.title,storyName:scene.story.name,time:scene.time||'',postNumber:globalIndex+1,
+            state:card.state,blurb:card.blurb,dialogue:card.dialogue,
+            rank:(Number(scene.rank)||0)*100000+globalIndex*10+cardIndex
+          }));
+        }
+      }
+      for(const personId of [subjectId,targetId]){
+        if(!byPerson[personId].some(item=>item.storyId===scene.storyId&&item.nodeId===scene.nodeId)){
+          const reaction=String(scene?.point?.characterReactions?.[personId]?.text||'').trim();
+          if(reaction)byPerson[personId].push({personId,storyId:scene.storyId,nodeId:scene.nodeId,turnId:'',story:scene.story,node:scene.node,scene,sceneTitle:scene.title,storyName:scene.story.name,time:scene.time||'',postNumber:0,state:'',blurb:reaction,dialogue:'',rank:(Number(scene.rank)||0)*100000+9999});
+        }
+      }
+    }
+    for(const personId of [subjectId,targetId])byPerson[personId].sort((a,b)=>a.rank-b.rank);
+    return {scenes,byPerson};
+  }
+  function ccRelPhasesFor(record,characterId,posts){
+    const phases=[];let phase=null;let activeState='';
+    const pushPhase=()=>{if(phase){phase.lastPost=phase.posts[phase.posts.length-1]||phase.firstPost;phase.lastBlurb=[...phase.posts].reverse().find(post=>post.blurb)?.blurb||phase.firstBlurb||'';phases.push(phase);}phase=null;};
+    for(const post of posts||[]){
+      const state=String(post.state||'').trim();const key=ccRelStateKey(state);
+      if(state&&key!==ccRelStateKey(activeState)){
+        pushPhase();activeState=state;phase={state,key,color:ccRelAutoColor(record,characterId,state),firstPost:post,firstBlurb:post.blurb||'',posts:[post],rank:post.rank};continue;
+      }
+      if(!phase){phase={state:activeState,key:ccRelStateKey(activeState),color:activeState?ccRelAutoColor(record,characterId,activeState):CC_REL_NEUTRAL,firstPost:post,firstBlurb:post.blurb||'',posts:[post],rank:post.rank};}
+      else phase.posts.push(post);
+    }
+    pushPhase();
+    return phases.filter(item=>item.state||item.posts.some(post=>post.blurb));
+  }
+  function ccRelStateAtRank(record,characterId,posts,rank){
+    const eligible=(posts||[]).filter(post=>post.rank<=rank);const latestState=[...eligible].reverse().find(post=>post.state)?.state||'';const latestBlurb=[...eligible].reverse().find(post=>post.blurb)?.blurb||'';const latestPost=[...eligible].reverse().find(post=>post.state||post.blurb)||null;
+    return {state:latestState,color:latestState?ccRelAutoColor(record,characterId,latestState):CC_REL_NEUTRAL,blurb:latestBlurb,post:latestPost};
+  }
+  function ccRelPerspectiveAtNode(record,characterId,posts,node){
+    let result=ccRelStateAtRank(record,characterId,posts,Number.isFinite(node?.rank)?node.rank:Number.MAX_SAFE_INTEGER);
+    if(node?.scene){
+      const sameScene=(posts||[]).filter(post=>post.storyId===node.scene.storyId&&post.nodeId===node.scene.nodeId);
+      if(sameScene.length){
+        const nearest=sameScene.reduce((best,post)=>!best||Math.abs(post.rank-(node.rank||0))<Math.abs(best.rank-(node.rank||0))?post:best,null);
+        const state=[...sameScene.filter(post=>post.rank<=nearest.rank)].reverse().find(post=>post.state)?.state||result.state||[...sameScene].reverse().find(post=>post.state)?.state||'';
+        const blurb=nearest?.blurb||[...sameScene].reverse().find(post=>post.blurb)?.blurb||result.blurb||'';
+        result={state,color:state?ccRelAutoColor(record,characterId,state):result.color,blurb,post:nearest||result.post};
+      }
+    }
+    return result;
+  }
   function ccRelNodesFor(character,target,scenes,record){
-    const nodes=[];const milestones=(record?.milestones||[]).slice();const sceneRank=new Map(scenes.map((scene,index)=>[`${scene.storyId}:${scene.nodeId}`,scene.rank??index]));
-    const first=scenes[0]||null;const milestoneSceneTokens=new Set(milestones.map(item=>`${item.storyId}:${item.nodeId}`));
-    if(first&&!milestoneSceneTokens.has(`${first.storyId}:${first.nodeId}`))nodes.push({key:`first:${first.storyId}:${first.nodeId}`,kind:'first',title:'First interaction',subtitle:first.title,time:first.time,color:CC_REL_NEUTRAL,scene:first,rank:first.rank-0.25,state:'',blurb:ccRelAutoNodeBlurb(first,character.id),whatChanged:''});
-    for(const milestone of milestones){
-      const scene=ccRelSceneForMilestone(milestone),perspective=ccRelMilestonePerspective(record,milestone,character.id);const rank=sceneRank.get(`${milestone.storyId}:${milestone.nodeId}`)??(scene?100000+(scene.node.order||0):200000);
-      nodes.push({key:`milestone:${milestone.id}`,kind:'milestone',milestoneId:milestone.id,title:milestone.title||scene?.title||'Relationship milestone',subtitle:scene?.title&&milestone.title&&milestone.title!==scene.title?scene.title:'',time:milestone.timeLabel||scene?.time||'',color:ccRelColor(perspective.color),state:perspective.state||'',blurb:ccRelMilestoneBlurb(record,milestone,character.id),whatChanged:perspective.whatChanged||'',scene,rank});
+    const history=ccRelPostHistory(character.id,target.id),posts=history.byPerson[character.id]||[],phases=ccRelPhasesFor(record,character.id,posts),nodes=[];
+    if(!phases.length&&scenes[0])nodes.push({key:`first:${scenes[0].storyId}:${scenes[0].nodeId}`,kind:'first',title:'First interaction',subtitle:scenes[0].title,time:scenes[0].time,color:CC_REL_NEUTRAL,scene:scenes[0],rank:scenes[0].rank,blurb:ccRelRpBlurb(scenes[0],character.id),state:'',phasePosts:[]});
+    phases.forEach((phase,index)=>{
+      const post=phase.firstPost;const title=phase.state||(index===0?'First thoughts':'Relationship shift');
+      nodes.push({key:`auto:${character.id}:${post.storyId}:${post.turnId||post.nodeId}:${encodeURIComponent(phase.key||String(index))}`,kind:'auto-state',title,subtitle:post.sceneTitle,time:post.time||`Post ${post.postNumber||''}`,color:phase.color,state:phase.state,blurb:phase.firstBlurb||phase.lastBlurb||'',scene:post.scene,post,rank:phase.rank,phasePosts:phase.posts,phaseIndex:index});
+    });
+    // Keep older manually-created milestones as optional annotations, but they are no longer required.
+    for(const milestone of (record?.milestones||[])){
+      const scene=ccRelSceneForMilestone(milestone),perspective=ccRelMilestonePerspective(record,milestone,character.id);const rank=scene?((Number(scene.rank)||0)*100000+50000):200000000;
+      nodes.push({key:`milestone:${milestone.id}`,kind:'milestone',milestoneId:milestone.id,title:milestone.title||scene?.title||'Manual milestone',subtitle:scene?.title&&milestone.title&&milestone.title!==scene.title?scene.title:'',time:milestone.timeLabel||scene?.time||'',color:ccRelColor(perspective.color),state:perspective.state||'',blurb:ccRelMilestoneBlurb(record,milestone,character.id),whatChanged:perspective.whatChanged||'',scene,rank,phasePosts:[]});
     }
     nodes.sort((a,b)=>a.rank-b.rank);
-    const current=ccRelPerspective(record,character.id);nodes.push({key:'current',kind:'current',title:current.currentState||'Current state',subtitle:'Present',time:'Now',color:ccRelColor(current.currentColor,CC_REL_CURRENT),state:current.currentState||'',blurb:'',whatChanged:'',rank:Infinity});
-    return nodes;
+    const latest=[...posts].reverse().find(post=>post.state||post.blurb)||null;const latestState=[...posts].reverse().find(post=>post.state)?.state||'';const manual=ccRelPerspective(record,character.id);const currentState=latestState||manual.currentState||'';const currentColor=currentState?ccRelAutoColor(record,character.id,currentState):ccRelColor(manual.currentColor,CC_REL_CURRENT);
+    if(latest){nodes.push({key:'current',kind:'current',title:'Now',subtitle:latest.sceneTitle,time:'Present',color:currentColor,state:currentState,blurb:latest.blurb||'',scene:latest.scene,post:latest,rank:Infinity,phasePosts:[]});}
+    else nodes.push({key:'current',kind:'current',title:'Now',subtitle:'Present',time:'Present',color:currentColor,state:currentState,blurb:'',rank:Infinity,phasePosts:[]});
+    nodes._history=history;nodes._phases=phases;return nodes;
   }
   function ccRelNodeFromKey(character,target,nodes,key){return nodes.find(node=>node.key===key)||nodes[0]||null;}
   function ccRelPersonImage(person){return ccLifeCharacterImage(person)||'';}
+  function ccRelThoughtRecapHtml(character,target,nodes){
+    const auto=nodes.filter(node=>node.kind==='auto-state');if(!auto.length)return '';
+    const samples=[];for(const node of auto){const blurb=node.blurb||node.phasePosts?.find(post=>post.blurb)?.blurb||'';if(blurb)samples.push({label:node.state||node.title,blurb,node});}
+    const current=nodes.find(node=>node.kind==='current');if(current?.blurb&&(!samples.length||samples[samples.length-1].blurb!==current.blurb))samples.push({label:current.state||'Now',blurb:current.blurb,node:current});
+    if(!samples.length)return '';
+    return `<div class="cc-rel-thought-recap"><span class="cc-rel-thought-label">Thought progression</span><div class="cc-rel-thought-flow">${samples.map((sample,index)=>`${index?'<span class="cc-rel-thought-arrow">→</span>':''}<button type="button" data-cc-rel-select="${esc(character.id)}|${esc(target.id)}|${encodeURIComponent(sample.node.key)}"><strong>${esc(sample.label)}</strong><span>“${esc(shortText(sample.blurb,115))}”</span></button>`).join('')}</div></div>`;
+  }
   function ccRelTrackHtml(character,target,nodes,record){
-    const selected=ccRelationshipSelections.get(character.id);const personImage=ccRelPersonImage(target);const current=ccRelPerspective(record,character.id);const latestBlurb=[...nodes].reverse().find(node=>node.blurb)?.blurb||'';
-    const pieces=[];
-    nodes.forEach((node,index)=>{
-      const isSelected=selected?.targetId===target.id&&selected?.nodeKey===node.key;const nodeButton=`<button class="cc-rel-node ${isSelected?'is-selected':''} ${node.kind==='current'?'is-current':''}" type="button" style="--rel-color:${esc(node.color)}" data-cc-rel-select="${esc(character.id)}|${esc(target.id)}|${encodeURIComponent(node.key)}"><span class="cc-rel-node-title">${esc(node.title)}</span>${node.state&&node.title!==node.state?`<span class="cc-rel-node-state">${esc(node.state)}</span>`:''}<span class="cc-rel-node-time">${esc(node.time||'')}</span><i></i></button>`;pieces.push(nodeButton);
-      if(index<nodes.length-1){const next=nodes[index+1];pieces.push(`<span class="cc-rel-segment" style="--rel-from:${esc(node.color)};--rel-to:${esc(next.color)}"></span>`);}
-    });
-    return `<article class="cc-rel-row" data-cc-rel-row="${esc(target.id)}"><div class="cc-rel-person"><button type="button" class="cc-rel-avatar" data-open="characters:${esc(target.id)}">${personImage?`<img src="${esc(personImage)}" alt="">`:esc(initials(target.name||'?'))}</button><div><button class="cc-rel-person-name" type="button" data-open="characters:${esc(target.id)}">${esc(target.name)}</button>${current.type?`<span class="cc-rel-type">${esc(current.type)}</span>`:''}${current.currentState?`<strong class="cc-rel-current-label" style="--rel-color:${esc(ccRelColor(current.currentColor,CC_REL_CURRENT))}">Current: ${esc(current.currentState)}</strong>`:'<span class="cc-rel-current-empty cc-rel-edit-only">Current state not set</span>'}</div></div><div class="cc-rel-timeline"><div class="cc-rel-track">${pieces.join('')}</div>${latestBlurb?`<blockquote class="cc-rel-row-blurb">“${esc(latestBlurb)}”</blockquote>`:''}</div><div class="cc-rel-row-actions cc-rel-edit-only"><button class="button secondary small" type="button" data-cc-rel-edit-pair="${esc(character.id)}|${esc(target.id)}">Edit relationship</button><button class="button secondary small" type="button" data-cc-rel-add-milestone="${esc(character.id)}|${esc(target.id)}">+ Milestone</button></div></article>`;
+    const selected=ccRelationshipSelections.get(character.id),personImage=ccRelPersonImage(target),history=nodes._history||ccRelPostHistory(character.id,target.id),posts=history.byPerson[character.id]||[];const autoCurrent=[...posts].reverse().find(post=>post.state)?.state||ccRelPerspective(record,character.id).currentState||'';const autoColor=autoCurrent?ccRelAutoColor(record,character.id,autoCurrent):CC_REL_CURRENT;const current=ccRelPerspective(record,character.id),pieces=[];
+    nodes.forEach((node,index)=>{const isSelected=selected?.targetId===target.id&&selected?.nodeKey===node.key;pieces.push(`<button class="cc-rel-node ${isSelected?'is-selected':''} ${node.kind==='current'?'is-current':''}" type="button" style="--rel-color:${esc(node.color)}" data-cc-rel-select="${esc(character.id)}|${esc(target.id)}|${encodeURIComponent(node.key)}"><span class="cc-rel-node-title">${esc(node.title)}</span>${node.state&&node.title!==node.state?`<span class="cc-rel-node-state">${esc(node.state)}</span>`:''}<span class="cc-rel-node-time">${esc(node.time||'')}</span><i></i></button>`);if(index<nodes.length-1){const next=nodes[index+1];pieces.push(`<span class="cc-rel-segment" style="--rel-from:${esc(node.color)};--rel-to:${esc(next.color)}"></span>`);}});
+    return `<article class="cc-rel-row" data-cc-rel-row="${esc(target.id)}"><div class="cc-rel-person"><button type="button" class="cc-rel-avatar" data-open="characters:${esc(target.id)}">${personImage?`<img src="${esc(personImage)}" alt="">`:esc(initials(target.name||'?'))}</button><div><button class="cc-rel-person-name" type="button" data-open="characters:${esc(target.id)}">${esc(target.name)}</button>${current.type?`<span class="cc-rel-type">${esc(current.type)}</span>`:''}${autoCurrent?`<strong class="cc-rel-current-label" style="--rel-color:${esc(autoColor)}">Current: ${esc(autoCurrent)}</strong>`:'<span class="cc-rel-current-empty">Current title not found in RP yet</span>'}</div></div><div class="cc-rel-timeline"><div class="cc-rel-track">${pieces.join('')}</div>${ccRelThoughtRecapHtml(character,target,nodes)}</div><div class="cc-rel-row-actions cc-rel-edit-only"><button class="button secondary small" type="button" data-cc-rel-edit-pair="${esc(character.id)}|${esc(target.id)}">Colors & relationship</button><button class="button ghost small" type="button" data-cc-rel-add-milestone="${esc(character.id)}|${esc(target.id)}">+ Manual note</button></div></article>`;
+  }
+  function ccRelInspectorPostLink(post,label='Open exact RP post'){
+    if(!post)return '';if(post.turnId)return `<button class="button secondary small" type="button" data-ccrh-open-linked-post="${esc(post.storyId)}|${esc(post.nodeId)}|${esc(post.turnId)}">${esc(label)} →</button>`;return `<button class="button secondary small" type="button" data-story-point="${esc(storyRouteValue(post.storyId,post.nodeId))}">${esc(label)} →</button>`;
   }
   function ccRelInspectorHtml(character,target,nodes,record,node){
-    if(!target||!node)return `<aside class="cc-rel-inspector"><div class="cc-rel-inspector-empty">Select a relationship moment to see its details.</div></aside>`;
-    const targetImage=ccRelPersonImage(target),subjectPerspective=ccRelPerspective(record,character.id),targetPerspective=ccRelPerspective(record,target.id);let subjectAt={state:'',color:node.color,whatChanged:'',blurbSource:'rp',customBlurb:''},targetAt={state:'',color:CC_REL_NEUTRAL,whatChanged:'',blurbSource:'rp',customBlurb:''},subjectBlurb=node.blurb||'',targetBlurb='';let milestone=null;
-    if(node.kind==='milestone'&&record){milestone=(record.milestones||[]).find(item=>item.id===node.milestoneId)||null;if(milestone){subjectAt=ccRelMilestonePerspective(record,milestone,character.id);targetAt=ccRelMilestonePerspective(record,milestone,target.id);subjectBlurb=ccRelMilestoneBlurb(record,milestone,character.id);targetBlurb=ccRelMilestoneBlurb(record,milestone,target.id);}}
-    if(node.kind==='first'&&node.scene)targetBlurb=ccRelAutoNodeBlurb(node.scene,target.id);
-    const scene=node.scene;const sceneSource=scene?`<div class="cc-rel-inspector-section"><span class="cc-rel-inspector-label">RP Source</span><strong>${esc(scene.story.name)}</strong><span>${esc(scene.title)}</span><button class="button secondary small" type="button" data-story-point="${esc(storyRouteValue(scene.storyId,scene.nodeId))}">Open in RP →</button></div>`:'';
-    const stateLine=(label,perspective,colorFallback)=>`<div class="cc-rel-state-line"><i style="--rel-color:${esc(ccRelColor(perspective?.color,colorFallback))}"></i><span>${esc(perspective?.state||label)}</span></div>`;
-    return `<aside class="cc-rel-inspector"><header class="cc-rel-inspector-head"><div class="cc-rel-inspector-person">${targetImage?`<img src="${esc(targetImage)}" alt="">`:`<span>${esc(initials(target.name||'?'))}</span>`}<div><strong>${esc(target.name)}</strong>${subjectPerspective.type?`<small>${esc(subjectPerspective.type)}</small>`:''}</div></div></header><div class="cc-rel-inspector-body"><section><span class="cc-rel-inspector-label">Moment</span><h3>${esc(node.title)}</h3>${node.subtitle?`<p>${esc(node.subtitle)}</p>`:''}<small>${esc(node.time||'')}</small></section>${node.kind!=='current'?`<div class="cc-rel-inspector-section"><span class="cc-rel-inspector-label">${esc(character.name)}'s state at the time</span>${stateLine('State not set',subjectAt,node.color)}</div>`:''}${sceneSource}<div class="cc-rel-perspective-card"><span class="cc-rel-inspector-label">Then, ${esc(character.name)} felt…</span>${subjectBlurb?`<blockquote>“${esc(subjectBlurb)}”</blockquote>`:'<p class="muted">No perspective blurb is connected to this moment yet.</p>'}${subjectAt.whatChanged?`<div class="cc-rel-change"><strong>What changed</strong><p>${esc(subjectAt.whatChanged)}</p></div>`:''}</div><div class="cc-rel-perspective-card is-other"><span class="cc-rel-inspector-label">${esc(target.name)}'s perspective</span>${node.kind!=='current'?stateLine('State not set',targetAt,CC_REL_NEUTRAL):''}${targetBlurb?`<blockquote>“${esc(targetBlurb)}”</blockquote>`:'<p class="muted">No perspective blurb is connected for this side yet.</p>'}${targetAt.whatChanged?`<div class="cc-rel-change"><strong>What changed for ${esc(target.name)}</strong><p>${esc(targetAt.whatChanged)}</p></div>`:''}</div><div class="cc-rel-inspector-section"><span class="cc-rel-inspector-label">Current state now</span>${stateLine(subjectPerspective.currentState||'Not set',{state:subjectPerspective.currentState,color:subjectPerspective.currentColor},CC_REL_CURRENT)}${targetPerspective.currentState?`<small>${esc(target.name)}: ${esc(targetPerspective.currentState)}</small>`:''}</div><div class="cc-rel-inspector-actions"><button class="button secondary small" type="button" data-open="characters:${esc(target.id)}">Open Bio</button><button class="button secondary small" type="button" data-cc-life-story="${esc(target.id)}">Open Life Story</button>${milestone?`<button class="button secondary small cc-rel-edit-only" type="button" data-cc-rel-edit-milestone="${esc(character.id)}|${esc(target.id)}|${esc(milestone.id)}">Edit milestone</button><button class="button ghost small cc-rel-edit-only" type="button" data-cc-rel-delete-milestone="${esc(character.id)}|${esc(target.id)}|${esc(milestone.id)}">Delete milestone</button>`:''}</div></div></aside>`;
+    if(!target||!node)return `<aside class="cc-rel-inspector"><div class="cc-rel-inspector-empty">Select a relationship change to see the posts and thoughts behind it.</div></aside>`;
+    const targetImage=ccRelPersonImage(target),history=nodes._history||ccRelPostHistory(character.id,target.id),subjectPosts=history.byPerson[character.id]||[],targetPosts=history.byPerson[target.id]||[],subjectPerspective=ccRelPerspective(record,character.id),targetPerspective=ccRelPerspective(record,target.id);let subjectAt={state:node.state||'',color:node.color,blurb:node.blurb||'',post:node.post||null},targetAt=ccRelPerspectiveAtNode(record,target.id,targetPosts,node),milestone=null;
+    if(node.kind==='milestone'&&record){milestone=(record.milestones||[]).find(item=>item.id===node.milestoneId)||null;if(milestone){const sp=ccRelMilestonePerspective(record,milestone,character.id),tp=ccRelMilestonePerspective(record,milestone,target.id);subjectAt={state:sp.state,color:ccRelColor(sp.color),blurb:ccRelMilestoneBlurb(record,milestone,character.id),post:null,whatChanged:sp.whatChanged};targetAt={state:tp.state,color:ccRelColor(tp.color),blurb:ccRelMilestoneBlurb(record,milestone,target.id),post:null,whatChanged:tp.whatChanged};}}
+    if(node.kind==='current'){subjectAt=ccRelStateAtRank(record,character.id,subjectPosts,Number.MAX_SAFE_INTEGER);targetAt=ccRelStateAtRank(record,target.id,targetPosts,Number.MAX_SAFE_INTEGER);}
+    const stateLine=(state,color,label='No RP title yet')=>`<div class="cc-rel-state-line"><i style="--rel-color:${esc(ccRelColor(color,CC_REL_NEUTRAL))}"></i><span>${esc(state||label)}</span></div>`;
+    const phasePosts=(node.phasePosts||[]).filter(post=>post.blurb);const phaseThoughts=phasePosts.length?`<div class="cc-rel-phase-thoughts"><span class="cc-rel-inspector-label">Thoughts during this stage</span>${phasePosts.map(post=>`<article><blockquote>“${esc(post.blurb)}”</blockquote><div><span>${esc(post.storyName)} · ${esc(post.sceneTitle)}${post.postNumber?` · Post ${post.postNumber}`:''}</span>${ccRelInspectorPostLink(post,'Open post')}</div></article>`).join('')}</div>`:'';
+    const currentSubject=[...subjectPosts].reverse().find(post=>post.state)?.state||subjectPerspective.currentState||'',currentTarget=[...targetPosts].reverse().find(post=>post.state)?.state||targetPerspective.currentState||'';
+    return `<aside class="cc-rel-inspector"><header class="cc-rel-inspector-head"><div class="cc-rel-inspector-person">${targetImage?`<img src="${esc(targetImage)}" alt="">`:`<span>${esc(initials(target.name||'?'))}</span>`}<div><strong>${esc(target.name)}</strong>${subjectPerspective.type?`<small>${esc(subjectPerspective.type)}</small>`:''}</div></div></header><div class="cc-rel-inspector-body"><section><span class="cc-rel-inspector-label">Relationship progression</span><h3>${esc(node.state||node.title)}</h3>${node.subtitle?`<p>${esc(node.subtitle)}</p>`:''}<small>${esc(node.time||'')}</small></section><div class="cc-rel-inspector-section"><span class="cc-rel-inspector-label">${esc(character.name)} at this point</span>${stateLine(subjectAt.state,subjectAt.color)}${subjectAt.blurb?`<blockquote class="cc-rel-main-thought">“${esc(subjectAt.blurb)}”</blockquote>`:'<p class="muted">No blurb was attached to this post.</p>'}${ccRelInspectorPostLink(subjectAt.post||node.post)}</div><div class="cc-rel-inspector-section"><span class="cc-rel-inspector-label">${esc(target.name)} at the same point</span>${stateLine(targetAt.state,targetAt.color)}${targetAt.blurb?`<blockquote class="cc-rel-main-thought">“${esc(targetAt.blurb)}”</blockquote>`:'<p class="muted">No blurb had been posted from this perspective yet.</p>'}${ccRelInspectorPostLink(targetAt.post,'Open their closest post')}</div>${phaseThoughts}<div class="cc-rel-inspector-section"><span class="cc-rel-inspector-label">Where they are now</span>${stateLine(currentSubject,currentSubject?ccRelAutoColor(record,character.id,currentSubject):CC_REL_CURRENT,`${character.name}: not titled`)}${currentTarget?`<small>${esc(target.name)}: ${esc(currentTarget)}</small>`:''}</div><div class="cc-rel-inspector-actions"><button class="button secondary small" type="button" data-open="characters:${esc(target.id)}">Open Bio</button><button class="button secondary small" type="button" data-cc-life-story="${esc(target.id)}">Open Life Story</button>${milestone?`<button class="button secondary small cc-rel-edit-only" type="button" data-cc-rel-edit-milestone="${esc(character.id)}|${esc(target.id)}|${esc(milestone.id)}">Edit manual note</button><button class="button ghost small cc-rel-edit-only" type="button" data-cc-rel-delete-milestone="${esc(character.id)}|${esc(target.id)}|${esc(milestone.id)}">Delete manual note</button>`:''}</div></div></aside>`;
   }
   function ccRelationshipViewHtml(character){
     const candidates=ccRelCandidates(character);const rows=candidates.map(candidate=>{const record=ccRelRecord(character.id,candidate.person.id,false),nodes=ccRelNodesFor(character,candidate.person,candidate.scenes,record);return {...candidate,record,nodes};});
-    let selection=ccRelationshipSelections.get(character.id)||null;
-    if(!selection||!rows.some(row=>row.person.id===selection.targetId&&row.nodes.some(node=>node.key===selection.nodeKey))){const firstRow=rows[0];selection=firstRow?{targetId:firstRow.person.id,nodeKey:firstRow.nodes[0]?.key||'current'}:null;if(selection)ccRelationshipSelections.set(character.id,selection);}
-    const activeRow=selection?rows.find(row=>row.person.id===selection.targetId):null;const activeNode=activeRow?ccRelNodeFromKey(character,activeRow.person,activeRow.nodes,selection.nodeKey):null;
-    const milestoneCount=rows.reduce((sum,row)=>sum+(row.record?.milestones?.length||0),0);
-    return `<section class="cc-rel-view"><div class="cc-rel-view-head"><div><span class="eyebrow">Relationships</span><h2>${esc(character.name)}'s relationship history over time</h2><p>One line per person, from the first shared scene through the states and moments that shaped the relationship.</p></div><button class="button secondary small cc-rel-edit-only" type="button" data-cc-rel-add-relationship="${esc(character.id)}">+ Add relationship</button></div><div class="cc-rel-stats"><span><strong>${rows.length}</strong> people</span><span><strong>${milestoneCount}</strong> saved milestones</span><span>States and colors are yours to define</span></div>${rows.length?`<div class="cc-rel-layout"><div class="cc-rel-list">${rows.map(row=>ccRelTrackHtml(character,row.person,row.nodes,row.record)).join('')}</div>${ccRelInspectorHtml(character,activeRow?.person,activeRow?.nodes||[],activeRow?.record,activeNode)}</div>`:`<div class="cc-life-empty"><h3>No relationship paths yet</h3><p>When ${esc(character.name)} shares an RP scene with another character, that person will appear here automatically. In Edit mode, you can also add a relationship manually.</p><button class="button cc-rel-edit-only" type="button" data-cc-rel-add-relationship="${esc(character.id)}">+ Add relationship</button></div>`}</section>`;
+    let selection=ccRelationshipSelections.get(character.id)||null;if(!selection||!rows.some(row=>row.person.id===selection.targetId&&row.nodes.some(node=>node.key===selection.nodeKey))){const firstRow=rows[0],preferred=firstRow?.nodes.find(node=>node.kind==='auto-state')||firstRow?.nodes[0];selection=firstRow?{targetId:firstRow.person.id,nodeKey:preferred?.key||'current'}:null;if(selection)ccRelationshipSelections.set(character.id,selection);}
+    const activeRow=selection?rows.find(row=>row.person.id===selection.targetId):null,activeNode=activeRow?ccRelNodeFromKey(character,activeRow.person,activeRow.nodes,selection.nodeKey):null;const autoChanges=rows.reduce((sum,row)=>sum+row.nodes.filter(node=>node.kind==='auto-state'&&node.state).length,0),rpThoughts=rows.reduce((sum,row)=>sum+((row.nodes._history?.byPerson?.[character.id]||[]).filter(post=>post.blurb).length),0);
+    return `<section class="cc-rel-view"><div class="cc-rel-view-head"><div><span class="eyebrow">Relationships</span><h2>${esc(character.name)}'s relationship history over time</h2><p>Built automatically from the relationship titles and character blurbs already used in Roleplay Hub posts. A new point appears when the RP title changes.</p></div><button class="button secondary small cc-rel-edit-only" type="button" data-cc-rel-add-relationship="${esc(character.id)}">+ Add off-screen relationship</button></div><div class="cc-rel-stats"><span><strong>${rows.length}</strong> people</span><span><strong>${autoChanges}</strong> RP title stages</span><span><strong>${rpThoughts}</strong> character blurbs recapped</span><span>Colors are customizable · no categories required</span></div>${rows.length?`<div class="cc-rel-layout"><div class="cc-rel-list">${rows.map(row=>ccRelTrackHtml(character,row.person,row.nodes,row.record)).join('')}</div>${ccRelInspectorHtml(character,activeRow?.person,activeRow?.nodes||[],activeRow?.record,activeNode)}</div>`:`<div class="cc-life-empty"><h3>No relationship paths yet</h3><p>When ${esc(character.name)} and another character share RP scenes, their Dialogue Card titles and blurbs will build this progression automatically.</p><button class="button cc-rel-edit-only" type="button" data-cc-rel-add-relationship="${esc(character.id)}">+ Add off-screen relationship</button></div>`}</section>`;
   }
   function ccRelTopFilters(characterId,filter){return `<div class="cc-life-tools"><div class="cc-life-filters"><button type="button" class="${filter==='all'?'is-active':''}" data-cc-life-filter="${esc(characterId)}|all">Full Life</button><button type="button" class="${filter==='relationships'?'is-active':''}" data-cc-life-filter="${esc(characterId)}|relationships">Relationships</button><button type="button" class="${filter==='story'?'is-active':''}" data-cc-life-filter="${esc(characterId)}|story">Story / RP only</button></div></div>`;}
 
   function ccRelPairEditor(subjectId,targetId){
-    const subject=getItem('characters',subjectId),target=getItem('characters',targetId);if(!subject||!target)return;const record=ccRelRecord(subjectId,targetId,true);const a=ccRelPerspective(record,subject.id),b=ccRelPerspective(record,target.id);
-    const panel=(person,perspective)=>`<section class="cc-rel-edit-perspective"><h3>${esc(person.name)}'s perspective</h3><label><span>Relationship type</span><input class="input" data-cc-rel-pair-field="${esc(person.id)}|type" value="${esc(perspective.type||'')}" list="cc-rel-type-suggestions" placeholder="Romantic partner, friend, rival…"></label><label><span>Current relationship state</span><input class="input" data-cc-rel-pair-field="${esc(person.id)}|currentState" value="${esc(perspective.currentState||'')}" placeholder="Deeply in love, strained, protective…"></label><label><span>State color</span><div class="cc-rel-color-field"><input type="color" data-cc-rel-pair-field="${esc(person.id)}|currentColor" value="${esc(ccRelColor(perspective.currentColor,CC_REL_CURRENT))}"><input class="input" data-cc-rel-color-text="${esc(person.id)}|currentColor" value="${esc(ccRelColor(perspective.currentColor,CC_REL_CURRENT))}"></div></label></section>`;
-    showModal('Edit relationship',`<div class="cc-rel-edit-shell" data-cc-rel-pair-editor="${esc(subjectId)}|${esc(targetId)}"><datalist id="cc-rel-type-suggestions"><option value="Romantic partner"><option value="Friend"><option value="Family"><option value="Ally"><option value="Rival"><option value="Enemy"><option value="Mentor"><option value="Protective"><option value="Professional"><option value="Complicated"></datalist><p class="muted">The relationship record is shared, but each character can understand it differently. State names and colors are completely customizable.</p><div class="cc-rel-edit-columns">${panel(subject,a)}${panel(target,b)}</div></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button danger ghost" type="button" data-cc-rel-clear-pair="${esc(subjectId)}|${esc(targetId)}">Clear setup</button><button class="button" type="button" data-cc-rel-save-pair="${esc(subjectId)}|${esc(targetId)}">Save relationship</button>`);
-    requestAnimationFrame(()=>el.modal.querySelector('.modal')?.classList.add('cc-rel-editor-modal'));
+    const subject=getItem('characters',subjectId),target=getItem('characters',targetId);if(!subject||!target)return;const record=ccRelRecord(subjectId,targetId,true),history=ccRelPostHistory(subjectId,targetId);
+    const panel=(person)=>{const perspective=ccRelPerspective(record,person.id),posts=history.byPerson[person.id]||[],phases=ccRelPhasesFor(record,person.id,posts),latest=[...posts].reverse().find(post=>post.state)?.state||'';return `<section class="cc-rel-edit-perspective"><h3>${esc(person.name)}'s perspective</h3><label><span>Relationship type (optional)</span><input class="input" data-cc-rel-pair-field="${esc(person.id)}|type" value="${esc(perspective.type||'')}" placeholder="Romantic partner, friend, rival…"></label><div class="cc-rel-detected-current"><span>Current RP title</span><strong>${esc(latest||'No title detected yet')}</strong></div><div class="cc-rel-color-list"><span>Colors for detected titles</span>${phases.filter((phase,index,array)=>phase.state&&array.findIndex(item=>ccRelStateKey(item.state)===ccRelStateKey(phase.state))===index).map(phase=>{const color=ccRelAutoColor(record,person.id,phase.state);return `<label><strong>${esc(phase.state)}</strong><input type="color" data-cc-rel-state-color="${esc(person.id)}|${encodeURIComponent(phase.state)}" value="${esc(color)}"><code>${esc(color)}</code></label>`;}).join('')||'<p class="muted">Add a Subtitle/relationship title to this character’s Dialogue Cards in RP posts and the stages will appear here automatically.</p>'}</div></section>`;};
+    showModal('Relationship colors & setup',`<div class="cc-rel-edit-shell" data-cc-rel-pair-editor="${esc(subjectId)}|${esc(targetId)}"><p class="muted">Relationship stages come from each character’s Dialogue Card subtitle in the RP posts. You only need this screen if you want to name the relationship type or change the colors.</p><div class="cc-rel-edit-columns">${panel(subject)}${panel(target)}</div></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button danger ghost" type="button" data-cc-rel-clear-pair="${esc(subjectId)}|${esc(targetId)}">Reset custom setup</button><button class="button" type="button" data-cc-rel-save-pair="${esc(subjectId)}|${esc(targetId)}">Save</button>`);requestAnimationFrame(()=>el.modal.querySelector('.modal')?.classList.add('cc-rel-editor-modal'));
   }
   function ccRelSavePair(subjectId,targetId){
-    const record=ccRelRecord(subjectId,targetId,true);if(!record)return;for(const personId of [record.aId,record.bId]){const perspective=ccRelPerspective(record,personId);for(const field of ['type','currentState','currentColor']){const input=el.modal.querySelector(`[data-cc-rel-pair-field="${CSS.escape(personId)}|${field}"]`);if(input)perspective[field]=field==='currentColor'?ccRelColor(input.value,CC_REL_CURRENT):input.value.trim();}}
-    record.updatedAt=nowISO();scheduleSave('Saving relationship history…');closeModal();const character=getItem('characters',subjectId);if(character)renderCharacterLifeStory(character);toast('Relationship updated.');
+    const record=ccRelRecord(subjectId,targetId,true);if(!record)return;for(const personId of [record.aId,record.bId]){const perspective=ccRelPerspective(record,personId),typeInput=el.modal.querySelector(`[data-cc-rel-pair-field="${CSS.escape(personId)}|type"]`);if(typeInput)perspective.type=typeInput.value.trim();perspective.stateColors ||= {};el.modal.querySelectorAll(`[data-cc-rel-state-color^="${CSS.escape(personId)}|"]`).forEach(input=>{const raw=input.dataset.ccRelStateColor||'',state=decodeURIComponent(raw.split('|').slice(1).join('|'));if(state)perspective.stateColors[ccRelStateKey(state)]=ccRelColor(input.value,ccRelStatePaletteColor(state));});}
+    record.updatedAt=nowISO();scheduleSave('Saving relationship colors…');closeModal();const character=getItem('characters',subjectId);if(character)renderCharacterLifeStory(character);toast('Relationship colors updated.');
   }
   function ccRelAddRelationshipPicker(characterId){
     const character=getItem('characters',characterId);if(!character)return;const existing=new Set(ccRelCandidates(character).map(item=>item.person.id));const others=(state.characters||[]).filter(person=>person.id!==characterId&&!existing.has(person.id)).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
@@ -18460,7 +18543,7 @@ initFirebase();
     const peopleCount=new Set(allEntries.flatMap(entry=>entry.peopleIds||[])).size;
     const sharedCount=new Set(allEntries.flatMap(entry=>entry.sharedIds|| (entry.sharedId?[entry.sharedId]:[]))).size;
     const image=ccLifeCharacterImage(character);
-    const hero=`<section class="cc-life-hero"><div class="cc-life-avatar">${image?`<img src="${esc(image)}" alt="${esc(character.name)}">`:esc(initials(character.name||'?'))}</div><div><span class="eyebrow">Character Life Story</span><h1>${esc(character.name)}</h1><p>One connected history from origin to present day, built from story points, timeline events, locations, relationships, and your manual life events.</p></div><div class="cc-life-hero-actions"><button class="button secondary" type="button" data-cc-life-bio="${esc(character.id)}">Open Bio</button><button class="button" type="button" data-cc-life-add-event="${esc(character.id)}">Add life event</button></div></section>`;
+    const hero=`<section class="cc-life-hero"><div class="cc-life-avatar">${image?`<img src="${esc(image)}" alt="${esc(character.name)}">`:esc(initials(character.name||'?'))}</div><div><span class="eyebrow">Character Life Story</span><h1>${esc(character.name)}</h1><p>${filter==='relationships'?'A live relationship recap built from the titles and blurbs already used in Roleplay Hub posts.':'One connected history from origin to present day, built from story points, timeline events, locations, relationships, and your manual life events.'}</p></div><div class="cc-life-hero-actions"><button class="button secondary" type="button" data-cc-life-bio="${esc(character.id)}">Open Bio</button>${filter==='relationships'?'':`<button class="button" type="button" data-cc-life-add-event="${esc(character.id)}">Add life event</button>`}</div></section>`;
     if(filter==='relationships'){
       el.main.innerHTML=`<div class="cc-life-page">${ccLifeTabs(character.id,'life')}${hero}${ccRelTopFilters(character.id,filter)}${ccRelationshipViewHtml(character)}</div>`;return;
     }
@@ -20620,5 +20703,30 @@ initFirebase();
 @media(max-width:760px){.cc-rich-media-grid{grid-template-columns:1fr 1fr}.cc-rich-media-grid .cc-rich-media-url{grid-column:1/-1}.cc-rich-media-grid button{grid-column:1/-1}.cc-rich-editor,.cc-rich-preview{min-height:260px}}
 </style>
 
+
+<style id="cc-rel-auto-rp-progression-style">
+.cc-rel-timeline{overflow-x:auto;overscroll-behavior-inline:contain;padding-bottom:3px}
+.cc-rel-thought-recap{display:grid;gap:5px;min-width:max-content;padding-top:3px}
+.cc-rel-thought-label{font-size:9px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.cc-rel-thought-flow{display:flex;align-items:stretch;gap:6px;min-width:max-content}
+.cc-rel-thought-flow button{width:190px;display:grid;gap:3px;border:1px solid var(--border);border-radius:9px;background:color-mix(in srgb,var(--panel-soft) 70%,transparent);color:inherit;padding:7px 8px;text-align:left}
+.cc-rel-thought-flow button:hover{border-color:var(--accent);background:var(--accent-soft)}
+.cc-rel-thought-flow button strong{font-size:10px;color:var(--accent-strong)}
+.cc-rel-thought-flow button span{font-family:Georgia,serif;font-size:10px;font-style:italic;line-height:1.35;color:var(--muted)}
+.cc-rel-thought-arrow{display:grid;place-items:center;color:var(--muted);font-weight:900}
+.cc-rel-phase-thoughts{display:grid;gap:8px;padding:12px 0;border-bottom:1px solid var(--border)}
+.cc-rel-phase-thoughts article{display:grid;gap:5px;border:1px solid var(--border);border-radius:9px;background:var(--panel-soft);padding:8px}
+.cc-rel-phase-thoughts blockquote,.cc-rel-main-thought{margin:0;font-family:Georgia,serif;line-height:1.45}
+.cc-rel-phase-thoughts article>div{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.cc-rel-phase-thoughts article>div>span{font-size:10px;color:var(--muted)}
+.cc-rel-detected-current{display:grid;gap:3px;border:1px solid var(--border);border-radius:9px;background:var(--panel);padding:8px}
+.cc-rel-detected-current span,.cc-rel-color-list>span{font-size:10px;font-weight:850;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.cc-rel-color-list{display:grid;gap:6px}
+.cc-rel-color-list label{display:grid!important;grid-template-columns:minmax(0,1fr) 44px 78px;align-items:center;gap:7px;border:1px solid var(--border);border-radius:9px;background:var(--panel);padding:7px 8px}
+.cc-rel-color-list label strong{font-size:11px}
+.cc-rel-color-list input[type=color]{width:44px;height:34px;border:1px solid var(--border);border-radius:7px;background:var(--panel);padding:3px}
+.cc-rel-color-list code{font-size:10px;color:var(--muted)}
+@media(max-width:720px){.cc-rel-thought-flow button{width:165px}.cc-rel-color-list label{grid-template-columns:minmax(0,1fr) 44px}.cc-rel-color-list code{display:none}}
+</style>
 </body>
 </html>
