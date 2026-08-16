@@ -16279,6 +16279,13 @@ initFirebase();
       closeModal();
       return;
     }
+    const dialogueCardButton=event.target.closest('[data-cc-dialogue-card-open]');
+    if(dialogueCardButton){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      ccDialogueOpen();
+      return;
+    }
     const storyScroll=event.target.closest('[data-ccrh-story-scroll]');
     if(storyScroll){
       event.preventDefault();
@@ -17247,14 +17254,20 @@ initFirebase();
     {id:'broken',label:'Broken',color:'#7a5362'},
     {id:'reconciled',label:'Reconciled',color:'#72a36b'}
   ]);
+  function ccDialogueRelStateKey(value){return String(value||'').trim().toLocaleLowerCase();}
   function ccRelStateLibrary(){
     state.workspace ||= {};
-    if(!Array.isArray(state.workspace.relationshipStateLibrary))state.workspace.relationshipStateLibrary=CC_REL_DEFAULT_STATE_LIBRARY.map(item=>({...item,custom:false}));
-    const library=state.workspace.relationshipStateLibrary;
+    const source=Array.isArray(state.workspace.relationshipStateLibrary)?state.workspace.relationshipStateLibrary:[];
+    const library=source.filter(item=>item&&typeof item==='object').map(item=>({
+      ...item,
+      id:String(item.id||id('relationship-state')),
+      label:String(item.label||'Relationship state').trim()||'Relationship state',
+      color:/^#[0-9a-f]{6}$/i.test(String(item.color||''))?String(item.color):'#7d8494'
+    }));
     for(const fallback of CC_REL_DEFAULT_STATE_LIBRARY){
-      if(!library.some(item=>String(item?.label||'').trim().toLowerCase()===fallback.label.toLowerCase()))library.push({...fallback,custom:false});
+      if(!library.some(item=>ccDialogueRelStateKey(item.label)===ccDialogueRelStateKey(fallback.label)))library.push({...fallback,custom:false});
     }
-    for(const item of library){item.id ||= id('relationship-state');item.label=String(item.label||'Relationship state').trim();item.color=/^#[0-9a-f]{6}$/i.test(String(item.color||''))?String(item.color):'#7d8494';}
+    state.workspace.relationshipStateLibrary=library;
     return library;
   }
   function ccRelStateLibraryEntry(value){const key=String(value||'').trim().toLowerCase();return ccRelStateLibrary().find(item=>String(item.label||'').trim().toLowerCase()===key)||null;}
@@ -17314,7 +17327,7 @@ initFirebase();
       else if(sceneIds.length===0){ccDialogueState.aboutMode='general';ccDialogueState.aboutIds=[];}
       else{ccDialogueState.aboutMode='unassigned';ccDialogueState.aboutIds=[];}
     }
-    ccDialogueEnsureRelStates(character);
+    try{ccDialogueEnsureRelStates(character);}catch(error){console.warn('Relationship-state defaults could not be prepared.',error);ccDialogueState.relStates ||= {};}
   }
   function ccDialogueAboutUi(character){
     const sceneIds=ccDialogueSceneCharacterIds(character?.id);
@@ -17527,19 +17540,25 @@ initFirebase();
       .map(([value,label])=>`<button type="button" class="${ccDialogueState.imageFrame===value?'active':''}" data-cc-dialogue-frame="${value}">${label}</button>`).join('');
 
     const character=ccDialogueCharacter();
-    ccDialogueEnsureRelStates(character);
+    try{ccDialogueEnsureRelStates(character);}catch(error){console.warn('Relationship-state memory could not be loaded.',error);ccDialogueState.relStates ||= {};}
     const resolvedAccent=ccDialogueResolvedAccent(character,ccDialogueState);
     const aboutUi=ccDialogueAboutUi(character);
     const aboutMode=String(ccDialogueState.aboutMode||'unassigned');
     const aboutSelected=new Set((ccDialogueState.aboutIds||[]).map(String));
     const aboutChips=aboutUi.visible.map(item=>`<label class="cc-dialogue-about-chip ${aboutSelected.has(String(item.person.id))?'selected':''}"><input type="checkbox" data-cc-dialogue-about-target value="${esc(item.person.id)}" ${aboutSelected.has(String(item.person.id))?'checked':''}><span>${esc(item.person.name)}${item.scene?'':' · not in scene'}${item.remembered&&!item.scene?' · remembered':''}</span></label>`).join('');
     const otherChips=aboutUi.other.map(person=>`<label class="cc-dialogue-about-chip"><input type="checkbox" data-cc-dialogue-about-target value="${esc(person.id)}"><span>${esc(person.name)}</span></label>`).join('');
-    const stateLibrary=ccRelStateLibrary();
-    const relationshipStateRows=aboutMode==='targets'?[...aboutSelected].map(targetId=>{
-      const person=getItem('characters',targetId);if(!person)return '';const selected=String(ccDialogueState.relStates?.[targetId]||'').trim();const color=selected?ccRelGlobalStateColor(selected):'#7d8494';
-      const opts=stateLibrary.map(item=>`<option value="${esc(item.label)}" ${ccRelStateKey(item.label)===ccRelStateKey(selected)?'selected':''}>${esc(item.label)}</option>`).join('');
-      return `<div class="cc-dialogue-rel-state-row"><div class="cc-dialogue-rel-state-person"><i style="--rel-state-color:${esc(color)}"></i><span><strong>${esc(person.name)}</strong><small>${selected?'Continues as '+esc(selected)+' until changed':'Pick the starting state once; Codex remembers it'}</small></span></div><select class="select" data-cc-dialogue-rel-state="${esc(targetId)}"><option value="">Choose relationship state…</option>${opts}</select><button class="button ghost small cc-dialogue-rel-state-custom" type="button" data-cc-dialogue-custom-state="${esc(targetId)}">+ Custom state</button></div>`;
-    }).join(''):'';
+    let relationshipStateRows='';
+    try{
+      const stateLibrary=ccRelStateLibrary();
+      relationshipStateRows=aboutMode==='targets'?[...aboutSelected].map(targetId=>{
+        const person=getItem('characters',targetId);if(!person)return '';const selected=String(ccDialogueState.relStates?.[targetId]||'').trim();const color=selected?ccRelGlobalStateColor(selected):'#7d8494';
+        const opts=stateLibrary.map(item=>`<option value="${esc(item.label)}" ${ccDialogueRelStateKey(item.label)===ccDialogueRelStateKey(selected)?'selected':''}>${esc(item.label)}</option>`).join('');
+        return `<div class="cc-dialogue-rel-state-row"><div class="cc-dialogue-rel-state-person"><i style="--rel-state-color:${esc(color)}"></i><span><strong>${esc(person.name)}</strong><small>${selected?'Continues as '+esc(selected)+' until changed':'Pick the starting state once; Codex remembers it'}</small></span></div><select class="select" data-cc-dialogue-rel-state="${esc(targetId)}"><option value="">Choose relationship state…</option>${opts}</select><button class="button ghost small cc-dialogue-rel-state-custom" type="button" data-cc-dialogue-custom-state="${esc(targetId)}">+ Custom state</button></div>`;
+      }).join(''):'';
+    }catch(error){
+      console.error('Relationship-state controls could not be rendered.',error);
+      relationshipStateRows=aboutMode==='targets'?`<div class="cc-dialogue-about-warning">Relationship states could not load, but the Dialogue Card can still be used. Close and reopen this editor after refreshing Codex.</div>`:'';
+    }
 
     return `<section class="cc-dialogue-builder">
       <header class="cc-dialogue-builder-head">
@@ -17717,18 +17736,26 @@ initFirebase();
       toast('Open the roleplay editor before adding a Dialogue Card.','error');
       return;
     }
-    const start=editor.selectionStart??0;
-    const end=editor.selectionEnd??start;
-    ccDialogueSelection={start,end,text:editor.value.slice(start,end).trim()};
-    const speakerValue=document.querySelector('[data-ccrh-speaker]')?.value||'';
-    const speakerId=speakerValue.startsWith('character:')?speakerValue.slice('character:'.length):'';
-    const first=(state.characters||[]).find(item=>String(item.id)===String(speakerId))||(state.characters||[])[0]||null;
-    ccDialogueState=ccDialogueLoad(first);
-    ccDialogueApplyAboutDefaults(first);
-    mount.hidden=false;
-    mount.innerHTML=ccDialogueBuilderHtml();
-    ccDialogueRefreshPreview();
-    mount.scrollIntoView({behavior:'smooth',block:'nearest'});
+    try{
+      const start=editor.selectionStart??0;
+      const end=editor.selectionEnd??start;
+      ccDialogueSelection={start,end,text:editor.value.slice(start,end).trim()};
+      const speakerValue=document.querySelector('[data-ccrh-speaker]')?.value||'';
+      const speakerId=speakerValue.startsWith('character:')?speakerValue.slice('character:'.length):'';
+      const first=(state.characters||[]).find(item=>String(item.id)===String(speakerId))||(state.characters||[])[0]||null;
+      ccDialogueState=ccDialogueLoad(first);
+      ccDialogueApplyAboutDefaults(first);
+      mount.hidden=false;
+      mount.innerHTML=ccDialogueBuilderHtml();
+      ccDialogueRefreshPreview();
+      mount.scrollIntoView({behavior:'smooth',block:'nearest'});
+    }catch(error){
+      console.error('Dialogue Card failed to open.',error);
+      ccDialogueState=null;
+      mount.hidden=true;
+      mount.innerHTML='';
+      toast('The Dialogue Card could not open. Refresh Codex and try again.','error');
+    }
   }
 
   function ccDialogueClose(){
@@ -17897,7 +17924,7 @@ initFirebase();
   };
 
   document.addEventListener('click',event=>{
-    if(event.target.closest('[data-cc-dialogue-card-open]')){event.preventDefault();ccDialogueOpen();return;}
+    if(event.target.closest('[data-cc-dialogue-card-open]')){event.preventDefault();try{ccDialogueOpen();}catch(error){console.error('Dialogue Card click failed.',error);toast('The Dialogue Card could not open.','error');}return;}
     if(event.target.closest('[data-cc-dialogue-close]')){event.preventDefault();ccDialogueClose();return;}
 
 
