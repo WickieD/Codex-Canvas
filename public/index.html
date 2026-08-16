@@ -5982,6 +5982,17 @@ button.ccrh-context-chip:hover{border-color:var(--accent);color:var(--text)}
 .character-template-toolbar .cc-character-view-standard + .button{margin-left:0}
 @media(max-width:760px){.cc-character-view-standard{margin-left:0;order:3;width:100%;justify-content:flex-start}}
 </style>
+<style id="cc-relationship-blurb-target-styles">
+.cc-dialogue-about-panel{border:1px solid color-mix(in srgb,var(--accent) 38%,var(--border));border-radius:14px;padding:14px;background:color-mix(in srgb,var(--accent-soft) 35%,var(--panel));display:grid;gap:11px}
+.cc-dialogue-about-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.cc-dialogue-about-head>div{display:grid;gap:3px}.cc-dialogue-about-head small{color:var(--muted);font-weight:500}.cc-dialogue-about-head>span{font-size:11px;font-weight:800;color:var(--accent-strong);background:var(--accent-soft);border-radius:999px;padding:5px 9px;white-space:nowrap}
+.cc-dialogue-about-mode{display:flex;flex-wrap:wrap;gap:7px}.cc-dialogue-about-mode button{border:1px solid var(--border);background:var(--panel-strong);color:var(--muted);border-radius:999px;padding:7px 11px;font:inherit;font-size:12px;cursor:pointer}.cc-dialogue-about-mode button.active{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-strong)}
+.cc-dialogue-about-targets{display:flex;flex-wrap:wrap;gap:7px}.cc-dialogue-about-targets.is-muted{opacity:.55}.cc-dialogue-about-chip{position:relative}.cc-dialogue-about-chip input{position:absolute;opacity:0;pointer-events:none}.cc-dialogue-about-chip span{display:block;border:1px solid var(--border);border-radius:999px;padding:7px 10px;background:var(--panel-strong);font-size:12px;cursor:pointer}.cc-dialogue-about-chip input:checked+span,.cc-dialogue-about-chip.selected span{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-strong);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 40%,transparent)}
+.cc-dialogue-about-other summary{cursor:pointer;color:var(--accent-strong);font-size:12px;font-weight:800}.cc-dialogue-about-other[open] summary{margin-bottom:9px}.cc-dialogue-about-warning{margin:0;color:var(--muted);font-size:12px;border-left:3px solid var(--accent);padding-left:9px}
+.cc-rel-unassigned-notice{width:100%;display:flex;align-items:center;justify-content:space-between;gap:14px;text-align:left;border:1px solid color-mix(in srgb,#d39b55 65%,var(--border));border-radius:14px;background:color-mix(in srgb,#d39b55 10%,var(--panel));color:var(--text);padding:12px 15px;margin-bottom:14px;cursor:pointer}.cc-rel-unassigned-notice span{display:grid;gap:2px}.cc-rel-unassigned-notice strong{color:#e3b573}.cc-rel-unassigned-notice small{color:var(--muted)}.cc-rel-unassigned-notice b{color:#e3b573;white-space:nowrap}
+.cc-rel-assign-modal{width:min(1040px,calc(100vw - 32px))!important;max-width:1040px!important}.cc-rel-assign-shell{display:grid;gap:14px}.cc-rel-assign-intro{border:1px solid var(--border);border-radius:12px;background:var(--panel-soft);padding:13px}.cc-rel-assign-intro p{margin:4px 0 0;color:var(--muted)}
+.cc-rel-assign-row{border:1px solid var(--border);border-radius:14px;padding:14px;background:var(--panel);display:grid;gap:11px}.cc-rel-assign-row header{display:flex;justify-content:space-between;gap:12px}.cc-rel-assign-row header>div{display:grid;gap:4px}.cc-rel-assign-row header span,.cc-rel-assign-row header em{color:var(--muted);font-size:11px;font-style:normal}.cc-rel-assign-row blockquote{margin:0;border-left:3px solid var(--accent);padding:8px 12px;background:var(--panel-soft);border-radius:0 9px 9px 0}.cc-rel-assign-mode{display:grid;gap:5px;max-width:280px}.cc-rel-assign-people{display:grid;gap:8px}.cc-rel-assign-people>span{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800}.cc-rel-assign-people>div,.cc-rel-assign-people details>div{display:flex;flex-wrap:wrap;gap:7px}.cc-rel-assign-people details summary{cursor:pointer;color:var(--accent-strong);font-size:12px;font-weight:800;margin-bottom:7px}.cc-rel-assign-chip{position:relative}.cc-rel-assign-chip input{position:absolute;opacity:0}.cc-rel-assign-chip span{display:block;border:1px solid var(--border);border-radius:999px;padding:7px 10px;background:var(--panel-strong);cursor:pointer;font-size:12px}.cc-rel-assign-chip input:checked+span{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-strong)}.cc-rel-assign-row.is-non-target .cc-rel-assign-people{opacity:.4;pointer-events:none}
+@media(max-width:700px){.cc-dialogue-about-head{display:grid}.cc-dialogue-about-head>span{justify-self:start}.cc-rel-assign-modal{width:calc(100vw - 16px)!important}.cc-rel-unassigned-notice{align-items:flex-start}}
+</style>
 </head>
 <body>
 
@@ -17087,6 +17098,61 @@ initFirebase();
   }
 
 
+  /* === RP blurb relationship targets: automatic scene suggestions + story memory === */
+  function ccDialogueAboutMemoryStore(){
+    state.workspace ||= {};
+    state.workspace.dialogueAboutMemory ||= {};
+    return state.workspace.dialogueAboutMemory;
+  }
+  function ccDialogueAboutMemoryKey(storyId,characterId){return `${String(storyId||'')}|${String(characterId||'')}`;}
+  function ccDialogueComposerPointContext(){
+    const routeContext=typeof ccrhStoryFromRoute==='function'?ccrhStoryFromRoute():{};
+    const threadStory=routeContext?.story||null;
+    let pointStory=threadStory,node=routeContext?.node||null;
+    const selected=document.querySelector('[data-ccrh-story-point]')?.value||'';
+    if(selected){
+      const parsed=typeof parseStoryRouteValue==='function'?parseStoryRouteValue(selected):{storyId:'',nodeId:selected};
+      pointStory=(typeof storyById==='function'?storyById(parsed.storyId||threadStory?.id):null)||threadStory;
+      node=(pointStory?.nodes||[]).find(item=>String(item.id)===String(parsed.nodeId||selected))||node;
+    }
+    const point=node?(typeof cc2Point==='function'?cc2Point(pointStory,node):(node.point||node)):null;
+    return {threadStory,pointStory,node,point};
+  }
+  function ccDialogueSceneCharacterIds(characterId){
+    const {pointStory,node,point}=ccDialogueComposerPointContext();
+    const values=[...(point?.participantIds||[]),...(point?.povIds||[])];
+    if(pointStory&&node&&typeof ccLifePointTurns==='function'){
+      for(const turn of ccLifePointTurns(pointStory,node)||[])if(turn?.characterId)values.push(turn.characterId);
+    }
+    return [...new Set(values.map(String).filter(idValue=>idValue&&idValue!==String(characterId)&&getItem('characters',idValue)))];
+  }
+  function ccDialogueRememberedAbout(characterId){
+    const {threadStory}=ccDialogueComposerPointContext();
+    if(!threadStory||!characterId)return [];
+    const value=ccDialogueAboutMemoryStore()[ccDialogueAboutMemoryKey(threadStory.id,characterId)];
+    return Array.isArray(value)?value.map(String).filter(Boolean):[];
+  }
+  function ccDialogueApplyAboutDefaults(character,{preserve=false}={}){
+    if(!ccDialogueState||!character)return;
+    const sceneIds=ccDialogueSceneCharacterIds(character.id);
+    const remembered=ccDialogueRememberedAbout(character.id).filter(idValue=>getItem('characters',idValue));
+    if(preserve&&Array.isArray(ccDialogueState.aboutIds)&&(ccDialogueState.aboutIds.length||ccDialogueState.aboutMode==='self'||ccDialogueState.aboutMode==='general'))return;
+    if(sceneIds.length===1){ccDialogueState.aboutMode='targets';ccDialogueState.aboutIds=[sceneIds[0]];return;}
+    if(remembered.length){ccDialogueState.aboutMode='targets';ccDialogueState.aboutIds=[...new Set(remembered)];return;}
+    if(sceneIds.length===0){ccDialogueState.aboutMode='general';ccDialogueState.aboutIds=[];return;}
+    ccDialogueState.aboutMode='unassigned';ccDialogueState.aboutIds=[];
+  }
+  function ccDialogueAboutUi(character){
+    const sceneIds=ccDialogueSceneCharacterIds(character?.id);
+    const remembered=ccDialogueRememberedAbout(character?.id);
+    const selected=Array.isArray(ccDialogueState?.aboutIds)?ccDialogueState.aboutIds.map(String):[];
+    const visibleIds=[...new Set([...sceneIds,...remembered,...selected])].filter(idValue=>getItem('characters',idValue)&&idValue!==String(character?.id||''));
+    const sceneSet=new Set(sceneIds),rememberedSet=new Set(remembered);
+    const visible=visibleIds.map(idValue=>({person:getItem('characters',idValue),scene:sceneSet.has(idValue),remembered:rememberedSet.has(idValue)})).filter(item=>item.person);
+    const other=(state.characters||[]).filter(person=>person.id!==character?.id&&!visibleIds.includes(String(person.id))).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+    return {sceneIds,visible,other};
+  }
+
   function ccDialogueInitials(character,name){
     const value=String(name||character?.name||'?').trim();
     return value.split(/\s+/).slice(0,2).map(part=>part[0]?.toUpperCase()||'').join('')||'?';
@@ -17135,6 +17201,8 @@ initFirebase();
       portraitX:ccDialogueClamp(saved.portraitX,0,100,50),
       portraitY:ccDialogueClamp(saved.portraitY,0,100,50),
       portraitZoom:ccDialogueClamp(saved.portraitZoom,1,2.5,1),
+      aboutMode:'unassigned',
+      aboutIds:[],
       saveDefault:true
     };
   }
@@ -17285,6 +17353,11 @@ initFirebase();
 
     const character=ccDialogueCharacter();
     const resolvedAccent=ccDialogueResolvedAccent(character,ccDialogueState);
+    const aboutUi=ccDialogueAboutUi(character);
+    const aboutMode=String(ccDialogueState.aboutMode||'unassigned');
+    const aboutSelected=new Set((ccDialogueState.aboutIds||[]).map(String));
+    const aboutChips=aboutUi.visible.map(item=>`<label class="cc-dialogue-about-chip ${aboutSelected.has(String(item.person.id))?'selected':''}"><input type="checkbox" data-cc-dialogue-about-target value="${esc(item.person.id)}" ${aboutSelected.has(String(item.person.id))?'checked':''}><span>${esc(item.person.name)}${item.scene?'':' · not in scene'}${item.remembered&&!item.scene?' · remembered':''}</span></label>`).join('');
+    const otherChips=aboutUi.other.map(person=>`<label class="cc-dialogue-about-chip"><input type="checkbox" data-cc-dialogue-about-target value="${esc(person.id)}"><span>${esc(person.name)}</span></label>`).join('');
 
     return `<section class="cc-dialogue-builder">
       <header class="cc-dialogue-builder-head">
@@ -17303,6 +17376,19 @@ initFirebase();
           <textarea class="textarea" rows="4" data-cc-dialogue-blurb>${esc(ccDialogueState.blurb)}</textarea>
           <small>This appears when the portrait or visible name is clicked. You can change it for this card or save it as the character default.</small>
         </label>
+
+        <section class="wide cc-dialogue-about-panel">
+          <div class="cc-dialogue-about-head"><div><strong>Who is this blurb about?</strong><small>Codex uses this to build the correct relationship progression. You can choose more than one person.</small></div><span>${aboutUi.sceneIds.length===1?'Auto-assigned from this scene':aboutMode==='targets'&&aboutSelected.size?'Remembered from this story':aboutMode==='unassigned'?'Needs a person':'Not a one-to-one relationship blurb'}</span></div>
+          <div class="cc-dialogue-about-mode">
+            <button type="button" class="${aboutMode==='targets'?'active':''}" data-cc-dialogue-about-mode="targets">Character(s)</button>
+            <button type="button" class="${aboutMode==='self'?'active':''}" data-cc-dialogue-about-mode="self">Self</button>
+            <button type="button" class="${aboutMode==='general'?'active':''}" data-cc-dialogue-about-mode="general">General / scene</button>
+            <button type="button" class="${aboutMode==='unassigned'?'active':''}" data-cc-dialogue-about-mode="unassigned">Unassigned</button>
+          </div>
+          <div class="cc-dialogue-about-targets ${aboutMode==='targets'?'':'is-muted'}">${aboutChips||'<span class="muted">No other character is marked in this scene yet.</span>'}</div>
+          ${aboutUi.other.length?`<details class="cc-dialogue-about-other"><summary>+ Other character</summary><div class="cc-dialogue-about-targets">${otherChips}</div></details>`:''}
+          ${aboutMode==='unassigned'?'<p class="cc-dialogue-about-warning">Several characters may be involved, so Codex will not guess. You can leave this unassigned and identify the person later from Relationships edit mode.</p>':''}
+        </section>
 
         <div class="wide"><strong>Card theme</strong><div class="cc-dialogue-theme-grid">${themes}</div></div>
         <div class="wide"><strong>Accent</strong><div class="cc-dialogue-options">${accentChoices}</div><div class="cc-dialogue-accent-preview"><i style="--dialogue-accent:${esc(resolvedAccent)}"></i><span>${ccDialogueState.accentMode==='profile'?'Uses the character profile color':ccDialogueState.accentMode==='custom'?'Uses your custom color':'No accent color'}</span></div></div>
@@ -17431,8 +17517,11 @@ initFirebase();
     const start=editor.selectionStart??0;
     const end=editor.selectionEnd??start;
     ccDialogueSelection={start,end,text:editor.value.slice(start,end).trim()};
-    const first=(state.characters||[])[0]||null;
+    const speakerValue=document.querySelector('[data-ccrh-speaker]')?.value||'';
+    const speakerId=speakerValue.startsWith('character:')?speakerValue.slice('character:'.length):'';
+    const first=(state.characters||[]).find(item=>String(item.id)===String(speakerId))||(state.characters||[])[0]||null;
     ccDialogueState=ccDialogueLoad(first);
+    ccDialogueApplyAboutDefaults(first);
     mount.hidden=false;
     mount.innerHTML=ccDialogueBuilderHtml();
     ccDialogueRefreshPreview();
@@ -17458,6 +17547,9 @@ initFirebase();
     if(subtitleInput)ccDialogueState.subtitle=subtitleInput.value;
     if(blurbInput)ccDialogueState.blurb=blurbInput.value;
     if(customAccentInput)ccDialogueState.customAccent=customAccentInput.value;
+    const checkedTargets=[...mount.querySelectorAll('[data-cc-dialogue-about-target]:checked')].map(input=>String(input.value)).filter(Boolean);
+    if(checkedTargets.length){ccDialogueState.aboutMode='targets';ccDialogueState.aboutIds=[...new Set(checkedTargets)];}
+    else if(ccDialogueState.aboutMode==='targets')ccDialogueState.aboutIds=[];
 
     ccDialogueState.showImage=Boolean(mount.querySelector('[data-cc-dialogue-show-image]')?.checked);
     ccDialogueState.showBorder=Boolean(mount.querySelector('[data-cc-dialogue-show-border]')?.checked);
@@ -17483,11 +17575,19 @@ initFirebase();
     const body=ccDialogueSelection.text||'Dialogue';
     const clean=value=>String(value||'').replace(/"/g,'');
 
-    const tag=`[dialogue character="${clean(character.id)}" name="${clean(ccDialogueState.name)}" subtitle="${clean(ccDialogueState.subtitle)}" shape="${ccDialogueState.shape}" image="${ccDialogueState.imagePlacement}" card="${ccDialogueState.cardAlignment}" namepos="${ccDialogueState.namePlacement}" theme="${ccDialogueState.theme}" accent="${ccDialogueState.accentMode}" customaccent="${clean(ccDialogueState.customAccent)}" imagechoice="${clean(ccDialogueState.imageChoice)}" imageid="${clean(ccDialogueState.selectedImage)}" border="${ccDialogueState.showBorder?'yes':'no'}" corners="${ccDialogueState.showCorners?'yes':'no'}" background="${ccDialogueState.showBackground?'yes':'no'}" glow="${ccDialogueState.glow}" padding="${ccDialogueState.innerPadding}" before="${ccDialogueState.spaceBefore}" after="${ccDialogueState.spaceAfter}" gap="${ccDialogueState.portraitGap}" width="${ccDialogueState.cardWidth}" portraitsize="${ccDialogueState.portraitSize}" crop="${ccDialogueState.imageCrop}" frame="${ccDialogueState.imageFrame}" px="${ccDialogueState.portraitX}" py="${ccDialogueState.portraitY}" pzoom="${ccDialogueState.portraitZoom}" blurb="${clean(ccDialogueState.blurb)}"]\n${body}\n[/dialogue]`;
+    let aboutMode=String(ccDialogueState.aboutMode||'unassigned');
+    const aboutIds=aboutMode==='targets'?[...new Set((ccDialogueState.aboutIds||[]).map(String).filter(Boolean))]:[];
+    if(aboutMode==='targets'&&!aboutIds.length)aboutMode='unassigned';
+    const tag=`[dialogue character="${clean(character.id)}" name="${clean(ccDialogueState.name)}" subtitle="${clean(ccDialogueState.subtitle)}" aboutmode="${clean(aboutMode)}" about="${clean(aboutIds.join(','))}" shape="${ccDialogueState.shape}" image="${ccDialogueState.imagePlacement}" card="${ccDialogueState.cardAlignment}" namepos="${ccDialogueState.namePlacement}" theme="${ccDialogueState.theme}" accent="${ccDialogueState.accentMode}" customaccent="${clean(ccDialogueState.customAccent)}" imagechoice="${clean(ccDialogueState.imageChoice)}" imageid="${clean(ccDialogueState.selectedImage)}" border="${ccDialogueState.showBorder?'yes':'no'}" corners="${ccDialogueState.showCorners?'yes':'no'}" background="${ccDialogueState.showBackground?'yes':'no'}" glow="${ccDialogueState.glow}" padding="${ccDialogueState.innerPadding}" before="${ccDialogueState.spaceBefore}" after="${ccDialogueState.spaceAfter}" gap="${ccDialogueState.portraitGap}" width="${ccDialogueState.cardWidth}" portraitsize="${ccDialogueState.portraitSize}" crop="${ccDialogueState.imageCrop}" frame="${ccDialogueState.imageFrame}" px="${ccDialogueState.portraitX}" py="${ccDialogueState.portraitY}" pzoom="${ccDialogueState.portraitZoom}" blurb="${clean(ccDialogueState.blurb)}"]\n${body}\n[/dialogue]`;
 
     editor.setRangeText(tag,ccDialogueSelection.start,ccDialogueSelection.end,'end');
     editor.dispatchEvent(new Event('input',{bubbles:true}));
     editor.focus();
+
+    if(aboutMode==='targets'&&aboutIds.length){
+      const {threadStory}=ccDialogueComposerPointContext();
+      if(threadStory){ccDialogueAboutMemoryStore()[ccDialogueAboutMemoryKey(threadStory.id,character.id)]=aboutIds;scheduleSave('Remembering relationship blurb target…');}
+    }
 
     if(ccDialogueState.saveDefault){
       ccDialogueDefaults()[character.id]={
@@ -17698,6 +17798,16 @@ initFirebase();
       return;
     }
 
+    const aboutModeButton=event.target.closest('[data-cc-dialogue-about-mode]');
+    if(aboutModeButton){
+      event.preventDefault();
+      const mode=aboutModeButton.dataset.ccDialogueAboutMode||'unassigned';
+      ccDialogueState.aboutMode=mode;
+      if(mode!=='targets')ccDialogueState.aboutIds=[];
+      ccDialogueRefreshBuilder();
+      return;
+    }
+
     if(event.target.closest('[data-cc-dialogue-insert]')){event.preventDefault();ccDialogueInsertCard();return;}
 
     const profile=event.target.closest('[data-cc-dialogue-profile-toggle]');
@@ -17739,11 +17849,21 @@ initFirebase();
     if(characterSelect){
       const character=(state.characters||[]).find(item=>String(item.id)===String(characterSelect.value))||null;
       ccDialogueState=ccDialogueLoad(character);
+      ccDialogueApplyAboutDefaults(character);
       const mount=document.querySelector('[data-cc-dialogue-builder-mount]');
       if(mount){mount.innerHTML=ccDialogueBuilderHtml();ccDialogueRefreshPreview();}
       return;
     }
+    if(event.target.closest('[data-cc-dialogue-about-target]')){
+      ccDialogueSync();
+      if(ccDialogueState.aboutIds?.length)ccDialogueState.aboutMode='targets';
+      ccDialogueRefreshBuilder();
+      return;
+    }
     if(event.target.closest('[data-cc-dialogue-show-image],[data-cc-dialogue-show-border],[data-cc-dialogue-show-corners],[data-cc-dialogue-show-background],[data-cc-dialogue-save-default],[data-cc-dialogue-custom-accent],[data-cc-dialogue-portrait-x],[data-cc-dialogue-portrait-y],[data-cc-dialogue-portrait-zoom]'))ccDialogueSync();
+    if(event.target.closest('[data-ccrh-story-point]')&&ccDialogueState){
+      const character=ccDialogueCharacter();ccDialogueApplyAboutDefaults(character,{preserve:Boolean(ccDialogueState.aboutIds?.length)});ccDialogueRefreshBuilder();
+    }
   },true);
 
   document.addEventListener('input',event=>{
@@ -18319,11 +18439,16 @@ initFirebase();
       for(const node of (story.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0))){
         const point=typeof cc2Point==='function'?cc2Point(story,node):(node.point||{});const turns=ccLifePointTurns(story,node);const turnPeople=turns.map(turn=>turn.characterId).filter(Boolean);
         const aRole=ccLifePointRoleState(point,subjectId,turnPeople),bRole=ccLifePointRoleState(point,targetId,turnPeople);
-        const aInPosts=turns.some(turn=>ccRelDialogueCardsFromText(turn?.text||'',subjectId).length);
-        const bInPosts=turns.some(turn=>ccRelDialogueCardsFromText(turn?.text||'',targetId).length);
-        if(!(((aRole.present||aRole.pov)&&(bRole.present||bRole.pov))||(aInPosts&&bInPosts)))continue;
         const token=ccRelSceneToken(story,node);const rank=rankMap.has(`${story.id}:${node.id}`)?rankMap.get(`${story.id}:${node.id}`):100000+(fallback++);
         const candidate={token,storyId:story.id,nodeId:node.id,story,node,point,title:storyPointTitle(story,node),time:typeof cc2TimeLabel==='function'?cc2TimeLabel(story,node):(point.exactDate||`Story point ${node.order||''}`),rank};
+        let aInPosts=false,bInPosts=false,aTargetsB=false,bTargetsA=false;
+        for(const turn of turns||[]){
+          const aCards=ccRelDialogueCardsFromText(turn?.text||'',subjectId),bCards=ccRelDialogueCardsFromText(turn?.text||'',targetId);
+          if(aCards.length)aInPosts=true;if(bCards.length)bInPosts=true;
+          aCards.forEach((card,index)=>{if(ccRelCardTargetsPerson(candidate,turn,subjectId,card,index,targetId))aTargetsB=true;});
+          bCards.forEach((card,index)=>{if(ccRelCardTargetsPerson(candidate,turn,targetId,card,index,subjectId))bTargetsA=true;});
+        }
+        if(!(((aRole.present||aRole.pov)&&(bRole.present||bRole.pov))||aTargetsB||bTargetsA||(aInPosts&&bInPosts)))continue;
         const existing=dedupe.get(token);if(!existing||candidate.rank<existing.rank)dedupe.set(token,candidate);
       }
     }
@@ -18347,19 +18472,40 @@ initFirebase();
     String(raw||'').replace(/\[dialogue\s+([^\]]+)\]([\s\S]*?)\[\/dialogue\]/gi,(whole,attributeText,body)=>{
       const attrs={};attributeText.replace(/([a-z]+)="([^"]*)"/gi,(m,key,value)=>{attrs[key.toLowerCase()]=value;return m;});
       if(String(attrs.character||'')===wanted){
-        matches.push({
-          characterId:wanted,
-          name:String(attrs.name||''),
-          state:String(attrs.subtitle||'').trim(),
-          blurb:String(attrs.blurb||'').trim(),
-          dialogue:String(body||'').trim()
-        });
+        const hasAboutMetadata=Object.prototype.hasOwnProperty.call(attrs,'about')||Object.prototype.hasOwnProperty.call(attrs,'aboutmode');
+        matches.push({characterId:wanted,name:String(attrs.name||''),state:String(attrs.subtitle||'').trim(),blurb:String(attrs.blurb||'').trim(),dialogue:String(body||'').trim(),aboutIds:String(attrs.about||'').split(',').map(value=>value.trim()).filter(Boolean),aboutMode:String(attrs.aboutmode||((attrs.about||'')?'targets':'legacy')).toLowerCase(),hasAboutMetadata});
       }
       return whole;
     });
     return matches;
   }
   function ccRelDialogueBlurbsFromText(raw,characterId){return ccRelDialogueCardsFromText(raw,characterId).map(card=>card.blurb).filter(Boolean);}
+  function ccRelBlurbAssignments(){state.workspace ||= {};state.workspace.relationshipBlurbAssignments ||= {};return state.workspace.relationshipBlurbAssignments;}
+  function ccRelAssignmentKey(storyId,turnId,characterId,cardIndex){return `turn:${String(turnId||'')}|character:${String(characterId||'')}|card:${Number(cardIndex)||0}`;}
+  function ccRelSceneCandidateIds(scene,characterId){
+    if(!scene)return [];
+    const point=scene.point||{};const values=[...(point.participantIds||[]),...(point.povIds||[])];
+    const turns=typeof ccLifePointTurns==='function'?ccLifePointTurns(scene.story,scene.node):[];
+    for(const turn of turns||[])if(turn?.characterId)values.push(turn.characterId);
+    return [...new Set(values.map(String).filter(idValue=>idValue&&idValue!==String(characterId)&&getItem('characters',idValue)))];
+  }
+  function ccRelResolveCardTargets(scene,turn,characterId,card,cardIndex){
+    const key=ccRelAssignmentKey(scene?.storyId||scene?.story?.id,turn?.id,characterId,cardIndex);
+    const saved=ccRelBlurbAssignments()[key];
+    if(saved&&typeof saved==='object'){
+      const mode=String(saved.mode||'targets');
+      return {key,mode,targetIds:mode==='targets'?[...new Set((saved.targetIds||[]).map(String).filter(Boolean))]:[],saved:true,unassigned:mode==='unassigned',candidates:ccRelSceneCandidateIds(scene,characterId)};
+    }
+    if(card?.hasAboutMetadata){
+      let mode=String(card.aboutMode||'unassigned');const targetIds=mode==='targets'?[...new Set((card.aboutIds||[]).map(String).filter(Boolean))]:[];if(mode==='targets'&&!targetIds.length)mode='unassigned';
+      return {key,mode,targetIds,saved:false,unassigned:mode==='unassigned',candidates:ccRelSceneCandidateIds(scene,characterId)};
+    }
+    const candidates=ccRelSceneCandidateIds(scene,characterId);
+    if(candidates.length===1)return {key,mode:'targets',targetIds:[candidates[0]],automatic:true,unassigned:false,candidates};
+    if(candidates.length>1)return {key,mode:'unassigned',targetIds:[],automatic:false,unassigned:true,candidates};
+    return {key,mode:'general',targetIds:[],automatic:true,unassigned:false,candidates};
+  }
+  function ccRelCardTargetsPerson(scene,turn,characterId,card,cardIndex,targetId){return ccRelResolveCardTargets(scene,turn,characterId,card,cardIndex).targetIds.includes(String(targetId));}
   function ccRelStateKey(value){return String(value||'').trim().toLocaleLowerCase();}
   function ccRelStatePaletteColor(value){
     const text=ccRelStateKey(value);if(!text)return CC_REL_NEUTRAL;
@@ -18371,16 +18517,17 @@ initFirebase();
     const perspective=ccRelPerspective(record,characterId);perspective.stateColors ||= {};
     const key=ccRelStateKey(state);return ccRelColor(perspective.stateColors[key],ccRelStatePaletteColor(state));
   }
-  function ccRelRpBlurb(scene,characterId){
+  function ccRelRpBlurb(scene,characterId,targetId=''){
     if(!scene||!characterId)return '';
     const turns=typeof ccLifePointTurns==='function'?ccLifePointTurns(scene.story,scene.node):[];let latest='';
-    for(const turn of turns||[]){const cards=ccRelDialogueCardsFromText(turn?.text||'',characterId);if(cards.length){const found=[...cards].reverse().find(card=>card.blurb);if(found)latest=found.blurb;}}
+    for(const turn of turns||[]){const cards=ccRelDialogueCardsFromText(turn?.text||'',characterId);cards.forEach((card,index)=>{if(!card.blurb)return;if(targetId&&!ccRelCardTargetsPerson(scene,turn,characterId,card,index,targetId))return;latest=card.blurb;});}
     if(latest)return latest;
-    return String(scene?.point?.characterReactions?.[characterId]?.text||'').trim();
+    const reaction=String(scene?.point?.characterReactions?.[characterId]?.text||'').trim();
+    if(!reaction)return '';if(!targetId)return reaction;const candidates=ccRelSceneCandidateIds(scene,characterId);return candidates.length===1&&candidates[0]===String(targetId)?reaction:'';
   }
   function ccRelMilestoneBlurb(record,milestone,characterId){
     const perspective=ccRelMilestonePerspective(record,milestone,characterId);if(perspective.blurbSource==='none')return '';
-    if(perspective.blurbSource==='custom')return String(perspective.customBlurb||'').trim();return ccRelRpBlurb(ccRelSceneForMilestone(milestone),characterId);
+    if(perspective.blurbSource==='custom')return String(perspective.customBlurb||'').trim();const targetId=record?.aId===characterId?record?.bId:record?.aId;return ccRelRpBlurb(ccRelSceneForMilestone(milestone),characterId,targetId);
   }
   function ccRelAutoNodeBlurb(scene,characterId){return ccRelRpBlurb(scene,characterId);}
   function ccRelPostHistory(subjectId,targetId){
@@ -18392,18 +18539,23 @@ initFirebase();
         const turn=turns[localIndex];const globalIndex=Math.max(0,allTurns.findIndex(item=>item.id===turn.id));
         for(const personId of [subjectId,targetId]){
           const cards=ccRelDialogueCardsFromText(turn?.text||'',personId);
-          cards.forEach((card,cardIndex)=>byPerson[personId].push({
-            personId,storyId:scene.storyId,nodeId:scene.nodeId,turnId:turn.id,story:scene.story,node:scene.node,scene,
-            sceneTitle:scene.title,storyName:scene.story.name,time:scene.time||'',postNumber:globalIndex+1,
-            state:card.state,blurb:card.blurb,dialogue:card.dialogue,
-            rank:(Number(scene.rank)||0)*100000+globalIndex*10+cardIndex
-          }));
+          const targetForPerson=personId===subjectId?targetId:subjectId;
+          cards.forEach((card,cardIndex)=>{
+            const assignment=ccRelResolveCardTargets(scene,turn,personId,card,cardIndex);
+            if(!assignment.targetIds.includes(String(targetForPerson)))return;
+            byPerson[personId].push({
+              personId,storyId:scene.storyId,nodeId:scene.nodeId,turnId:turn.id,story:scene.story,node:scene.node,scene,
+              sceneTitle:scene.title,storyName:scene.story.name,time:scene.time||'',postNumber:globalIndex+1,
+              state:card.state,blurb:card.blurb,dialogue:card.dialogue,aboutIds:assignment.targetIds,aboutMode:assignment.mode,
+              rank:(Number(scene.rank)||0)*100000+globalIndex*10+cardIndex
+            });
+          });
         }
       }
       for(const personId of [subjectId,targetId]){
         if(!byPerson[personId].some(item=>item.storyId===scene.storyId&&item.nodeId===scene.nodeId)){
-          const reaction=String(scene?.point?.characterReactions?.[personId]?.text||'').trim();
-          if(reaction)byPerson[personId].push({personId,storyId:scene.storyId,nodeId:scene.nodeId,turnId:'',story:scene.story,node:scene.node,scene,sceneTitle:scene.title,storyName:scene.story.name,time:scene.time||'',postNumber:0,state:'',blurb:reaction,dialogue:'',rank:(Number(scene.rank)||0)*100000+9999});
+          const reaction=String(scene?.point?.characterReactions?.[personId]?.text||'').trim();const otherId=personId===subjectId?targetId:subjectId;const candidates=ccRelSceneCandidateIds(scene,personId);
+          if(reaction&&candidates.length===1&&candidates[0]===String(otherId))byPerson[personId].push({personId,storyId:scene.storyId,nodeId:scene.nodeId,turnId:'',story:scene.story,node:scene.node,scene,sceneTitle:scene.title,storyName:scene.story.name,time:scene.time||'',postNumber:0,state:'',blurb:reaction,dialogue:'',rank:(Number(scene.rank)||0)*100000+9999});
         }
       }
     }
@@ -18443,7 +18595,7 @@ initFirebase();
   }
   function ccRelNodesFor(character,target,scenes,record){
     const history=ccRelPostHistory(character.id,target.id),posts=history.byPerson[character.id]||[],phases=ccRelPhasesFor(record,character.id,posts),nodes=[];
-    if(!phases.length&&scenes[0])nodes.push({key:`first:${scenes[0].storyId}:${scenes[0].nodeId}`,kind:'first',title:'First interaction',subtitle:scenes[0].title,time:scenes[0].time,color:CC_REL_NEUTRAL,scene:scenes[0],rank:scenes[0].rank,blurb:ccRelRpBlurb(scenes[0],character.id),state:'',phasePosts:[]});
+    if(!phases.length&&scenes[0])nodes.push({key:`first:${scenes[0].storyId}:${scenes[0].nodeId}`,kind:'first',title:'First interaction',subtitle:scenes[0].title,time:scenes[0].time,color:CC_REL_NEUTRAL,scene:scenes[0],rank:scenes[0].rank,blurb:ccRelRpBlurb(scenes[0],character.id,target.id),state:'',phasePosts:[]});
     phases.forEach((phase,index)=>{
       const post=phase.firstPost;const title=phase.state||(index===0?'First thoughts':'Relationship shift');
       nodes.push({key:`auto:${character.id}:${post.storyId}:${post.turnId||post.nodeId}:${encodeURIComponent(phase.key||String(index))}`,kind:'auto-state',title,subtitle:post.sceneTitle,time:post.time||`Post ${post.postNumber||''}`,color:phase.color,state:phase.state,blurb:phase.firstBlurb||phase.lastBlurb||'',scene:post.scene,post,rank:phase.rank,phasePosts:phase.posts,phaseIndex:index});
@@ -18486,11 +18638,54 @@ initFirebase();
     const currentSubject=[...subjectPosts].reverse().find(post=>post.state)?.state||subjectPerspective.currentState||'',currentTarget=[...targetPosts].reverse().find(post=>post.state)?.state||targetPerspective.currentState||'';
     return `<aside class="cc-rel-inspector"><header class="cc-rel-inspector-head"><div class="cc-rel-inspector-person">${targetImage?`<img src="${esc(targetImage)}" alt="">`:`<span>${esc(initials(target.name||'?'))}</span>`}<div><strong>${esc(target.name)}</strong>${subjectPerspective.type?`<small>${esc(subjectPerspective.type)}</small>`:''}</div></div></header><div class="cc-rel-inspector-body"><section><span class="cc-rel-inspector-label">Relationship progression</span><h3>${esc(node.state||node.title)}</h3>${node.subtitle?`<p>${esc(node.subtitle)}</p>`:''}<small>${esc(node.time||'')}</small></section><div class="cc-rel-inspector-section"><span class="cc-rel-inspector-label">${esc(character.name)} at this point</span>${stateLine(subjectAt.state,subjectAt.color)}${subjectAt.blurb?`<blockquote class="cc-rel-main-thought">“${esc(subjectAt.blurb)}”</blockquote>`:'<p class="muted">No blurb was attached to this post.</p>'}${ccRelInspectorPostLink(subjectAt.post||node.post)}</div><div class="cc-rel-inspector-section"><span class="cc-rel-inspector-label">${esc(target.name)} at the same point</span>${stateLine(targetAt.state,targetAt.color)}${targetAt.blurb?`<blockquote class="cc-rel-main-thought">“${esc(targetAt.blurb)}”</blockquote>`:'<p class="muted">No blurb had been posted from this perspective yet.</p>'}${ccRelInspectorPostLink(targetAt.post,'Open their closest post')}</div>${phaseThoughts}<div class="cc-rel-inspector-section"><span class="cc-rel-inspector-label">Where they are now</span>${stateLine(currentSubject,currentSubject?ccRelAutoColor(record,character.id,currentSubject):CC_REL_CURRENT,`${character.name}: not titled`)}${currentTarget?`<small>${esc(target.name)}: ${esc(currentTarget)}</small>`:''}</div><div class="cc-rel-inspector-actions"><button class="button secondary small" type="button" data-open="characters:${esc(target.id)}">Open Bio</button><button class="button secondary small" type="button" data-cc-life-story="${esc(target.id)}">Open Life Story</button>${milestone?`<button class="button secondary small cc-rel-edit-only" type="button" data-cc-rel-edit-milestone="${esc(character.id)}|${esc(target.id)}|${esc(milestone.id)}">Edit manual note</button><button class="button ghost small cc-rel-edit-only" type="button" data-cc-rel-delete-milestone="${esc(character.id)}|${esc(target.id)}|${esc(milestone.id)}">Delete manual note</button>`:''}</div></div></aside>`;
   }
+  function ccRelTurnScene(story,turn){
+    if(!story||!turn)return null;const nodeId=ccrhTurnStoryPointId(story,turn);if(!nodeId)return null;const owner=storyById(turn.storyPointStoryId||story.id)||story;const node=(owner.nodes||[]).find(item=>item.id===nodeId);if(!node)return null;const point=typeof cc2Point==='function'?cc2Point(owner,node):(node.point||{});return {storyId:owner.id,nodeId:node.id,story:owner,node,point,title:storyPointTitle(owner,node),time:typeof cc2TimeLabel==='function'?cc2TimeLabel(owner,node):(point.exactDate||`Story point ${node.order||''}`),rank:0};
+  }
+  function ccRelUnassignedBlurbs(characterId){
+    const results=[];
+    for(const story of state.storyGraphs||[]){
+      const turns=ensureStoryDocument(story)||[];
+      turns.forEach((turn,turnIndex)=>{
+        const cards=ccRelDialogueCardsFromText(turn?.text||'',characterId);if(!cards.length)return;const scene=ccRelTurnScene(story,turn);if(!scene)return;
+        cards.forEach((card,cardIndex)=>{
+          if(!card.blurb&&!card.state)return;const assignment=ccRelResolveCardTargets(scene,turn,characterId,card,cardIndex);if(!assignment.unassigned)return;
+          results.push({key:assignment.key,story,turn,turnIndex,scene,card,cardIndex,candidates:assignment.candidates});
+        });
+      });
+    }
+    return results;
+  }
+  function ccRelUnassignedPicker(characterId){
+    const character=getItem('characters',characterId);if(!character)return;const items=ccRelUnassignedBlurbs(characterId);if(!items.length){toast('All of this character’s RP blurbs already have a relationship target.');return;}
+    const rows=items.map((item,index)=>{
+      const candidateSet=new Set(item.candidates);const scenePeople=item.candidates.map(idValue=>getItem('characters',idValue)).filter(Boolean);
+      const otherPeople=(state.characters||[]).filter(person=>person.id!==characterId&&!candidateSet.has(String(person.id))).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+      const chips=scenePeople.map(person=>`<label class="cc-rel-assign-chip"><input type="checkbox" data-cc-rel-assign-target value="${esc(person.id)}"><span>${esc(person.name)}</span></label>`).join('');
+      const other=otherPeople.map(person=>`<label class="cc-rel-assign-chip"><input type="checkbox" data-cc-rel-assign-target value="${esc(person.id)}"><span>${esc(person.name)}</span></label>`).join('');
+      return `<article class="cc-rel-assign-row" data-cc-rel-assign-row="${encodeURIComponent(item.key)}" data-cc-rel-assign-story="${esc(item.story.id)}"><header><div><span>${esc(item.story.name)} · ${esc(item.scene.title)} · Post ${item.turnIndex+1}</span>${item.card.state?`<strong>${esc(item.card.state)}</strong>`:''}</div><em>${index+1} of ${items.length}</em></header><blockquote>“${esc(item.card.blurb||shortText(item.card.dialogue,220)||'No blurb text')}”</blockquote><label class="cc-rel-assign-mode">Use this as<select class="select" data-cc-rel-assign-mode><option value="targets">About character(s)</option><option value="self">About self</option><option value="general">General / scene thought</option></select></label><div class="cc-rel-assign-people"><span>People in this scene</span><div>${chips||'<span class="muted">No other scene characters found.</span>'}</div>${other?`<details><summary>+ Other character</summary><div>${other}</div></details>`:''}</div></article>`;
+    }).join('');
+    showModal(`Assign ${character.name}'s relationship blurbs`,`<div class="cc-rel-assign-shell"><div class="cc-rel-assign-intro"><strong>${items.length} blurb${items.length===1?'':'s'} need a person</strong><p>Older posts with one other character are already assigned automatically. These are the multi-character scenes Codex cannot safely guess. Select one or more people without rewriting the RP.</p></div>${rows}</div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-cc-rel-save-assignments="${esc(characterId)}">Save assignments</button>`);
+    requestAnimationFrame(()=>el.modal.querySelector('.modal-card,.modal')?.classList.add('cc-rel-assign-modal'));
+  }
+  function ccRelSaveAssignments(characterId){
+    const store=ccRelBlurbAssignments();let changed=0;
+    el.modal.querySelectorAll('[data-cc-rel-assign-row]').forEach(row=>{
+      const key=decodeURIComponent(row.dataset.ccRelAssignRow||'');const mode=row.querySelector('[data-cc-rel-assign-mode]')?.value||'targets';const targetIds=[...row.querySelectorAll('[data-cc-rel-assign-target]:checked')].map(input=>String(input.value)).filter(Boolean);
+      if(mode==='targets'&&!targetIds.length)return;
+      const cleanTargets=mode==='targets'?[...new Set(targetIds)]:[];store[key]={mode,targetIds:cleanTargets,updatedAt:nowISO(),updatedBy:currentUserEmail()};
+      if(mode==='targets'&&cleanTargets.length){const storyId=row.dataset.ccRelAssignStory||'';if(storyId)ccDialogueAboutMemoryStore()[ccDialogueAboutMemoryKey(storyId,characterId)]=cleanTargets;}
+      changed++;
+    });
+    if(!changed){toast('Choose at least one person, or mark the blurb as Self or General / scene.','error');return;}
+    scheduleSave('Saving relationship blurb assignments…');closeModal();const character=getItem('characters',characterId);if(character)renderCharacterLifeStory(character);toast(`${changed} blurb assignment${changed===1?'':'s'} saved.`);
+  }
+
   function ccRelationshipViewHtml(character){
+    const unassigned=ccRelUnassignedBlurbs(character.id);
     const candidates=ccRelCandidates(character);const rows=candidates.map(candidate=>{const record=ccRelRecord(character.id,candidate.person.id,false),nodes=ccRelNodesFor(character,candidate.person,candidate.scenes,record);return {...candidate,record,nodes};});
     let selection=ccRelationshipSelections.get(character.id)||null;if(!selection||!rows.some(row=>row.person.id===selection.targetId&&row.nodes.some(node=>node.key===selection.nodeKey))){const firstRow=rows[0],preferred=firstRow?.nodes.find(node=>node.kind==='auto-state')||firstRow?.nodes[0];selection=firstRow?{targetId:firstRow.person.id,nodeKey:preferred?.key||'current'}:null;if(selection)ccRelationshipSelections.set(character.id,selection);}
     const activeRow=selection?rows.find(row=>row.person.id===selection.targetId):null,activeNode=activeRow?ccRelNodeFromKey(character,activeRow.person,activeRow.nodes,selection.nodeKey):null;const autoChanges=rows.reduce((sum,row)=>sum+row.nodes.filter(node=>node.kind==='auto-state'&&node.state).length,0),rpThoughts=rows.reduce((sum,row)=>sum+((row.nodes._history?.byPerson?.[character.id]||[]).filter(post=>post.blurb).length),0);
-    return `<section class="cc-rel-view"><div class="cc-rel-view-head"><div><span class="eyebrow">Relationships</span><h2>${esc(character.name)}'s relationship history over time</h2><p>Built automatically from the relationship titles and character blurbs already used in Roleplay Hub posts. A new point appears when the RP title changes.</p></div><button class="button secondary small cc-rel-edit-only" type="button" data-cc-rel-add-relationship="${esc(character.id)}">+ Add off-screen relationship</button></div><div class="cc-rel-stats"><span><strong>${rows.length}</strong> people</span><span><strong>${autoChanges}</strong> RP title stages</span><span><strong>${rpThoughts}</strong> character blurbs recapped</span><span>Colors are customizable · no categories required</span></div>${rows.length?`<div class="cc-rel-layout"><div class="cc-rel-list">${rows.map(row=>ccRelTrackHtml(character,row.person,row.nodes,row.record)).join('')}</div>${ccRelInspectorHtml(character,activeRow?.person,activeRow?.nodes||[],activeRow?.record,activeNode)}</div>`:`<div class="cc-life-empty"><h3>No relationship paths yet</h3><p>When ${esc(character.name)} and another character share RP scenes, their Dialogue Card titles and blurbs will build this progression automatically.</p><button class="button cc-rel-edit-only" type="button" data-cc-rel-add-relationship="${esc(character.id)}">+ Add off-screen relationship</button></div>`}</section>`;
+    return `<section class="cc-rel-view">${unassigned.length?`<button class="cc-rel-unassigned-notice cc-rel-edit-only" type="button" data-cc-rel-review-unassigned="${esc(character.id)}"><span><strong>${unassigned.length} blurb${unassigned.length===1?'':'s'} need a person</strong><small>Older multi-character RP scenes are waiting for a quick assignment.</small></span><b>Review →</b></button>`:''}<div class="cc-rel-view-head"><div><span class="eyebrow">Relationships</span><h2>${esc(character.name)}'s relationship history over time</h2><p>Built automatically from the relationship titles and character blurbs already used in Roleplay Hub posts. A new point appears when the RP title changes.</p></div><button class="button secondary small cc-rel-edit-only" type="button" data-cc-rel-add-relationship="${esc(character.id)}">+ Add off-screen relationship</button></div><div class="cc-rel-stats"><span><strong>${rows.length}</strong> people</span><span><strong>${autoChanges}</strong> RP title stages</span><span><strong>${rpThoughts}</strong> character blurbs recapped</span><span>Colors are customizable · no categories required</span></div>${rows.length?`<div class="cc-rel-layout"><div class="cc-rel-list">${rows.map(row=>ccRelTrackHtml(character,row.person,row.nodes,row.record)).join('')}</div>${ccRelInspectorHtml(character,activeRow?.person,activeRow?.nodes||[],activeRow?.record,activeNode)}</div>`:`<div class="cc-life-empty"><h3>No relationship paths yet</h3><p>When ${esc(character.name)} and another character share RP scenes, their Dialogue Card titles and blurbs will build this progression automatically.</p><button class="button cc-rel-edit-only" type="button" data-cc-rel-add-relationship="${esc(character.id)}">+ Add off-screen relationship</button></div>`}</section>`;
   }
   function ccRelTopFilters(characterId,filter){return `<div class="cc-life-tools"><div class="cc-life-filters"><button type="button" class="${filter==='all'?'is-active':''}" data-cc-life-filter="${esc(characterId)}|all">Full Life</button><button type="button" class="${filter==='relationships'?'is-active':''}" data-cc-life-filter="${esc(characterId)}|relationships">Relationships</button><button type="button" class="${filter==='story'?'is-active':''}" data-cc-life-filter="${esc(characterId)}|story">Story / RP only</button></div></div>`;}
 
@@ -18512,7 +18707,7 @@ initFirebase();
     const subject=getItem('characters',subjectId),target=getItem('characters',targetId);if(!subject||!target)return;const record=ccRelRecord(subjectId,targetId,true),existing=(record.milestones||[]).find(item=>item.id===milestoneId)||null;const scenes=ccRelSharedScenes(subjectId,targetId);if(!scenes.length){toast('These characters do not have a shared RP scene to use as a milestone yet.','error');return;}
     const used=new Set((record.milestones||[]).filter(item=>!existing||item.id!==existing.id).map(item=>`${item.storyId}:${item.nodeId}`));const available=scenes.filter(scene=>!used.has(`${scene.storyId}:${scene.nodeId}`));const sourceScene=existing?scenes.find(scene=>scene.storyId===existing.storyId&&scene.nodeId===existing.nodeId):available[0];if(!sourceScene){toast('All shared scenes are already saved as milestones.');return;}
     const draft=existing||{id:'',storyId:sourceScene.storyId,nodeId:sourceScene.nodeId,title:'',timeLabel:'',perspectives:{}};
-    const perspectivePanel=(person)=>{const perspective=existing?ccRelMilestonePerspective(record,existing,person.id):{state:'',color:CC_REL_NEUTRAL,blurbSource:'rp',customBlurb:'',whatChanged:''};const rp=ccRelRpBlurb(sourceScene,person.id);return `<section class="cc-rel-edit-perspective"><h3>${esc(person.name)}'s perspective</h3><label><span>Relationship state at this moment</span><input class="input" data-cc-rel-mile-field="${esc(person.id)}|state" value="${esc(perspective.state||'')}" placeholder="Wary, falling in love, furious…"></label><label><span>State color</span><div class="cc-rel-color-field"><input type="color" data-cc-rel-mile-field="${esc(person.id)}|color" value="${esc(ccRelColor(perspective.color))}"><input class="input" data-cc-rel-mile-color-text="${esc(person.id)}|color" value="${esc(ccRelColor(perspective.color))}"></div></label><label><span>Blurb source</span><select class="select" data-cc-rel-mile-field="${esc(person.id)}|blurbSource"><option value="rp" ${perspective.blurbSource==='rp'?'selected':''}>Use RP perspective</option><option value="custom" ${perspective.blurbSource==='custom'?'selected':''}>Custom relationship blurb</option><option value="none" ${perspective.blurbSource==='none'?'selected':''}>No blurb</option></select></label><div class="cc-rel-rp-preview" data-cc-rel-rp-preview="${esc(person.id)}"><strong>RP perspective now</strong><p>${rp?esc(rp):'<span class="muted">No Roleplay Hub blurb is saved for this character in this Story Point yet. If one is added later, this blurb will update automatically.</span>'}</p></div><label><span>Custom blurb</span><textarea class="textarea" rows="3" data-cc-rel-mile-field="${esc(person.id)}|customBlurb" placeholder="Only used when Custom relationship blurb is selected">${esc(perspective.customBlurb||'')}</textarea></label><label><span>What changed for ${esc(person.name)}?</span><textarea class="textarea" rows="3" data-cc-rel-mile-field="${esc(person.id)}|whatChanged" placeholder="Trust increased, attraction became obvious, resentment grew…">${esc(perspective.whatChanged||'')}</textarea></label></section>`;};
+    const perspectivePanel=(person)=>{const perspective=existing?ccRelMilestonePerspective(record,existing,person.id):{state:'',color:CC_REL_NEUTRAL,blurbSource:'rp',customBlurb:'',whatChanged:''};const otherId=person.id===subject.id?target.id:subject.id;const rp=ccRelRpBlurb(sourceScene,person.id,otherId);return `<section class="cc-rel-edit-perspective"><h3>${esc(person.name)}'s perspective</h3><label><span>Relationship state at this moment</span><input class="input" data-cc-rel-mile-field="${esc(person.id)}|state" value="${esc(perspective.state||'')}" placeholder="Wary, falling in love, furious…"></label><label><span>State color</span><div class="cc-rel-color-field"><input type="color" data-cc-rel-mile-field="${esc(person.id)}|color" value="${esc(ccRelColor(perspective.color))}"><input class="input" data-cc-rel-mile-color-text="${esc(person.id)}|color" value="${esc(ccRelColor(perspective.color))}"></div></label><label><span>Blurb source</span><select class="select" data-cc-rel-mile-field="${esc(person.id)}|blurbSource"><option value="rp" ${perspective.blurbSource==='rp'?'selected':''}>Use RP perspective</option><option value="custom" ${perspective.blurbSource==='custom'?'selected':''}>Custom relationship blurb</option><option value="none" ${perspective.blurbSource==='none'?'selected':''}>No blurb</option></select></label><div class="cc-rel-rp-preview" data-cc-rel-rp-preview="${esc(person.id)}"><strong>RP perspective now</strong><p>${rp?esc(rp):'<span class="muted">No Roleplay Hub blurb is saved for this character in this Story Point yet. If one is added later, this blurb will update automatically.</span>'}</p></div><label><span>Custom blurb</span><textarea class="textarea" rows="3" data-cc-rel-mile-field="${esc(person.id)}|customBlurb" placeholder="Only used when Custom relationship blurb is selected">${esc(perspective.customBlurb||'')}</textarea></label><label><span>What changed for ${esc(person.name)}?</span><textarea class="textarea" rows="3" data-cc-rel-mile-field="${esc(person.id)}|whatChanged" placeholder="Trust increased, attraction became obvious, resentment grew…">${esc(perspective.whatChanged||'')}</textarea></label></section>`;};
     showModal(existing?'Edit relationship milestone':'Add relationship milestone',`<div class="cc-rel-edit-shell" data-cc-rel-mile-editor="${esc(subjectId)}|${esc(targetId)}|${esc(existing?.id||'')}"><label><span>Shared RP scene</span><select class="select" data-cc-rel-mile-source ${existing?'disabled':''}>${(existing?scenes:available).map(scene=>`<option value="${esc(scene.storyId)}|${esc(scene.nodeId)}" ${scene.storyId===sourceScene.storyId&&scene.nodeId===sourceScene.nodeId?'selected':''}>${esc(scene.story.name)} · ${esc(scene.title)}</option>`).join('')}</select></label><label><span>Milestone label</span><input class="input" data-cc-rel-mile-title value="${esc(draft.title||'')}" placeholder="First spark, Conflict at the Inn, Reconciliation…"></label><div class="cc-rel-edit-columns">${perspectivePanel(subject)}${perspectivePanel(target)}</div></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button>${existing?`<button class="button danger ghost" type="button" data-cc-rel-delete-milestone="${esc(subjectId)}|${esc(targetId)}|${esc(existing.id)}">Delete</button>`:''}<button class="button" type="button" data-cc-rel-save-milestone="${esc(subjectId)}|${esc(targetId)}|${esc(existing?.id||'')}">Save milestone</button>`);
     requestAnimationFrame(()=>el.modal.querySelector('.modal')?.classList.add('cc-rel-editor-modal'));
   }
@@ -18667,7 +18862,7 @@ initFirebase();
     const mileSource=event.target.closest?.('[data-cc-rel-mile-source]');
     if(mileSource){
       const [storyId,nodeId]=mileSource.value.split('|');const found=ccLifeFindNode(storyId,nodeId);
-      if(found.story&&found.node){const point=typeof cc2Point==='function'?cc2Point(found.story,found.node):(found.node.point||{});const scene={storyId:found.story.id,nodeId:found.node.id,story:found.story,node:found.node,point};el.modal.querySelectorAll('[data-cc-rel-rp-preview]').forEach(preview=>{const personId=preview.dataset.ccRelRpPreview,blurb=ccRelRpBlurb(scene,personId);const p=preview.querySelector('p');if(p)p.innerHTML=blurb?esc(blurb):'<span class="muted">No Roleplay Hub blurb is saved for this character in this Story Point yet. If one is added later, this blurb will update automatically.</span>';});}
+      if(found.story&&found.node){const point=typeof cc2Point==='function'?cc2Point(found.story,found.node):(found.node.point||{});const scene={storyId:found.story.id,nodeId:found.node.id,story:found.story,node:found.node,point};el.modal.querySelectorAll('[data-cc-rel-rp-preview]').forEach(preview=>{const personId=preview.dataset.ccRelRpPreview;const editor=preview.closest('[data-cc-rel-mile-editor]');const pair=(editor?.dataset.ccRelMileEditor||'').split('|');const otherId=personId===pair[0]?pair[1]:pair[0];const blurb=ccRelRpBlurb(scene,personId,otherId);const p=preview.querySelector('p');if(p)p.innerHTML=blurb?esc(blurb):'<span class="muted">No Roleplay Hub blurb is saved for this character in this Story Point yet. If one is added later, this blurb will update automatically.</span>';});}
       return;
     }
     const select=event.target.closest?.('[data-cc-life-connect-story]');if(!select)return;
@@ -18686,6 +18881,8 @@ initFirebase();
   document.addEventListener('dragend',()=>{ccLifeDragged=null;document.querySelectorAll('.cc-life-row').forEach(row=>row.classList.remove('is-dragging','drop-before','drop-after'));});
 
   document.addEventListener('click',event=>{
+    const relReview=event.target.closest?.('[data-cc-rel-review-unassigned]');if(relReview){event.preventDefault();event.stopImmediatePropagation();ccRelUnassignedPicker(relReview.dataset.ccRelReviewUnassigned);return;}
+    const relSaveAssignments=event.target.closest?.('[data-cc-rel-save-assignments]');if(relSaveAssignments){event.preventDefault();event.stopImmediatePropagation();ccRelSaveAssignments(relSaveAssignments.dataset.ccRelSaveAssignments);return;}
     const relSelect=event.target.closest?.('[data-cc-rel-select]');if(relSelect){event.preventDefault();const [characterId,targetId,keyEncoded]=relSelect.dataset.ccRelSelect.split('|');ccRelationshipSelections.set(characterId,{targetId,nodeKey:decodeURIComponent(keyEncoded)});const character=getItem('characters',characterId);if(character)renderCharacterLifeStory(character);return;}
     const relEdit=event.target.closest?.('[data-cc-rel-edit-pair]');if(relEdit){event.preventDefault();event.stopImmediatePropagation();const [characterId,targetId]=relEdit.dataset.ccRelEditPair.split('|');ccRelPairEditor(characterId,targetId);return;}
     const relAdd=event.target.closest?.('[data-cc-rel-add-relationship]');if(relAdd){event.preventDefault();event.stopImmediatePropagation();ccRelAddRelationshipPicker(relAdd.dataset.ccRelAddRelationship);return;}
@@ -18720,6 +18917,10 @@ initFirebase();
     const saveConnect=event.target.closest?.('[data-cc-life-save-connect]');if(saveConnect){event.preventDefault();const [storyId,nodeId]=saveConnect.dataset.ccLifeSaveConnect.split('|');const targetStoryId=el.modal.querySelector('[data-cc-life-connect-story]')?.value||'';const targetNodeId=el.modal.querySelector('[data-cc-life-connect-target]')?.value||'';const label=el.modal.querySelector('[data-cc-life-connect-label]')?.value.trim()||'Shared convergence';if(!targetStoryId||!targetNodeId){toast('Choose a story and story point.','error');return;}ccEnsureSharedStoryPoint(storyId,nodeId,targetStoryId,targetNodeId,label);scheduleSave('Saving shared convergence…');closeModal();render();toast('Story paths connected at this shared point.');return;}
   },true);
 
+
+  document.addEventListener('change',event=>{
+    const mode=event.target.closest?.('[data-cc-rel-assign-mode]');if(!mode)return;const row=mode.closest('[data-cc-rel-assign-row]');if(!row)return;row.classList.toggle('is-non-target',mode.value!=='targets');
+  },true);
 
   /* === Character clean view / explicit edit mode === */
   let ccActiveProfileEditId='';
