@@ -6613,7 +6613,7 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
 
   function logActivity(text) {
     state.activity.unshift({ id: id('activity'), text, at: nowISO(), by: firebase.user?.email || 'Signed-in account' });
-    state.activity = state.activity.slice(0, 30);
+    state.activity = state.activity.slice(0, 200);
   }
 
   function parseHash() {
@@ -6663,14 +6663,13 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
     ['locations','Locations'],
     ['characters','Characters'],
     ['stories','Stories'],
-    ['relationships','Relationships'],
-    ['favorites','Favorites']
+    ['recent','Recent Activity']
   ]);
   const CC_NAV_EXPLORER_DEFAULT = Object.freeze({
-    mode:'single',active:'locations',context:false,relationshipFocusId:'',
-    enabled:{locations:true,characters:true,stories:true,relationships:true,favorites:true},
-    order:['locations','characters','stories','relationships','favorites'],
-    expanded:{locations:[],characters:[],stories:[],relationships:[]},
+    mode:'single',active:'locations',context:false,
+    enabled:{locations:true,characters:true,stories:true,recent:true},
+    order:['locations','characters','stories','recent'],
+    expanded:{locations:[],characters:[],stories:[]},
     expandedSections:['locations']
   });
 
@@ -6681,18 +6680,25 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
   function ccNavExplorerPrefs(){
     const member=ccNavExplorerMember();
     const saved=member?.profile?.navigationExplorer||state.workspace.navigationExplorerFallback||{};
-    const enabled={...CC_NAV_EXPLORER_DEFAULT.enabled,...(saved.enabled||{})};
     const known=CC_NAV_EXPLORER_TYPES.map(([key])=>key);
-    const order=[...(Array.isArray(saved.order)?saved.order:CC_NAV_EXPLORER_DEFAULT.order)].filter((key,index,array)=>known.includes(key)&&array.indexOf(key)===index);
-    for(const key of known) if(!order.includes(key))order.push(key);
+    const legacyMap={relationships:'characters',favorites:'recent'};
+    const migratedKey=value=>legacyMap[value]||value;
+    const enabled={...CC_NAV_EXPLORER_DEFAULT.enabled};
+    for(const key of known){
+      if(Object.prototype.hasOwnProperty.call(saved.enabled||{},key))enabled[key]=Boolean(saved.enabled[key]);
+    }
+    if(saved.enabled?.favorites===true&&!Object.prototype.hasOwnProperty.call(saved.enabled||{},'recent'))enabled.recent=true;
+    const rawOrder=Array.isArray(saved.order)?saved.order:CC_NAV_EXPLORER_DEFAULT.order;
+    const order=rawOrder.map(migratedKey).filter((key,index,array)=>known.includes(key)&&array.indexOf(key)===index);
+    for(const key of known)if(!order.includes(key))order.push(key);
     const expanded={};
-    for(const key of ['locations','characters','stories','relationships']) expanded[key]=Array.isArray(saved.expanded?.[key])?[...saved.expanded[key]]:(key==='locations'&&Array.isArray(state.workspace.locationTreeExpanded)?[...state.workspace.locationTreeExpanded]:[]);
-    const expandedSections=Array.isArray(saved.expandedSections)?saved.expandedSections.filter(key=>known.includes(key)):['locations'];
+    for(const key of ['locations','characters','stories'])expanded[key]=Array.isArray(saved.expanded?.[key])?[...saved.expanded[key]]:(key==='locations'&&Array.isArray(state.workspace.locationTreeExpanded)?[...state.workspace.locationTreeExpanded]:[]);
+    const expandedSections=(Array.isArray(saved.expandedSections)?saved.expandedSections:['locations']).map(migratedKey).filter((key,index,array)=>known.includes(key)&&array.indexOf(key)===index);
+    const active=migratedKey(saved.active);
     return {
       mode:saved.mode==='stacked'?'stacked':'single',
-      active:known.includes(saved.active)?saved.active:'locations',
+      active:known.includes(active)?active:'locations',
       context:Boolean(saved.context),
-      relationshipFocusId:String(saved.relationshipFocusId||''),
       enabled,order,expanded,expandedSections
     };
   }
@@ -6727,7 +6733,7 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
     if(prefs.context){
       if(route.view==='locations')active='locations';
       else if(route.view==='story')active='stories';
-      else if(route.view==='characters')active=route.id?'relationships':'characters';
+      else if(route.view==='characters')active='characters';
     }
     const enabled=ccNavExplorerEnabledTypes(prefs);
     return enabled.includes(active)?active:(enabled[0]||'locations');
@@ -6767,36 +6773,47 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
       return `<div class="sidebar-tree-node${open?' is-open':''}"><div class="sidebar-tree-card"><button class="tree-link" type="button" data-open-story="${esc(story.id)}"><span>${esc(story.name||'Untitled story')}</span><small>${nodes.length} story point${nodes.length===1?'':'s'}</small></button>${nodes.length?`<button class="sidebar-tree-toggle" type="button" data-cc-explorer-node-toggle="stories:${esc(story.id)}" aria-expanded="${open}">${open?'−':'+'}</button>`:''}</div>${nodes.length?`<div class="sidebar-tree-children" ${open?'':'hidden'}>${nodes.map(node=>ccNavExplorerLeaf(storyPointTitle(story,node),'Story point',`data-story-point="${esc(storyRouteValue(story.id,node.id))}"`)).join('')}</div>`:''}</div>`;
     }).join('')||'<div class="cc-explorer-empty">No stories yet.</div>';
   }
-  function ccNavExplorerRelationshipTree(prefs){
-    const routeFocus=route.view==='characters'&&route.id&&getItem('characters',route.id)?route.id:'';
-    const savedFocus=prefs.relationshipFocusId&&getItem('characters',prefs.relationshipFocusId)?prefs.relationshipFocusId:'';
-    const focusId=(prefs.context?routeFocus:'')||savedFocus||routeFocus||state.characters?.[0]?.id||'';
-    const focus=getItem('characters',focusId);
-    if(!focus)return '<div class="cc-explorer-empty">Add a character to explore relationships.</div>';
-    const people=(state.characters||[]).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
-    const selector=`<label class="cc-explorer-focus"><span>Focus character</span><select data-cc-explorer-focus>${people.map(person=>`<option value="${esc(person.id)}" ${person.id===focus.id?'selected':''}>${esc(person.name)}</option>`).join('')}</select></label>`;
-    const related=ccNavExplorerRelatedCharacters(focus.id);
-    const open=related.length&&ccNavExplorerExpanded(prefs,'relationships',focus.id);
-    const secondLevel=person=>{
-      const next=ccNavExplorerRelatedCharacters(person.id).filter(other=>other.id!==focus.id);
-      const personOpen=next.length&&ccNavExplorerExpanded(prefs,'relationships',person.id);
-      return `<div class="sidebar-tree-node${personOpen?' is-open':''}"><div class="sidebar-tree-card"><button class="tree-link" type="button" data-open="characters:${esc(person.id)}"><span>${esc(person.name)}</span><small>${esc(person.role||'Related character')}</small></button>${next.length?`<button class="sidebar-tree-toggle" type="button" data-cc-explorer-node-toggle="relationships:${esc(person.id)}" aria-expanded="${personOpen}">${personOpen?'−':'+'}</button>`:''}</div>${next.length?`<div class="sidebar-tree-children" ${personOpen?'':'hidden'}>${next.map(other=>ccNavExplorerLeaf(other.name,'2nd-degree relation',`data-open="characters:${esc(other.id)}"`)).join('')}</div>`:''}</div>`;
-    };
-    const root=`<div class="sidebar-tree-node${open?' is-open':''}"><div class="sidebar-tree-card"><button class="tree-link" type="button" data-open="characters:${esc(focus.id)}"><span>${esc(focus.name)}</span><small>${related.length} relationship${related.length===1?'':'s'}</small></button>${related.length?`<button class="sidebar-tree-toggle" type="button" data-cc-explorer-node-toggle="relationships:${esc(focus.id)}" aria-expanded="${open}">${open?'−':'+'}</button>`:''}</div>${related.length?`<div class="sidebar-tree-children" ${open?'':'hidden'}>${related.map(secondLevel).join('')}</div>`:''}</div>`;
-    return selector+root;
+  function ccNavExplorerActivityMine(entry){
+    const me=normalizeMemberEmail(firebase.user?.email||'');
+    if(!me)return true;
+    const by=normalizeMemberEmail(entry?.by||'');
+    if(by===me)return true;
+    return entry?.by==='Demo Owner'&&normalizeMemberEmail(state.createdByEmail||'')===me;
   }
-  function ccNavExplorerFavoritesTree(){
-    const entries=[];
-    for(const [kind,label] of [['characters','Character'],['locations','Location'],['species','Species'],['factions','Faction'],['events','Timeline event']])for(const item of state[kind]||[])if(item.favorite)entries.push({kind,label,item});
-    entries.sort((a,b)=>String(a.item.name||'').localeCompare(String(b.item.name||'')));
-    return entries.map(entry=>{const view=entry.kind==='events'?'timeline':entry.kind;return ccNavExplorerLeaf(entry.item.name,entry.label,`data-open="${esc(view)}:${esc(entry.item.id)}"`);}).join('')||'<div class="cc-explorer-empty">Star pages you use often and they will appear here.</div>';
+  function ccNavExplorerActivityTarget(entry){
+    if(entry?.view){
+      if(entry.view==='story'&&entry.storyId)return {kind:'story',id:entry.storyId,label:'Story'};
+      if(entry.itemId)return {kind:entry.view,id:entry.itemId,label:entry.label||entry.view};
+    }
+    const text=String(entry?.text||'').toLowerCase();
+    const matches=[];
+    const add=(kind,label,item)=>{
+      const name=String(item?.name||'').trim();
+      if(name&&text.includes(name.toLowerCase()))matches.push({kind,id:item.id,label,nameLength:name.length});
+    };
+    for(const item of state.characters||[])add('characters','Character',item);
+    for(const item of state.locations||[])add('locations','Location',item);
+    for(const item of state.species||[])add('species','Species',item);
+    for(const item of state.factions||[])add('factions','Faction',item);
+    for(const item of state.events||[])add('timeline','Timeline event',item);
+    for(const item of state.storyGraphs||[])add('story','Story',item);
+    return matches.sort((a,b)=>b.nameLength-a.nameLength)[0]||null;
+  }
+  function ccNavExplorerRecentTree(){
+    const rows=(state.activity||[]).filter(ccNavExplorerActivityMine).slice(0,50);
+    if(!rows.length)return '<div class="cc-explorer-empty">Your recent Codex activity will appear here as you work.</div>';
+    return `<div class="cc-explorer-activity-list">${rows.map(entry=>{
+      const target=ccNavExplorerActivityTarget(entry);
+      const attrs=target?(target.kind==='story'?`data-open-story="${esc(target.id)}"`:`data-open="${esc(target.kind)}:${esc(target.id)}"`):'';
+      const type=target?.label||(/access|member|workspace/i.test(entry.text||'')?'Workspace':'Activity');
+      return `<div class="cc-explorer-activity-row"><span class="cc-explorer-activity-dot" aria-hidden="true"></span><button class="cc-explorer-activity-card" type="button" ${attrs} ${target?'':'disabled'}><span>${esc(entry.text||'Activity')}</span><small>${esc(type)} · ${esc(fmtTime(entry.at))}</small></button></div>`;
+    }).join('')}</div>`;
   }
   function ccNavExplorerTree(type,prefs=ccNavExplorerPrefs()){
     if(type==='locations')return ccNavExplorerLocationTree(prefs);
     if(type==='characters')return ccNavExplorerCharacterTree(prefs);
     if(type==='stories')return ccNavExplorerStoryTree(prefs);
-    if(type==='relationships')return ccNavExplorerRelationshipTree(prefs);
-    if(type==='favorites')return ccNavExplorerFavoritesTree();
+    if(type==='recent')return ccNavExplorerRecentTree();
     return '';
   }
   function ccNavExplorerSidebarMarkup(){
@@ -6810,9 +6827,15 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
   }
   function ccNavExplorerSettingsMarkup(){
     const prefs=ccNavExplorerPrefs();
-    const rows=prefs.order.map((type,index)=>{const label=CC_NAV_EXPLORER_TYPES.find(([key])=>key===type)?.[1]||type;return `<div class="cc-nav-setting-row"><label><input type="checkbox" data-cc-explorer-enabled="${esc(type)}" ${prefs.enabled[type]?'checked':''}><span><strong>${esc(label)}</strong><small>${type==='locations'?'Region → subregion → location':type==='characters'?'Characters with linked relationships':type==='stories'?'Stories → Story Points':type==='relationships'?'Focused person → relations → second-degree links':'Starred Codex pages'}</small></span></label><div class="cc-nav-setting-order"><button type="button" data-cc-explorer-move="${esc(type)}:-1" ${index===0?'disabled':''}>↑</button><button type="button" data-cc-explorer-move="${esc(type)}:1" ${index===prefs.order.length-1?'disabled':''}>↓</button></div></div>`;}).join('');
+    const description={
+      locations:'Region → subregion → location',
+      characters:'Characters with their linked relationships',
+      stories:'Stories → Story Points',
+      recent:'Your own recent actions across the Codex'
+    };
+    const rows=prefs.order.map((type,index)=>{const label=CC_NAV_EXPLORER_TYPES.find(([key])=>key===type)?.[1]||type;return `<div class="cc-nav-setting-row"><label><input type="checkbox" data-cc-explorer-enabled="${esc(type)}" ${prefs.enabled[type]?'checked':''}><span><strong>${esc(label)}</strong><small>${esc(description[type]||'Explorer section')}</small></span></label><div class="cc-nav-setting-order"><button type="button" data-cc-explorer-move="${esc(type)}:-1" ${index===0?'disabled':''}>↑</button><button type="button" data-cc-explorer-move="${esc(type)}:1" ${index===prefs.order.length-1?'disabled':''}>↓</button></div></div>`;}).join('');
     const enabled=ccNavExplorerEnabledTypes(prefs);
-    return `<div class="cc-nav-explorer-settings"><p class="page-subtitle">Turn the sidebar tree into a flexible explorer. These choices are saved to your profile, so they do not rearrange another member's sidebar.</p><div class="cc-nav-setting-grid"><label><span>Explorer layout</span><select data-cc-explorer-mode><option value="single" ${prefs.mode==='single'?'selected':''}>Single Explorer</option><option value="stacked" ${prefs.mode==='stacked'?'selected':''}>Stacked Explorer</option></select></label><label><span>Default Single Explorer</span><select data-cc-explorer-default>${CC_NAV_EXPLORER_TYPES.map(([key,label])=>`<option value="${key}" ${prefs.active===key?'selected':''}>${label}</option>`).join('')}</select></label></div><label class="cc-nav-context-toggle"><input type="checkbox" data-cc-explorer-context ${prefs.context?'checked':''}><span><strong>Context mode</strong><small>When using Single Explorer, automatically show Locations on location pages, Stories in Roleplay Hub, Characters on the character list, and Relationships on an open character.</small></span></label><div class="cc-nav-setting-list">${rows}</div><div class="cc-nav-setting-summary">${enabled.length} explorer${enabled.length===1?'':'s'} enabled</div><div class="page-actions"><button class="button secondary small" type="button" data-cc-explorer-reset>Reset explorer</button></div></div>`;
+    return `<div class="cc-nav-explorer-settings"><p class="page-subtitle">Choose what the sidebar Explorer can show. These choices are saved to your profile, so another member can arrange their Explorer differently.</p><div class="cc-nav-setting-grid"><label><span>Explorer layout</span><select data-cc-explorer-mode><option value="single" ${prefs.mode==='single'?'selected':''}>Single Explorer</option><option value="stacked" ${prefs.mode==='stacked'?'selected':''}>Stacked Explorer</option></select></label><label><span>Default Single Explorer</span><select data-cc-explorer-default>${CC_NAV_EXPLORER_TYPES.map(([key,label])=>`<option value="${key}" ${prefs.active===key?'selected':''}>${label}</option>`).join('')}</select></label></div><label class="cc-nav-context-toggle"><input type="checkbox" data-cc-explorer-context ${prefs.context?'checked':''}><span><strong>Context mode</strong><small>When using Single Explorer, automatically show Locations on location pages, Stories in Roleplay Hub, and Characters while you are working with character pages. Recent Activity stays available whenever you select it.</small></span></label><div class="cc-nav-setting-list">${rows}</div><div class="cc-nav-setting-summary">${enabled.length} explorer${enabled.length===1?'':'s'} enabled</div><div class="page-actions"><button class="button secondary small" type="button" data-cc-explorer-reset>Reset explorer</button></div></div>`;
   }
 
   function renderSidebar() {
@@ -6870,15 +6893,6 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
         const prefs=ccNavExplorerPrefs();
         if(!ccNavExplorerEnabledTypes(prefs).includes(next))return;
         prefs.active=next;
-        ccNavExplorerSave(prefs,{quiet:true});
-      });
-    }
-    const explorerFocus=el.sidebar.querySelector('[data-cc-explorer-focus]');
-    if(explorerFocus){
-      explorerFocus.addEventListener('change',event=>{
-        event.stopPropagation();
-        const prefs=ccNavExplorerPrefs();
-        prefs.relationshipFocusId=event.currentTarget.value;
         ccNavExplorerSave(prefs,{quiet:true});
       });
     }
@@ -9596,7 +9610,7 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
     const explorerToggle=event.target.closest('[data-cc-explorer-node-toggle]');if(explorerToggle){event.preventDefault();event.stopPropagation();const [type,nodeId]=explorerToggle.dataset.ccExplorerNodeToggle.split(':');const prefs=ccNavExplorerPrefs(),list=new Set(prefs.expanded[type]||[]);if(list.has(nodeId))list.delete(nodeId);else list.add(nodeId);prefs.expanded={...prefs.expanded,[type]:[...list]};ccNavExplorerSave(prefs,{quiet:true});return;}
     const explorerSection=event.target.closest('[data-cc-explorer-section-toggle]');if(explorerSection){event.preventDefault();const type=explorerSection.dataset.ccExplorerSectionToggle,prefs=ccNavExplorerPrefs(),open=new Set(prefs.expandedSections||[]);if(open.has(type))open.delete(type);else open.add(type);prefs.expandedSections=[...open];ccNavExplorerSave(prefs,{quiet:true});return;}
     const explorerMove=event.target.closest('[data-cc-explorer-move]');if(explorerMove){event.preventDefault();const [type,deltaRaw]=explorerMove.dataset.ccExplorerMove.split(':'),prefs=ccNavExplorerPrefs(),order=[...prefs.order],from=order.indexOf(type),to=from+Number(deltaRaw);if(from>=0&&to>=0&&to<order.length){order.splice(to,0,order.splice(from,1)[0]);prefs.order=order;ccNavExplorerSave(prefs,{quiet:true,refreshSettings:true});}return;}
-    if(event.target.closest('[data-cc-explorer-reset]')){event.preventDefault();const reset={mode:'single',active:'locations',context:false,relationshipFocusId:'',enabled:{...CC_NAV_EXPLORER_DEFAULT.enabled},order:[...CC_NAV_EXPLORER_DEFAULT.order],expanded:{locations:[],characters:[],stories:[],relationships:[]},expandedSections:['locations']};ccNavExplorerSave(reset,{quiet:true,refreshSettings:true}).then(()=>toast('Navigation Explorer reset to Locations.'));return;}
+    if(event.target.closest('[data-cc-explorer-reset]')){event.preventDefault();const reset={mode:'single',active:'locations',context:false,enabled:{...CC_NAV_EXPLORER_DEFAULT.enabled},order:[...CC_NAV_EXPLORER_DEFAULT.order],expanded:{locations:[],characters:[],stories:[]},expandedSections:['locations']};ccNavExplorerSave(reset,{quiet:true,refreshSettings:true}).then(()=>toast('Navigation Explorer reset to Locations.'));return;}
     const fav=event.target.closest('[data-favorite]');if(fav){const [kind,itemId]=fav.dataset.favorite.split(':');const item=getItem(kind,itemId);item.favorite=!item.favorite;logActivity(`${item.favorite?'Favorited':'Unfavorited'} ${item.name}`);scheduleSave();renderSidebar();renderEntity(kind,itemId);return;}
     const view=event.target.closest('[data-collection-view]');if(view){const [kind,value]=view.dataset.collectionView.split(':');collectionView[kind]=value;renderCollection(kind);return;}
     const graphKind=event.target.closest('[data-graph-kind]');if(graphKind){graphSettings.graphType=graphKind.dataset.graphKind==='locations'?'locations':graphKind.dataset.graphKind==='characters'?'characters':graphKind.dataset.graphKind==='story'?'story':'world';graphSettings.layout=graphSettings.graphType==='story'?'story':graphSettings.graphType==='locations'?'hierarchy':'focus';graphSettings.focus='';graphSelectedNode='';navigate('graph');return;}
@@ -9674,7 +9688,6 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
       return;
     }
     if(event.target.matches('[data-cc-explorer-select]')){const prefs=ccNavExplorerPrefs();prefs.active=event.target.value;ccNavExplorerSave(prefs,{quiet:true});return;}
-    if(event.target.matches('[data-cc-explorer-focus]')){const prefs=ccNavExplorerPrefs();prefs.relationshipFocusId=event.target.value;ccNavExplorerSave(prefs,{quiet:true});return;}
     if(event.target.matches('[data-cc-explorer-mode]')){const prefs=ccNavExplorerPrefs();prefs.mode=event.target.value==='stacked'?'stacked':'single';ccNavExplorerSave(prefs,{quiet:true,refreshSettings:true});return;}
     if(event.target.matches('[data-cc-explorer-default]')){const prefs=ccNavExplorerPrefs();prefs.active=event.target.value;ccNavExplorerSave(prefs,{quiet:true,refreshSettings:true});return;}
     if(event.target.matches('[data-cc-explorer-context]')){const prefs=ccNavExplorerPrefs();prefs.context=event.target.checked;ccNavExplorerSave(prefs,{quiet:true,refreshSettings:true});return;}
@@ -11159,7 +11172,7 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
     // reuses that class for its pill styling, so replacing it here made the
     // dropdown label change while the visible tree always stayed on Locations.
     // Only upgrade an old, unmarked location-tree host. Explorer hosts render
-    // their own Characters / Stories / Relationships / Favorites markup.
+    // their own Locations / Characters / Stories / Recent Activity markup.
     const host=el.sidebar.querySelector('.location-mini-tree:not([data-cc-explorer-tree])');
     if (host) host.innerHTML=renderCodexLocationNodes(state.locations,'sidebar');
     requestAnimationFrame(()=>{const nav=el.sidebar.querySelector('.sidebar-nav');if(nav)nav.scrollTop=previousScroll;});
@@ -21899,6 +21912,15 @@ initFirebase();
 .cc-explorer-stack-head{width:100%;border:0;background:transparent;color:var(--text);display:flex;align-items:center;justify-content:space-between;padding:9px 10px;font-size:11px;font-weight:850;text-align:left;cursor:pointer}
 .cc-explorer-stack-head b{color:var(--accent);font-size:15px}.cc-explorer-stack-body{padding:0 7px 8px}
 .cc-explorer-stack-body>.cc-explorer-focus{margin-top:3px}
+.cc-explorer-activity-list{position:relative;display:grid;gap:0;padding:2px 0 4px 7px}
+.cc-explorer-activity-list::before{content:'';position:absolute;left:13px;top:12px;bottom:14px;width:1px;background:color-mix(in srgb,var(--border) 88%,transparent)}
+.cc-explorer-activity-row{position:relative;display:grid;grid-template-columns:14px minmax(0,1fr);gap:8px;align-items:start;padding:4px 0}
+.cc-explorer-activity-dot{position:relative;z-index:1;width:9px;height:9px;margin-top:12px;border:2px solid var(--panel);border-radius:50%;background:var(--accent);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 55%,var(--border))}
+.cc-explorer-activity-card{min-width:0;border:1px solid var(--border);border-radius:11px;background:color-mix(in srgb,var(--panel) 84%,transparent);color:var(--text);padding:8px 9px;text-align:left;display:grid;gap:3px;cursor:pointer}
+.cc-explorer-activity-card:not(:disabled):hover{border-color:var(--accent);background:var(--accent-soft)}
+.cc-explorer-activity-card:disabled{cursor:default;opacity:1}
+.cc-explorer-activity-card span{font-size:11px;font-weight:800;line-height:1.3;overflow-wrap:anywhere}
+.cc-explorer-activity-card small{color:var(--muted);font-size:9px;line-height:1.25}
 .cc-nav-explorer-settings{display:grid;gap:14px}.cc-nav-setting-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.cc-nav-setting-grid label{display:grid;gap:6px;color:var(--muted);font-size:11px;font-weight:750}.cc-nav-setting-grid select{width:100%;border:1px solid var(--border);border-radius:10px;background:var(--panel);color:var(--text);padding:9px}
 .cc-nav-context-toggle{display:flex;align-items:flex-start;gap:10px;border:1px solid var(--border);border-radius:12px;background:var(--panel-soft);padding:11px}.cc-nav-context-toggle input{margin-top:3px}.cc-nav-context-toggle span{display:grid;gap:3px}.cc-nav-context-toggle small,.cc-nav-setting-row small{color:var(--muted);font-weight:500;line-height:1.35}
 .cc-nav-setting-list{display:grid;gap:7px}.cc-nav-setting-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--border);border-radius:11px;padding:9px 10px;background:var(--panel)}.cc-nav-setting-row>label{display:flex;align-items:flex-start;gap:9px;min-width:0;flex:1}.cc-nav-setting-row>label span{display:grid;gap:2px;min-width:0}.cc-nav-setting-order{display:flex;gap:4px}.cc-nav-setting-order button{width:30px;height:30px;border:1px solid var(--border);border-radius:8px;background:var(--panel-soft);color:var(--text);cursor:pointer}.cc-nav-setting-order button:disabled{opacity:.3;cursor:default}.cc-nav-setting-summary{color:var(--muted);font-size:11px}
