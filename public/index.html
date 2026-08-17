@@ -513,9 +513,13 @@ tbody tr:hover { background: var(--accent-soft); }
   body:not(.cc-mobile-topbar-show-avatar) #accountButton { display:none !important; }
   body.cc-mobile-topbar-many .topbar { flex-wrap:wrap; align-content:center; }
   body.cc-mobile-topbar-many .topbar-actions { flex:0 0 100%; margin-left:0; justify-content:flex-start; padding-left:46px; }
-  #cc16-presence-mount .cc16-avatars, #cc16-presence-mount .cc16-count { display:none; }
-  #cc16-presence-mount .cc16-presence-button { min-height:40px; max-width:126px; padding:5px 10px; gap:7px; white-space:nowrap; }
+  #cc16-presence-mount .cc16-count { display:none; }
+  #cc16-presence-mount .cc16-live-label { display:none; }
+  #cc16-presence-mount .cc16-presence-button { min-height:40px; width:auto; max-width:178px; padding:5px 8px; gap:7px; white-space:nowrap; }
   #cc16-presence-mount .cc16-live-dot { flex:0 0 9px; }
+  #cc16-presence-mount .cc16-avatars { display:flex; min-width:0; }
+  #cc16-presence-mount .cc16-avatar { width:25px; height:25px; flex:0 0 25px; margin-left:-7px; border-width:2px; font-size:9px; }
+  #cc16-presence-mount .cc16-avatar:first-child { margin-left:0; }
   .global-search { width: 40px; }
   .global-search input { width: 40px; height:40px; padding-left:33px; padding-right:5px; }
   .global-search input:focus { position: absolute; right: 0; top: 0; width: min(292px, calc(100vw - 70px)); z-index: 60; padding-right: 12px; background:var(--panel-strong); }
@@ -6514,7 +6518,7 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
     const items=[
       ['logo','Logo','Show the compact Codex logo.'],
       ['avatar','Avatar','Show your account avatar.'],
-      ['live','Live Now','Show who is currently online.'],
+      ['live','Live Now','Show a green live indicator and up to five profile pictures for the most recently active people.'],
       ['search','Search','Show the quick search control.'],
       ['notifications','Notifications','Show Roleplay Hub notifications.'],
       ['messages','Messages','Show the private Messages inbox button.']
@@ -6522,7 +6526,7 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
     const preview=[];
     preview.push('<span class="cc-mtb-preview-menu">☰</span>');
     if(prefs.logo)preview.push('<span class="cc-mtb-preview-logo"><b>CC</b> Codex</span>');
-    if(prefs.live)preview.push('<span class="cc-mtb-preview-live"><i class="cc-mtb-preview-dot"></i>Live now</span>');
+    if(prefs.live)preview.push('<span class="cc-mtb-preview-live"><i class="cc-mtb-preview-dot"></i><span style="display:flex;align-items:center"><i style="width:19px;height:19px;border-radius:50%;background:var(--accent-soft);border:2px solid var(--panel);display:block"></i><i style="width:19px;height:19px;border-radius:50%;background:var(--panel-strong);border:2px solid var(--panel);display:block;margin-left:-6px"></i><i style="width:19px;height:19px;border-radius:50%;background:var(--accent-soft);border:2px solid var(--panel);display:block;margin-left:-6px"></i></span></span>');
     if(prefs.search)preview.push('<span class="cc-mtb-preview-icon">⌕</span>');
     if(prefs.notifications)preview.push('<span class="cc-mtb-preview-icon">🔔</span>');
     if(prefs.messages)preview.push('<span class="cc-mtb-preview-icon">▤</span>');
@@ -14886,7 +14890,7 @@ initFirebase();
       const email = normalizeMemberEmail(member.email);
       if(email === me && !document.hidden) return true;
       return now - cc16Date(member.lastSeenAt) <= CC16_ONLINE_WINDOW;
-    });
+    }).sort((a,b)=>cc16Date(b.lastSeenAt)-cc16Date(a.lastSeenAt));
   }
 
   function cc16Avatar(member){
@@ -14903,10 +14907,10 @@ initFirebase();
     const online = cc16OnlineMembers();
     const me = cc16Email();
     mount.innerHTML = `<div class="cc16-presence">
-      <button class="cc16-presence-button" type="button" data-cc16-toggle aria-expanded="${cc16PresenceOpen}">
+      <button class="cc16-presence-button" type="button" data-cc16-toggle aria-expanded="${cc16PresenceOpen}" aria-label="Live now, ${online.length} online" title="${online.length} online now">
         <span class="cc16-live-dot"></span>
-        <span>Live now</span>
-        <span class="cc16-avatars">${online.slice(0,3).map(cc16Avatar).join('')}</span>
+        <span class="cc16-live-label">Live now</span>
+        <span class="cc16-avatars">${online.slice(0,5).map(cc16Avatar).join('')}</span>
         <span class="cc16-count">${online.length} online</span>
         <span aria-hidden="true">⌄</span>
       </button>
