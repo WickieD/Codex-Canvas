@@ -6239,6 +6239,7 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
       shield: '<path d="M12 2 21 5.5v6.2c0 5.7-3.7 9.3-9 10.8-5.3-1.5-9-5.1-9-10.8V5.5z"/>',
       timeline: '<path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2m1.2 5v4.3l3.5 2.1-1.2 1.9-4.7-2.9V7z"/>',
       members: '<circle cx="8" cy="8" r="3.5"/><circle cx="17" cy="9" r="3"/><path d="M1.5 21c.4-4.6 2.6-7 6.5-7s6.1 2.4 6.5 7zM13.2 20.8c.3-3.6 1.8-5.5 4.4-5.5 2.7 0 4.2 1.9 4.6 5.5z"/>',
+      inbox: '<path d="M3 4h18v13H15.8l-3.8 3-3.8-3H3z"/><path d="M7 8h10M7 11h7" fill="none" stroke="var(--panel)" stroke-width="1.7" stroke-linecap="round"/>',
       settings: '<path d="m9.8 2 .6 2.4a8 8 0 0 1 3.2 0L14.2 2l3.1 1.3-1.2 2.2a8 8 0 0 1 2.3 2.3l2.2-1.2L22 9.8l-2.4.6a8 8 0 0 1 0 3.2l2.4.6-1.3 3.1-2.2-1.2a8 8 0 0 1-2.3 2.3l1.2 2.2-3.2 1.4-.6-2.4a8 8 0 0 1-3.2 0L9.8 22l-3.1-1.3 1.2-2.2a8 8 0 0 1-2.3-2.3l-2.2 1.2L2 14.2l2.4-.6a8 8 0 0 1 0-3.2L2 9.8l1.3-3.1 2.2 1.2a8 8 0 0 1 2.3-2.3L6.6 3.4zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8"/>',
       star: '<path d="m12 1.8 3 6.2 6.8 1-4.9 4.7 1.2 6.7-6.1-3.2-6.1 3.2 1.2-6.7L2.2 9l6.8-1z"/>'
     };
@@ -7031,9 +7032,9 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
         </div>
         <div class="nav-group">
           <div class="nav-label">Workspace</div>
+          ${navButton('messages','Inbox','inbox')}
           ${navButton('share','Members','members',state.workspace.members.length)}
           <button class="nav-item ${route.view==='profile'||route.view==='profile-edit'?'active':''}" type="button" data-profile-member="${esc(normalizeMemberEmail(firebase.user?.email||''))}" aria-label="Open User Profile"><span class="nav-icon">${uiIcon('person')}</span><span>User Profile</span></button>
-          <button class="nav-item ${route.view==='emoji-library'?'active':''}" type="button" data-nav="emoji-library"><span class="nav-icon">😊</span><span>Emoji Library</span><span class="nav-count">${(state.workspace.customEmojiLibrary||[]).length}</span></button>
           ${navButton('settings','Settings','settings')}
         </div>
       </div>
@@ -8973,6 +8974,7 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
         <section class="settings-card"><h2>Appearance</h2><p class="page-subtitle">Choose a complete workspace theme. You can also set a custom accent.</p><div class="theme-options">${themes.map(([name,bg,accent])=>`<button class="theme-option ${state.workspace.theme===name?'active':''}" type="button" data-theme="${name}"><div class="theme-swatch" style="background:${bg};box-shadow:inset 0 -10px 0 ${accent}"></div><span>${name[0].toUpperCase()+name.slice(1)}</span></button>`).join('')}</div><div class="property-row" style="margin-top:14px"><label>Custom accent</label><input type="color" value="${esc(state.workspace.accent || '#80694f')}" data-accent></div></section>
         <section class="settings-card"><h2>Mobile Top Bar Display</h2>${ccMobileTopBarSettingMarkup()}</section>
         <section class="settings-card"><h2>Navigation Explorer</h2>${ccNavExplorerSettingsMarkup()}</section>
+        <section class="settings-card"><h2>Emoji Library</h2><p class="page-subtitle">Manage the shared custom emoji collection used in Roleplay Hub posts. ${(state.workspace.customEmojiLibrary||[]).length} custom emoji${(state.workspace.customEmojiLibrary||[]).length===1?'':'s'} currently saved.</p><div class="page-actions" style="margin-top:14px"><button class="button secondary" type="button" data-nav="emoji-library">Open Emoji Library</button></div></section>
         <section class="settings-card"><h2>Shared mode</h2><div class="status-line"><span class="status-dot ${firebase.connected?'online':''}"></span><strong>${firebase.connected?'Connected to Firebase':'Local demo mode'}</strong></div><p class="page-subtitle" style="margin-top:10px">${firebase.connected?`Signed in as ${esc(firebase.user?.email || 'your Firebase account')}. Changes on this account receive live updates.`:'Open the Firebase configuration section near the top of index.html, paste your web configuration, then deploy the project.'}</p><button class="button secondary" type="button" data-account-action>${firebase.connected && firebase.user ? 'Account details' : 'Shared-mode instructions'}</button></section>
         <section class="settings-card"><h2>Backup and restore</h2><p class="page-subtitle">Download the whole workspace as one JSON backup, including parent locations, graph relationships, members, and blocks.</p><div class="page-actions" style="margin-top:14px"><button class="button" type="button" data-export>Download backup</button><label class="button secondary" for="restoreInput">Restore backup</label><input id="restoreInput" type="file" accept="application/json,.json" hidden></div></section>
         <section class="settings-card"><h2>Notion import</h2><p class="page-subtitle">The uploaded World Codex is already imported into this build. You can also replace the current collections with another Notion Markdown and CSV export.</p><div class="page-actions" style="margin-top:14px"><label class="button" for="notionInput">Import Notion ZIP</label><input id="notionInput" type="file" accept=".zip,application/zip" hidden><button class="button secondary" type="button" data-reset>Reset to bundled export</button></div></section>
@@ -17228,19 +17230,6 @@ initFirebase();
       renderSidebar();renderBreadcrumbs();ccRenderEmojiLibrary();ccpEnhanceChrome?.();return;
     }
     ccEmojiRenderBase();
-  };
-
-  const ccEmojiSidebarBase=renderSidebar;
-  renderSidebar=function(){
-    ccEmojiSidebarBase();
-    const settingsButton=el.sidebar.querySelector('[data-nav="settings"]');
-    if(settingsButton&&!el.sidebar.querySelector('[data-nav="emoji-library"]')){
-      const button=document.createElement('button');
-      button.className=`nav-item ${route.view==='emoji-library'?'active':''}`;
-      button.type='button';button.dataset.nav='emoji-library';
-      button.innerHTML=`<span class="nav-icon">😊</span><span>Emoji Library</span><span class="nav-count">${ccEmojiLibrary().length}</span>`;
-      settingsButton.parentElement.insertBefore(button,settingsButton);
-    }
   };
 
   document.addEventListener('click',event=>{
