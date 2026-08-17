@@ -6578,6 +6578,8 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
       crumbs.push({label:'Members'});
     } else if (route.view === 'settings') {
       crumbs.push({label:'Settings'});
+    } else if (route.view === 'messages') {
+      crumbs.push({label:'Messages'});
     } else if (route.view === 'search') {
       crumbs.push({label:'Search'});
     } else {
@@ -6602,6 +6604,7 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
     else if (route.view === 'story') renderStoryReader();
     else if (route.view === 'share') renderShare();
     else if (route.view === 'settings') renderSettings();
+    else if (route.view === 'messages') renderMessagesInboxPage();
     else if (route.view === 'search') renderSearch(el.search.value.trim());
     else renderDashboard();
     if (route.view === 'characters' && route.id) requestAnimationFrame(installCharacterImageInteractions);
@@ -19979,6 +19982,283 @@ initFirebase();
 
 })();
 
+
+  /* === Private live Messenger: full Inbox page + persistent dock === */
+  const ccMsg={
+    threadUnsub:null,messageUnsub:null,startedFor:'',threads:[],messages:[],currentThreadId:'',
+    dockOpen:false,dockCollapsed:false,newMode:false,search:'',peopleSearch:'',drafts:{},
+    returnHash:'#/dashboard',markingRead:new Set()
+  };
+
+  function ccMsgEmail(){return normalizeMemberEmail(firebase.user?.email||'');}
+  function ccMsgSafeIdPart(value){
+    try{return btoa(unescape(encodeURIComponent(String(value||'')))).replace(/=+$/,'').replace(/\+/g,'-').replace(/\//g,'_');}
+    catch{return String(value||'').replace(/[^a-z0-9_-]+/gi,'_');}
+  }
+  function ccMsgPair(a,b){return [normalizeMemberEmail(a),normalizeMemberEmail(b)].filter(Boolean).sort();}
+  function ccMsgThreadId(otherEmail){const [a,b]=ccMsgPair(ccMsgEmail(),otherEmail);return `dm_${ccMsgSafeIdPart(a)}_${ccMsgSafeIdPart(b)}`;}
+  function ccMsgThreadsCollection(){return firebase.api.collection(firebaseWorkspaceRef(),'directMessageThreads');}
+  function ccMsgThreadRef(threadId){return firebase.api.doc(ccMsgThreadsCollection(),threadId);}
+  function ccMsgMessagesCollection(threadId){return firebase.api.collection(ccMsgThreadRef(threadId),'messages');}
+  function ccMsgMember(email){
+    const key=normalizeMemberEmail(email);
+    return (state.workspace.members||[]).find(member=>normalizeMemberEmail(member.email)===key)||{email:key,name:key.split('@')[0]||'Member',role:'Member'};
+  }
+  function ccMsgName(email){const member=ccMsgMember(email);return String(member.displayName||member.name||member.email?.split('@')[0]||'Member');}
+  function ccMsgAvatarMarkup(email){
+    const member=ccMsgMember(email),profile=member.profile||{},src=profile.avatar||member.photoURL||member.photoUrl||member.avatar||'';
+    return `<span class="cc-msg-avatar">${src?`<img src="${esc(src)}" alt="">`:esc(initials(ccMsgName(email)))}</span>`;
+  }
+  function ccMsgOtherFromThread(thread){
+    const me=ccMsgEmail(),found=(thread?.participants||[]).find(value=>normalizeMemberEmail(value)!==me);
+    if(found)return normalizeMemberEmail(found);
+    return normalizeMemberEmail(thread?.memberA)===me?normalizeMemberEmail(thread?.memberB):normalizeMemberEmail(thread?.memberA||'');
+  }
+  function ccMsgCurrentOther(){
+    const thread=ccMsg.threads.find(item=>item.id===ccMsg.currentThreadId);
+    if(thread)return ccMsgOtherFromThread(thread);
+    const virtual=ccMsg.currentThreadId.match(/^virtual:(.+)$/);return virtual?decodeURIComponent(virtual[1]):'';
+  }
+  function ccMsgActualThreadId(){const other=ccMsgCurrentOther();return other?ccMsgThreadId(other):ccMsg.currentThreadId;}
+  function ccMsgUnread(thread){
+    const me=ccMsgEmail();if(!thread)return 0;
+    return Math.max(0,Number(normalizeMemberEmail(thread.memberA)===me?thread.unreadA:thread.unreadB)||0);
+  }
+  function ccMsgTotalUnread(){return ccMsg.threads.reduce((sum,thread)=>sum+ccMsgUnread(thread),0);}
+  function ccMsgTime(ms){
+    const value=Number(ms)||0;if(!value)return '';
+    const date=new Date(value),today=new Date();
+    if(date.toDateString()===today.toDateString())return date.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+    return date.toLocaleDateString([],{month:'short',day:'numeric'});
+  }
+  function ccMsgRelative(ms){
+    const value=Number(ms)||0;if(!value)return '';
+    const diff=Math.max(0,Date.now()-value),min=Math.floor(diff/60000);if(min<1)return 'now';if(min<60)return `${min}m`;
+    const hr=Math.floor(min/60);if(hr<24)return `${hr}h`;const day=Math.floor(hr/24);if(day<7)return `${day}d`;
+    return new Date(value).toLocaleDateString([],{month:'short',day:'numeric'});
+  }
+  function ccMsgEnsureRoot(){let root=document.getElementById('ccMessengerRoot');if(!root){root=document.createElement('div');root.id='ccMessengerRoot';document.body.appendChild(root);}return root;}
+  function ccMsgRenderBadge(){
+    const badge=document.getElementById('ccMessagesBadge'),button=document.getElementById('ccMessagesButton');if(!badge||!button)return;
+    const count=ccMsgTotalUnread();badge.hidden=count<=0;badge.textContent=count>99?'99+':String(count);
+    button.setAttribute('aria-label',count?`Open Messages, ${count} unread`:'Open Messages');
+  }
+  function ccMsgSortThreads(){ccMsg.threads.sort((a,b)=>(Number(b.updatedAtMs)||0)-(Number(a.updatedAtMs)||0));}
+  function ccMsgThreadIsVisible(threadId){return Boolean(threadId&&threadId===ccMsgActualThreadId()&&(route.view==='messages'||ccMsg.dockOpen&&!ccMsg.dockCollapsed));}
+  function ccMsgSafeReturnHash(){return ccMsg.returnHash&& !/^#\/?messages(?:\/|$)/.test(ccMsg.returnHash.replace('#/','#'))?ccMsg.returnHash:'#/dashboard';}
+
+  function ccMsgStop(){
+    ccMsg.threadUnsub?.();ccMsg.messageUnsub?.();ccMsg.threadUnsub=null;ccMsg.messageUnsub=null;ccMsg.startedFor='';
+    ccMsg.threads=[];ccMsg.messages=[];ccMsg.currentThreadId='';ccMsg.dockOpen=false;ccMsg.dockCollapsed=false;ccMsg.newMode=false;
+    ccMsgEnsureRoot().innerHTML='';ccMsgRenderBadge();
+  }
+
+  function ccMsgRefreshVisible(){
+    ccMsgRenderBadge();
+    ccMsgRenderDock();
+    if(route.view==='messages')renderMessagesInboxPage();
+  }
+
+  function ccMsgStartIfReady(){
+    const me=ccMsgEmail();if(!firebase.connected||!firebase.api||!me){if(ccMsg.startedFor)ccMsgStop();return;}
+    const key=`${firebase.worldId||'main'}|${me}`;if(ccMsg.startedFor===key)return;
+    ccMsg.threadUnsub?.();ccMsg.messageUnsub?.();ccMsg.startedFor=key;ccMsg.threads=[];ccMsg.messages=[];
+    try{
+      const collectionRef=ccMsgThreadsCollection();
+      const queryA=firebase.api.query(collectionRef,firebase.api.where('memberA','==',me));
+      const queryB=firebase.api.query(collectionRef,firebase.api.where('memberB','==',me));
+      const side={a:[],b:[]};
+      const publish=()=>{
+        const merged=new Map();[...side.a,...side.b].forEach(thread=>merged.set(thread.id,thread));
+        ccMsg.threads=[...merged.values()];ccMsgSortThreads();ccMsgRefreshVisible();
+      };
+      const onError=error=>{
+        console.error('Messages listener',error);
+        toast(error.code==='permission-denied'?'Messages are blocked by Firestore. Publish the matching Messenger rules, then refresh.':'Live message updates stopped.','error');
+      };
+      const unsubA=firebase.api.onSnapshot(queryA,snapshot=>{side.a=snapshot.docs.map(docSnap=>({id:docSnap.id,...docSnap.data()}));publish();},onError);
+      const unsubB=firebase.api.onSnapshot(queryB,snapshot=>{side.b=snapshot.docs.map(docSnap=>({id:docSnap.id,...docSnap.data()}));publish();},onError);
+      ccMsg.threadUnsub=()=>{try{unsubA?.();}catch{}try{unsubB?.();}catch{}};
+    }catch(error){console.error(error);}
+  }
+
+  const ccMsgRenderBase=render;
+  render=function(){ccMsgRenderBase();ccMsgStartIfReady();ccMsgRenderBadge();ccMsgRenderDock();};
+  const ccMsgShowAuthGateBase=showAuthGate;
+  showAuthGate=function(...args){ccMsgStop();return ccMsgShowAuthGateBase(...args);};
+
+  function ccMsgOpenInbox(threadId=''){
+    if(route.view!=='messages')ccMsg.returnHash=location.hash||'#/dashboard';
+    ccMsg.dockOpen=false;ccMsg.dockCollapsed=false;ccMsg.newMode=false;ccMsgStartIfReady();
+    if(threadId)ccMsgSelectThread(threadId,{render:false});
+    else if(!ccMsg.currentThreadId&&ccMsg.threads.length)ccMsgSelectThread(ccMsg.threads[0].id,{render:false});
+    navigate('messages');
+    if(ccMsg.currentThreadId)ccMsgListenCurrentThread();
+  }
+  window.ccOpenMessagesInbox=ccMsgOpenInbox;
+
+  function ccMsgReturnToCodex({dock=false}={}){
+    ccMsg.newMode=false;ccMsg.peopleSearch='';
+    ccMsg.dockOpen=Boolean(dock&&ccMsg.currentThreadId);ccMsg.dockCollapsed=false;
+    const target=ccMsgSafeReturnHash();
+    if(location.hash===target){route=parseHash();render();}
+    else location.hash=target;
+    if(ccMsg.dockOpen)ccMsgListenCurrentThread();
+    else{ccMsg.messageUnsub?.();ccMsg.messageUnsub=null;}
+  }
+  function ccMsgCloseInbox(){ccMsgReturnToCodex({dock:false});}
+  function ccMsgMinimize(){ccMsgReturnToCodex({dock:Boolean(ccMsg.currentThreadId)});}
+  function ccMsgCloseDock(){ccMsg.dockOpen=false;ccMsg.dockCollapsed=false;ccMsgRenderDock();ccMsg.messageUnsub?.();ccMsg.messageUnsub=null;ccMsg.messages=[];}
+  function ccMsgMaximizeDock(){ccMsg.returnHash=location.hash||'#/dashboard';ccMsg.dockOpen=false;ccMsg.dockCollapsed=false;navigate('messages');ccMsgListenCurrentThread();}
+
+  function ccMsgSelectThread(threadId,{render=true}={}){
+    if(!threadId)return;ccMsg.currentThreadId=threadId;ccMsg.newMode=false;ccMsg.messages=[];ccMsgListenCurrentThread();if(render)ccMsgRefreshVisible();
+  }
+  function ccMsgSelectPerson(email){
+    const other=normalizeMemberEmail(email);if(!other||other===ccMsgEmail())return;
+    const id=ccMsgThreadId(other),existing=ccMsg.threads.find(t=>t.id===id);
+    ccMsg.currentThreadId=existing?id:`virtual:${encodeURIComponent(other)}`;ccMsg.newMode=false;ccMsg.messages=[];ccMsgListenCurrentThread();ccMsgRefreshVisible();
+  }
+
+  function ccMsgListenCurrentThread(){
+    ccMsg.messageUnsub?.();ccMsg.messageUnsub=null;const other=ccMsgCurrentOther();if(!other)return;const threadId=ccMsgThreadId(other);
+    const existing=ccMsg.threads.find(t=>t.id===threadId);if(!existing){ccMsg.messages=[];ccMsgRefreshVisible();return;}
+    try{
+      const q=firebase.api.query(ccMsgMessagesCollection(threadId),firebase.api.orderBy('createdAtMs','asc'),firebase.api.limit(500));
+      ccMsg.messageUnsub=firebase.api.onSnapshot(q,snapshot=>{
+        ccMsg.messages=snapshot.docs.map(docSnap=>({id:docSnap.id,...docSnap.data()}));ccMsgRefreshVisible();
+        if(ccMsgThreadIsVisible(threadId)&&ccMsgUnread(existing)>0)ccMsgMarkRead(threadId);
+      },error=>{console.error('Message thread listener',error);toast('This private conversation could not be opened.','error');});
+      if(ccMsgThreadIsVisible(threadId)&&ccMsgUnread(existing)>0)ccMsgMarkRead(threadId);
+    }catch(error){console.error(error);}
+  }
+
+  async function ccMsgMarkRead(threadId){
+    if(!threadId||ccMsg.markingRead.has(threadId))return;const thread=ccMsg.threads.find(t=>t.id===threadId);if(!thread||ccMsgUnread(thread)<=0)return;
+    ccMsg.markingRead.add(threadId);const field=normalizeMemberEmail(thread.memberA)===ccMsgEmail()?'unreadA':'unreadB';
+    try{await firebase.api.updateDoc(ccMsgThreadRef(threadId),{[field]:0});}catch(error){console.error(error);}finally{ccMsg.markingRead.delete(threadId);}
+  }
+
+  function ccMsgThreadRows(){
+    const query=ccMsg.search.trim().toLowerCase();let rows=ccMsg.threads;
+    if(query)rows=rows.filter(thread=>{const other=ccMsgOtherFromThread(thread);return `${ccMsgName(other)} ${other} ${thread.lastMessage||''}`.toLowerCase().includes(query);});
+    if(!rows.length)return `<div class="cc-msg-empty-list">${query?'No conversations match your search.':'No conversations yet. Start one with any member of this Codex.'}</div>`;
+    return rows.map(thread=>{const other=ccMsgOtherFromThread(thread),unread=ccMsgUnread(thread),active=ccMsgActualThreadId()===thread.id;return `<button class="cc-msg-thread-row ${active?'is-active':''}" type="button" data-cc-msg-thread="${esc(thread.id)}">${ccMsgAvatarMarkup(other)}<span class="cc-msg-thread-copy"><strong>${esc(ccMsgName(other))}</strong><span>${esc(thread.lastMessage||'Private conversation')}</span></span><span class="cc-msg-thread-meta"><span>${esc(ccMsgRelative(thread.updatedAtMs))}</span>${unread?`<b class="cc-msg-unread">${unread>99?'99+':unread}</b>`:''}</span></button>`;}).join('');
+  }
+
+  function ccMsgPeopleMarkup(){
+    const me=ccMsgEmail(),query=ccMsg.peopleSearch.trim().toLowerCase();
+    let people=(state.workspace.members||[]).filter(member=>normalizeMemberEmail(member.email)!==me);
+    if(query)people=people.filter(member=>`${ccMsgName(member.email)} ${member.email||''} ${member.role||''}`.toLowerCase().includes(query));
+    people=people.slice().sort((a,b)=>ccMsgName(a.email).localeCompare(ccMsgName(b.email)));
+    return `<div class="cc-msg-people-view"><div class="cc-msg-people-title"><div><h2>Start a conversation</h2><p>Choose anyone who has access to this Codex. The thread is private between the two of you.</p></div><button class="button ghost small" type="button" data-cc-msg-cancel-new>Back to inbox</button></div><div class="cc-msg-people-search-wrap"><input class="cc-msg-people-search" type="search" data-cc-msg-people-search value="${esc(ccMsg.peopleSearch)}" placeholder="Search people by name or email…"></div><div class="cc-msg-new-list">${people.length?people.map(member=>`<button class="cc-msg-new-person" type="button" data-cc-msg-person="${esc(normalizeMemberEmail(member.email))}">${ccMsgAvatarMarkup(member.email)}<span><strong>${esc(ccMsgName(member.email))}</strong><small>${esc(member.email||'')}</small><em>${esc(member.role||'Member')}</em></span><b>Message ›</b></button>`).join(''):`<div class="cc-msg-empty-list">${query?'No members match that search.':'There are no other members in this workspace yet.'}</div>`}</div></div>`;
+  }
+
+  function ccMsgMessageMarkup(message){
+    const mine=normalizeMemberEmail(message.sender)===ccMsgEmail(),name=mine?'You':ccMsgName(message.sender),deleted=Boolean(message.deleted);
+    return `<article class="cc-msg-message ${mine?'is-mine':''}" data-cc-msg-message="${esc(message.id)}"><div class="cc-msg-message-meta"><span>${esc(name)}</span><span>${esc(ccMsgTime(message.createdAtMs))}${message.editedAtMs&&!deleted?' · edited':''}</span></div><div class="cc-msg-bubble ${deleted?'cc-msg-deleted':''}">${deleted?'Message deleted':esc(message.text||'')}</div>${mine&&!deleted?`<div class="cc-msg-message-tools"><button type="button" data-cc-msg-edit="${esc(message.id)}">Edit</button><button type="button" data-cc-msg-delete="${esc(message.id)}">Delete</button></div>`:''}</article>`;
+  }
+
+  function ccMsgThreadBodyMarkup(){
+    const other=ccMsgCurrentOther();if(!other)return `<div class="cc-msg-thread-empty"><div><h3>Your inbox</h3><p>Choose a conversation on the left, or start a new private thread with anyone who has access to this Codex.</p><button class="button" type="button" data-cc-msg-compose>Start a conversation</button></div></div>`;
+    const draft=ccMsg.drafts[ccMsgThreadId(other)]||'';
+    return `<div class="cc-msg-messages" data-cc-msg-messages>${ccMsg.messages.length?ccMsg.messages.map(ccMsgMessageMarkup).join(''):`<div class="cc-msg-thread-empty"><div><h3>Start your conversation</h3><p>This is a private live thread between you and ${esc(ccMsgName(other))}.</p></div></div>`}</div><div class="cc-msg-composer"><textarea maxlength="5000" data-cc-msg-input placeholder="Write a message…">${esc(draft)}</textarea><button class="cc-msg-send" type="button" data-cc-msg-send ${draft.trim()?'':'disabled'}>Send</button></div>`;
+  }
+
+  function ccMsgThreadHeaderMarkup({dock=false}={}){
+    const other=ccMsgCurrentOther(),thread=ccMsg.threads.find(t=>t.id===ccMsgThreadId(other)),unread=thread?ccMsgUnread(thread):0;if(!other)return '';
+    return `<div class="cc-msg-thread-head"><div class="cc-msg-person">${ccMsgAvatarMarkup(other)}<div class="cc-msg-person-copy"><h2>${esc(ccMsgName(other))}</h2><span class="cc-msg-private">Private live thread</span></div>${dock&&unread?`<b class="cc-msg-dock-badge">${unread>99?'99+':unread}</b>`:''}</div><div class="cc-msg-head-actions">${dock?`<button class="cc-msg-window-action" type="button" data-cc-msg-collapse title="${ccMsg.dockCollapsed?'Expand':'Collapse'}">${ccMsg.dockCollapsed?'▢':'—'}</button><button class="cc-msg-window-action" type="button" data-cc-msg-max title="Open full inbox">□</button><button class="cc-msg-window-action" type="button" data-cc-msg-close-dock title="Close">×</button>`:`<button class="cc-msg-window-action cc-msg-back-mobile" type="button" data-cc-msg-back title="Back to inbox">‹</button><button class="cc-msg-minimize-button" type="button" data-cc-msg-min title="Minimize and return to Codex">— Minimize</button>`}</div></div>`;
+  }
+
+  function renderMessagesInboxPage(){
+    if(!el?.main)return;
+    const selected=Boolean(ccMsgCurrentOther());
+    el.main.innerHTML=`<section class="cc-msg-page ${selected?'has-thread':''} ${ccMsg.newMode?'is-people':''}">
+      <div class="cc-msg-page-head">
+        <div><div class="page-kicker">Private messenger</div><h1>Messages</h1><p>All of your private one-to-one conversations in one inbox.</p></div>
+        <div class="cc-msg-page-actions"><button class="button" type="button" data-cc-msg-compose>New conversation</button><button class="button secondary" type="button" data-cc-msg-close-full>Return to Codex</button></div>
+      </div>
+      <div class="cc-msg-inbox-window">
+        <aside class="cc-msg-sidebar">
+          <div class="cc-msg-sidebar-head"><div><h2>Inbox</h2><span>${ccMsg.threads.length} conversation${ccMsg.threads.length===1?'':'s'}</span></div><button class="cc-msg-compose-icon" type="button" data-cc-msg-compose title="New conversation">＋</button></div>
+          <div class="cc-msg-search-wrap"><input class="cc-msg-search" type="search" data-cc-msg-search value="${esc(ccMsg.search)}" placeholder="Search conversations…"></div>
+          <div class="cc-msg-thread-list">${ccMsgThreadRows()}</div>
+          <div class="cc-msg-sidebar-foot"><span>${ccMsgTotalUnread()} unread</span><button type="button" data-cc-msg-mark-all>Mark all as read</button></div>
+        </aside>
+        <main class="cc-msg-main">${ccMsg.newMode?ccMsgPeopleMarkup():selected?`${ccMsgThreadHeaderMarkup()}${ccMsgThreadBodyMarkup()}`:ccMsgThreadBodyMarkup()}</main>
+      </div>
+    </section>`;
+    ccMsgRenderBadge();ccMsgAfterRender();
+  }
+
+  function ccMsgDockMarkup(){if(!ccMsgCurrentOther())return '';return `<section class="cc-msg-dock ${ccMsg.dockCollapsed?'is-collapsed':''}" data-cc-msg-dock>${ccMsgThreadHeaderMarkup({dock:true})}${ccMsgThreadBodyMarkup()}</section>`;}
+  function ccMsgRenderDock(){const root=ccMsgEnsureRoot();root.innerHTML=ccMsg.dockOpen?ccMsgDockMarkup():'';ccMsgRenderBadge();ccMsgAfterRender();}
+  function ccMsgAfterRender(){requestAnimationFrame(()=>{const box=document.querySelector('[data-cc-msg-messages]');if(box)box.scrollTop=box.scrollHeight;});}
+
+  async function ccMsgSend(){
+    const other=ccMsgCurrentOther(),me=ccMsgEmail();if(!other||!me)return;const threadId=ccMsgThreadId(other),draft=(ccMsg.drafts[threadId]||'').trim();if(!draft)return;
+    const [a,b]=ccMsgPair(me,other),threadRef=ccMsgThreadRef(threadId),messageRef=firebase.api.doc(ccMsgMessagesCollection(threadId)),now=Date.now(),workspaceId=String(firebase.worldId||'main');
+    ccMsg.drafts[threadId]='';ccMsgRefreshVisible();
+    try{
+      await firebase.api.runTransaction(firebase.api.db,async tx=>{
+        const snap=await tx.get(threadRef),old=snap.exists()?snap.data():{},senderIsA=me===a;
+        const unreadA=Math.max(0,Number(old.unreadA)||0),unreadB=Math.max(0,Number(old.unreadB)||0);
+        tx.set(threadRef,{workspaceId,participants:[a,b],memberA:a,memberB:b,createdAtMs:Number(old.createdAtMs)||now,createdAt:old.createdAt||nowISO(),updatedAtMs:now,updatedAt:nowISO(),lastMessage:draft.slice(0,180),lastMessageId:messageRef.id,lastSender:me,unreadA:senderIsA?0:unreadA+1,unreadB:senderIsA?unreadB+1:0},{merge:false});
+        tx.set(messageRef,{sender:me,text:draft,createdAtMs:now,createdAt:nowISO(),deleted:false});
+      });
+      ccMsg.currentThreadId=threadId;ccMsgListenCurrentThread();
+    }catch(error){console.error(error);ccMsg.drafts[threadId]=draft;ccMsgRefreshVisible();toast(error.code==='permission-denied'?'Message could not be sent. Publish the matching Messenger Firestore rules.':'Message could not be sent.','error');}
+  }
+
+  async function ccMsgEditMessage(messageId){
+    const threadId=ccMsgActualThreadId(),message=ccMsg.messages.find(item=>item.id===messageId);if(!threadId||!message||normalizeMemberEmail(message.sender)!==ccMsgEmail())return;
+    const next=prompt('Edit message',message.text||'');if(next===null)return;const text=next.trim();if(!text)return;
+    try{const updates=[firebase.api.updateDoc(firebase.api.doc(ccMsgMessagesCollection(threadId),messageId),{text,editedAtMs:Date.now(),editedAt:nowISO()})];const thread=ccMsg.threads.find(t=>t.id===threadId);if(thread?.lastMessageId===messageId)updates.push(firebase.api.updateDoc(ccMsgThreadRef(threadId),{lastMessage:text.slice(0,180),updatedAtMs:Date.now(),updatedAt:nowISO()}));await Promise.all(updates);}catch(error){console.error(error);toast('Message could not be edited.','error');}
+  }
+
+  async function ccMsgDeleteMessage(messageId){
+    const threadId=ccMsgActualThreadId(),message=ccMsg.messages.find(item=>item.id===messageId);if(!threadId||!message||normalizeMemberEmail(message.sender)!==ccMsgEmail()||!confirm('Delete this message?'))return;
+    try{const updates=[firebase.api.updateDoc(firebase.api.doc(ccMsgMessagesCollection(threadId),messageId),{text:'',deleted:true,deletedAtMs:Date.now(),deletedAt:nowISO()})];const thread=ccMsg.threads.find(t=>t.id===threadId);if(thread?.lastMessageId===messageId)updates.push(firebase.api.updateDoc(ccMsgThreadRef(threadId),{lastMessage:'Message deleted',updatedAtMs:Date.now(),updatedAt:nowISO()}));await Promise.all(updates);}catch(error){console.error(error);toast('Message could not be deleted.','error');}
+  }
+  async function ccMsgMarkAllRead(){for(const thread of ccMsg.threads)if(ccMsgUnread(thread)>0)await ccMsgMarkRead(thread.id);}
+
+  // Top-right Messages always opens the Inbox page before any older capture
+  // handler can consume the click.
+  window.addEventListener('click',event=>{
+    const nav=event.target?.closest?.('#ccMessagesButton');if(!nav)return;
+    event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();ccMsgOpenInbox();
+  },true);
+
+  document.addEventListener('click',event=>{
+    const thread=event.target.closest('[data-cc-msg-thread]');if(thread){event.preventDefault();ccMsgSelectThread(thread.dataset.ccMsgThread);return;}
+    const person=event.target.closest('[data-cc-msg-person]');if(person){event.preventDefault();ccMsgSelectPerson(person.dataset.ccMsgPerson);return;}
+    if(event.target.closest('[data-cc-msg-compose]')){event.preventDefault();ccMsg.newMode=true;ccMsg.peopleSearch='';ccMsgRefreshVisible();return;}
+    if(event.target.closest('[data-cc-msg-cancel-new]')){event.preventDefault();ccMsg.newMode=false;ccMsgRefreshVisible();return;}
+    if(event.target.closest('[data-cc-msg-close-full]')){event.preventDefault();ccMsgCloseInbox();return;}
+    if(event.target.closest('[data-cc-msg-min]')){event.preventDefault();ccMsgMinimize();return;}
+    if(event.target.closest('[data-cc-msg-close-dock]')){event.preventDefault();ccMsgCloseDock();return;}
+    if(event.target.closest('[data-cc-msg-max]')){event.preventDefault();ccMsgMaximizeDock();return;}
+    if(event.target.closest('[data-cc-msg-collapse]')){event.preventDefault();ccMsg.dockCollapsed=!ccMsg.dockCollapsed;ccMsgRenderDock();if(!ccMsg.dockCollapsed)ccMsgMarkRead(ccMsgActualThreadId());return;}
+    if(event.target.closest('[data-cc-msg-send]')){event.preventDefault();ccMsgSend();return;}
+    const edit=event.target.closest('[data-cc-msg-edit]');if(edit){event.preventDefault();ccMsgEditMessage(edit.dataset.ccMsgEdit);return;}
+    const del=event.target.closest('[data-cc-msg-delete]');if(del){event.preventDefault();ccMsgDeleteMessage(del.dataset.ccMsgDelete);return;}
+    if(event.target.closest('[data-cc-msg-mark-all]')){event.preventDefault();ccMsgMarkAllRead();return;}
+    if(event.target.closest('[data-cc-msg-back]')){event.preventDefault();ccMsg.currentThreadId='';ccMsg.newMode=false;ccMsg.messages=[];ccMsg.messageUnsub?.();ccMsg.messageUnsub=null;ccMsgRefreshVisible();return;}
+  },true);
+
+  document.addEventListener('input',event=>{
+    const search=event.target.closest('[data-cc-msg-search]');if(search){ccMsg.search=search.value;const list=document.querySelector('.cc-msg-thread-list');if(list)list.innerHTML=ccMsgThreadRows();return;}
+    const people=event.target.closest('[data-cc-msg-people-search]');if(people){ccMsg.peopleSearch=people.value;const view=document.querySelector('.cc-msg-people-view');if(view)view.outerHTML=ccMsgPeopleMarkup();requestAnimationFrame(()=>document.querySelector('[data-cc-msg-people-search]')?.focus());return;}
+    const input=event.target.closest('[data-cc-msg-input]');if(input){const threadId=ccMsgActualThreadId();if(threadId)ccMsg.drafts[threadId]=input.value;const send=input.closest('.cc-msg-composer')?.querySelector('[data-cc-msg-send]');if(send)send.disabled=!input.value.trim();}
+  },true);
+
+  document.addEventListener('keydown',event=>{
+    const input=event.target.closest?.('[data-cc-msg-input]');if(input&&event.key==='Enter'&&!event.shiftKey){event.preventDefault();ccMsgSend();return;}
+    if(event.key==='Escape'&&route.view==='messages'){event.preventDefault();ccMsgCloseInbox();}
+  },true);
+
+  /* === End Private live Messenger === */
+
 })();
 
 </script>
@@ -20464,228 +20744,8 @@ initFirebase();
   },true);
 
 
-  /* === Private live Messenger === */
-  const ccMsg={
-    threadUnsub:null,messageUnsub:null,startedFor:'',threads:[],messages:[],currentThreadId:'',
-    fullOpen:false,dockOpen:false,dockCollapsed:false,newMode:false,search:'',drafts:{},returnScrollY:0,markingRead:new Set()
-  };
-
-  function ccMsgEmail(){return normalizeMemberEmail(firebase.user?.email||'');}
-  function ccMsgSafeIdPart(value){
-    try{return btoa(unescape(encodeURIComponent(String(value||'')))).replace(/=+$/,'').replace(/\+/g,'-').replace(/\//g,'_');}
-    catch{return String(value||'').replace(/[^a-z0-9_-]+/gi,'_');}
-  }
-  function ccMsgPair(a,b){return [normalizeMemberEmail(a),normalizeMemberEmail(b)].filter(Boolean).sort();}
-  function ccMsgThreadId(otherEmail){const [a,b]=ccMsgPair(ccMsgEmail(),otherEmail);return `dm_${ccMsgSafeIdPart(firebase.worldId||'main')}_${ccMsgSafeIdPart(a)}_${ccMsgSafeIdPart(b)}`;}
-  function ccMsgThreadRef(threadId){return firebase.api.doc(firebase.api.db,'directMessageThreads',threadId);}
-  function ccMsgMessagesCollection(threadId){return firebase.api.collection(ccMsgThreadRef(threadId),'messages');}
-  function ccMsgMember(email){
-    const key=normalizeMemberEmail(email);
-    return (state.workspace.members||[]).find(member=>normalizeMemberEmail(member.email)===key)||{email:key,name:key.split('@')[0]||'Member',role:'Member'};
-  }
-  function ccMsgName(email){const member=ccMsgMember(email);return String(member.displayName||member.name||member.email?.split('@')[0]||'Member');}
-  function ccMsgAvatarMarkup(email){
-    const member=ccMsgMember(email),profile=member.profile||{},src=profile.avatar||member.photoURL||member.photoUrl||member.avatar||'';
-    return `<span class="cc-msg-avatar">${src?`<img src="${esc(src)}" alt="">`:esc(initials(ccMsgName(email)))}</span>`;
-  }
-  function ccMsgOtherFromThread(thread){const me=ccMsgEmail(),found=(thread?.participants||[]).find(value=>normalizeMemberEmail(value)!==me);if(found)return normalizeMemberEmail(found);return normalizeMemberEmail(thread?.memberA)===me?normalizeMemberEmail(thread?.memberB):normalizeMemberEmail(thread?.memberA||'');}
-  function ccMsgCurrentOther(){
-    const thread=ccMsg.threads.find(item=>item.id===ccMsg.currentThreadId);
-    if(thread)return ccMsgOtherFromThread(thread);
-    const virtual=ccMsg.currentThreadId.match(/^virtual:(.+)$/);return virtual?decodeURIComponent(virtual[1]):'';
-  }
-  function ccMsgActualThreadId(){const other=ccMsgCurrentOther();return other?ccMsgThreadId(other):ccMsg.currentThreadId;}
-  function ccMsgUnread(thread){
-    const me=ccMsgEmail();if(!thread)return 0;
-    return Math.max(0,Number(normalizeMemberEmail(thread.memberA)===me?thread.unreadA:thread.unreadB)||0);
-  }
-  function ccMsgTotalUnread(){return ccMsg.threads.reduce((sum,thread)=>sum+ccMsgUnread(thread),0);}
-  function ccMsgTime(ms){
-    const value=Number(ms)||0;if(!value)return '';
-    const date=new Date(value),today=new Date();
-    if(date.toDateString()===today.toDateString())return date.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
-    return date.toLocaleDateString([],{month:'short',day:'numeric'});
-  }
-  function ccMsgRelative(ms){
-    const value=Number(ms)||0;if(!value)return '';
-    const diff=Math.max(0,Date.now()-value),min=Math.floor(diff/60000);if(min<1)return 'now';if(min<60)return `${min}m`;const hr=Math.floor(min/60);if(hr<24)return `${hr}h`;const day=Math.floor(hr/24);if(day<7)return `${day}d`;return new Date(value).toLocaleDateString([],{month:'short',day:'numeric'});
-  }
-  function ccMsgEnsureRoot(){let root=document.getElementById('ccMessengerRoot');if(!root){root=document.createElement('div');root.id='ccMessengerRoot';document.body.appendChild(root);}return root;}
-  function ccMsgRenderBadge(){
-    const badge=document.getElementById('ccMessagesBadge'),button=document.getElementById('ccMessagesButton');if(!badge||!button)return;
-    const count=ccMsgTotalUnread();badge.hidden=count<=0;badge.textContent=count>99?'99+':String(count);button.setAttribute('aria-label',count?`Open Messages, ${count} unread`:'Open Messages');
-  }
-  function ccMsgSortThreads(){ccMsg.threads.sort((a,b)=>(Number(b.updatedAtMs)||0)-(Number(a.updatedAtMs)||0));}
-  function ccMsgVisibleThreadId(){return ccMsgActualThreadId();}
-  function ccMsgThreadIsVisible(threadId){return Boolean(threadId&&threadId===ccMsgVisibleThreadId()&&(ccMsg.fullOpen||ccMsg.dockOpen&&!ccMsg.dockCollapsed));}
-
-  function ccMsgStop(){
-    ccMsg.threadUnsub?.();ccMsg.messageUnsub?.();ccMsg.threadUnsub=null;ccMsg.messageUnsub=null;ccMsg.startedFor='';ccMsg.threads=[];ccMsg.messages=[];ccMsg.currentThreadId='';ccMsg.fullOpen=false;ccMsg.dockOpen=false;ccMsgEnsureRoot().innerHTML='';ccMsgRenderBadge();
-  }
-  function ccMsgStartIfReady(){
-    const me=ccMsgEmail();if(!firebase.connected||!firebase.api||!me){if(ccMsg.startedFor)ccMsgStop();return;}
-    const key=`${firebase.worldId||'main'}|${me}`;if(ccMsg.startedFor===key)return;
-    ccMsg.threadUnsub?.();ccMsg.messageUnsub?.();ccMsg.startedFor=key;ccMsg.threads=[];ccMsg.messages=[];
-    try{
-      // Use two equality queries instead of an array-contains query. Firestore
-      // can prove these queries against the private memberA/memberB rules,
-      // while still returning only conversations that belong to this user.
-      const collectionRef=firebase.api.collection(firebase.api.db,'directMessageThreads');
-      const queryA=firebase.api.query(collectionRef,firebase.api.where('memberA','==',me));
-      const queryB=firebase.api.query(collectionRef,firebase.api.where('memberB','==',me));
-      const side={a:[],b:[]};
-      const publish=()=>{
-        const merged=new Map();
-        [...side.a,...side.b].forEach(thread=>merged.set(thread.id,thread));
-        ccMsg.threads=[...merged.values()].filter(thread=>String(thread.workspaceId||'main')===String(firebase.worldId||'main'));
-        ccMsgSortThreads();ccMsgRenderBadge();ccMsgRender();
-      };
-      const onError=error=>{
-        console.error('Messages listener',error);
-        toast(error.code==='permission-denied'?'Messages are blocked by Firestore. Publish the matching Messenger rules, then refresh.':'Live message updates stopped.','error');
-      };
-      const unsubA=firebase.api.onSnapshot(queryA,snapshot=>{side.a=snapshot.docs.map(docSnap=>({id:docSnap.id,...docSnap.data()}));publish();},onError);
-      const unsubB=firebase.api.onSnapshot(queryB,snapshot=>{side.b=snapshot.docs.map(docSnap=>({id:docSnap.id,...docSnap.data()}));publish();},onError);
-      ccMsg.threadUnsub=()=>{try{unsubA?.();}catch{}try{unsubB?.();}catch{}};
-    }catch(error){console.error(error);}
-  }
-  const ccMsgRenderBase=render;
-  render=function(){ccMsgRenderBase();ccMsgStartIfReady();ccMsgRenderBadge();};
-  const ccMsgShowAuthGateBase=showAuthGate;
-  showAuthGate=function(...args){ccMsgStop();return ccMsgShowAuthGateBase(...args);};
-
-  function ccMsgOpenFull(threadId=''){
-    ccMsg.returnScrollY=window.scrollY;ccMsg.fullOpen=true;ccMsg.dockOpen=false;ccMsg.dockCollapsed=false;ccMsg.newMode=false;
-    ccMsgStartIfReady();
-    if(threadId)ccMsgSelectThread(threadId,{render:false});
-    else if(!ccMsg.currentThreadId&&ccMsg.threads.length)ccMsgSelectThread(ccMsg.threads[0].id,{render:false});
-    ccMsgRender();if(ccMsg.currentThreadId)ccMsgListenCurrentThread();
-  }
-  // Public bridge used by the persistent top-right Messages control.
-  // Keeping this outside the delegated document click path makes the inbox
-  // resilient to other Codex capture handlers that intentionally stop clicks.
-  window.ccOpenMessagesInbox=ccMsgOpenFull;
-  function ccMsgCloseFull(){ccMsg.fullOpen=false;ccMsg.newMode=false;ccMsgRender();if(!ccMsg.dockOpen){ccMsg.messageUnsub?.();ccMsg.messageUnsub=null;}requestAnimationFrame(()=>window.scrollTo(0,ccMsg.returnScrollY||0));}
-  function ccMsgMinimize(){
-    if(!ccMsg.currentThreadId){ccMsgCloseFull();return;}
-    ccMsg.fullOpen=false;ccMsg.dockOpen=true;ccMsg.dockCollapsed=false;ccMsg.newMode=false;ccMsgRender();ccMsgListenCurrentThread();requestAnimationFrame(()=>window.scrollTo(0,ccMsg.returnScrollY||0));
-  }
-  function ccMsgCloseDock(){ccMsg.dockOpen=false;ccMsg.dockCollapsed=false;ccMsgRender();if(!ccMsg.fullOpen){ccMsg.messageUnsub?.();ccMsg.messageUnsub=null;ccMsg.messages=[];}}
-  function ccMsgSelectThread(threadId,{render=true}={}){
-    if(!threadId)return;ccMsg.currentThreadId=threadId;ccMsg.newMode=false;ccMsg.messages=[];ccMsgListenCurrentThread();if(render)ccMsgRender();
-  }
-  function ccMsgSelectPerson(email){const other=normalizeMemberEmail(email);if(!other||other===ccMsgEmail())return;const id=ccMsgThreadId(other),existing=ccMsg.threads.find(t=>t.id===id);ccMsg.currentThreadId=existing?id:`virtual:${encodeURIComponent(other)}`;ccMsg.newMode=false;ccMsg.messages=[];ccMsgListenCurrentThread();ccMsgRender();}
-
-  function ccMsgListenCurrentThread(){
-    ccMsg.messageUnsub?.();ccMsg.messageUnsub=null;const other=ccMsgCurrentOther();if(!other)return;const threadId=ccMsgThreadId(other);
-    const existing=ccMsg.threads.find(t=>t.id===threadId);if(!existing){ccMsg.messages=[];ccMsgRenderThreadOnly();return;}
-    try{
-      const q=firebase.api.query(ccMsgMessagesCollection(threadId),firebase.api.orderBy('createdAtMs','asc'),firebase.api.limit(500));
-      ccMsg.messageUnsub=firebase.api.onSnapshot(q,snapshot=>{
-        ccMsg.messages=snapshot.docs.map(docSnap=>({id:docSnap.id,...docSnap.data()}));ccMsgRenderThreadOnly();if(ccMsgThreadIsVisible(threadId)&&ccMsgUnread(existing)>0)ccMsgMarkRead(threadId);
-      },error=>{console.error('Message thread listener',error);toast('This private conversation could not be opened.','error');});
-      if(ccMsgThreadIsVisible(threadId)&&ccMsgUnread(existing)>0)ccMsgMarkRead(threadId);
-    }catch(error){console.error(error);}
-  }
-  async function ccMsgMarkRead(threadId){
-    if(!threadId||ccMsg.markingRead.has(threadId))return;const thread=ccMsg.threads.find(t=>t.id===threadId);if(!thread||ccMsgUnread(thread)<=0)return;
-    ccMsg.markingRead.add(threadId);const field=normalizeMemberEmail(thread.memberA)===ccMsgEmail()?'unreadA':'unreadB';
-    try{await firebase.api.updateDoc(ccMsgThreadRef(threadId),{[field]:0});}catch(error){console.error(error);}finally{ccMsg.markingRead.delete(threadId);}
-  }
-
-  function ccMsgThreadRows(){
-    const query=ccMsg.search.trim().toLowerCase();let rows=ccMsg.threads;
-    if(query)rows=rows.filter(thread=>{const other=ccMsgOtherFromThread(thread);return `${ccMsgName(other)} ${other} ${thread.lastMessage||''}`.toLowerCase().includes(query);});
-    if(!rows.length)return `<div class="cc-msg-empty-list">${query?'No conversations match your search.':'No messages yet.<br>Use the compose button to start a private conversation.'}</div>`;
-    return rows.map(thread=>{const other=ccMsgOtherFromThread(thread),unread=ccMsgUnread(thread),active=ccMsgActualThreadId()===thread.id;return `<button class="cc-msg-thread-row ${active?'is-active':''}" type="button" data-cc-msg-thread="${esc(thread.id)}">${ccMsgAvatarMarkup(other)}<span class="cc-msg-thread-copy"><strong>${esc(ccMsgName(other))}</strong><span>${esc(thread.lastMessage||'Private conversation')}</span></span><span class="cc-msg-thread-meta"><span>${esc(ccMsgRelative(thread.updatedAtMs))}</span>${unread?`<b class="cc-msg-unread">${unread>99?'99+':unread}</b>`:''}</span></button>`;}).join('');
-  }
-  function ccMsgNewPeopleMarkup(){
-    const me=ccMsgEmail(),people=(state.workspace.members||[]).filter(member=>normalizeMemberEmail(member.email)!==me).slice().sort((a,b)=>ccMsgName(a.email).localeCompare(ccMsgName(b.email)));
-    return `<div class="cc-msg-new-list"><h3>New private message</h3>${people.length?people.map(member=>`<button class="cc-msg-new-person" type="button" data-cc-msg-person="${esc(normalizeMemberEmail(member.email))}">${ccMsgAvatarMarkup(member.email)}<span><strong>${esc(ccMsgName(member.email))}</strong><br>${esc(member.email)}</span><b>›</b></button>`).join(''):'<div class="cc-msg-empty-list">There are no other members in this workspace yet.</div>'}</div>`;
-  }
-  function ccMsgMessageMarkup(message){
-    const mine=normalizeMemberEmail(message.sender)===ccMsgEmail(),name=mine?'You':ccMsgName(message.sender),deleted=Boolean(message.deleted);return `<article class="cc-msg-message ${mine?'is-mine':''}" data-cc-msg-message="${esc(message.id)}"><div class="cc-msg-message-meta"><span>${esc(name)}</span><span>${esc(ccMsgTime(message.createdAtMs))}${message.editedAtMs&&!deleted?' · edited':''}</span></div><div class="cc-msg-bubble ${deleted?'cc-msg-deleted':''}">${deleted?'Message deleted':esc(message.text||'')}</div>${mine&&!deleted?`<div class="cc-msg-message-tools"><button type="button" data-cc-msg-edit="${esc(message.id)}">Edit</button><button type="button" data-cc-msg-delete="${esc(message.id)}">Delete</button></div>`:''}</article>`;
-  }
-  function ccMsgThreadBodyMarkup(){
-    const other=ccMsgCurrentOther();if(!other)return `<div class="cc-msg-thread-empty"><div><h3>Your private messages</h3><p>Select a conversation or start a new one. Messages stay available while you move anywhere in Codex Canvas.</p></div></div>`;
-    const draft=ccMsg.drafts[ccMsgThreadId(other)]||'';
-    return `<div class="cc-msg-messages" data-cc-msg-messages>${ccMsg.messages.length?ccMsg.messages.map(ccMsgMessageMarkup).join(''):`<div class="cc-msg-thread-empty"><div><h3>Start your conversation</h3><p>This is a private thread between you and ${esc(ccMsgName(other))}.</p></div></div>`}</div><div class="cc-msg-composer"><textarea maxlength="5000" data-cc-msg-input placeholder="Write a message…">${esc(draft)}</textarea><button class="cc-msg-send" type="button" data-cc-msg-send ${draft.trim()?'':'disabled'}>Send</button></div>`;
-  }
-  function ccMsgThreadHeaderMarkup({dock=false}={}){
-    const other=ccMsgCurrentOther(),thread=ccMsg.threads.find(t=>t.id===ccMsgThreadId(other)),unread=thread?ccMsgUnread(thread):0;if(!other)return '';
-    return `<div class="cc-msg-thread-head"><div class="cc-msg-person">${ccMsgAvatarMarkup(other)}<div class="cc-msg-person-copy"><h2>${esc(ccMsgName(other))}</h2><span class="cc-msg-private">Private thread</span></div>${dock&&unread?`<b class="cc-msg-dock-badge">${unread>99?'99+':unread}</b>`:''}</div><div class="cc-msg-head-actions">${dock?`<button class="cc-msg-window-action" type="button" data-cc-msg-collapse title="${ccMsg.dockCollapsed?'Expand':'Collapse'}">${ccMsg.dockCollapsed?'▢':'—'}</button><button class="cc-msg-window-action" type="button" data-cc-msg-max title="Open full inbox">□</button><button class="cc-msg-window-action" type="button" data-cc-msg-close-dock title="Close">×</button>`:`<button class="cc-msg-window-action cc-msg-back-mobile" type="button" data-cc-msg-back title="Back to conversations">‹</button><button class="cc-msg-window-action" type="button" data-cc-msg-min title="Minimize to bottom-right">—</button><button class="cc-msg-window-action" type="button" data-cc-msg-close-full title="Close Messages">×</button>`}</div></div>`;
-  }
-
-  function ccMsgFullMarkup(){
-    const selected=Boolean(ccMsgCurrentOther());return `<section class="cc-msg-overlay ${selected?'has-thread':''}" data-cc-msg-overlay><div class="cc-msg-inbox"><aside class="cc-msg-sidebar"><div class="cc-msg-sidebar-head"><h2>Messages</h2><button class="cc-msg-compose" type="button" data-cc-msg-compose title="New message">＋ <span>New</span></button></div><div class="cc-msg-search-wrap"><input class="cc-msg-search" type="search" data-cc-msg-search value="${esc(ccMsg.search)}" placeholder="Search messages…"></div><div class="cc-msg-thread-list">${ccMsgThreadRows()}</div><div class="cc-msg-sidebar-foot"><span>${ccMsg.threads.length} conversation${ccMsg.threads.length===1?'':'s'}</span><button type="button" data-cc-msg-mark-all>Mark all as read</button></div></aside><main class="cc-msg-main">${ccMsg.newMode?`<div class="cc-msg-thread-head"><div class="cc-msg-person-copy"><h2>New message</h2><span class="cc-msg-private">Choose a workspace member</span></div><div class="cc-msg-head-actions"><button class="cc-msg-window-action cc-msg-back-mobile" type="button" data-cc-msg-back>‹</button><button class="cc-msg-window-action" type="button" data-cc-msg-close-full>×</button></div></div>${ccMsgNewPeopleMarkup()}`:selected?`${ccMsgThreadHeaderMarkup()}${ccMsgThreadBodyMarkup()}`:`<div class="cc-msg-thread-head"><div class="cc-msg-person-copy"><h2>Inbox</h2><span class="cc-msg-private">Private one-to-one conversations</span></div><div class="cc-msg-head-actions"><button class="cc-msg-window-action" type="button" data-cc-msg-close-full>×</button></div></div><div class="cc-msg-thread-empty"><div><h3>${ccMsg.threads.length?'Select a conversation':'Your inbox is ready'}</h3><p>${ccMsg.threads.length?'Choose a private thread on the left, or start a new one.':'Start a private live text thread with another workspace member.'}</p><button class="button cc-msg-empty-compose" type="button" data-cc-msg-compose>New message</button></div></div>`}</main></div></section>`;
-  }
-  function ccMsgDockMarkup(){if(!ccMsgCurrentOther())return '';return `<section class="cc-msg-dock ${ccMsg.dockCollapsed?'is-collapsed':''}" data-cc-msg-dock>${ccMsgThreadHeaderMarkup({dock:true})}${ccMsgThreadBodyMarkup()}</section>`;}
-  function ccMsgRender(){const root=ccMsgEnsureRoot();root.innerHTML=ccMsg.fullOpen?ccMsgFullMarkup():(ccMsg.dockOpen?ccMsgDockMarkup():'');ccMsgRenderBadge();ccMsgAfterRender();}
-  function ccMsgRenderThreadOnly(){if(!ccMsg.fullOpen&&!ccMsg.dockOpen)return;ccMsgRender();}
-  function ccMsgAfterRender(){
-    requestAnimationFrame(()=>{const box=document.querySelector('[data-cc-msg-messages]');if(box)box.scrollTop=box.scrollHeight;const input=document.querySelector('[data-cc-msg-input]');if(input&&document.activeElement?.dataset?.ccMsgInput===undefined&&ccMsg.fullOpen===false){};});
-  }
-
-  async function ccMsgSend(){
-    const other=ccMsgCurrentOther(),me=ccMsgEmail();if(!other||!me)return;const threadId=ccMsgThreadId(other),draft=(ccMsg.drafts[threadId]||'').trim();if(!draft)return;
-    const [a,b]=ccMsgPair(me,other),threadRef=ccMsgThreadRef(threadId),messageRef=firebase.api.doc(ccMsgMessagesCollection(threadId)),now=Date.now(),workspaceId=String(firebase.worldId||'main');
-    ccMsg.drafts[threadId]='';ccMsgRender();
-    try{
-      await firebase.api.runTransaction(firebase.api.db,async tx=>{
-        const snap=await tx.get(threadRef),old=snap.exists()?snap.data():{},senderIsA=me===a;
-        const unreadA=Math.max(0,Number(old.unreadA)||0),unreadB=Math.max(0,Number(old.unreadB)||0);
-        tx.set(threadRef,{workspaceId,participants:[a,b],memberA:a,memberB:b,createdAtMs:Number(old.createdAtMs)||now,createdAt:old.createdAt||nowISO(),updatedAtMs:now,updatedAt:nowISO(),lastMessage:draft.slice(0,180),lastMessageId:messageRef.id,lastSender:me,unreadA:senderIsA?0:unreadA+1,unreadB:senderIsA?unreadB+1:0},{merge:false});
-        tx.set(messageRef,{sender:me,text:draft,createdAtMs:now,createdAt:nowISO(),deleted:false});
-      });
-      ccMsg.currentThreadId=threadId;ccMsgListenCurrentThread();
-    }catch(error){console.error(error);ccMsg.drafts[threadId]=draft;ccMsgRender();toast(error.code==='permission-denied'?'Message could not be sent. Publish the updated firestore.rules included with this build.':'Message could not be sent.','error');}
-  }
-  async function ccMsgEditMessage(messageId){
-    const threadId=ccMsgActualThreadId(),message=ccMsg.messages.find(item=>item.id===messageId);if(!threadId||!message||normalizeMemberEmail(message.sender)!==ccMsgEmail())return;
-    const next=prompt('Edit message',message.text||'');if(next===null)return;const text=next.trim();if(!text)return;
-    try{const updates=[firebase.api.updateDoc(firebase.api.doc(ccMsgMessagesCollection(threadId),messageId),{text,editedAtMs:Date.now(),editedAt:nowISO()})];const thread=ccMsg.threads.find(t=>t.id===threadId);if(thread?.lastMessageId===messageId)updates.push(firebase.api.updateDoc(ccMsgThreadRef(threadId),{lastMessage:text.slice(0,180),updatedAtMs:Date.now(),updatedAt:nowISO()}));await Promise.all(updates);}catch(error){console.error(error);toast('Message could not be edited.','error');}
-  }
-  async function ccMsgDeleteMessage(messageId){
-    const threadId=ccMsgActualThreadId(),message=ccMsg.messages.find(item=>item.id===messageId);if(!threadId||!message||normalizeMemberEmail(message.sender)!==ccMsgEmail()||!confirm('Delete this message?'))return;
-    try{const updates=[firebase.api.updateDoc(firebase.api.doc(ccMsgMessagesCollection(threadId),messageId),{text:'',deleted:true,deletedAtMs:Date.now(),deletedAt:nowISO()})];const thread=ccMsg.threads.find(t=>t.id===threadId);if(thread?.lastMessageId===messageId)updates.push(firebase.api.updateDoc(ccMsgThreadRef(threadId),{lastMessage:'Message deleted',updatedAtMs:Date.now(),updatedAt:nowISO()}));await Promise.all(updates);}catch(error){console.error(error);toast('Message could not be deleted.','error');}
-  }
-  async function ccMsgMarkAllRead(){for(const thread of ccMsg.threads)if(ccMsgUnread(thread)>0)await ccMsgMarkRead(thread.id);}
-
-  // Register at window-capture level so the Messages button opens before
-  // any older Codex document-level capture handler can consume the click.
-  window.addEventListener('click',event=>{
-    const nav=event.target?.closest?.('#ccMessagesButton');
-    if(!nav)return;
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
-    ccMsgOpenFull();
-  },true);
-
-  document.addEventListener('click',event=>{
-    const nav=event.target.closest('#ccMessagesButton');if(nav){event.preventDefault();event.stopImmediatePropagation();ccMsgOpenFull();return;}
-    const thread=event.target.closest('[data-cc-msg-thread]');if(thread){event.preventDefault();ccMsgSelectThread(thread.dataset.ccMsgThread);return;}
-    const person=event.target.closest('[data-cc-msg-person]');if(person){event.preventDefault();ccMsgSelectPerson(person.dataset.ccMsgPerson);return;}
-    if(event.target.closest('[data-cc-msg-compose]')){event.preventDefault();ccMsg.newMode=true;ccMsgRender();return;}
-    if(event.target.closest('[data-cc-msg-close-full]')){event.preventDefault();ccMsgCloseFull();return;}
-    if(event.target.closest('[data-cc-msg-min]')){event.preventDefault();ccMsgMinimize();return;}
-    if(event.target.closest('[data-cc-msg-close-dock]')){event.preventDefault();ccMsgCloseDock();return;}
-    if(event.target.closest('[data-cc-msg-max]')){event.preventDefault();ccMsg.returnScrollY=window.scrollY;ccMsg.fullOpen=true;ccMsg.dockOpen=false;ccMsg.dockCollapsed=false;ccMsgRender();ccMsgListenCurrentThread();return;}
-    if(event.target.closest('[data-cc-msg-collapse]')){event.preventDefault();ccMsg.dockCollapsed=!ccMsg.dockCollapsed;ccMsgRender();if(!ccMsg.dockCollapsed)ccMsgMarkRead(ccMsgActualThreadId());return;}
-    if(event.target.closest('[data-cc-msg-send]')){event.preventDefault();ccMsgSend();return;}
-    const edit=event.target.closest('[data-cc-msg-edit]');if(edit){event.preventDefault();ccMsgEditMessage(edit.dataset.ccMsgEdit);return;}
-    const del=event.target.closest('[data-cc-msg-delete]');if(del){event.preventDefault();ccMsgDeleteMessage(del.dataset.ccMsgDelete);return;}
-    if(event.target.closest('[data-cc-msg-mark-all]')){event.preventDefault();ccMsgMarkAllRead();return;}
-    if(event.target.closest('[data-cc-msg-back]')){event.preventDefault();ccMsg.currentThreadId='';ccMsg.newMode=false;ccMsg.messages=[];ccMsg.messageUnsub?.();ccMsg.messageUnsub=null;ccMsgRender();return;}
-  },true);
-  document.addEventListener('input',event=>{
-    const search=event.target.closest('[data-cc-msg-search]');if(search){ccMsg.search=search.value;const list=document.querySelector('.cc-msg-thread-list');if(list)list.innerHTML=ccMsgThreadRows();return;}
-    const input=event.target.closest('[data-cc-msg-input]');if(input){const threadId=ccMsgActualThreadId();if(threadId)ccMsg.drafts[threadId]=input.value;const send=input.closest('.cc-msg-composer')?.querySelector('[data-cc-msg-send]');if(send)send.disabled=!input.value.trim();}
-  },true);
-  document.addEventListener('keydown',event=>{
-    const input=event.target.closest?.('[data-cc-msg-input]');if(input&&event.key==='Enter'&&!event.shiftKey){event.preventDefault();ccMsgSend();return;}
-    if(event.key==='Escape'&&ccMsg.fullOpen){event.preventDefault();ccMsgCloseFull();}
-  },true);
+  
+  /* Private Messenger moved into the primary app scope so it can access Firebase/state safely. */
 
 })();
 </script>
@@ -21409,10 +21469,14 @@ initFirebase();
 
 <style id="cc-private-messenger-styles">
 .cc-msg-nav-button{position:relative;overflow:visible}.cc-msg-nav-button svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.cc-msg-nav-badge{position:absolute;right:-6px;top:-7px;min-width:19px;height:19px;padding:0 5px;display:grid;place-items:center;border:2px solid var(--panel);border-radius:999px;background:#c74646;color:#fff;font-size:10px;font-weight:900;line-height:1}.cc-msg-nav-badge[hidden]{display:none}
-.cc-msg-overlay{position:fixed;inset:0;z-index:40000;background:rgba(5,8,12,.72);backdrop-filter:blur(10px);display:grid;place-items:stretch}.cc-msg-inbox{width:100%;height:100%;min-height:0;background:color-mix(in srgb,var(--panel) 96%,#070b11);display:grid;grid-template-columns:minmax(280px,380px) minmax(0,1fr);overflow:hidden}.cc-msg-sidebar{min-width:0;border-right:1px solid var(--border);display:flex;flex-direction:column;background:color-mix(in srgb,var(--panel-strong) 90%,transparent)}.cc-msg-sidebar-head,.cc-msg-thread-head{min-height:72px;padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}.cc-msg-sidebar-head h2,.cc-msg-thread-head h2{margin:0;font-family:var(--font-display,Georgia,serif);font-size:23px}.cc-msg-sidebar-head{justify-content:space-between}.cc-msg-compose{min-width:38px;height:38px;border:1px solid var(--border);border-radius:11px;background:var(--panel);color:var(--accent-strong);font-size:15px;font-weight:850;cursor:pointer;padding:0 11px;display:inline-flex;align-items:center;justify-content:center;gap:5px}.cc-msg-compose span{font-size:12px}.cc-msg-search-wrap{padding:12px 14px;border-bottom:1px solid var(--border)}.cc-msg-search{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:999px;background:var(--panel);color:var(--text);padding:10px 13px;outline:none}.cc-msg-search:focus{border-color:var(--accent)}.cc-msg-thread-list{overflow:auto;flex:1;padding:8px}.cc-msg-thread-row{width:100%;display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:10px;border:1px solid transparent;border-radius:12px;background:transparent;color:inherit;padding:10px;text-align:left;cursor:pointer}.cc-msg-thread-row:hover{background:var(--panel-soft)}.cc-msg-thread-row.is-active{border-color:color-mix(in srgb,var(--accent) 60%,var(--border));background:var(--accent-soft)}.cc-msg-thread-copy{min-width:0;display:grid;gap:3px}.cc-msg-thread-copy strong,.cc-msg-thread-copy span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cc-msg-thread-copy span{color:var(--muted);font-size:12px}.cc-msg-thread-meta{display:grid;justify-items:end;gap:5px;color:var(--muted);font-size:10px}.cc-msg-unread{min-width:20px;height:20px;padding:0 6px;display:grid;place-items:center;border-radius:999px;background:#c74646;color:#fff;font-weight:900}.cc-msg-empty-list{padding:22px;color:var(--muted);text-align:center;line-height:1.5}.cc-msg-sidebar-foot{padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:12px}.cc-msg-sidebar-foot button{border:0;background:none;color:var(--accent-strong);cursor:pointer;font:inherit}
-.cc-msg-main{min-width:0;min-height:0;display:flex;flex-direction:column;background:radial-gradient(circle at 70% 10%,color-mix(in srgb,var(--accent-soft) 16%,transparent),transparent 30%),var(--panel)}.cc-msg-thread-head{justify-content:space-between}.cc-msg-person{min-width:0;display:flex;align-items:center;gap:11px}.cc-msg-person-copy{min-width:0;display:grid;gap:2px}.cc-msg-person-copy h2{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cc-msg-private{color:var(--muted);font-size:11px}.cc-msg-head-actions{display:flex;gap:6px}.cc-msg-window-action{width:36px;height:36px;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--muted);font-size:20px;cursor:pointer}.cc-msg-window-action:hover{border-color:var(--border);background:var(--panel-soft);color:var(--text)}.cc-msg-avatar{width:42px;height:42px;flex:0 0 auto;border:1px solid var(--border);border-radius:50%;display:grid;place-items:center;overflow:hidden;background:var(--panel-soft);font-weight:850;color:var(--accent-strong)}.cc-msg-avatar img{width:100%;height:100%;object-fit:cover}.cc-msg-messages{flex:1;min-height:0;overflow:auto;padding:22px max(20px,6vw);display:flex;flex-direction:column;gap:12px}.cc-msg-message{max-width:min(680px,78%);display:grid;gap:4px;align-self:flex-start}.cc-msg-message.is-mine{align-self:flex-end;justify-items:end}.cc-msg-message-meta{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:10px}.cc-msg-bubble{border:1px solid var(--border);border-radius:14px 14px 14px 4px;background:var(--panel-strong);padding:10px 13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}.cc-msg-message.is-mine .cc-msg-bubble{border-color:color-mix(in srgb,var(--accent) 48%,var(--border));border-radius:14px 14px 4px 14px;background:var(--accent-soft)}.cc-msg-message-tools{display:flex;gap:5px;opacity:0;transition:opacity .15s}.cc-msg-message:hover .cc-msg-message-tools,.cc-msg-message:focus-within .cc-msg-message-tools{opacity:1}.cc-msg-message-tools button{border:0;background:none;color:var(--muted);padding:2px 4px;font-size:10px;cursor:pointer}.cc-msg-message-tools button:hover{color:var(--accent-strong)}.cc-msg-deleted{color:var(--muted);font-style:italic}.cc-msg-composer{padding:14px 18px 18px;border-top:1px solid var(--border);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}.cc-msg-composer textarea{width:100%;min-height:45px;max-height:160px;resize:none;box-sizing:border-box;border:1px solid var(--border);border-radius:13px;background:var(--panel-strong);color:var(--text);padding:12px 13px;font:inherit;outline:none}.cc-msg-composer textarea:focus{border-color:var(--accent)}.cc-msg-send{min-height:45px;border:0;border-radius:12px;background:var(--accent);color:var(--panel);font-weight:850;padding:0 20px;cursor:pointer}.cc-msg-send:disabled{opacity:.45;cursor:not-allowed}.cc-msg-thread-empty{flex:1;display:grid;place-items:center;padding:30px}.cc-msg-thread-empty>div{max-width:460px;text-align:center}.cc-msg-thread-empty h3{font-family:var(--font-display,Georgia,serif);font-size:25px;margin:0 0 8px}.cc-msg-thread-empty p{color:var(--muted);line-height:1.55}.cc-msg-empty-compose{margin-top:10px}.cc-msg-new-list{flex:1;overflow:auto;padding:20px;display:grid;align-content:start;gap:8px}.cc-msg-new-list h3{margin:0 0 8px}.cc-msg-new-person{display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:10px;border:1px solid var(--border);border-radius:12px;background:var(--panel-soft);color:inherit;padding:10px 12px;text-align:left;cursor:pointer}.cc-msg-new-person:hover{border-color:var(--accent);background:var(--accent-soft)}.cc-msg-new-person span{color:var(--muted);font-size:12px}.cc-msg-new-person b{color:var(--accent-strong);font-size:18px}
-.cc-msg-dock{position:fixed;right:16px;bottom:12px;z-index:30000;width:min(390px,calc(100vw - 24px));height:min(560px,72vh);border:1px solid color-mix(in srgb,var(--accent) 42%,var(--border));border-radius:16px 16px 10px 10px;background:var(--panel);box-shadow:0 24px 70px rgba(0,0,0,.38);overflow:hidden;display:flex;flex-direction:column}.cc-msg-dock.is-collapsed{height:58px}.cc-msg-dock .cc-msg-thread-head{min-height:58px;padding:8px 10px;cursor:default}.cc-msg-dock .cc-msg-thread-head h2{font-size:16px}.cc-msg-dock .cc-msg-avatar{width:34px;height:34px}.cc-msg-dock .cc-msg-messages{padding:13px;gap:9px}.cc-msg-dock .cc-msg-message{max-width:86%}.cc-msg-dock .cc-msg-composer{padding:9px;grid-template-columns:minmax(0,1fr) 43px}.cc-msg-dock .cc-msg-composer textarea{min-height:39px;padding:9px 10px}.cc-msg-dock .cc-msg-send{min-height:39px;width:43px;padding:0;font-size:0}.cc-msg-dock .cc-msg-send::after{content:'➤';font-size:17px}.cc-msg-dock.is-collapsed .cc-msg-messages,.cc-msg-dock.is-collapsed .cc-msg-composer{display:none}.cc-msg-dock-badge{min-width:19px;height:19px;padding:0 5px;display:grid;place-items:center;border-radius:999px;background:#c74646;color:#fff;font-size:10px;font-weight:900}.cc-msg-dock-badge[hidden]{display:none}
-@media(max-width:760px){.cc-msg-inbox{grid-template-columns:1fr}.cc-msg-sidebar{border-right:0}.cc-msg-main{position:absolute;inset:0;z-index:2}.cc-msg-overlay:not(.has-thread) .cc-msg-main{display:none}.cc-msg-overlay.has-thread .cc-msg-sidebar{visibility:hidden}.cc-msg-back-mobile{display:inline-grid!important}.cc-msg-messages{padding:16px}.cc-msg-message{max-width:88%}.cc-msg-dock{right:8px;bottom:8px;width:calc(100vw - 16px);height:min(580px,78vh)}}
+.cc-msg-page{min-height:calc(100vh - 150px);display:flex;flex-direction:column;gap:18px}.cc-msg-page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px}.cc-msg-page-head h1{margin:4px 0 5px;font-family:var(--font-display,Georgia,serif);font-size:clamp(32px,4vw,48px);line-height:1}.cc-msg-page-head p{margin:0;color:var(--muted);max-width:650px}.cc-msg-page-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.cc-msg-inbox-window{flex:1;min-height:610px;height:calc(100vh - 235px);border:1px solid var(--border);border-radius:18px;overflow:hidden;background:var(--panel);box-shadow:0 22px 55px rgba(0,0,0,.16);display:grid;grid-template-columns:minmax(285px,360px) minmax(0,1fr)}
+.cc-msg-sidebar{min-width:0;min-height:0;border-right:1px solid var(--border);display:flex;flex-direction:column;background:color-mix(in srgb,var(--panel-strong) 88%,transparent)}.cc-msg-sidebar-head,.cc-msg-thread-head{min-height:70px;padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}.cc-msg-sidebar-head{justify-content:space-between}.cc-msg-sidebar-head>div{display:grid;gap:2px}.cc-msg-sidebar-head h2,.cc-msg-thread-head h2{margin:0;font-family:var(--font-display,Georgia,serif);font-size:22px}.cc-msg-sidebar-head span{font-size:11px;color:var(--muted)}.cc-msg-compose-icon{width:38px;height:38px;border:1px solid var(--border);border-radius:11px;background:var(--panel);color:var(--accent-strong);font-size:21px;cursor:pointer}.cc-msg-search-wrap{padding:12px 14px;border-bottom:1px solid var(--border)}.cc-msg-search,.cc-msg-people-search{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:999px;background:var(--panel);color:var(--text);padding:10px 13px;outline:none}.cc-msg-search:focus,.cc-msg-people-search:focus{border-color:var(--accent)}.cc-msg-thread-list{overflow:auto;flex:1;min-height:0;padding:8px}.cc-msg-thread-row{width:100%;display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:10px;border:1px solid transparent;border-radius:12px;background:transparent;color:inherit;padding:10px;text-align:left;cursor:pointer}.cc-msg-thread-row:hover{background:var(--panel-soft)}.cc-msg-thread-row.is-active{border-color:color-mix(in srgb,var(--accent) 60%,var(--border));background:var(--accent-soft)}.cc-msg-thread-copy{min-width:0;display:grid;gap:3px}.cc-msg-thread-copy strong,.cc-msg-thread-copy span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cc-msg-thread-copy span{color:var(--muted);font-size:12px}.cc-msg-thread-meta{display:grid;justify-items:end;gap:5px;color:var(--muted);font-size:10px}.cc-msg-unread{min-width:20px;height:20px;padding:0 6px;display:grid;place-items:center;border-radius:999px;background:#c74646;color:#fff;font-weight:900}.cc-msg-empty-list{padding:22px;color:var(--muted);text-align:center;line-height:1.5}.cc-msg-sidebar-foot{padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:12px}.cc-msg-sidebar-foot button{border:0;background:none;color:var(--accent-strong);cursor:pointer;font:inherit}
+.cc-msg-main{min-width:0;min-height:0;display:flex;flex-direction:column;background:radial-gradient(circle at 70% 10%,color-mix(in srgb,var(--accent-soft) 16%,transparent),transparent 30%),var(--panel)}.cc-msg-thread-head{justify-content:space-between}.cc-msg-person{min-width:0;display:flex;align-items:center;gap:11px}.cc-msg-person-copy{min-width:0;display:grid;gap:2px}.cc-msg-person-copy h2{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cc-msg-private{color:var(--muted);font-size:11px}.cc-msg-head-actions{display:flex;gap:6px;align-items:center}.cc-msg-window-action{width:36px;height:36px;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--muted);font-size:20px;cursor:pointer}.cc-msg-window-action:hover{border-color:var(--border);background:var(--panel-soft);color:var(--text)}.cc-msg-minimize-button{height:36px;border:1px solid var(--border);border-radius:9px;background:var(--panel-soft);color:var(--text);padding:0 12px;font:inherit;font-size:12px;font-weight:800;cursor:pointer}.cc-msg-minimize-button:hover{border-color:var(--accent);background:var(--accent-soft)}.cc-msg-avatar{width:42px;height:42px;flex:0 0 auto;border:1px solid var(--border);border-radius:50%;display:grid;place-items:center;overflow:hidden;background:var(--panel-soft);font-weight:850;color:var(--accent-strong)}.cc-msg-avatar img{width:100%;height:100%;object-fit:cover}.cc-msg-messages{flex:1;min-height:0;overflow:auto;padding:22px max(20px,6vw);display:flex;flex-direction:column;gap:12px}.cc-msg-message{max-width:min(680px,78%);display:grid;gap:4px;align-self:flex-start}.cc-msg-message.is-mine{align-self:flex-end;justify-items:end}.cc-msg-message-meta{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:10px}.cc-msg-bubble{border:1px solid var(--border);border-radius:14px 14px 14px 4px;background:var(--panel-strong);padding:10px 13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}.cc-msg-message.is-mine .cc-msg-bubble{border-color:color-mix(in srgb,var(--accent) 48%,var(--border));border-radius:14px 14px 4px 14px;background:var(--accent-soft)}.cc-msg-message-tools{display:flex;gap:5px;opacity:0;transition:opacity .15s}.cc-msg-message:hover .cc-msg-message-tools,.cc-msg-message:focus-within .cc-msg-message-tools{opacity:1}.cc-msg-message-tools button{border:0;background:none;color:var(--muted);padding:2px 4px;font-size:10px;cursor:pointer}.cc-msg-message-tools button:hover{color:var(--accent-strong)}.cc-msg-deleted{color:var(--muted);font-style:italic}.cc-msg-composer{padding:14px 18px 18px;border-top:1px solid var(--border);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}.cc-msg-composer textarea{width:100%;min-height:45px;max-height:160px;resize:none;box-sizing:border-box;border:1px solid var(--border);border-radius:13px;background:var(--panel-strong);color:var(--text);padding:12px 13px;font:inherit;outline:none}.cc-msg-composer textarea:focus{border-color:var(--accent)}.cc-msg-send{min-height:45px;border:0;border-radius:12px;background:var(--accent);color:var(--panel);font-weight:850;padding:0 20px;cursor:pointer}.cc-msg-send:disabled{opacity:.45;cursor:not-allowed}.cc-msg-thread-empty{flex:1;display:grid;place-items:center;padding:30px}.cc-msg-thread-empty>div{max-width:500px;text-align:center}.cc-msg-thread-empty h3{font-family:var(--font-display,Georgia,serif);font-size:27px;margin:0 0 8px}.cc-msg-thread-empty p{color:var(--muted);line-height:1.55}.cc-msg-thread-empty .button{margin-top:8px}
+.cc-msg-people-view{flex:1;min-height:0;overflow:auto;padding:24px}.cc-msg-people-title{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:16px}.cc-msg-people-title h2{font-family:var(--font-display,Georgia,serif);font-size:28px;margin:0 0 5px}.cc-msg-people-title p{margin:0;color:var(--muted);max-width:620px;line-height:1.5}.cc-msg-people-search-wrap{margin-bottom:14px;max-width:680px}.cc-msg-new-list{display:grid;align-content:start;gap:8px;max-width:850px}.cc-msg-new-person{display:grid;grid-template-columns:46px minmax(0,1fr) auto;align-items:center;gap:12px;border:1px solid var(--border);border-radius:13px;background:var(--panel-soft);color:inherit;padding:11px 13px;text-align:left;cursor:pointer}.cc-msg-new-person:hover{border-color:var(--accent);background:var(--accent-soft)}.cc-msg-new-person>span{min-width:0;display:grid;gap:2px}.cc-msg-new-person strong{font-size:14px}.cc-msg-new-person small{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cc-msg-new-person em{font-style:normal;color:var(--accent-strong);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}.cc-msg-new-person>b{color:var(--accent-strong);font-size:12px;white-space:nowrap}
+.cc-msg-dock{position:fixed;right:16px;bottom:12px;z-index:220;width:min(390px,calc(100vw - 24px));height:min(560px,72vh);border:1px solid color-mix(in srgb,var(--accent) 42%,var(--border));border-radius:16px 16px 10px 10px;background:var(--panel);box-shadow:0 24px 70px rgba(0,0,0,.38);overflow:hidden;display:flex;flex-direction:column}.cc-msg-dock.is-collapsed{height:58px}.cc-msg-dock .cc-msg-thread-head{min-height:58px;padding:8px 10px;cursor:default}.cc-msg-dock .cc-msg-thread-head h2{font-size:16px}.cc-msg-dock .cc-msg-avatar{width:34px;height:34px}.cc-msg-dock .cc-msg-messages{padding:13px;gap:9px}.cc-msg-dock .cc-msg-message{max-width:86%}.cc-msg-dock .cc-msg-composer{padding:9px;grid-template-columns:minmax(0,1fr) 43px}.cc-msg-dock .cc-msg-composer textarea{min-height:39px;padding:9px 10px}.cc-msg-dock .cc-msg-send{min-height:39px;width:43px;padding:0;font-size:0}.cc-msg-dock .cc-msg-send::after{content:'➤';font-size:17px}.cc-msg-dock.is-collapsed .cc-msg-messages,.cc-msg-dock.is-collapsed .cc-msg-composer{display:none}.cc-msg-dock-badge{min-width:19px;height:19px;padding:0 5px;display:grid;place-items:center;border-radius:999px;background:#c74646;color:#fff;font-size:10px;font-weight:900}
+@media(max-width:900px){.cc-msg-page{min-height:calc(100vh - 120px)}.cc-msg-page-head{align-items:flex-start;flex-direction:column}.cc-msg-page-actions{justify-content:flex-start}.cc-msg-inbox-window{height:calc(100vh - 280px);min-height:560px;grid-template-columns:minmax(250px,310px) minmax(0,1fr)}}
+@media(max-width:760px){.cc-msg-page{gap:12px}.cc-msg-page-head h1{font-size:34px}.cc-msg-page-head p{font-size:12px}.cc-msg-page-actions{width:100%}.cc-msg-page-actions .button{flex:1}.cc-msg-inbox-window{position:relative;display:block;height:calc(100vh - 250px);min-height:540px}.cc-msg-sidebar{height:100%;border-right:0}.cc-msg-main{position:absolute;inset:0;z-index:2}.cc-msg-page:not(.has-thread):not(.is-people) .cc-msg-main{display:none}.cc-msg-page.has-thread .cc-msg-sidebar,.cc-msg-page.is-people .cc-msg-sidebar{visibility:hidden}.cc-msg-page.has-thread .cc-msg-main,.cc-msg-page.is-people .cc-msg-main{display:flex}.cc-msg-back-mobile{display:inline-grid!important}.cc-msg-messages{padding:16px}.cc-msg-message{max-width:88%}.cc-msg-minimize-button{font-size:0;width:38px;padding:0}.cc-msg-minimize-button::after{content:'—';font-size:20px}.cc-msg-people-view{padding:16px}.cc-msg-people-title{flex-direction:column}.cc-msg-new-person{grid-template-columns:42px minmax(0,1fr)}.cc-msg-new-person>b{display:none}.cc-msg-dock{right:8px;bottom:8px;width:calc(100vw - 16px);height:min(580px,78vh)}}
 @media(min-width:761px){.cc-msg-back-mobile{display:none!important}}
 </style>
 
