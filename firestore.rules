@@ -1,30 +1,147 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /worlds/{worldId} {
-      function signedIn() {
-        return request.auth != null && request.auth.token.email != null;
-      }
 
-      function currentRole() {
-        return resource.data.workspace.access[request.auth.token.email];
-      }
+    function signedIn() {
+      return request.auth != null && request.auth.token.email != null;
+    }
 
-      function requestedRole() {
-        return request.resource.data.workspace.access[request.auth.token.email];
-      }
+    function email() {
+      return request.auth.token.email.lower();
+    }
 
+    function memberPath(workspaceId, memberEmail) {
+      return /databases/$(database)/documents/workspaces/$(workspaceId)/members/$(memberEmail);
+    }
+
+    function myMemberPath(workspaceId) {
+      return memberPath(workspaceId, email());
+    }
+
+    function isMember(workspaceId) {
+      return signedIn() && exists(myMemberPath(workspaceId));
+    }
+
+    function role(workspaceId) {
+      return get(myMemberPath(workspaceId)).data.role;
+    }
+
+    function canEdit(workspaceId) {
+      return isMember(workspaceId) && role(workspaceId) in ['Owner', 'Admin', 'Editor'];
+    }
+
+    function isOwner(workspaceId) {
+      return isMember(workspaceId) && role(workspaceId) == 'Owner';
+    }
+
+    function isThreadParticipant(data) {
+      return signedIn()
+        && data.participants is list
+        && email() in data.participants;
+    }
+
+    match /workspaces/{workspaceId} {
       allow create: if signedIn()
-        && request.resource.data.workspace.ownerUid == request.auth.uid
-        && requestedRole() == 'Owner';
+        && request.resource.data.createdByUid == request.auth.uid
+        && request.resource.data.createdByEmail == email();
 
-      allow read: if signedIn()
-        && resource.data.workspace.access[request.auth.token.email] != null;
+      allow read: if isMember(workspaceId);
+      allow update: if canEdit(workspaceId);
+      allow delete: if isOwner(workspaceId);
 
-      allow update: if signedIn()
-        && currentRole() in ['Owner', 'Admin', 'Editor'];
+      match /members/{memberEmail} {
+        allow read: if isMember(workspaceId);
 
-      allow delete: if signedIn() && currentRole() == 'Owner';
+        // The creator can establish their own Owner membership in the same
+        // atomic batch that creates the workspace. After that, only Owners can
+        // create/remove members.
+        allow create: if isOwner(workspaceId)
+          || (signedIn()
+              && memberEmail == email()
+              && getAfter(/databases/$(database)/documents/workspaces/$(workspaceId)).data.createdByUid == request.auth.uid
+              && request.resource.data.role == 'Owner');
+
+        // Members may maintain their own profile/presence data but may not
+        // change their own role or email. Owners may manage the full record.
+        allow update: if isOwner(workspaceId)
+          || (signedIn()
+              && memberEmail == email()
+              && request.resource.data.role == resource.data.role
+              && request.resource.data.email == resource.data.email);
+
+        allow delete: if isOwner(workspaceId);
+      }
+
+      match /characters/{docId} {
+        allow read: if isMember(workspaceId);
+        allow create, update, delete: if canEdit(workspaceId);
+      }
+      match /locations/{docId} {
+        allow read: if isMember(workspaceId);
+        allow create, update, delete: if canEdit(workspaceId);
+      }
+      match /species/{docId} {
+        allow read: if isMember(workspaceId);
+        allow create, update, delete: if canEdit(workspaceId);
+      }
+      match /factions/{docId} {
+        allow read: if isMember(workspaceId);
+        allow create, update, delete: if canEdit(workspaceId);
+      }
+      match /events/{docId} {
+        allow read: if isMember(workspaceId);
+        allow create, update, delete: if canEdit(workspaceId);
+      }
+    }
+
+    // Private one-to-one Messenger threads. A thread can only be read by the
+    // two addresses recorded in participants. Workspace Owners/Admins do not
+    // receive access to another pair's private messages.
+    match /directMessageThreads/{threadId} {
+      allow create: if signedIn()
+        && request.resource.data.workspaceId is string
+        && request.resource.data.participants is list
+        && request.resource.data.participants.size() == 2
+        && email() in request.resource.data.participants
+        && request.resource.data.memberA in request.resource.data.participants
+        && request.resource.data.memberB in request.resource.data.participants
+        && request.resource.data.memberA != request.resource.data.memberB
+        && exists(memberPath(request.resource.data.workspaceId, request.resource.data.memberA))
+        && exists(memberPath(request.resource.data.workspaceId, request.resource.data.memberB));
+
+      allow read: if isThreadParticipant(resource.data);
+
+      allow update: if isThreadParticipant(resource.data)
+        && request.resource.data.workspaceId == resource.data.workspaceId
+        && request.resource.data.participants == resource.data.participants
+        && request.resource.data.memberA == resource.data.memberA
+        && request.resource.data.memberB == resource.data.memberB;
+
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        function parentThread() {
+          return get(/databases/$(database)/documents/directMessageThreads/$(threadId)).data;
+        }
+        function parentThreadAfter() {
+          return getAfter(/databases/$(database)/documents/directMessageThreads/$(threadId)).data;
+        }
+
+        allow read: if isThreadParticipant(parentThread());
+
+        allow create: if isThreadParticipant(parentThreadAfter())
+          && request.resource.data.sender == email()
+          && request.resource.data.text is string
+          && request.resource.data.text.size() <= 5000;
+
+        allow update: if isThreadParticipant(parentThread())
+          && resource.data.sender == email()
+          && request.resource.data.sender == resource.data.sender
+          && request.resource.data.createdAtMs == resource.data.createdAtMs;
+
+        allow delete: if isThreadParticipant(parentThread())
+          && resource.data.sender == email();
+      }
     }
   }
 }
