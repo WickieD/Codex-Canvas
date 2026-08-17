@@ -6855,6 +6855,33 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
       <div class="sidebar-foot">
         <div class="sidebar-user"><span class="avatar">${initials(firebase.user?.email || 'Signed-in account')}</span><span class="user-copy"><span class="user-name">${esc(firebase.user?.email || 'Signed-in account')}</span><span class="user-mode">${firebase.connected ? 'Shared mode' : 'Local demo mode'}</span></span></div>
       </div>`;
+
+    // Navigation Explorer controls are rebound directly every time the mobile
+    // sidebar is rendered.  Android browsers can visually change a <select>
+    // before a delegated document-level change handler gets a chance to run,
+    // which left the old tree on screen even though the dropdown showed a new
+    // Explorer.  Binding the live control itself keeps the selector and tree in
+    // lockstep.
+    const explorerSelect=el.sidebar.querySelector('[data-cc-explorer-select]');
+    if(explorerSelect){
+      explorerSelect.addEventListener('change',event=>{
+        event.stopPropagation();
+        const next=event.currentTarget.value;
+        const prefs=ccNavExplorerPrefs();
+        if(!ccNavExplorerEnabledTypes(prefs).includes(next))return;
+        prefs.active=next;
+        ccNavExplorerSave(prefs,{quiet:true});
+      });
+    }
+    const explorerFocus=el.sidebar.querySelector('[data-cc-explorer-focus]');
+    if(explorerFocus){
+      explorerFocus.addEventListener('change',event=>{
+        event.stopPropagation();
+        const prefs=ccNavExplorerPrefs();
+        prefs.relationshipFocusId=event.currentTarget.value;
+        ccNavExplorerSave(prefs,{quiet:true});
+      });
+    }
   }
 
   function renderBreadcrumbs() {
