@@ -4366,14 +4366,23 @@ button.ccrh-context-chip:hover{border-color:var(--accent);color:var(--text)}
 
 @media (max-width:760px){
   .ccrh-global-notifications{position:relative}
-  .ccrh-notification-menu{
-    position:fixed;
-    left:10px;right:10px;top:var(--ccrh-mobile-notification-top,72px);bottom:10px;
-    width:auto;max-width:none;max-height:none;
+  /* The top bar uses backdrop-filter, which creates a containing block for
+     fixed descendants on mobile browsers. Keep the inline desktop menu hidden
+     and render the mobile panel directly under <body> instead. */
+  #ccrh-global-notifications > .ccrh-notification-menu{display:none !important}
+  .ccrh-mobile-notification-portal{
+    position:fixed !important;
+    z-index:50000 !important;
+    left:10px !important;right:10px !important;
+    top:var(--ccrh-mobile-notification-top,72px) !important;
+    bottom:max(10px,env(safe-area-inset-bottom)) !important;
+    width:auto !important;max-width:none !important;max-height:none !important;height:auto !important;
     border-radius:16px;overflow-y:auto;overflow-x:hidden;
-    overscroll-behavior:contain;
-    box-shadow:0 24px 70px rgba(0,0,0,.55);
+    overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+    background:var(--panel);border:1px solid var(--border);
+    box-shadow:0 24px 70px rgba(0,0,0,.58);
   }
+  body.ccrh-mobile-notifications-open{overflow:hidden}
   .ccrh-notification-title{
     position:sticky;top:0;z-index:2;padding:13px 14px;
     background:color-mix(in srgb,var(--panel) 96%,transparent);
@@ -15559,7 +15568,7 @@ initFirebase();
 
   document.addEventListener('click',async event=>{
     const notificationToggle=event.target.closest('[data-ccrh-notification-toggle]'); if(notificationToggle){event.preventDefault();event.stopImmediatePropagation();ccrhOpenNotificationMenu();return;}
-    const notificationClose=event.target.closest('[data-ccrh-notification-close]'); if(notificationClose){event.preventDefault();event.stopImmediatePropagation();const menu=document.querySelector('[data-ccrh-notification-menu]');if(menu)menu.hidden=true;return;}
+    const notificationClose=event.target.closest('[data-ccrh-notification-close]'); if(notificationClose){event.preventDefault();event.stopImmediatePropagation();const menu=notificationClose.closest('[data-ccrh-notification-menu]');if(menu)menu.hidden=true;document.body.classList.remove('ccrh-mobile-notifications-open');return;}
     const openNotification=event.target.closest('[data-ccrh-open-notification]'); if(openNotification){event.preventDefault();ccrhOpenNotification(openNotification.dataset.ccrhOpenNotification);return;}
     const markAllNotifications=event.target.closest('[data-ccrh-mark-all-read]'); if(markAllNotifications){event.preventDefault();ccrhMarkAllNotificationsRead();return;}
     const refreshPosts=event.target.closest('[data-ccrh-refresh-posts]'); if(refreshPosts){event.preventDefault();const {story}=ccrhStoryFromRoute();ccrhPendingRemoteRefresh=false;if(story)ccrhKnownPostCount=ensureStoryDocument(story).length;ccrhRenderReader();return;}
@@ -15716,8 +15725,27 @@ initFirebase();
     wrap.innerHTML=`<button class="ccrh-notification-button" type="button" data-ccrh-notification-toggle aria-label="Roleplay notifications"><span>🔔</span>${count?`<span class="ccrh-notification-count">${count}</span>`:''}</button><div class="ccrh-notification-menu" data-ccrh-notification-menu hidden></div>`;
     actions.insertBefore(wrap,actions.firstChild);
   }
+  function ccrhNotificationMenuForCurrentViewport(){
+    const mobile=window.matchMedia('(max-width:760px)').matches;
+    if(!mobile)return document.querySelector('#ccrh-global-notifications [data-ccrh-notification-menu]');
+    let menu=document.getElementById('ccrh-mobile-notification-portal');
+    if(!menu){
+      menu=document.createElement('div');
+      menu.id='ccrh-mobile-notification-portal';
+      menu.className='ccrh-notification-menu ccrh-mobile-notification-portal';
+      menu.setAttribute('data-ccrh-notification-menu','');
+      menu.hidden=true;
+      document.body.appendChild(menu);
+    }
+    return menu;
+  }
+  function ccrhCloseNotificationMenus(){
+    document.querySelectorAll('[data-ccrh-notification-menu]').forEach(menu=>menu.hidden=true);
+    document.body.classList.remove('ccrh-mobile-notifications-open');
+  }
   function ccrhOpenNotificationMenu(){
-    const menu=document.querySelector('[data-ccrh-notification-menu]');
+    const mobile=window.matchMedia('(max-width:760px)').matches;
+    const menu=ccrhNotificationMenuForCurrentViewport();
     if(!menu)return;
     const notes=ccrhNotifications()
       .filter(note=>normalizeMemberEmail(note.recipientEmail)===normalizeMemberEmail(firebase.user?.email||''))
@@ -15730,16 +15758,21 @@ initFirebase();
       </article>`).join(''):'<div class="ccrh-notification-empty">No roleplay notifications yet.</div>'}
       ${notes.some(note=>!note.readAt)?'<button class="button ghost small ccrh-mark-all" type="button" data-ccrh-mark-all-read>Mark all as read</button>':''}`;
     const opening=menu.hidden;
-    menu.hidden=!opening;
-    if(opening&&window.matchMedia('(max-width:760px)').matches){
+    ccrhCloseNotificationMenus();
+    if(!opening)return;
+    if(mobile){
       const topbar=document.querySelector('.topbar');
       const bottom=topbar?.getBoundingClientRect().bottom||62;
-      menu.style.setProperty('--ccrh-mobile-notification-top',`${Math.max(8,Math.min(window.innerHeight-120,bottom+8))}px`);
+      const safeTop=Math.max(8,Math.min(window.innerHeight-140,bottom+8));
+      menu.style.setProperty('--ccrh-mobile-notification-top',`${safeTop}px`);
+      document.body.classList.add('ccrh-mobile-notifications-open');
     }
+    menu.hidden=false;
   }
   function ccrhOpenNotification(noteId){
     const note=ccrhNotifications().find(item=>item.id===noteId);
     if(!note)return;
+    ccrhCloseNotificationMenus();
     note.readAt=nowISO();
     scheduleSave('Marking notification read…');
     navigate('story',storyRouteValue(note.storyId,''));
@@ -15756,9 +15789,16 @@ initFirebase();
     }
     scheduleSave('Marking notifications read…');
     ccrhRenderNotificationBell();
-    const menu=document.querySelector('[data-ccrh-notification-menu]');
-    if(menu)menu.hidden=true;
+    ccrhCloseNotificationMenus();
   }
+
+  window.addEventListener('resize',()=>{
+    if(window.matchMedia('(min-width:761px)').matches){
+      const portal=document.getElementById('ccrh-mobile-notification-portal');
+      if(portal)portal.hidden=true;
+      document.body.classList.remove('ccrh-mobile-notifications-open');
+    }
+  });
 
   function ccrhToggleFollow(){
     const {story}=ccrhStoryFromRoute();
