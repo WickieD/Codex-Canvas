@@ -4361,6 +4361,32 @@ button.ccrh-context-chip:hover{border-color:var(--accent);color:var(--text)}
 .ccrh-notification-item span{font-size:11px;color:var(--muted)}
 .ccrh-notification-empty{padding:18px;color:var(--muted)}
 .ccrh-mark-all{margin:10px}
+.ccrh-notification-title{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ccrh-notification-close{display:none;width:34px;height:34px;border:1px solid var(--border);border-radius:9px;background:var(--panel-strong);color:var(--text);font-size:20px;line-height:1;cursor:pointer}
+
+@media (max-width:760px){
+  .ccrh-global-notifications{position:relative}
+  .ccrh-notification-menu{
+    position:fixed;
+    left:10px;right:10px;top:var(--ccrh-mobile-notification-top,72px);bottom:10px;
+    width:auto;max-width:none;max-height:none;
+    border-radius:16px;overflow-y:auto;overflow-x:hidden;
+    overscroll-behavior:contain;
+    box-shadow:0 24px 70px rgba(0,0,0,.55);
+  }
+  .ccrh-notification-title{
+    position:sticky;top:0;z-index:2;padding:13px 14px;
+    background:color-mix(in srgb,var(--panel) 96%,transparent);
+    backdrop-filter:blur(12px);
+    font-size:15px;
+  }
+  .ccrh-notification-close{display:grid;place-items:center;flex:0 0 auto}
+  .ccrh-notification-item{padding:14px;gap:7px}
+  .ccrh-notification-item strong{font-size:14px;line-height:1.45;overflow-wrap:anywhere}
+  .ccrh-notification-item span{font-size:12px}
+  .ccrh-notification-item .button{justify-self:start;width:auto;min-width:0;margin-top:2px}
+  .ccrh-mark-all{width:calc(100% - 20px);margin:10px}
+}
 </style>
 
 
@@ -15533,6 +15559,7 @@ initFirebase();
 
   document.addEventListener('click',async event=>{
     const notificationToggle=event.target.closest('[data-ccrh-notification-toggle]'); if(notificationToggle){event.preventDefault();event.stopImmediatePropagation();ccrhOpenNotificationMenu();return;}
+    const notificationClose=event.target.closest('[data-ccrh-notification-close]'); if(notificationClose){event.preventDefault();event.stopImmediatePropagation();const menu=document.querySelector('[data-ccrh-notification-menu]');if(menu)menu.hidden=true;return;}
     const openNotification=event.target.closest('[data-ccrh-open-notification]'); if(openNotification){event.preventDefault();ccrhOpenNotification(openNotification.dataset.ccrhOpenNotification);return;}
     const markAllNotifications=event.target.closest('[data-ccrh-mark-all-read]'); if(markAllNotifications){event.preventDefault();ccrhMarkAllNotificationsRead();return;}
     const refreshPosts=event.target.closest('[data-ccrh-refresh-posts]'); if(refreshPosts){event.preventDefault();const {story}=ccrhStoryFromRoute();ccrhPendingRemoteRefresh=false;if(story)ccrhKnownPostCount=ensureStoryDocument(story).length;ccrhRenderReader();return;}
@@ -15695,14 +15722,20 @@ initFirebase();
     const notes=ccrhNotifications()
       .filter(note=>normalizeMemberEmail(note.recipientEmail)===normalizeMemberEmail(firebase.user?.email||''))
       .slice(0,20);
-    menu.innerHTML=`<div class="ccrh-notification-title">Roleplay notifications</div>${notes.length?notes.map(note=>`
+    menu.innerHTML=`<div class="ccrh-notification-title"><span>Roleplay notifications</span><button class="ccrh-notification-close" type="button" data-ccrh-notification-close aria-label="Close notifications">×</button></div>${notes.length?notes.map(note=>`
       <article class="ccrh-notification-item ${note.readAt?'':'unread'}">
         <strong>${esc(note.characterName)} posted in “${esc(note.threadTitle)}”</strong>
         <span>${esc(ccrhNotificationTime(note.createdAt))}</span>
         <button class="button ghost small" type="button" data-ccrh-open-notification="${esc(note.id)}">Read post</button>
       </article>`).join(''):'<div class="ccrh-notification-empty">No roleplay notifications yet.</div>'}
       ${notes.some(note=>!note.readAt)?'<button class="button ghost small ccrh-mark-all" type="button" data-ccrh-mark-all-read>Mark all as read</button>':''}`;
-    menu.hidden=!menu.hidden;
+    const opening=menu.hidden;
+    menu.hidden=!opening;
+    if(opening&&window.matchMedia('(max-width:760px)').matches){
+      const topbar=document.querySelector('.topbar');
+      const bottom=topbar?.getBoundingClientRect().bottom||62;
+      menu.style.setProperty('--ccrh-mobile-notification-top',`${Math.max(8,Math.min(window.innerHeight-120,bottom+8))}px`);
+    }
   }
   function ccrhOpenNotification(noteId){
     const note=ccrhNotifications().find(item=>item.id===noteId);
