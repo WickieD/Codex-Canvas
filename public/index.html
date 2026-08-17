@@ -216,6 +216,9 @@ a { color: inherit; }
 }
 .avatar-button { border-radius: 50%; font-size: 11px; font-weight: 800; background: var(--accent-soft); color: var(--accent-strong); }
 .mobile-only { display: none; }
+.mobile-topbar-logo { display:none; align-items:center; gap:7px; min-width:0; border:0; background:transparent; color:var(--text); padding:0 3px; }
+.mobile-topbar-logo-mark { width:31px; height:31px; flex:0 0 31px; display:grid; place-items:center; border-radius:9px; background:var(--accent-soft); color:var(--accent-strong); font-family:Georgia,serif; font-size:11px; font-weight:900; letter-spacing:.04em; border:1px solid color-mix(in srgb,var(--accent) 26%,var(--border)); }
+.mobile-topbar-logo-word { max-width:86px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:Georgia,serif; font-size:17px; font-weight:650; color:var(--accent-strong); }
 
 .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 22px; margin-bottom: 28px; }
 .page-kicker { color: var(--accent); font-size: 12px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; margin-bottom: 8px; }
@@ -432,6 +435,25 @@ tbody tr:hover { background: var(--accent-soft); }
 
 .settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
 .settings-card { border: 1px solid var(--border); border-radius: 13px; background: var(--panel); padding: 17px; }
+.cc-mobile-topbar-settings { display:grid; gap:14px; }
+.cc-mobile-topbar-preview { display:flex; align-items:center; gap:8px; min-height:58px; padding:8px 10px; border:1px solid var(--border); border-radius:12px; background:color-mix(in srgb,var(--bg) 72%,var(--panel)); overflow:hidden; }
+.cc-mobile-topbar-preview .cc-mtb-preview-menu, .cc-mobile-topbar-preview .cc-mtb-preview-icon { width:36px; height:36px; flex:0 0 36px; display:grid; place-items:center; border:1px solid var(--border); border-radius:9px; background:var(--panel-strong); font-weight:800; }
+.cc-mobile-topbar-preview .cc-mtb-preview-logo { display:flex; align-items:center; gap:6px; color:var(--accent-strong); font-family:Georgia,serif; white-space:nowrap; }
+.cc-mobile-topbar-preview .cc-mtb-preview-live { min-width:88px; display:flex; align-items:center; justify-content:center; gap:7px; height:36px; padding:0 10px; border:1px solid var(--border); border-radius:999px; background:var(--panel-strong); white-space:nowrap; font-size:12px; font-weight:750; }
+.cc-mobile-topbar-preview .cc-mtb-preview-dot { width:8px; height:8px; border-radius:50%; background:var(--success); box-shadow:0 0 0 3px color-mix(in srgb,var(--success) 18%,transparent); }
+.cc-mobile-topbar-options { display:grid; gap:7px; }
+.cc-mobile-topbar-option { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:48px; padding:9px 11px; border:1px solid var(--border); border-radius:10px; background:var(--panel-soft); }
+.cc-mobile-topbar-option-copy { min-width:0; display:grid; gap:2px; }
+.cc-mobile-topbar-option-copy strong { font-size:13px; }
+.cc-mobile-topbar-option-copy small { color:var(--muted); font-size:10px; }
+.cc-mobile-topbar-switch { position:relative; width:42px; height:24px; flex:0 0 42px; }
+.cc-mobile-topbar-switch input { position:absolute; opacity:0; pointer-events:none; }
+.cc-mobile-topbar-switch span { position:absolute; inset:0; border-radius:999px; background:var(--border); transition:.18s ease; }
+.cc-mobile-topbar-switch span::after { content:''; position:absolute; width:18px; height:18px; left:3px; top:3px; border-radius:50%; background:white; box-shadow:0 1px 4px rgba(0,0,0,.25); transition:.18s ease; }
+.cc-mobile-topbar-switch input:checked + span { background:var(--accent); }
+.cc-mobile-topbar-switch input:checked + span::after { transform:translateX(18px); }
+.cc-mobile-topbar-switch input:disabled + span { opacity:.55; }
+.cc-mobile-topbar-note { margin:0; color:var(--muted); font-size:11px; line-height:1.5; }
 .theme-options { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 9px; margin-top: 12px; }
 .theme-option { border: 1px solid var(--border); border-radius: 10px; background: var(--panel-strong); padding: 8px; }
 .theme-swatch { height: 43px; border-radius: 7px; margin-bottom: 6px; border: 1px solid rgba(0,0,0,.08); }
@@ -474,13 +496,33 @@ tbody tr:hover { background: var(--accent-soft); }
   body.sidebar-open .sidebar-backdrop { display: block !important; }
   .workspace-shell { margin-left: 0; }
   .mobile-only { display: grid; }
-  .topbar { padding: 9px 12px; }
-  .main-content { padding: 24px 16px 60px; }
-  .global-search { width: 42px; }
-  .global-search input { width: 42px; padding-left: 34px; padding-right: 5px; }
-  .global-search input:focus { position: absolute; right: 0; top: -19px; width: min(310px, calc(100vw - 90px)); z-index: 3; padding-right: 12px; }
+  .topbar { min-height:58px; padding: 9px 12px; gap:8px; flex-wrap:nowrap; }
+  .breadcrumbs { display:none; }
+  .topbar-actions { margin-left:auto; gap:8px; min-width:0; }
+  .topbar-actions > #cc16-presence-mount { order:10; }
+  .topbar-actions > .global-search { order:20; }
+  .topbar-actions > #ccrh-global-notifications { order:30; }
+  .topbar-actions > #ccMessagesButton { order:40; }
+  .topbar-actions > #accountButton { order:50; }
+  .mobile-topbar-logo { flex:0 1 auto; }
+  body.cc-mobile-topbar-show-logo .mobile-topbar-logo { display:flex; }
+  body:not(.cc-mobile-topbar-show-live) #cc16-presence-mount { display:none !important; }
+  body:not(.cc-mobile-topbar-show-search) .global-search { display:none !important; }
+  body:not(.cc-mobile-topbar-show-notifications) #ccrh-global-notifications { display:none !important; }
+  body:not(.cc-mobile-topbar-show-messages) #ccMessagesButton { display:none !important; }
+  body:not(.cc-mobile-topbar-show-avatar) #accountButton { display:none !important; }
+  body.cc-mobile-topbar-many .topbar { flex-wrap:wrap; align-content:center; }
+  body.cc-mobile-topbar-many .topbar-actions { flex:0 0 100%; margin-left:0; justify-content:flex-start; padding-left:46px; }
+  #cc16-presence-mount .cc16-avatars, #cc16-presence-mount .cc16-count { display:none; }
+  #cc16-presence-mount .cc16-presence-button { min-height:40px; max-width:126px; padding:5px 10px; gap:7px; white-space:nowrap; }
+  #cc16-presence-mount .cc16-live-dot { flex:0 0 9px; }
+  .global-search { width: 40px; }
+  .global-search input { width: 40px; height:40px; padding-left:33px; padding-right:5px; }
+  .global-search input:focus { position: absolute; right: 0; top: 0; width: min(292px, calc(100vw - 70px)); z-index: 60; padding-right: 12px; background:var(--panel-strong); }
+  .icon-button, .avatar-button, .ccrh-notification-button { width:40px; height:40px; }
   .save-status { display: none; }
   .topbar-actions .button.secondary { display: none; }
+  .main-content { padding: 24px 16px 60px; }
   .page-head { display: block; }
   .page-actions { margin-top: 15px; }
   .dashboard-grid { grid-template-columns: 1fr; }
@@ -6017,6 +6059,9 @@ button.ccrh-context-chip:hover{border-color:var(--accent);color:var(--text)}
     <section class="workspace-shell">
       <header class="topbar">
         <button id="mobileMenuButton" class="icon-button mobile-only" type="button" aria-label="Open navigation">☰</button>
+        <button id="mobileTopbarLogo" class="mobile-topbar-logo" type="button" data-nav="dashboard" aria-label="Open Codex Canvas home" title="Codex Canvas">
+          <span class="mobile-topbar-logo-mark">CC</span><span class="mobile-topbar-logo-word">Codex</span>
+        </button>
         <nav id="breadcrumbs" class="breadcrumbs" aria-label="Breadcrumb"></nav>
         <div class="topbar-actions">
           <div id="cc16-presence-mount"></div>
@@ -6420,6 +6465,78 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
       else if (child && typeof child === 'object') cleanNotionArtifacts(child, seen);
     }
     return value;
+  }
+
+  const CC_MOBILE_TOPBAR_DEFAULT = Object.freeze({logo:false,avatar:false,live:true,search:false,notifications:false,messages:true});
+  const CC_MOBILE_TOPBAR_KEYS = ['logo','avatar','live','search','notifications','messages'];
+
+  function ccMobileTopBarMember(){
+    const email=normalizeMemberEmail(firebase.user?.email||'');
+    return (state.workspace.members||[]).find(member=>normalizeMemberEmail(member.email)===email)||null;
+  }
+  function ccMobileTopBarPrefs(){
+    const member=ccMobileTopBarMember();
+    const saved=member?.profile?.mobileTopBar||state.workspace.mobileTopBarFallback||{};
+    const prefs={...CC_MOBILE_TOPBAR_DEFAULT};
+    for(const key of CC_MOBILE_TOPBAR_KEYS) if(typeof saved[key]==='boolean') prefs[key]=saved[key];
+    return prefs;
+  }
+  function ccMobileTopBarApply(){
+    const prefs=ccMobileTopBarPrefs();
+    for(const key of CC_MOBILE_TOPBAR_KEYS) document.body.classList.toggle(`cc-mobile-topbar-show-${key}`,Boolean(prefs[key]));
+    const selected=CC_MOBILE_TOPBAR_KEYS.filter(key=>prefs[key]).length;
+    document.body.classList.toggle('cc-mobile-topbar-many',selected>4||(prefs.logo&&selected>3));
+  }
+  async function ccMobileTopBarSave(prefs,{quiet=false}={}){
+    const member=ccMobileTopBarMember();
+    const normalized={...CC_MOBILE_TOPBAR_DEFAULT};
+    for(const key of CC_MOBILE_TOPBAR_KEYS) normalized[key]=Boolean(prefs?.[key]);
+    if(member){
+      member.profile={...(member.profile||{}),mobileTopBar:normalized};
+      try{localStateSnapshot();}catch{}
+      if(firebase.connected&&firebase.user?.email){
+        try{
+          await firebase.api.setDoc(firebaseMemberRef(firebase.user.email),{profile:member.profile},{merge:true});
+        }catch(error){
+          console.error('Mobile top bar preference save failed',error);
+          if(!quiet)toast('Top bar preference could not be saved to your profile.','error');
+        }
+      }
+    }else{
+      state.workspace.mobileTopBarFallback=normalized;
+      try{localStateSnapshot();}catch{}
+    }
+    ccMobileTopBarApply();
+    if(!quiet)toast('Mobile top bar updated.');
+  }
+  function ccMobileTopBarSettingMarkup(){
+    const prefs=ccMobileTopBarPrefs();
+    const items=[
+      ['logo','Logo','Show the compact Codex logo.'],
+      ['avatar','Avatar','Show your account avatar.'],
+      ['live','Live Now','Show who is currently online.'],
+      ['search','Search','Show the quick search control.'],
+      ['notifications','Notifications','Show Roleplay Hub notifications.'],
+      ['messages','Messages','Show the private Messages inbox button.']
+    ];
+    const preview=[];
+    preview.push('<span class="cc-mtb-preview-menu">☰</span>');
+    if(prefs.logo)preview.push('<span class="cc-mtb-preview-logo"><b>CC</b> Codex</span>');
+    if(prefs.live)preview.push('<span class="cc-mtb-preview-live"><i class="cc-mtb-preview-dot"></i>Live now</span>');
+    if(prefs.search)preview.push('<span class="cc-mtb-preview-icon">⌕</span>');
+    if(prefs.notifications)preview.push('<span class="cc-mtb-preview-icon">🔔</span>');
+    if(prefs.messages)preview.push('<span class="cc-mtb-preview-icon">▤</span>');
+    if(prefs.avatar)preview.push('<span class="cc-mtb-preview-icon">J</span>');
+    return `<div class="cc-mobile-topbar-settings">
+      <p class="page-subtitle">Choose what stays visible in the portrait mobile top bar. The Menu button is always available. Your default is Menu + Live Now + Messages.</p>
+      <div class="cc-mobile-topbar-preview" aria-label="Mobile top bar preview">${preview.join('')}</div>
+      <div class="cc-mobile-topbar-options">
+        <div class="cc-mobile-topbar-option"><span class="cc-mobile-topbar-option-copy"><strong>Menu</strong><small>Always shown so navigation is never locked away.</small></span><label class="cc-mobile-topbar-switch"><input type="checkbox" checked disabled><span></span></label></div>
+        ${items.map(([key,label,help])=>`<label class="cc-mobile-topbar-option"><span class="cc-mobile-topbar-option-copy"><strong>${label}</strong><small>${help}</small></span><span class="cc-mobile-topbar-switch"><input type="checkbox" data-mobile-topbar-toggle="${key}" ${prefs[key]?'checked':''}><span></span></span></label>`).join('')}
+      </div>
+      <div class="page-actions"><button class="button secondary small" type="button" data-mobile-topbar-reset>Use default</button></div>
+      <p class="cc-mobile-topbar-note">If you turn on more controls than fit comfortably, Codex automatically gives the top bar a second row instead of squeezing the buttons smaller.</p>
+    </div>`;
   }
 
   function applyTheme() {
@@ -8472,6 +8589,7 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
     el.main.innerHTML = `${pageHead('Workspace','Settings','Manage appearance, backups, imports, and the connection used for shared accounts.')}
       <div class="settings-grid">
         <section class="settings-card"><h2>Appearance</h2><p class="page-subtitle">Choose a complete workspace theme. You can also set a custom accent.</p><div class="theme-options">${themes.map(([name,bg,accent])=>`<button class="theme-option ${state.workspace.theme===name?'active':''}" type="button" data-theme="${name}"><div class="theme-swatch" style="background:${bg};box-shadow:inset 0 -10px 0 ${accent}"></div><span>${name[0].toUpperCase()+name.slice(1)}</span></button>`).join('')}</div><div class="property-row" style="margin-top:14px"><label>Custom accent</label><input type="color" value="${esc(state.workspace.accent || '#80694f')}" data-accent></div></section>
+        <section class="settings-card"><h2>Mobile Top Bar Display</h2>${ccMobileTopBarSettingMarkup()}</section>
         <section class="settings-card"><h2>Shared mode</h2><div class="status-line"><span class="status-dot ${firebase.connected?'online':''}"></span><strong>${firebase.connected?'Connected to Firebase':'Local demo mode'}</strong></div><p class="page-subtitle" style="margin-top:10px">${firebase.connected?`Signed in as ${esc(firebase.user?.email || 'your Firebase account')}. Changes on this account receive live updates.`:'Open the Firebase configuration section near the top of index.html, paste your web configuration, then deploy the project.'}</p><button class="button secondary" type="button" data-account-action>${firebase.connected && firebase.user ? 'Account details' : 'Shared-mode instructions'}</button></section>
         <section class="settings-card"><h2>Backup and restore</h2><p class="page-subtitle">Download the whole workspace as one JSON backup, including parent locations, graph relationships, members, and blocks.</p><div class="page-actions" style="margin-top:14px"><button class="button" type="button" data-export>Download backup</button><label class="button secondary" for="restoreInput">Restore backup</label><input id="restoreInput" type="file" accept="application/json,.json" hidden></div></section>
         <section class="settings-card"><h2>Notion import</h2><p class="page-subtitle">The uploaded World Codex is already imported into this build. You can also replace the current collections with another Notion Markdown and CSV export.</p><div class="page-actions" style="margin-top:14px"><label class="button" for="notionInput">Import Notion ZIP</label><input id="notionInput" type="file" accept=".zip,application/zip" hidden><button class="button secondary" type="button" data-reset>Reset to bundled export</button></div></section>
@@ -9293,6 +9411,7 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
     const remove=event.target.closest('[data-remove-member]');if(remove){const member=state.workspace.members.find(x=>x.id===remove.dataset.removeMember);if(member){state.workspace.members=state.workspace.members.filter(x=>x.id!==member.id);delete state.workspace.access[member.email.toLowerCase()];logActivity(`Removed access for ${member.email}`);scheduleSave();renderShare();}return;}
     const copy=event.target.closest('[data-copy-share]');if(copy){navigator.clipboard?.writeText(location.href.split('#')[0]).then(()=>toast('Share link copied.')).catch(()=>toast('Copy the address from your browser.'));return;}
     const theme=event.target.closest('[data-theme]');if(theme){state.workspace.theme=theme.dataset.theme;applyTheme();scheduleSave();renderSettings();return;}
+    if(event.target.closest('[data-mobile-topbar-reset]')){event.preventDefault();ccMobileTopBarSave({...CC_MOBILE_TOPBAR_DEFAULT},{quiet:true}).then(()=>{ccMobileTopBarApply();if(route.view==='settings')renderSettings();toast('Mobile top bar reset to Menu + Live Now + Messages.');});return;}
     if(event.target.closest('[data-export]')){downloadBackup();return;}
     if(event.target.closest('[data-reset]')){if(confirm('Replace current data with a blank Codex Canvas workspace?')){state=deepClone(window.INITIAL_WORLD_DATA);normalizeState();logActivity('Reset to blank workspace');scheduleSave();render();}return;}
     if(event.target.closest('[data-account-action]')){accountAction();return;}
@@ -9337,6 +9456,12 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
   });
 
   document.addEventListener('change',event=>{
+    if(event.target.matches('[data-mobile-topbar-toggle]')){
+      const prefs=ccMobileTopBarPrefs();
+      prefs[event.target.dataset.mobileTopbarToggle]=event.target.checked;
+      ccMobileTopBarSave(prefs,{quiet:true}).then(()=>{if(route.view==='settings')renderSettings();});
+      return;
+    }
     if(event.target.matches('[data-character-crop-file]')){const file=event.target.files?.[0];const ref=event.target.dataset.characterCropFile;event.target.value='';if(file){const [slot,characterId]=ref.split(':');setCharacterPageImage(characterId,slot,file).then(()=>showCharacterMediaEditor(characterId,slot));}return;}
     if(event.target.matches('[data-character-crop-fit]')){const [slot,characterId]=event.target.dataset.characterCropFit.split(':');const {character,media}=characterMediaRecord(characterId,slot);if(media){media.fit=event.target.value==='contain'?'contain':'cover';character.updatedAt=nowISO();syncCharacterCropPreview(characterId,slot);scheduleSave();}return;}
     if(event.target.matches('[data-character-media-input]')){const file=event.target.files?.[0];if(file){const [slot,characterId]=event.target.dataset.characterMediaInput.split(':');setCharacterPageImage(characterId,slot,file);}event.target.value='';return;}
@@ -20083,9 +20208,10 @@ initFirebase();
   }
 
   const ccMsgRenderBase=render;
-  render=function(){ccMsgRenderBase();ccMsgStartIfReady();ccMsgRenderBadge();ccMsgRenderDock();};
+  render=function(){ccMsgRenderBase();ccMsgStartIfReady();ccMsgRenderBadge();ccMsgRenderDock();ccMobileTopBarApply();};
   const ccMsgShowAuthGateBase=showAuthGate;
   showAuthGate=function(...args){ccMsgStop();return ccMsgShowAuthGateBase(...args);};
+  ccMobileTopBarApply();
 
   function ccMsgOpenInbox(threadId=''){
     if(route.view!=='messages')ccMsg.returnHash=location.hash||'#/dashboard';
