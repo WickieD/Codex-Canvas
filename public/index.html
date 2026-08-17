@@ -6806,7 +6806,7 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
       return `<div class="cc-explorer-stacked">${enabled.map(type=>{const label=CC_NAV_EXPLORER_TYPES.find(([key])=>key===type)?.[1]||type,open=prefs.expandedSections.includes(type);return `<section class="cc-explorer-stack-section ${open?'is-open':''}"><button class="cc-explorer-stack-head" type="button" data-cc-explorer-section-toggle="${esc(type)}"><span>${esc(label)}</span><b>${open?'−':'+'}</b></button><div class="cc-explorer-stack-body" ${open?'':'hidden'}>${ccNavExplorerTree(type,prefs)}</div></section>`;}).join('')}</div>`;
     }
     const active=ccNavExplorerResolvedActive(prefs);
-    return `<div class="cc-explorer-single"><label class="cc-explorer-select"><span>Explore</span><select data-cc-explorer-select>${enabled.map(type=>`<option value="${esc(type)}" ${type===active?'selected':''}>${esc(CC_NAV_EXPLORER_TYPES.find(([key])=>key===type)?.[1]||type)}</option>`).join('')}</select></label>${prefs.context?'<div class="cc-explorer-context-note">Context mode is on</div>':''}<div class="location-mini-tree">${ccNavExplorerTree(active,prefs)}</div></div>`;
+    return `<div class="cc-explorer-single"><label class="cc-explorer-select"><span>Explore</span><select data-cc-explorer-select>${enabled.map(type=>`<option value="${esc(type)}" ${type===active?'selected':''}>${esc(CC_NAV_EXPLORER_TYPES.find(([key])=>key===type)?.[1]||type)}</option>`).join('')}</select></label>${prefs.context?'<div class="cc-explorer-context-note">Context mode is on</div>':''}<div class="location-mini-tree" data-cc-explorer-tree="${esc(active)}">${ccNavExplorerTree(active,prefs)}</div></div>`;
   }
   function ccNavExplorerSettingsMarkup(){
     const prefs=ccNavExplorerPrefs();
@@ -11154,7 +11154,13 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
   renderSidebar=function() {
     const previousScroll=el.sidebar.querySelector('.sidebar-nav')?.scrollTop||0;
     renderSidebarBeforePillTree();
-    const host=el.sidebar.querySelector('.location-mini-tree');
+    // This legacy wrapper used to replace every `.location-mini-tree` with the
+    // Location hierarchy. The configurable Navigation Explorer intentionally
+    // reuses that class for its pill styling, so replacing it here made the
+    // dropdown label change while the visible tree always stayed on Locations.
+    // Only upgrade an old, unmarked location-tree host. Explorer hosts render
+    // their own Characters / Stories / Relationships / Favorites markup.
+    const host=el.sidebar.querySelector('.location-mini-tree:not([data-cc-explorer-tree])');
     if (host) host.innerHTML=renderCodexLocationNodes(state.locations,'sidebar');
     requestAnimationFrame(()=>{const nav=el.sidebar.querySelector('.sidebar-nav');if(nav)nav.scrollTop=previousScroll;});
   };
