@@ -6611,9 +6611,42 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
     }
   }
 
-  function logActivity(text) {
-    state.activity.unshift({ id: id('activity'), text, at: nowISO(), by: firebase.user?.email || 'Signed-in account' });
-    state.activity = state.activity.slice(0, 200);
+  function logActivity(text, meta = {}) {
+    const by = firebase.user?.email || 'Signed-in account';
+    const entry = {
+      ...meta,
+      id: id('activity'),
+      text: String(text || 'Activity'),
+      at: meta.at || nowISO(),
+      by,
+      userEmail: normalizeMemberEmail(firebase.user?.email || '')
+    };
+    state.activity.unshift(entry);
+    // Keep enough per-user history for a shared workspace. Recent Activity
+    // filters this list to the signed-in member, so a busy partner should not
+    // immediately push your own work out of the Explorer.
+    state.activity = state.activity.slice(0, 1000);
+  }
+
+  function ccActivityFieldLabel(field) {
+    const aliases = {
+      relationshipsText:'Relationships', currentLocationIds:'Current location',
+      speciesRace:'Species / Race', skillsAbilities:'Skills / Abilities',
+      distinguishingFeatures:'Distinguishing Features', parentLocationId:'Parent location',
+      keyCharacterIds:'Key characters', relatedLocationIds:'Related locations',
+      keyMemberIds:'Key members', alliesEnemies:'Allies / enemies'
+    };
+    if (aliases[field]) return aliases[field];
+    return String(field || 'details')
+      .replace(/([a-z0-9])([A-Z])/g,'$1 $2')
+      .replace(/[_-]+/g,' ')
+      .replace(/^./, value => value.toUpperCase());
+  }
+
+  function ccActivityStamp(item) {
+    if (!item) return;
+    item.updatedAt = nowISO();
+    item.updatedBy = normalizeMemberEmail(firebase.user?.email || '') || (firebase.user?.displayName || 'Signed-in account');
   }
 
   function parseHash() {
@@ -6748,15 +6781,10 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
     return `<div class="sidebar-tree-node"><div class="sidebar-tree-card"><button class="tree-link" type="button" ${attrs}><span>${esc(label)}</span><small>${esc(meta||'')}</small></button></div></div>`;
   }
   function ccNavExplorerLocationTree(prefs){
-    const roots=state.locations.filter(item=>!item.parentLocationId||!getItem('locations',item.parentLocationId));
-    const renderNode=(item,seen=new Set())=>{
-      if(seen.has(item.id))return '';
-      const next=new Set(seen);next.add(item.id);
-      const children=childrenOf(item.id).filter(child=>!next.has(child.id)).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
-      const open=children.length&&ccNavExplorerExpanded(prefs,'locations',item.id);
-      return `<div class="sidebar-tree-node${open?' is-open':''}"><div class="sidebar-tree-card"><button class="tree-link" type="button" data-open="locations:${esc(item.id)}"><span>${esc(item.name)}</span><small>${esc(item.type||'Location')}</small></button>${children.length?`<button class="sidebar-tree-toggle" type="button" data-cc-explorer-node-toggle="locations:${esc(item.id)}" aria-expanded="${open}">${open?'−':'+'}</button>`:''}</div>${children.length?`<div class="sidebar-tree-children" ${open?'':'hidden'}>${children.map(child=>renderNode(child,next)).join('')}</div>`:''}</div>`;
-    };
-    return roots.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))).map(root=>renderNode(root)).join('')||'<div class="cc-explorer-empty">No locations yet.</div>';
+    // Reuse the original Codex pill-tree renderer for Locations. The generic
+    // Explorer branch CSS was drawing connector fragments that looked detached
+    // on narrow Android screens.
+    return renderCodexLocationNodes(state.locations,'explorer');
   }
   function ccNavExplorerCharacterTree(prefs){
     const renderCharacter=item=>{
@@ -6773,14 +6801,140 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
       return `<div class="sidebar-tree-node${open?' is-open':''}"><div class="sidebar-tree-card"><button class="tree-link" type="button" data-open-story="${esc(story.id)}"><span>${esc(story.name||'Untitled story')}</span><small>${nodes.length} story point${nodes.length===1?'':'s'}</small></button>${nodes.length?`<button class="sidebar-tree-toggle" type="button" data-cc-explorer-node-toggle="stories:${esc(story.id)}" aria-expanded="${open}">${open?'−':'+'}</button>`:''}</div>${nodes.length?`<div class="sidebar-tree-children" ${open?'':'hidden'}>${nodes.map(node=>ccNavExplorerLeaf(storyPointTitle(story,node),'Story point',`data-story-point="${esc(storyRouteValue(story.id,node.id))}"`)).join('')}</div>`:''}</div>`;
     }).join('')||'<div class="cc-explorer-empty">No stories yet.</div>';
   }
+  function ccNavExplorerIdentityKeys(){
+    const member=ccNavExplorerMember();
+    return new Set([
+      normalizeMemberEmail(firebase.user?.email||''),
+      String(firebase.user?.displayName||'').trim().toLowerCase(),
+      String(member?.displayName||member?.name||'').trim().toLowerCase()
+    ].filter(Boolean));
+  }
+  function ccNavExplorerIsMe(value){
+    const raw=String(value||'').trim().toLowerCase();
+    if(!raw)return false;
+    const keys=ccNavExplorerIdentityKeys();
+    return keys.has(raw)||keys.has(normalizeMemberEmail(raw));
+  }
   function ccNavExplorerActivityMine(entry){
+    if(ccNavExplorerIsMe(entry?.by)||ccNavExplorerIsMe(entry?.userEmail))return true;
     const me=normalizeMemberEmail(firebase.user?.email||'');
-    if(!me)return true;
-    const by=normalizeMemberEmail(entry?.by||'');
-    if(by===me)return true;
     return entry?.by==='Demo Owner'&&normalizeMemberEmail(state.createdByEmail||'')===me;
   }
+  function ccNavExplorerDateMs(value){
+    if(!value)return 0;
+    try{
+      const date=value?.toDate?value.toDate():new Date(value);
+      return Number.isNaN(date.getTime())?0:date.getTime();
+    }catch{return 0;}
+  }
+  function ccNavExplorerStoryPointForTurn(story,turn){
+    const owner=storyById(turn?.storyPointStoryId||story?.id)||story;
+    if(turn?.storyPointId){
+      const direct=(owner?.nodes||[]).find(node=>node.id===turn.storyPointId);
+      if(direct)return {story:owner,node:direct};
+    }
+    for(const node of (story?.nodes||[])){
+      try{if(storyPointRange(story,node).turns.some(item=>item.id===turn?.id))return {story,node};}catch{}
+    }
+    return {story:owner||story,node:null};
+  }
+  function ccNavExplorerRecentEntries(){
+    const rows=[];
+    const push=entry=>{
+      const stamp=ccNavExplorerDateMs(entry?.at);
+      if(!stamp)return;
+      rows.push({...entry,_stamp:stamp});
+    };
+
+    for(const entry of state.activity||[]){
+      if(ccNavExplorerActivityMine(entry))push({...entry,source:entry.source||'Activity'});
+    }
+
+    const me=normalizeMemberEmail(firebase.user?.email||'');
+    for(const story of state.storyGraphs||[]){
+      const turns=ensureStoryDocument(story);
+      for(const turn of turns){
+        if(!me||normalizeMemberEmail(turn.authorEmail||'')!==me)continue;
+        const speaker=storySpeakerMeta(turn)?.name||turn.speakerName||'Narrator';
+        const point=ccNavExplorerStoryPointForTurn(story,turn);
+        const pointTitle=point.node?storyPointTitle(point.story,point.node):'';
+        const detail=[story.name||'Untitled story',pointTitle?`Story point: ${pointTitle}`:''].filter(Boolean).join(' · ');
+        const createdAt=turn.createdAt||turn.updatedAt;
+        if(createdAt)push({
+          id:`derived-post-created:${story.id}:${turn.id}`,
+          text:`Posted as ${speaker} in “${story.name||'Untitled story'}”`,
+          at:createdAt,by:me,source:'Roleplay',
+          storyId:story.id,nodeId:point.node?.id||'',turnId:turn.id,detail
+        });
+        const createdMs=ccNavExplorerDateMs(turn.createdAt),updatedMs=ccNavExplorerDateMs(turn.updatedAt);
+        if(updatedMs&&createdMs&&updatedMs-createdMs>2500)push({
+          id:`derived-post-edited:${story.id}:${turn.id}`,
+          text:`Edited ${speaker}'s post in “${story.name||'Untitled story'}”`,
+          at:turn.updatedAt,by:me,source:'Roleplay',
+          storyId:story.id,nodeId:point.node?.id||'',turnId:turn.id,detail
+        });
+      }
+    }
+
+    for(const story of state.storyGraphs||[]){
+      for(const node of story.nodes||[]){
+        const point=cc2Point(story,node);
+        if(!point)continue;
+        const title=cc2PointTitle(story,node);
+        const createdMs=ccNavExplorerDateMs(point.createdAt),updatedMs=ccNavExplorerDateMs(point.updatedAt);
+        if(point.createdAt&&ccNavExplorerIsMe(point.createdBy))push({
+          id:`derived-point-created:${story.id}:${node.id}`,
+          text:`Added story point “${title}”`,
+          at:point.createdAt,by:point.createdBy,source:'Story Point',
+          storyId:story.id,nodeId:node.id,detail:story.name||'Untitled story'
+        });
+        if(point.updatedAt&&ccNavExplorerIsMe(point.updatedBy)&&(!createdMs||updatedMs-createdMs>2500))push({
+          id:`derived-point-updated:${story.id}:${node.id}`,
+          text:`Updated story point “${title}”`,
+          at:point.updatedAt,by:point.updatedBy,source:'Story Point',
+          storyId:story.id,nodeId:node.id,detail:story.name||'Untitled story'
+        });
+      }
+    }
+
+    for(const kind of Object.keys(COLLECTIONS)){
+      for(const item of state[kind]||[]){
+        if(!item.updatedAt||!ccNavExplorerIsMe(item.updatedBy))continue;
+        const itemStamp=ccNavExplorerDateMs(item.updatedAt);
+        const hasSpecific=(state.activity||[]).some(entry=>
+          ccNavExplorerActivityMine(entry)
+          && entry.view===kind
+          && entry.itemId===item.id
+          && Math.abs(ccNavExplorerDateMs(entry.at)-itemStamp)<10000
+        );
+        if(hasSpecific)continue;
+        push({
+          id:`derived-entity:${kind}:${item.id}`,
+          text:`Updated ${String(COLLECTIONS[kind].singular||kind).toLowerCase()} “${item.name||'Untitled'}”`,
+          at:item.updatedAt,by:item.updatedBy,source:COLLECTIONS[kind].singular||'Codex',
+          view:kind,itemId:item.id,detail:COLLECTIONS[kind].label||''
+        });
+      }
+    }
+
+    rows.sort((a,b)=>b._stamp-a._stamp);
+    const seen=new Set(),deduped=[];
+    for(const entry of rows){
+      const key=[
+        String(entry.text||'').toLowerCase(),
+        entry.storyId||entry.view||'',
+        entry.turnId||entry.nodeId||entry.itemId||'',
+        Math.floor(entry._stamp/3000)
+      ].join('|');
+      if(seen.has(key))continue;
+      seen.add(key);deduped.push(entry);
+      if(deduped.length>=80)break;
+    }
+    return deduped;
+  }
   function ccNavExplorerActivityTarget(entry){
+    if(entry?.turnId&&entry?.storyId)return {kind:'post',storyId:entry.storyId,nodeId:entry.nodeId||'',turnId:entry.turnId,label:'Roleplay'};
+    if(entry?.nodeId&&entry?.storyId)return {kind:'story-point',storyId:entry.storyId,nodeId:entry.nodeId,label:'Story Point'};
     if(entry?.view){
       if(entry.view==='story'&&entry.storyId)return {kind:'story',id:entry.storyId,label:'Story'};
       if(entry.itemId)return {kind:entry.view,id:entry.itemId,label:entry.label||entry.view};
@@ -6799,14 +6953,22 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
     for(const item of state.storyGraphs||[])add('story','Story',item);
     return matches.sort((a,b)=>b.nameLength-a.nameLength)[0]||null;
   }
+  function ccNavExplorerActivityAttrs(target){
+    if(!target)return '';
+    if(target.kind==='post')return `data-ccrh-open-linked-post="${esc(target.storyId)}|${esc(target.nodeId||'')}|${esc(target.turnId)}"`;
+    if(target.kind==='story-point')return `data-story-point="${esc(storyRouteValue(target.storyId,target.nodeId))}"`;
+    if(target.kind==='story')return `data-open-story="${esc(target.id)}"`;
+    return `data-open="${esc(target.kind)}:${esc(target.id)}"`;
+  }
   function ccNavExplorerRecentTree(){
-    const rows=(state.activity||[]).filter(ccNavExplorerActivityMine).slice(0,50);
+    const rows=ccNavExplorerRecentEntries();
     if(!rows.length)return '<div class="cc-explorer-empty">Your recent Codex activity will appear here as you work.</div>';
     return `<div class="cc-explorer-activity-list">${rows.map(entry=>{
       const target=ccNavExplorerActivityTarget(entry);
-      const attrs=target?(target.kind==='story'?`data-open-story="${esc(target.id)}"`:`data-open="${esc(target.kind)}:${esc(target.id)}"`):'';
-      const type=target?.label||(/access|member|workspace/i.test(entry.text||'')?'Workspace':'Activity');
-      return `<div class="cc-explorer-activity-row"><span class="cc-explorer-activity-dot" aria-hidden="true"></span><button class="cc-explorer-activity-card" type="button" ${attrs} ${target?'':'disabled'}><span>${esc(entry.text||'Activity')}</span><small>${esc(type)} · ${esc(fmtTime(entry.at))}</small></button></div>`;
+      const attrs=ccNavExplorerActivityAttrs(target);
+      const type=entry.source||target?.label||(/access|member|workspace/i.test(entry.text||'')?'Workspace':'Activity');
+      const detail=String(entry.detail||'').trim();
+      return `<div class="cc-explorer-activity-row"><span class="cc-explorer-activity-dot" aria-hidden="true"></span><button class="cc-explorer-activity-card" type="button" ${attrs} ${target?'':'disabled'}><span>${esc(entry.text||'Activity')}</span>${detail?`<em>${esc(detail)}</em>`:''}<small>${esc(type)} · ${esc(fmtTime(entry.at))}</small></button></div>`;
     }).join('')}</div>`;
   }
   function ccNavExplorerTree(type,prefs=ccNavExplorerPrefs()){
@@ -8837,12 +8999,13 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
   function addItem(kind,parentId='') {
     const meta=COLLECTIONS[kind];
     const itemId=id(kind.slice(0,-1));
-    let item={id:itemId,name:`Untitled ${meta.singular}`,favorite:false,updatedAt:nowISO(),blocks:[{id:id('block'),type:'text',content:'Start writing here…'}]};
+    const createdAt=nowISO(),createdBy=normalizeMemberEmail(firebase.user?.email||'')||(firebase.user?.displayName||'Signed-in account');
+    let item={id:itemId,name:`Untitled ${meta.singular}`,favorite:false,createdAt,createdBy,updatedAt:createdAt,updatedBy:createdBy,blocks:[{id:id('block'),type:'text',content:'Start writing here…'}]};
     if(kind==='characters') Object.assign(item,{age:'',aliases:'',role:'',mood:'',outfit:'',position:'',status:'Active',currentLocationIds:[],relationshipIds:[],relationshipsText:'',notes:'',personality:'',secrets:''});
     if(kind==='locations') Object.assign(item,{type:parentId?'Settlement':'Region',atmosphere:'',description:'',notes:'',controlledBy:'',keyCharacterIds:[],relatedLocationIds:[],parentLocationId:parentId});
     if(kind==='factions') Object.assign(item,{goal:'',power:'Minor',notes:'',keyMemberIds:[],alliesEnemies:''});
     if(kind==='events') Object.assign(item,{date:'',status:'Planned',description:'',consequences:'',notes:'',characterIds:[]});
-    state[kind].push(item); logActivity(`Created ${item.name}`); scheduleSave(); navigate(kind,itemId);
+    state[kind].push(item); logActivity(`Created ${item.name}`,{source:meta.singular,view:kind,itemId:item.id,detail:meta.label}); scheduleSave(); navigate(kind,itemId);
   }
 
   function deleteItem(kind,itemId) {
@@ -8870,7 +9033,7 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
         }
       }
     }
-    logActivity(`Deleted ${item.name}`); scheduleSave(); navigate(kind);
+    logActivity(`Deleted ${item.name}`,{source:COLLECTIONS[kind]?.singular||'Codex',detail:COLLECTIONS[kind]?.label||''}); scheduleSave(); navigate(kind);
   }
 
   function resolveBlockTarget(kind,itemId) {
@@ -9658,9 +9821,9 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
   },{passive:true});
 
   document.addEventListener('input',event=>{
-    const title=event.target.closest('[data-title-kind]');if(title){const item=getItem(title.dataset.titleKind,title.dataset.titleId);item.name=title.value;item.updatedAt=nowISO();autoSizeEntityTitle(title);scheduleSave();renderSidebar();renderBreadcrumbs();return;}
-    const property=event.target.closest('[data-property]');if(property){const [kind,itemId,field]=property.dataset.property.split(':');const item=getItem(kind,itemId);if(item){item[field]=property.value;if(kind==='locations'){if(field==='type'&&isRegionType(property.value))item.parentLocationId='';normalizeLocationHierarchy();if(field==='parentLocationId'||field==='type'){item.updatedAt=nowISO();scheduleSave();renderSidebar();renderBreadcrumbs();renderEntity(kind,itemId);return;}}item.updatedAt=nowISO();scheduleSave();if(kind==='characters'){const snapshotValue=document.querySelector(`[data-snapshot-value="${field}"]`);if(snapshotValue)snapshotValue.textContent=cleanNotionRefs(property.value);}}return;}
-    const block=event.target.closest('[data-block]');if(block){const [kind,itemId,index]=block.dataset.block.split(':');const target=resolveBlockTarget(kind,itemId);if(target?.blocks[index]){target.blocks[index].content=editableToMarkdown(block);target.updatedAt=nowISO();scheduleSave();}return;}
+    const title=event.target.closest('[data-title-kind]');if(title){const item=getItem(title.dataset.titleKind,title.dataset.titleId);item.name=title.value;ccActivityStamp(item);autoSizeEntityTitle(title);scheduleSave();renderSidebar();renderBreadcrumbs();return;}
+    const property=event.target.closest('[data-property]');if(property){const [kind,itemId,field]=property.dataset.property.split(':');const item=getItem(kind,itemId);if(item){item[field]=property.value;if(kind==='locations'){if(field==='type'&&isRegionType(property.value))item.parentLocationId='';normalizeLocationHierarchy();if(field==='parentLocationId'||field==='type'){ccActivityStamp(item);scheduleSave();renderSidebar();renderBreadcrumbs();renderEntity(kind,itemId);return;}}ccActivityStamp(item);scheduleSave();if(kind==='characters'){const snapshotValue=document.querySelector(`[data-snapshot-value="${field}"]`);if(snapshotValue)snapshotValue.textContent=cleanNotionRefs(property.value);}}return;}
+    const block=event.target.closest('[data-block]');if(block){const [kind,itemId,index]=block.dataset.block.split(':');const target=resolveBlockTarget(kind,itemId);if(target?.blocks[index]){target.blocks[index].content=editableToMarkdown(block);ccActivityStamp(target);scheduleSave();}return;}
     const filter=event.target.closest('[data-filter-kind]');if(filter){collectionFilters[filter.dataset.filterKind]=filter.value;renderCollection(filter.dataset.filterKind);const next=document.querySelector('[data-filter-kind]');next?.focus();next?.setSelectionRange(next.value.length,next.value.length);return;}
     if(event.target.matches('[data-story-point-title]')){const context=currentStoryPassage();if(context.passage){context.passage.title=event.target.value;scheduleSave();renderBreadcrumbs();}return;}
     if(event.target.matches('[data-story-point-summary]')){const context=currentStoryPassage();if(context.passage){context.passage.summary=event.target.value;scheduleSave();}return;}
@@ -9680,7 +9843,39 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
     if(event.target.matches('[data-accent]')){state.workspace.accent=event.target.value;applyTheme();scheduleSave();return;}
   });
 
+  document.addEventListener('focusout',event=>{
+    const block=event.target.closest?.('[data-block]');
+    if(!block)return;
+    const [kind,itemId]=String(block.dataset.block||'').split(':');
+    const target=resolveBlockTarget(kind,itemId);
+    if(!target)return;
+    ccActivityStamp(target);
+    logActivity(`Updated writing for ${target.name||COLLECTIONS[kind]?.singular||'item'}`,{source:COLLECTIONS[kind]?.singular||'Codex',view:kind,itemId:target.id||itemId,detail:'Writing'});
+    scheduleSave();
+  },true);
+
   document.addEventListener('change',event=>{
+    // Record meaningful completed edits on blur/change instead of on every
+    // keystroke. This gives Recent Activity useful Character/Location details
+    // without flooding it while someone is typing.
+    const activityTitle=event.target.closest?.('[data-title-kind]');
+    if(activityTitle){
+      const kind=activityTitle.dataset.titleKind,item=getItem(kind,activityTitle.dataset.titleId);
+      if(item){
+        ccActivityStamp(item);
+        logActivity(`Renamed ${String(COLLECTIONS[kind]?.singular||kind).toLowerCase()} to “${item.name||'Untitled'}”`,{source:COLLECTIONS[kind]?.singular||'Codex',view:kind,itemId:item.id,detail:COLLECTIONS[kind]?.label||''});
+        scheduleSave();
+      }
+    }
+    const activityProperty=event.target.closest?.('[data-property]');
+    if(activityProperty){
+      const [kind,itemId,field]=activityProperty.dataset.property.split(':'),item=getItem(kind,itemId);
+      if(item){
+        ccActivityStamp(item);
+        logActivity(`Updated ${ccActivityFieldLabel(field)} for ${item.name||COLLECTIONS[kind]?.singular||'item'}`,{source:COLLECTIONS[kind]?.singular||'Codex',view:kind,itemId:item.id,detail:ccActivityFieldLabel(field)});
+        scheduleSave();
+      }
+    }
     if(event.target.matches('[data-mobile-topbar-toggle]')){
       const prefs=ccMobileTopBarPrefs();
       prefs[event.target.dataset.mobileTopbarToggle]=event.target.checked;
@@ -9700,7 +9895,7 @@ window.CODEX_BUILD = "private-live-messenger-2026-08-16";
     if(event.target.matches('[data-image-editor-layout]')){const ref=event.target.dataset.imageEditorLayout;const info=blockFromRef(ref);if(info.block){info.block.layout=event.target.value;if(info.block.layout==='wrap')info.block.wrapSide=info.block.wrapSide==='right'?'right':'left';if(info.block.layout==='behind'&&(Number(info.block.opacity)||1)>.85)info.block.opacity=.4;info.target.updatedAt=nowISO();const modal=event.target.closest('.image-editor-modal');const cushion=modal?.querySelector('[data-image-editor-cushion-row]');if(cushion)cushion.hidden=info.block.layout!=='wrap';const help=modal?.querySelector('[data-image-editor-help]');if(help)help.textContent=info.block.layout==='wrap'?'Close this panel, then drag the image anywhere, including the middle. The writing will split between words and flow on both sides of it.':'Close this panel, then drag the image itself anywhere on the page. The writing will stay exactly where it is.';syncImageFigure(ref);layoutCharacterFlow();scheduleSave();}return;}
     if(event.target.matches('[data-image-quick-layout]')){const ref=event.target.dataset.imageQuickLayout;const info=blockFromRef(ref);if(info.block){info.block.layout=event.target.value;if(info.block.layout==='wrap')info.block.wrapSide=info.block.wrapSide==='right'?'right':'left';if(info.block.layout==='behind'&&(Number(info.block.opacity)||1)>.85)info.block.opacity=.4;info.target.updatedAt=nowISO();syncImageFigure(ref);layoutCharacterFlow();scheduleSave();}return;}
     if(event.target.matches('[data-image-layout]')){const info=blockFromRef(event.target.dataset.imageLayout);if(info.block){info.block.layout=event.target.value;info.target.updatedAt=nowISO();scheduleSave();renderEntity(info.kind,info.itemId);}return;}
-    if(event.target.matches('[data-character-location]')){const item=getItem('characters',event.target.dataset.characterLocation);item.currentLocationIds=event.target.value?[event.target.value]:[];scheduleSave();renderEntity('characters',item.id);return;}
+    if(event.target.matches('[data-character-location]')){const item=getItem('characters',event.target.dataset.characterLocation);item.currentLocationIds=event.target.value?[event.target.value]:[];ccActivityStamp(item);const location=getItem('locations',event.target.value);logActivity(`Updated Current location for ${item.name}`,{source:'Character',view:'characters',itemId:item.id,detail:location?.name||'No current location'});scheduleSave();renderEntity('characters',item.id);return;}
     if(event.target.matches('[data-member-role]')){const member=state.workspace.members.find(x=>x.id===event.target.dataset.memberRole);if(member){member.role=event.target.value;state.workspace.access[member.email.toLowerCase()]=member.role;logActivity(`Changed ${member.email} to ${member.role}`);scheduleSave();}return;}
     if(event.target.matches('[data-story-point-anchor]')){const context=currentStoryPassage();if(context.passage){context.passage.anchorTurnId=event.target.value;scheduleSave();renderStoryReader();}return;}
     if(event.target.matches('[data-story-turn-speaker]')){const context=findStoryTurn(event.target.dataset.storyTurnSpeaker);if(context.turn){const value=event.target.value;if(value.startsWith('character:')){context.turn.characterId=value.slice('character:'.length);context.turn.speakerName=getItem('characters',context.turn.characterId)?.name||'Character';}else if(value==='narrator'){context.turn.characterId='';context.turn.speakerName='Narrator';}else{context.turn.characterId='';context.turn.speakerName=context.turn.speakerName&&context.turn.speakerName!=='Narrator'?context.turn.speakerName:'Other';}scheduleSave();renderStoryReader();}return;}
@@ -12081,16 +12276,17 @@ const addItemBeforeSpeciesFactions=addItem;
 addItem=function(kind,parentId=''){
   if(kind!=='species'&&kind!=='factions')return addItemBeforeSpeciesFactions(kind,parentId);
   const meta=COLLECTIONS[kind],itemId=id(kind==='species'?'species':'faction');
-  const base={id:itemId,name:`Untitled ${meta.singular}`,favorite:false,updatedAt:nowISO(),blocks:[{id:id('block'),type:'text',content:'Start writing here…'}]};
+  const createdAt=nowISO(),createdBy=normalizeMemberEmail(firebase.user?.email||'')||(firebase.user?.displayName||'Signed-in account');
+  const base={id:itemId,name:`Untitled ${meta.singular}`,favorite:false,createdAt,createdBy,updatedAt:createdAt,updatedBy:createdBy,blocks:[{id:id('block'),type:'text',content:'Start writing here…'}]};
   const item=kind==='species'?{...base,prevalence:'Unspecified',survivalGoal:'',relations:'',notes:'',keyMemberIds:[]}:{...base,goal:'',power:'Minor',notes:'',keyMemberIds:[],alliesEnemies:'',badgeShape:'shield',badgeSymbol:'wolf',badgePrimary:'#1d2736',badgeSecondary:'#c6a46a',badgeAccent:'#f5ead3',badgeLine:'#c6a46a',badgeText:'',badgeMotto:'',badgeSymbolSource:'builtin',badgeCustomSymbol:null,badgeSymbolScale:1,badgeSymbolX:0,badgeSymbolY:-4,badgeShowLabel:true};
-  state[kind].push(item);logActivity(`Created ${item.name}`);scheduleSave();navigate(kind,itemId);
+  state[kind].push(item);logActivity(`Created ${item.name}`,{source:meta.singular,view:kind,itemId:item.id,detail:meta.label});scheduleSave();navigate(kind,itemId);
 };
 
 const deleteItemBeforeSpeciesFactions=deleteItem;
 deleteItem=function(kind,itemId){
   if(kind!=='species'&&kind!=='factions')return deleteItemBeforeSpeciesFactions(kind,itemId);
   const item=getItem(kind,itemId);if(!item)return;if(!confirm(`Delete “${item.name}”? This removes it from this workspace.`))return;
-  state[kind]=state[kind].filter(x=>x.id!==itemId);logActivity(`Deleted ${item.name}`);scheduleSave();navigate(kind);
+  state[kind]=state[kind].filter(x=>x.id!==itemId);logActivity(`Deleted ${item.name}`,{source:meta.singular,detail:meta.label});scheduleSave();navigate(kind);
 };
 
 function sectionEntityCover(kind,item){
@@ -12700,8 +12896,9 @@ function showNewStoryModal(){
 }
 function createStoryFromModal(){
   const name=document.getElementById('newStoryName')?.value.trim();if(!name){toast('Enter a story name.','error');return;}
-  const story={id:id('story'),name,description:document.getElementById('newStoryDescription')?.value.trim()||'',nodes:[],links:[],positions:{},rpTurns:[]};
-  state.storyGraphs.push(story);graphSettings.storyId=story.id;logActivity(`Created story ${name}`);scheduleSave();closeModal();showStoryManager(story.id);
+  const createdAt=nowISO(),createdBy=normalizeMemberEmail(firebase.user?.email||'')||(firebase.user?.displayName||'Signed-in account');
+  const story={id:id('story'),name,description:document.getElementById('newStoryDescription')?.value.trim()||'',nodes:[],links:[],positions:{},rpTurns:[],createdAt,createdBy,updatedAt:createdAt,updatedBy:createdBy};
+  state.storyGraphs.push(story);graphSettings.storyId=story.id;logActivity(`Created story “${name}”`,{source:'Story',view:'story',storyId:story.id,detail:'Roleplay Hub'});scheduleSave();closeModal();showStoryManager(story.id);
 }
 function showStoryManager(storyId){
   const story=storyById(storyId);if(!story)return;
@@ -12716,10 +12913,12 @@ function addStoryPoint(storyId){
   const role=document.getElementById('storyPointRole')?.value.trim()||'Story point';const ordered=(story.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0));const previous=ordered.at(-1);
   const node={id:nodeId,order:ordered.length+1,role,passage:{title:'',summary:'',anchorTurnId:'',turns:[]}};story.nodes.push(node);
   if(previous)story.links.push({id:id('story-link'),source:previous.id,target:nodeId,label:'Continues to',description:'',mainPath:true,curve:0});
+  story.updatedAt=nowISO();story.updatedBy=normalizeMemberEmail(firebase.user?.email||'');
+  logActivity(`Added story point “${storyNodeName(nodeId)}”`,{source:'Story Point',view:'story',storyId:story.id,nodeId,detail:story.name});
   scheduleSave();showStoryManager(storyId);
 }
 function removeStoryPoint(storyId,nodeId){
-  const story=storyById(storyId);if(!story)return;story.nodes=(story.nodes||[]).filter(node=>node.id!==nodeId);story.links=(story.links||[]).filter(link=>link.source!==nodeId&&link.target!==nodeId);delete story.positions?.[nodeId];story.nodes.sort((a,b)=>(a.order||0)-(b.order||0)).forEach((node,index)=>node.order=index+1);state.storyIntersections=(state.storyIntersections||[]).filter(item=>!(item.storyAId===storyId&&item.nodeAId===nodeId)&&!(item.storyBId===storyId&&item.nodeBId===nodeId));scheduleSave();showStoryManager(storyId);
+  const story=storyById(storyId);if(!story)return;const removedName=storyNodeName(nodeId);story.nodes=(story.nodes||[]).filter(node=>node.id!==nodeId);story.links=(story.links||[]).filter(link=>link.source!==nodeId&&link.target!==nodeId);delete story.positions?.[nodeId];story.nodes.sort((a,b)=>(a.order||0)-(b.order||0)).forEach((node,index)=>node.order=index+1);state.storyIntersections=(state.storyIntersections||[]).filter(item=>!(item.storyAId===storyId&&item.nodeAId===nodeId)&&!(item.storyBId===storyId&&item.nodeBId===nodeId));story.updatedAt=nowISO();story.updatedBy=normalizeMemberEmail(firebase.user?.email||'');logActivity(`Removed story point “${removedName}” from “${story.name}”`,{source:'Story Point',detail:story.name});scheduleSave();showStoryManager(storyId);
 }
 function addStoryIntersection(storyId){
   const otherStoryId=document.getElementById('intersectionOtherStory')?.value,nodeAId=document.getElementById('intersectionThisPoint')?.value,nodeBId=document.getElementById('intersectionOtherPoint')?.value,label=document.getElementById('intersectionLabel')?.value.trim()||'Story intersection',description=document.getElementById('intersectionDescription')?.value.trim()||'';
@@ -12837,8 +13036,8 @@ document.addEventListener('click',event=>{
 
 document.addEventListener('change',event=>{
   const otherStory=event.target.closest?.('#intersectionOtherStory');if(otherStory){const story=storyById(otherStory.value),select=document.getElementById('intersectionOtherPoint');if(select)select.innerHTML=story?storyPointOptions(story).map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join(''):'<option value="">Choose a story first</option>';return;}
-  const storyName=event.target.closest?.('[data-story-name]');if(storyName){const story=storyById(storyName.dataset.storyName);if(story){story.name=storyName.value.trim()||'Untitled Story';scheduleSave();}return;}
-  const storyDescription=event.target.closest?.('[data-story-description]');if(storyDescription){const story=storyById(storyDescription.dataset.storyDescription);if(story){story.description=storyDescription.value;scheduleSave();}return;}
+  const storyName=event.target.closest?.('[data-story-name]');if(storyName){const story=storyById(storyName.dataset.storyName);if(story){story.name=storyName.value.trim()||'Untitled Story';story.updatedAt=nowISO();story.updatedBy=normalizeMemberEmail(firebase.user?.email||'');logActivity(`Updated story name to “${story.name}”`,{source:'Story',view:'story',storyId:story.id,detail:'Story name'});scheduleSave();}return;}
+  const storyDescription=event.target.closest?.('[data-story-description]');if(storyDescription){const story=storyById(storyDescription.dataset.storyDescription);if(story){story.description=storyDescription.value;story.updatedAt=nowISO();story.updatedBy=normalizeMemberEmail(firebase.user?.email||'');logActivity(`Updated description for “${story.name}”`,{source:'Story',view:'story',storyId:story.id,detail:'Description'});scheduleSave();}return;}
   const storyLabel=event.target.closest?.('[data-story-link-label]');if(storyLabel){const [storyId,linkId]=storyLabel.dataset.storyLinkLabel.split('|'),story=storyById(storyId),link=story?.links.find(x=>x.id===linkId);if(link){link.label=storyLabel.value.trim()||'Connected';scheduleSave();drawGraph();}return;}
   const storyDescriptionInput=event.target.closest?.('[data-story-link-description]');if(storyDescriptionInput){const [storyId,linkId]=storyDescriptionInput.dataset.storyLinkDescription.split('|'),story=storyById(storyId),link=story?.links.find(x=>x.id===linkId);if(link){link.description=storyDescriptionInput.value;scheduleSave();}return;}
   const customLabel=event.target.closest?.('[data-custom-link-label]');if(customLabel){const link=state.graphConnections.find(x=>x.id===customLabel.dataset.customLinkLabel);if(link){link.label=customLabel.value.trim()||'Connected';scheduleSave();drawGraph();}return;}
@@ -13258,7 +13457,7 @@ stateMetaPayload = function(){
     schemaVersion: state.schemaVersion,
     workspace: workspaceWithoutMembership(),
     world: state.world,
-    activity: Array.isArray(state.activity) ? state.activity.slice(0,200) : []
+    activity: Array.isArray(state.activity) ? state.activity.slice(0,1000) : []
   };
   if(state.createdAt) payload.createdAt = state.createdAt;
   if(state.createdByUid) payload.createdByUid = state.createdByUid;
@@ -13272,7 +13471,7 @@ function stableStoryPayload(story,index){ return cleanAssetSafeClone({...story,_
 function stableRemoteMeta(raw){
   const copy = stableWithoutSync(raw || {});
   delete copy.storyGraphs;
-  if(Array.isArray(copy.activity)) copy.activity = copy.activity.slice(0,200);
+  if(Array.isArray(copy.activity)) copy.activity = copy.activity.slice(0,1000);
   return copy;
 }
 function stableBaseJson(value){ return stableStringify(value || {}); }
@@ -14009,12 +14208,16 @@ const CC2_VERSION = 'story-timeline-2026-08';
     p.timelineEventIds=[...root.querySelectorAll('[data-cc2-timeline-event]:checked')].map(input=>input.value);
     p.roles={}; root.querySelectorAll('[data-cc2-role]').forEach(input=>{if(input.value.trim())p.roles[input.dataset.cc2Role]=input.value.trim();});
     p.knowledge={}; root.querySelectorAll('[data-cc2-knowledge]').forEach(select=>{if(select.value)p.knowledge[select.dataset.cc2Knowledge]=select.value;});
-    p.updatedAt=nowISO(); p.updatedBy=cc2UserName(); if(!p.createdBy)p.createdBy=p.updatedBy;
+    p.updatedAt=nowISO(); p.updatedBy=cc2UserName();
+    if(!p.createdBy)p.createdBy=p.updatedBy;
+    if(isNew&&!p.createdAt)p.createdAt=p.updatedAt;
     const passage=ensureStoryPassage(node); passage.title=p.title; passage.summary=p.summary; passage.anchorTurnId=field('anchorTurnId');
     const requestedOrder=Math.max(1,Math.min(story.nodes.length,Number(field('storyOrder')) || node.order));
     const reordered=cc2Ordered(story).filter(item=>item!==node);reordered.splice(requestedOrder-1,0,node);story.nodes=reordered;story.nodes.forEach((item,index)=>item.order=index+1);
     if(root.querySelector('[data-cc2-update-current]')?.checked && p.locationIds[0]) for(const characterId of p.participantIds){const character=getItem('characters',characterId);if(character)character.currentLocationIds=[p.locationIds[0]];}
     cc2RebuildDefaultLinks(story);
+    story.updatedAt=nowISO();story.updatedBy=normalizeMemberEmail(firebase.user?.email||'')||cc2UserName();
+    logActivity(`${isNew?'Added':'Updated'} story point “${p.title}”`,{source:'Story Point',view:'story',storyId:story.id,nodeId:node.id,detail:story.name});
     closeModal(); graphSettings.graphType='story'; graphSettings.storyId=story.id; graphSelectedNode=node.id; scheduleSave('Saving story point…'); renderGraphPage();
   }
 
@@ -14028,8 +14231,11 @@ const CC2_VERSION = 'story-timeline-2026-08';
   function cc2DeletePoint(storyId,nodeId){
     const story=cc2Story(storyId),node=story?.nodes.find(item=>item.id===nodeId); if(!story||!node) return;
     if(!confirm(`Delete “${cc2PointTitle(story,node)}” from this story?`)) return;
+    const removedTitle=cc2PointTitle(story,node);
     story.nodes=story.nodes.filter(item=>item.id!==nodeId); story.links=(story.links || []).filter(link=>link.source!==nodeId&&link.target!==nodeId); delete story.positions?.[nodeId];
     story.nodes.sort((a,b)=>(Number(a.order)||0)-(Number(b.order)||0)).forEach((item,index)=>item.order=index+1); cc2RebuildDefaultLinks(story);
+    story.updatedAt=nowISO();story.updatedBy=normalizeMemberEmail(firebase.user?.email||'')||cc2UserName();
+    logActivity(`Deleted story point “${removedTitle}” from “${story.name}”`,{source:'Story Point',detail:story.name});
     closeModal(); scheduleSave('Deleting story point…'); renderGraphPage();
   }
 
@@ -16559,6 +16765,8 @@ initFirebase();
     turn.characterId='';
     turn.speakerName='Narrator';
     turn.updatedAt=nowISO();
+    turn.updatedBy=normalizeMemberEmail(firebase.user?.email||'');
+    if(!turn.createdBy)turn.createdBy=turn.authorEmail||turn.updatedBy;
     if(selected.startsWith('character:')){turn.characterId=selected.split(':')[1];turn.speakerName=getItem('characters',turn.characterId)?.name||'Character';}
     else if(selected==='custom'){turn.speakerName=document.querySelector('[data-ccrh-custom-name]')?.value.trim()||'Guest character';}
     const locationChoice=document.querySelector('[data-ccrh-location]')?.value||'inherit';
@@ -16636,6 +16844,8 @@ initFirebase();
     const turns=ensureStoryDocument(story);
     const index=turns.findIndex(turn=>turn.id===turnId);
     if(index<0)return;
+    const removedTurn=turns[index],removedSpeaker=storySpeakerMeta(removedTurn)?.name||removedTurn.speakerName||'Narrator';
+    logActivity(`Deleted ${removedSpeaker}'s post from “${story.name}”`,{source:'Roleplay',view:'story',storyId:story.id,detail:story.name});
     turns.splice(index,1);
     for(const point of story.nodes||[]){
       const passage=ensureStoryPassage(point);
@@ -21920,6 +22130,7 @@ initFirebase();
 .cc-explorer-activity-card:not(:disabled):hover{border-color:var(--accent);background:var(--accent-soft)}
 .cc-explorer-activity-card:disabled{cursor:default;opacity:1}
 .cc-explorer-activity-card span{font-size:11px;font-weight:800;line-height:1.3;overflow-wrap:anywhere}
+.cc-explorer-activity-card em{color:var(--text);opacity:.78;font-size:9px;font-style:normal;line-height:1.3;overflow-wrap:anywhere}
 .cc-explorer-activity-card small{color:var(--muted);font-size:9px;line-height:1.25}
 .cc-nav-explorer-settings{display:grid;gap:14px}.cc-nav-setting-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.cc-nav-setting-grid label{display:grid;gap:6px;color:var(--muted);font-size:11px;font-weight:750}.cc-nav-setting-grid select{width:100%;border:1px solid var(--border);border-radius:10px;background:var(--panel);color:var(--text);padding:9px}
 .cc-nav-context-toggle{display:flex;align-items:flex-start;gap:10px;border:1px solid var(--border);border-radius:12px;background:var(--panel-soft);padding:11px}.cc-nav-context-toggle input{margin-top:3px}.cc-nav-context-toggle span{display:grid;gap:3px}.cc-nav-context-toggle small,.cc-nav-setting-row small{color:var(--muted);font-weight:500;line-height:1.35}
