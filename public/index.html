@@ -20198,16 +20198,36 @@ initFirebase();
   async function ccMsgSend(){
     const other=ccMsgCurrentOther(),me=ccMsgEmail();if(!other||!me)return;const threadId=ccMsgThreadId(other),draft=(ccMsg.drafts[threadId]||'').trim();if(!draft)return;
     const [a,b]=ccMsgPair(me,other),threadRef=ccMsgThreadRef(threadId),messageRef=firebase.api.doc(ccMsgMessagesCollection(threadId)),now=Date.now(),workspaceId=String(firebase.worldId||'main');
+    const senderIsA=me===a,knownThread=ccMsg.threads.find(thread=>thread.id===threadId);
     ccMsg.drafts[threadId]='';ccMsgRefreshVisible();
     try{
-      await firebase.api.runTransaction(firebase.api.db,async tx=>{
-        const snap=await tx.get(threadRef),old=snap.exists()?snap.data():{},senderIsA=me===a;
-        const unreadA=Math.max(0,Number(old.unreadA)||0),unreadB=Math.max(0,Number(old.unreadB)||0);
-        tx.set(threadRef,{workspaceId,participants:[a,b],memberA:a,memberB:b,createdAtMs:Number(old.createdAtMs)||now,createdAt:old.createdAt||nowISO(),updatedAtMs:now,updatedAt:nowISO(),lastMessage:draft.slice(0,180),lastMessageId:messageRef.id,lastSender:me,unreadA:senderIsA?0:unreadA+1,unreadB:senderIsA?unreadB+1:0},{merge:false});
-        tx.set(messageRef,{sender:me,text:draft,createdAtMs:now,createdAt:nowISO(),deleted:false});
-      });
+      if(!knownThread){
+        // A brand-new private thread must be created without first reading the
+        // nonexistent thread document. The old transaction did a tx.get() here,
+        // which Firestore correctly denied because there was no existing thread
+        // whose participant fields could authorize that read. Create the thread
+        // and its first message together as one atomic batch instead.
+        const batch=firebase.api.writeBatch(firebase.api.db);
+        batch.set(threadRef,{workspaceId,participants:[a,b],memberA:a,memberB:b,createdAtMs:now,createdAt:nowISO(),updatedAtMs:now,updatedAt:nowISO(),lastMessage:draft.slice(0,180),lastMessageId:messageRef.id,lastSender:me,unreadA:senderIsA?0:1,unreadB:senderIsA?1:0},{merge:false});
+        batch.set(messageRef,{sender:me,text:draft,createdAtMs:now,createdAt:nowISO(),deleted:false},{merge:false});
+        await batch.commit();
+      }else{
+        // Existing threads can safely use a transaction because this user is
+        // already one of the participants and therefore may read the thread.
+        await firebase.api.runTransaction(firebase.api.db,async tx=>{
+          const snap=await tx.get(threadRef);
+          if(!snap.exists())throw Object.assign(new Error('The conversation changed while sending. Try again.'),{code:'codex/thread-missing'});
+          const old=snap.data(),unreadA=Math.max(0,Number(old.unreadA)||0),unreadB=Math.max(0,Number(old.unreadB)||0);
+          tx.set(threadRef,{workspaceId,participants:[a,b],memberA:a,memberB:b,createdAtMs:Number(old.createdAtMs)||now,createdAt:old.createdAt||nowISO(),updatedAtMs:now,updatedAt:nowISO(),lastMessage:draft.slice(0,180),lastMessageId:messageRef.id,lastSender:me,unreadA:senderIsA?0:unreadA+1,unreadB:senderIsA?unreadB+1:0},{merge:false});
+          tx.set(messageRef,{sender:me,text:draft,createdAtMs:now,createdAt:nowISO(),deleted:false});
+        });
+      }
       ccMsg.currentThreadId=threadId;ccMsgListenCurrentThread();
-    }catch(error){console.error(error);ccMsg.drafts[threadId]=draft;ccMsgRefreshVisible();toast(error.code==='permission-denied'?'Message could not be sent. Publish the matching Messenger Firestore rules.':'Message could not be sent.','error');}
+    }catch(error){
+      console.error('Messenger send failed',error);ccMsg.drafts[threadId]=draft;ccMsgRefreshVisible();
+      const detail=String(error?.code||'');
+      toast(detail==='permission-denied'?'Message could not be sent because Firestore denied this write. Make sure the rules for this build are published.':'Message could not be sent. Please try again.','error');
+    }
   }
 
   async function ccMsgEditMessage(messageId){
