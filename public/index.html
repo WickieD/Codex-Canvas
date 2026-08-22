@@ -6248,6 +6248,75 @@ button.ccrh-context-chip:hover{border-color:var(--accent);color:var(--text)}
   .cc-rel-step .cc-rel-node{padding-left:4px;padding-right:4px}
 }
 </style>
+
+<style id="cc-relationship-fixed-full-rail-fix">
+/* Every relationship row shares one full-length rail. Point count changes only
+   the spacing between markers, never the rail length. */
+.cc-rel-timeline{
+  width:100%;
+  min-width:0;
+  overflow-x:auto;
+  overflow-y:hidden;
+  padding:2px 0 5px;
+}
+.cc-rel-track{
+  position:relative !important;
+  display:block !important;
+  width:calc(100% - 108px) !important;
+  min-width:var(--cc-rel-min-track,180px) !important;
+  height:96px;
+  margin:0 54px !important;
+  padding:0 !important;
+  box-sizing:border-box;
+  overflow:visible;
+}
+.cc-rel-step{
+  position:absolute !important;
+  left:var(--rel-pos) !important;
+  bottom:0;
+  width:112px !important;
+  min-width:112px !important;
+  max-width:112px !important;
+  transform:translateX(-50%);
+  display:block !important;
+  isolation:isolate;
+  z-index:2;
+}
+.cc-rel-step .cc-rel-node{
+  width:112px !important;
+  min-width:112px !important;
+  max-width:112px !important;
+  height:88px;
+  padding-left:4px !important;
+  padding-right:4px !important;
+  box-sizing:border-box;
+}
+.cc-rel-step:not(:last-child)::after{display:none !important}
+.cc-rel-rail-segment{
+  position:absolute;
+  left:0;
+  bottom:9px;
+  height:3px;
+  border-radius:999px;
+  background:linear-gradient(90deg,var(--rel-from),var(--rel-to));
+  opacity:.92;
+  z-index:0;
+  pointer-events:none;
+}
+.cc-rel-node i{z-index:3}
+@media(max-width:720px){
+  .cc-rel-track{
+    width:calc(100% - 92px) !important;
+    margin-left:46px !important;
+    margin-right:46px !important;
+  }
+  .cc-rel-step,.cc-rel-step .cc-rel-node{
+    width:100px !important;
+    min-width:100px !important;
+    max-width:100px !important;
+  }
+}
+</style>
 </head>
 <body>
 
@@ -19699,15 +19768,22 @@ initFirebase();
     return `<button class="cc-rel-point-thought" type="button" data-cc-rel-select="${esc(character.id)}|${esc(target.id)}|${encodeURIComponent(node.key)}"><small>${esc(sourceLabel)}</small><span>“${esc(shortText(blurb,130))}”</span></button>`;
   }
   function ccRelTrackHtml(character,target,nodes,record){
-    const selected=ccRelationshipSelections.get(character.id),personImage=ccRelPersonImage(target),current=ccRelPerspective(record,character.id),currentNode=nodes.find(node=>node.kind==='current'),autoCurrent=currentNode?.state||'',autoColor=currentNode?.color||CC_REL_CURRENT,pieces=[];
+    const selected=ccRelationshipSelections.get(character.id),personImage=ccRelPersonImage(target),current=ccRelPerspective(record,character.id),currentNode=nodes.find(node=>node.kind==='current'),autoCurrent=currentNode?.state||'',autoColor=currentNode?.color||CC_REL_CURRENT,pieces=[],segments=[];
+    const nodeCount=Math.max(1,nodes.length),denominator=Math.max(1,nodeCount-1);
     nodes.forEach((node,index)=>{
       const isSelected=selected?.targetId===target.id&&selected?.nodeKey===node.key;
       const classes=[node.kind==='current'?'is-current':'',node.kind==='milestone'?'is-milestone':'',node.kind==='rp-anchor'?'is-rp-anchor':'',node.stateChanged?'is-state-change':'',isSelected?'is-selected':''].filter(Boolean).join(' ');
       const label=node.kind==='milestone'?'Off-screen':node.kind==='rp-anchor'?(node.stateChanged?'State change':'RP'):'Now';
       const next=index<nodes.length-1?nodes[index+1]:null;
-      pieces.push(`<div class="cc-rel-step ${classes}" style="--rel-color:${esc(node.color)};--rel-next:${esc(next?.color||node.color)}"><button class="cc-rel-node ${classes}" type="button" data-cc-rel-select="${esc(character.id)}|${esc(target.id)}|${encodeURIComponent(node.key)}"><span class="cc-rel-node-kind">${esc(label)}</span><span class="cc-rel-node-title">${esc(node.title)}</span>${node.explicitState&&node.title!==node.explicitState?`<span class="cc-rel-node-state">${esc(node.explicitState)}</span>`:''}<span class="cc-rel-node-time">${esc(node.time||'')}</span><i></i></button></div>`);
+      const position=nodeCount===1?50:(index/denominator)*100;
+      pieces.push(`<div class="cc-rel-step ${classes}" style="--rel-color:${esc(node.color)};--rel-next:${esc(next?.color||node.color)};--rel-pos:${position.toFixed(4)}%"><button class="cc-rel-node ${classes}" type="button" data-cc-rel-select="${esc(character.id)}|${esc(target.id)}|${encodeURIComponent(node.key)}"><span class="cc-rel-node-kind">${esc(label)}</span><span class="cc-rel-node-title">${esc(node.title)}</span>${node.explicitState&&node.title!==node.explicitState?`<span class="cc-rel-node-state">${esc(node.explicitState)}</span>`:''}<span class="cc-rel-node-time">${esc(node.time||'')}</span><i></i></button></div>`);
+      if(next){
+        const nextPosition=((index+1)/denominator)*100;
+        segments.push(`<span class="cc-rel-rail-segment" style="left:${position.toFixed(4)}%;width:${(nextPosition-position).toFixed(4)}%;--rel-from:${esc(node.color)};--rel-to:${esc(next.color||node.color)}"></span>`);
+      }
     });
-    return `<article class="cc-rel-row" data-cc-rel-row="${esc(target.id)}"><div class="cc-rel-person"><button type="button" class="cc-rel-avatar" data-open="characters:${esc(target.id)}">${personImage?`<img src="${esc(personImage)}" alt="">`:esc(initials(target.name||'?'))}</button><div><button class="cc-rel-person-name" type="button" data-open="characters:${esc(target.id)}">${esc(target.name)}</button>${current.type?`<span class="cc-rel-type">${esc(current.type)}</span>`:''}${autoCurrent?`<strong class="cc-rel-current-label" style="--rel-color:${esc(autoColor)}">Current: ${esc(autoCurrent)}</strong>`:'<span class="cc-rel-current-empty">Current state not recorded yet</span>'}</div></div><div class="cc-rel-timeline"><div class="cc-rel-track" style="--cc-rel-count:${Math.max(1,nodes.length)}">${pieces.join('')}</div></div><div class="cc-rel-row-actions"><button class="button secondary small cc-rel-edit-only" type="button" data-cc-rel-edit-pair="${esc(character.id)}|${esc(target.id)}">Colors & relationship</button><button class="button ghost small cc-rel-edit-only" type="button" data-cc-rel-add-milestone="${esc(character.id)}|${esc(target.id)}">+ Relationship milestone</button></div></article>`;
+    const minTrack=Math.max(180,(nodeCount-1)*92);
+    return `<article class="cc-rel-row" data-cc-rel-row="${esc(target.id)}"><div class="cc-rel-person"><button type="button" class="cc-rel-avatar" data-open="characters:${esc(target.id)}">${personImage?`<img src="${esc(personImage)}" alt="">`:esc(initials(target.name||'?'))}</button><div><button class="cc-rel-person-name" type="button" data-open="characters:${esc(target.id)}">${esc(target.name)}</button>${current.type?`<span class="cc-rel-type">${esc(current.type)}</span>`:''}${autoCurrent?`<strong class="cc-rel-current-label" style="--rel-color:${esc(autoColor)}">Current: ${esc(autoCurrent)}</strong>`:'<span class="cc-rel-current-empty">Current state not recorded yet</span>'}</div></div><div class="cc-rel-timeline"><div class="cc-rel-track" style="--cc-rel-count:${nodeCount};--cc-rel-min-track:${minTrack}px">${segments.join('')}${pieces.join('')}</div></div><div class="cc-rel-row-actions"><button class="button secondary small cc-rel-edit-only" type="button" data-cc-rel-edit-pair="${esc(character.id)}|${esc(target.id)}">Colors & relationship</button><button class="button ghost small cc-rel-edit-only" type="button" data-cc-rel-add-milestone="${esc(character.id)}|${esc(target.id)}">+ Relationship milestone</button></div></article>`;
   }
   function ccRelInspectorPostLink(post,label='Open exact RP post'){
     if(!post)return '';if(post.turnId)return `<button class="button secondary small" type="button" data-ccrh-open-linked-post="${esc(post.storyId)}|${esc(post.nodeId)}|${esc(post.turnId)}">${esc(label)} →</button>`;return `<button class="button secondary small" type="button" data-story-point="${esc(storyRouteValue(post.storyId,post.nodeId))}">${esc(label)} →</button>`;
