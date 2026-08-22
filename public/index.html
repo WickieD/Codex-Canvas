@@ -15399,12 +15399,12 @@ initFirebase();
     renderSidebar();
     renderBreadcrumbs();
     try{
-      graphSettings.graphType = 'story';
-      if(typeof cc2RenderStoryMapPage === 'function'){
-        cc2RenderStoryMapPage();
-      }else{
-        renderGraphPage();
+      // Preserve the graph the user selected. Presence/live refreshes call render(),
+      // so forcing Story here made Locations/People/World immediately snap back.
+      if(!['story','locations','characters','world'].includes(graphSettings.graphType)){
+        graphSettings.graphType = 'story';
       }
+      renderGraphPage();
     }catch(error){
       console.error('Graph page failed to render', error);
       el.main.innerHTML = `<div class="cc16-graph-error">
@@ -15472,7 +15472,6 @@ initFirebase();
     const retry = event.target.closest('[data-cc16-retry-graph]');
     if(retry){
       event.preventDefault();
-      graphSettings.graphType = 'story';
       cc16RenderGraphRoute();
       return;
     }
