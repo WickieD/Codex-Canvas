@@ -6116,6 +6116,28 @@ button.ccrh-context-chip:hover{border-color:var(--accent);color:var(--text)}
 .cc-rel-point-popup .cc-rel-main-thought{margin:2px 0 0;border-left:3px solid var(--accent);border-radius:8px;background:var(--panel-soft);padding:10px 12px;font-family:Georgia,serif;line-height:1.5}
 @media(max-width:720px){.cc-rel-row{grid-template-columns:1fr}.cc-rel-track{gap:18px}.cc-rel-step,.cc-rel-step .cc-rel-node{width:120px;min-width:120px}.cc-rel-step:not(:last-child)::after{width:calc(100% + 24px)}.cc-rel-point-popup-modal{width:calc(100vw - 16px)!important}}
 </style>
+
+<style id="cc-rel-readonly-blurb-popup-fix">
+.cc-rel-blurb-popup-modal{width:min(520px,calc(100vw - 28px))!important;max-width:520px!important}
+.cc-rel-blurb-popup-modal .modal-head{min-height:38px;padding:8px 12px;border-bottom:0}
+.cc-rel-blurb-popup-modal .modal-head h2{display:none}
+.cc-rel-blurb-popup-modal .modal-body{padding:4px 16px 14px}
+.cc-rel-blurb-popup-modal .modal-foot{padding:10px 16px 14px;border-top:0}
+.cc-rel-blurb-popup{display:grid;gap:13px}
+.cc-rel-blurb-person{display:flex;align-items:center;gap:11px}
+.cc-rel-blurb-person img,.cc-rel-blurb-person>span{width:42px;height:42px;border-radius:10px;object-fit:cover;background:var(--accent-soft);display:grid;place-items:center;font-weight:850}
+.cc-rel-blurb-person div{display:grid;gap:2px}.cc-rel-blurb-person small{font-size:9px;font-weight:850;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.cc-rel-blurb-person strong{font-size:17px}
+.cc-rel-blurb-meta{display:flex;flex-wrap:wrap;align-items:center;gap:7px 10px;color:var(--muted);font-size:11px}
+.cc-rel-blurb-state{display:inline-flex;align-items:center;gap:6px;font-weight:850;color:var(--text)}
+.cc-rel-blurb-state i{width:9px;height:9px;border-radius:50%;background:var(--rel-color);box-shadow:0 0 0 2px color-mix(in srgb,var(--rel-color) 22%,transparent)}
+.cc-rel-blurb-quote{margin:0;padding:16px 17px;border:1px solid color-mix(in srgb,var(--accent) 46%,var(--border));border-radius:14px;background:color-mix(in srgb,var(--accent-soft) 34%,var(--panel-soft));font:italic 17px/1.55 Georgia,serif;color:var(--text)}
+.cc-rel-blurb-empty{padding:14px;border:1px dashed var(--border);border-radius:12px;color:var(--muted);font-size:12px}
+.cc-rel-blurb-note{margin:0;color:var(--muted);line-height:1.5}
+.cc-rel-blurb-other{border-top:1px solid var(--border);padding-top:9px}.cc-rel-blurb-other summary{cursor:pointer;color:var(--muted);font-size:11px;font-weight:800}.cc-rel-blurb-other blockquote{margin:9px 0 0;padding:10px 12px;border-left:3px solid var(--border);font:italic 13px/1.5 Georgia,serif;color:var(--muted)}
+.cc-life-view-mode .cc-rel-edit-only{display:none!important}
+@media(max-width:720px){.cc-rel-blurb-popup-modal{width:calc(100vw - 18px)!important}.cc-rel-blurb-quote{font-size:16px;padding:14px}}
+</style>
 </head>
 <body>
 
@@ -19575,7 +19597,7 @@ initFirebase();
       const next=index<nodes.length-1?nodes[index+1]:null;
       pieces.push(`<div class="cc-rel-step ${classes}" style="--rel-color:${esc(node.color)};--rel-next:${esc(next?.color||node.color)}"><button class="cc-rel-node ${classes}" type="button" data-cc-rel-select="${esc(character.id)}|${esc(target.id)}|${encodeURIComponent(node.key)}"><span class="cc-rel-node-kind">${esc(label)}</span><span class="cc-rel-node-title">${esc(node.title)}</span>${node.explicitState&&node.title!==node.explicitState?`<span class="cc-rel-node-state">${esc(node.explicitState)}</span>`:''}<span class="cc-rel-node-time">${esc(node.time||'')}</span><i></i></button></div>`);
     });
-    return `<article class="cc-rel-row" data-cc-rel-row="${esc(target.id)}"><div class="cc-rel-person"><button type="button" class="cc-rel-avatar" data-open="characters:${esc(target.id)}">${personImage?`<img src="${esc(personImage)}" alt="">`:esc(initials(target.name||'?'))}</button><div><button class="cc-rel-person-name" type="button" data-open="characters:${esc(target.id)}">${esc(target.name)}</button>${current.type?`<span class="cc-rel-type">${esc(current.type)}</span>`:''}${autoCurrent?`<strong class="cc-rel-current-label" style="--rel-color:${esc(autoColor)}">Current: ${esc(autoCurrent)}</strong>`:'<span class="cc-rel-current-empty">Current state not recorded yet</span>'}</div></div><div class="cc-rel-timeline"><div class="cc-rel-track">${pieces.join('')}</div></div><div class="cc-rel-row-actions"><button class="button secondary small cc-rel-edit-only" type="button" data-cc-rel-edit-pair="${esc(character.id)}|${esc(target.id)}">Colors & relationship</button><button class="button ghost small" type="button" data-cc-rel-add-milestone="${esc(character.id)}|${esc(target.id)}">+ Relationship milestone</button></div></article>`;
+    return `<article class="cc-rel-row" data-cc-rel-row="${esc(target.id)}"><div class="cc-rel-person"><button type="button" class="cc-rel-avatar" data-open="characters:${esc(target.id)}">${personImage?`<img src="${esc(personImage)}" alt="">`:esc(initials(target.name||'?'))}</button><div><button class="cc-rel-person-name" type="button" data-open="characters:${esc(target.id)}">${esc(target.name)}</button>${current.type?`<span class="cc-rel-type">${esc(current.type)}</span>`:''}${autoCurrent?`<strong class="cc-rel-current-label" style="--rel-color:${esc(autoColor)}">Current: ${esc(autoCurrent)}</strong>`:'<span class="cc-rel-current-empty">Current state not recorded yet</span>'}</div></div><div class="cc-rel-timeline"><div class="cc-rel-track">${pieces.join('')}</div></div><div class="cc-rel-row-actions"><button class="button secondary small cc-rel-edit-only" type="button" data-cc-rel-edit-pair="${esc(character.id)}|${esc(target.id)}">Colors & relationship</button><button class="button ghost small cc-rel-edit-only" type="button" data-cc-rel-add-milestone="${esc(character.id)}|${esc(target.id)}">+ Relationship milestone</button></div></article>`;
   }
   function ccRelInspectorPostLink(post,label='Open exact RP post'){
     if(!post)return '';if(post.turnId)return `<button class="button secondary small" type="button" data-ccrh-open-linked-post="${esc(post.storyId)}|${esc(post.nodeId)}|${esc(post.turnId)}">${esc(label)} →</button>`;return `<button class="button secondary small" type="button" data-story-point="${esc(storyRouteValue(post.storyId,post.nodeId))}">${esc(label)} →</button>`;
@@ -19592,9 +19614,33 @@ initFirebase();
   }
   function ccRelPointPopup(character,target,nodes,record,node){
     if(!character||!target||!node)return;
-    const title=node.kind==='milestone'?'Off-screen relationship milestone':node.kind==='current'?'Current relationship':node.stateChanged?'Relationship state change':'RP relationship moment';
-    showModal(title,`<div class="cc-rel-point-popup">${ccRelInspectorHtml(character,target,nodes,record,node)}</div>`,`<button class="button secondary" type="button" data-close-modal>Close</button>`);
-    el.modal.querySelector('.modal')?.classList.add('cc-rel-point-popup-modal');
+    const targetImage=ccRelPersonImage(target);
+    const subjectAt=node.perspectives?.[character.id]||{state:node.state||'',color:node.color,blurb:node.blurb||''};
+    const targetAt=node.perspectives?.[target.id]||{state:'',color:CC_REL_NEUTRAL,blurb:''};
+    const milestone=node.kind==='milestone'?(record?.milestones||[]).find(item=>item.id===node.milestoneId)||null:null;
+    const stateLabel=subjectAt.explicitState||node.explicitState||subjectAt.state||node.state||'';
+    const sourceLabel=node.kind==='rp-anchor'&&node.scene
+      ? `${node.scene.story?.name||'Roleplay'} · ${node.scene.title||node.title}`
+      : node.kind==='milestone'
+        ? (node.placementLabel||node.time||'Off-screen milestone')
+        : 'Present';
+    const primaryBlurb=String(subjectAt.blurb||'').trim();
+    const otherBlurb=String(targetAt.blurb||'').trim();
+    const quote=primaryBlurb
+      ? `<blockquote class="cc-rel-blurb-quote">“${esc(primaryBlurb)}”</blockquote>`
+      : `<div class="cc-rel-blurb-empty">No relationship blurb was recorded for ${esc(character.name)} at this point.</div>`;
+    const other=otherBlurb
+      ? `<details class="cc-rel-blurb-other"><summary>${esc(target.name)}'s perspective</summary><blockquote>“${esc(otherBlurb)}”</blockquote></details>`
+      : '';
+    const offscreenNote=milestone?.note?`<p class="cc-rel-blurb-note">${esc(milestone.note)}</p>`:'';
+    showModal('',`<div class="cc-rel-blurb-popup">
+      <div class="cc-rel-blurb-person">${targetImage?`<img src="${esc(targetImage)}" alt="">`:`<span>${esc(initials(target.name||'?'))}</span>`}<div><small>${node.kind==='milestone'?'Off-screen milestone':node.kind==='current'?'Current relationship':'Relationship moment'}</small><strong>${esc(target.name)}</strong></div></div>
+      <div class="cc-rel-blurb-meta">${stateLabel?`<span class="cc-rel-blurb-state" style="--rel-color:${esc(subjectAt.color||node.color||CC_REL_NEUTRAL)}"><i></i>${esc(stateLabel)}</span>`:''}<span>${esc(sourceLabel)}</span></div>
+      ${offscreenNote}${quote}${other}
+    </div>`,`<button class="button secondary" type="button" data-close-modal>Close</button>`);
+    const modal=el.modal.querySelector('.modal');
+    modal?.classList.add('cc-rel-blurb-popup-modal');
+    modal?.querySelector('.modal-head')?.classList.add('cc-rel-blurb-popup-head');
   }
 
   function ccRelTurnMeta(turn){
@@ -19995,7 +20041,7 @@ initFirebase();
     const relSaveAssignments=event.target.closest?.('[data-cc-rel-save-assignments]');if(relSaveAssignments){event.preventDefault();event.stopImmediatePropagation();ccRelSaveAssignments(relSaveAssignments.dataset.ccRelSaveAssignments);return;}
     const relPointEdit=event.target.closest?.('[data-cc-rel-edit-point]');if(relPointEdit){event.preventDefault();event.stopImmediatePropagation();const [characterId,targetId,keyEncoded]=relPointEdit.dataset.ccRelEditPoint.split('|');ccRelPointEditor(characterId,targetId,decodeURIComponent(keyEncoded));return;}
     if(event.target.closest?.('[data-cc-rel-save-point-edit]')){event.preventDefault();event.stopImmediatePropagation();ccRelSavePointEdit();return;}
-    const relSelect=event.target.closest?.('[data-cc-rel-select]');if(relSelect){event.preventDefault();event.stopImmediatePropagation();const [characterId,targetId,keyEncoded]=relSelect.dataset.ccRelSelect.split('|');const character=getItem('characters',characterId),target=getItem('characters',targetId);if(!character||!target)return;const scenes=ccRelSharedScenes(character.id,target.id),record=ccRelRecord(character.id,target.id,false),nodes=ccRelNodesFor(character,target,scenes,record),node=ccRelNodeFromKey(character,target,nodes,decodeURIComponent(keyEncoded));if(!node)return;ccRelationshipSelections.set(characterId,{targetId,nodeKey:node.key});ccRelPointPopup(character,target,nodes,record,node);return;}
+    const relSelect=event.target.closest?.('[data-cc-rel-select]');if(relSelect){event.preventDefault();event.stopImmediatePropagation();const [characterId,targetId,keyEncoded]=relSelect.dataset.ccRelSelect.split('|');const character=getItem('characters',characterId),target=getItem('characters',targetId);if(!character||!target)return;const scenes=ccRelSharedScenes(character.id,target.id),record=ccRelRecord(character.id,target.id,false),nodes=ccRelNodesFor(character,target,scenes,record),node=ccRelNodeFromKey(character,target,nodes,decodeURIComponent(keyEncoded));if(!node)return;ccRelationshipSelections.set(characterId,{targetId,nodeKey:node.key});if(ccIsLifeEditing(characterId)){if(node.kind==='rp-anchor'){ccRelPointEditor(character,target,nodes,record,node);}else if(node.kind==='milestone'){ccRelMilestoneEditor(characterId,targetId,node.milestoneId);}else if(node.kind==='current'){ccRelPairEditor(characterId,targetId);}return;}ccRelPointPopup(character,target,nodes,record,node);return;}
     const relEdit=event.target.closest?.('[data-cc-rel-edit-pair]');if(relEdit){event.preventDefault();event.stopImmediatePropagation();const [characterId,targetId]=relEdit.dataset.ccRelEditPair.split('|');ccRelPairEditor(characterId,targetId);return;}
     const relAdd=event.target.closest?.('[data-cc-rel-add-relationship]');if(relAdd){event.preventDefault();event.stopImmediatePropagation();ccRelAddRelationshipPicker(relAdd.dataset.ccRelAddRelationship);return;}
     const relAddPerson=event.target.closest?.('[data-cc-rel-add-person]');if(relAddPerson){event.preventDefault();event.stopImmediatePropagation();const [characterId,targetId]=relAddPerson.dataset.ccRelAddPerson.split('|');closeModal();ccRelRecord(characterId,targetId,true);scheduleSave('Adding relationship…');ccRelPairEditor(characterId,targetId);return;}
