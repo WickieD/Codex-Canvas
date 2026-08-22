@@ -6138,6 +6138,20 @@ button.ccrh-context-chip:hover{border-color:var(--accent);color:var(--text)}
 .cc-life-view-mode .cc-rel-edit-only{display:none!important}
 @media(max-width:720px){.cc-rel-blurb-popup-modal{width:calc(100vw - 18px)!important}.cc-rel-blurb-quote{font-size:16px;padding:14px}}
 </style>
+<style id="cc-rel-readonly-blurb-popup-center-fix">
+/* Read-only relationship moment popup: one centered composition, with the bottom Close button as the only dismiss control. */
+.cc-rel-blurb-popup-modal .modal-head{display:none!important}
+.cc-rel-blurb-popup-modal .modal-body{display:flex;justify-content:center;padding-top:18px}
+.cc-rel-blurb-popup{width:100%;max-width:460px;justify-items:center;text-align:center}
+.cc-rel-blurb-person{width:100%;justify-content:center;text-align:center}
+.cc-rel-blurb-person div{justify-items:center;text-align:center}
+.cc-rel-blurb-meta{width:100%;justify-content:center;text-align:center}
+.cc-rel-blurb-quote,.cc-rel-blurb-empty,.cc-rel-blurb-note,.cc-rel-blurb-other{width:100%;box-sizing:border-box;text-align:center}
+.cc-rel-blurb-other summary{text-align:center}
+.cc-rel-blurb-popup-modal .modal-foot{display:flex;justify-content:center}
+.cc-rel-blurb-popup-modal .modal-foot .button{min-width:110px}
+@media(max-width:720px){.cc-rel-blurb-popup{max-width:none}.cc-rel-blurb-popup-modal .modal-body{padding-top:14px}}
+</style>
 </head>
 <body>
 
