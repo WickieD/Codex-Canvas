@@ -6154,6 +6154,47 @@ button.ccrh-context-chip:hover{border-color:var(--accent);color:var(--text)}
 .cc-rel-empty-blurb-toggle input{margin-top:2px;flex:0 0 auto}
 @media(max-width:720px){.cc-rel-blurb-popup{max-width:none}.cc-rel-blurb-popup-modal .modal-body{padding-top:14px}}
 </style>
+
+<style id="cc-relationship-responsive-width-fix">
+/* Relationship timelines use the full available row width.
+   The track only becomes horizontally scrollable when its points genuinely
+   cannot fit inside the current viewport/container. */
+.cc-rel-layout{
+  grid-template-columns:minmax(0,1fr) !important;
+  width:100%;
+}
+.cc-rel-list,.cc-rel-row{
+  width:100%;
+  max-width:none;
+}
+.cc-rel-row{
+  grid-template-columns:205px minmax(0,1fr);
+}
+.cc-rel-timeline{
+  width:100%;
+  min-width:0;
+  overflow-x:auto;
+  overflow-y:hidden;
+  padding-bottom:3px;
+}
+.cc-rel-track{
+  width:max-content;
+  min-width:100%;
+  box-sizing:border-box;
+}
+.cc-rel-segment{
+  flex:1 1 80px;
+  min-width:48px;
+}
+@media (max-width:1050px){
+  .cc-rel-row{grid-template-columns:180px minmax(0,1fr);}
+}
+@media (max-width:720px){
+  .cc-rel-row{grid-template-columns:1fr;}
+  .cc-rel-timeline{width:100%;}
+  .cc-rel-track{min-width:100%;}
+}
+</style>
 </head>
 <body>
 
