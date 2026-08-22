@@ -6262,10 +6262,13 @@ button.ccrh-context-chip:hover{border-color:var(--accent);color:var(--text)}
 .cc-rel-track{
   position:relative !important;
   display:block !important;
-  width:calc(100% - 108px) !important;
+  /* Keep each 112px end marker completely inside the timeline viewport.
+     The previous 54px gutters left 2px of each marker overflowing, which
+     was enough to create a scrollbar even when every point was visible. */
+  width:calc(100% - 112px) !important;
   min-width:var(--cc-rel-min-track,180px) !important;
   height:96px;
-  margin:0 54px !important;
+  margin:0 56px !important;
   padding:0 !important;
   box-sizing:border-box;
   overflow:visible;
@@ -6306,9 +6309,9 @@ button.ccrh-context-chip:hover{border-color:var(--accent);color:var(--text)}
 .cc-rel-node i{z-index:3}
 @media(max-width:720px){
   .cc-rel-track{
-    width:calc(100% - 92px) !important;
-    margin-left:46px !important;
-    margin-right:46px !important;
+    width:calc(100% - 100px) !important;
+    margin-left:50px !important;
+    margin-right:50px !important;
   }
   .cc-rel-step,.cc-rel-step .cc-rel-node{
     width:100px !important;
