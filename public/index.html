@@ -2345,6 +2345,8 @@ button:disabled { cursor: not-allowed; opacity: .48; }
   .shape-layer-buttons { grid-template-columns: 1fr; }
 }
 
+
+  .cc-rel-point-editor{display:grid;gap:16px}.cc-rel-point-edit-person{display:grid;gap:10px;padding:14px;border:1px solid var(--border);border-radius:14px;background:var(--panel-soft)}
 </style>
 <style id="word-edit-behavior-fix">
 
@@ -16640,6 +16642,7 @@ initFirebase();
           if(!point&&!location&&!place.detail&&!timelineEvents.length)return '';
           return `<div class="ccrh-post-context">${point?`<button class="ccrh-context-chip" type="button" data-story-point="${esc(storyRouteValue(pointStory.id,point.id))}">Story point: ${esc(storyPointTitle(pointStory,point))}${pointStory.id!==story.id?` · ${esc(pointStory.name)}`:''}</button>`:''}${location?`<button class="ccrh-context-chip" type="button" data-open="locations:${esc(location.id)}">Location: ${esc(storyLocationName(location.id,place.detail))}</button>`:place.detail?`<span class="ccrh-context-chip">Location: ${esc(place.detail)}</span>`:''}${timelineEvents.map(eventItem=>`<button class="ccrh-context-chip" type="button" data-open="events:${esc(eventItem.id)}">Timeline event: ${esc(eventItem.name)}</button>`).join('')}</div>`;
         })()}
+        ${typeof ccRelTurnMetaChips==='function'?ccRelTurnMetaChips(turn):''}
         <div class="ccrh-post-body">${ccrhBbcode(turn.text||'')}</div>
         <div class="ccrh-post-action-popup" hidden>
           <div class="ccrh-post-actions">
@@ -19391,16 +19394,27 @@ initFirebase();
         for(const personId of [subjectId,targetId]){
           const cards=ccRelDialogueCardsFromText(turn?.text||'',personId);
           const targetForPerson=personId===subjectId?targetId:subjectId;
+          let matchedDialogueCard=false;
           cards.forEach((card,cardIndex)=>{
             const assignment=ccRelResolveCardTargets(scene,turn,personId,card,cardIndex);
             if(!assignment.targetIds.includes(String(targetForPerson)))return;
+            matchedDialogueCard=true;
             byPerson[personId].push({
               personId,storyId:scene.storyId,nodeId:scene.nodeId,turnId:turn.id,story:scene.story,node:scene.node,scene,
               sceneTitle:scene.title,storyName:scene.story.name,time:scene.time||'',postNumber:globalIndex+1,
-              state:String(card.relationshipStates?.[String(targetForPerson)]||card.state||'').trim(),blurb:card.blurb,dialogue:card.dialogue,aboutIds:assignment.targetIds,aboutMode:assignment.mode,
+              state:String(card.relationshipStates?.[String(targetForPerson)]||card.state||'').trim(),blurb:card.blurb,dialogue:card.dialogue,aboutIds:assignment.targetIds,aboutMode:assignment.mode,cardIndex,
               rank:(Number(scene.rank)||0)*100000+globalIndex*10+cardIndex
             });
           });
+          if(!matchedDialogueCard){
+            const meta=turn?.relationshipMeta?.[String(personId)]?.[String(targetForPerson)];
+            if(meta&&(String(meta.state||'').trim()||String(meta.blurb||'').trim()))byPerson[personId].push({
+              personId,storyId:scene.storyId,nodeId:scene.nodeId,turnId:turn.id,story:scene.story,node:scene.node,scene,
+              sceneTitle:scene.title,storyName:scene.story.name,time:scene.time||'',postNumber:globalIndex+1,
+              state:String(meta.state||'').trim(),blurb:String(meta.blurb||'').trim(),dialogue:'',aboutIds:[String(targetForPerson)],aboutMode:'targets',cardIndex:-1,metaOnly:true,
+              rank:(Number(scene.rank)||0)*100000+globalIndex*10+8
+            });
+          }
         }
       }
       for(const personId of [subjectId,targetId]){
@@ -19487,8 +19501,100 @@ initFirebase();
     const stateLine=(state,color,label='No relationship state yet')=>`<div class="cc-rel-state-line"><i style="--rel-color:${esc(ccRelColor(color,CC_REL_NEUTRAL))}"></i><span>${esc(state||label)}</span></div>`;
     const phasePosts=(node.phasePosts||[]).filter(post=>post.blurb);const phaseThoughts=phasePosts.length?`<div class="cc-rel-phase-thoughts"><span class="cc-rel-inspector-label">Thoughts during this stage</span>${phasePosts.map(post=>`<article><blockquote>“${esc(post.blurb)}”</blockquote><div><span>${esc(post.storyName)} · ${esc(post.sceneTitle)}${post.postNumber?` · Post ${post.postNumber}`:''}</span>${ccRelInspectorPostLink(post,'Open post')}</div></article>`).join('')}</div>`:'';
     const currentSubject=[...subjectPosts].reverse().find(post=>post.state)?.state||subjectPerspective.currentState||'',currentTarget=[...targetPosts].reverse().find(post=>post.state)?.state||targetPerspective.currentState||'';
-    return `<aside class="cc-rel-inspector"><header class="cc-rel-inspector-head"><div class="cc-rel-inspector-person">${targetImage?`<img src="${esc(targetImage)}" alt="">`:`<span>${esc(initials(target.name||'?'))}</span>`}<div><strong>${esc(target.name)}</strong>${subjectPerspective.type?`<small>${esc(subjectPerspective.type)}</small>`:''}</div></div></header><div class="cc-rel-inspector-body"><section><span class="cc-rel-inspector-label">Relationship progression</span><h3>${esc(node.state||node.title)}</h3>${node.subtitle?`<p>${esc(node.subtitle)}</p>`:''}<small>${esc(node.time||'')}</small></section><div class="cc-rel-inspector-section"><span class="cc-rel-inspector-label">${esc(character.name)} at this point</span>${stateLine(subjectAt.state,subjectAt.color)}${subjectAt.blurb?`<blockquote class="cc-rel-main-thought">“${esc(subjectAt.blurb)}”</blockquote>`:'<p class="muted">No blurb was attached to this post.</p>'}${ccRelInspectorPostLink(subjectAt.post||node.post)}</div><div class="cc-rel-inspector-section"><span class="cc-rel-inspector-label">${esc(target.name)} at the same point</span>${stateLine(targetAt.state,targetAt.color)}${targetAt.blurb?`<blockquote class="cc-rel-main-thought">“${esc(targetAt.blurb)}”</blockquote>`:'<p class="muted">No blurb had been posted from this perspective yet.</p>'}${ccRelInspectorPostLink(targetAt.post,'Open their closest post')}</div>${phaseThoughts}<div class="cc-rel-inspector-section"><span class="cc-rel-inspector-label">Where they are now</span>${stateLine(currentSubject,currentSubject?ccRelAutoColor(record,character.id,currentSubject):CC_REL_CURRENT,`${character.name}: no state`)}${currentTarget?`<small>${esc(target.name)}: ${esc(currentTarget)}</small>`:''}</div><div class="cc-rel-inspector-actions"><button class="button secondary small" type="button" data-open="characters:${esc(target.id)}">Open Bio</button><button class="button secondary small" type="button" data-cc-life-story="${esc(target.id)}">Open Life Story</button>${milestone?`<button class="button secondary small cc-rel-edit-only" type="button" data-cc-rel-edit-milestone="${esc(character.id)}|${esc(target.id)}|${esc(milestone.id)}">Edit manual note</button><button class="button ghost small cc-rel-edit-only" type="button" data-cc-rel-delete-milestone="${esc(character.id)}|${esc(target.id)}|${esc(milestone.id)}">Delete manual note</button>`:''}</div></div></aside>`;
+    return `<aside class="cc-rel-inspector"><header class="cc-rel-inspector-head"><div class="cc-rel-inspector-person">${targetImage?`<img src="${esc(targetImage)}" alt="">`:`<span>${esc(initials(target.name||'?'))}</span>`}<div><strong>${esc(target.name)}</strong>${subjectPerspective.type?`<small>${esc(subjectPerspective.type)}</small>`:''}</div></div></header><div class="cc-rel-inspector-body"><section><span class="cc-rel-inspector-label">Relationship progression</span><h3>${esc(node.state||node.title)}</h3>${node.subtitle?`<p>${esc(node.subtitle)}</p>`:''}<small>${esc(node.time||'')}</small></section><div class="cc-rel-inspector-section"><span class="cc-rel-inspector-label">${esc(character.name)} at this point</span>${stateLine(subjectAt.state,subjectAt.color)}${subjectAt.blurb?`<blockquote class="cc-rel-main-thought">“${esc(subjectAt.blurb)}”</blockquote>`:'<p class="muted">No blurb was attached to this post.</p>'}${ccRelInspectorPostLink(subjectAt.post||node.post)}</div><div class="cc-rel-inspector-section"><span class="cc-rel-inspector-label">${esc(target.name)} at the same point</span>${stateLine(targetAt.state,targetAt.color)}${targetAt.blurb?`<blockquote class="cc-rel-main-thought">“${esc(targetAt.blurb)}”</blockquote>`:'<p class="muted">No blurb had been posted from this perspective yet.</p>'}${ccRelInspectorPostLink(targetAt.post,'Open their closest post')}</div>${phaseThoughts}<div class="cc-rel-inspector-section"><span class="cc-rel-inspector-label">Where they are now</span>${stateLine(currentSubject,currentSubject?ccRelAutoColor(record,character.id,currentSubject):CC_REL_CURRENT,`${character.name}: no state`)}${currentTarget?`<small>${esc(target.name)}: ${esc(currentTarget)}</small>`:''}</div><div class="cc-rel-inspector-actions">${node.kind!=='milestone'?`<button class="button small" type="button" data-cc-rel-edit-point="${esc(character.id)}|${esc(target.id)}|${encodeURIComponent(node.key)}">✎ Edit point</button>`:''}<button class="button secondary small" type="button" data-open="characters:${esc(target.id)}">Open Bio</button><button class="button secondary small" type="button" data-cc-life-story="${esc(target.id)}">Open Life Story</button>${milestone?`<button class="button secondary small cc-rel-edit-only" type="button" data-cc-rel-edit-milestone="${esc(character.id)}|${esc(target.id)}|${esc(milestone.id)}">Edit manual note</button><button class="button ghost small cc-rel-edit-only" type="button" data-cc-rel-delete-milestone="${esc(character.id)}|${esc(target.id)}|${esc(milestone.id)}">Delete manual note</button>`:''}</div></div></aside>`;
   }
+  function ccRelTurnMeta(turn){
+    if(!turn)return {};turn.relationshipMeta ||= {};return turn.relationshipMeta;
+  }
+  function ccRelTurnMetaFor(turn,personId,targetId,create=false){
+    if(!turn)return null;const root=ccRelTurnMeta(turn),personKey=String(personId||''),targetKey=String(targetId||'');
+    if(!personKey||!targetKey)return null;if(create){root[personKey] ||= {};root[personKey][targetKey] ||= {state:'',blurb:'',updatedAt:'',updatedBy:''};}
+    return root?.[personKey]?.[targetKey]||null;
+  }
+  function ccRelTurnMetaChips(turn){
+    const root=turn?.relationshipMeta;if(!root||typeof root!=='object')return '';
+    const chips=[];
+    for(const [personId,targets] of Object.entries(root))for(const [targetId,meta] of Object.entries(targets||{})){
+      if(!meta||( !String(meta.state||'').trim() && !String(meta.blurb||'').trim()))continue;
+      const person=getItem('characters',personId),target=getItem('characters',targetId);if(!person||!target)continue;
+      const stateText=String(meta.state||'').trim();const thought=String(meta.blurb||'').trim();
+      chips.push(`<span class="ccrh-context-chip" title="${esc(thought||'Relationship note')}">Relationship: ${esc(person.name)} → ${esc(target.name)}${stateText?` · ${esc(stateText)}`:''}${thought?` · “${esc(shortText(thought,70))}”`:''}</span>`);
+    }
+    return chips.length?`<div class="ccrh-post-context cc-rel-rp-meta">${chips.join('')}</div>`:'';
+  }
+  function ccRelCanEditTurn(turn){
+    if(!turn)return false;if(typeof isWorkspaceOwner==='function'&&isWorkspaceOwner())return true;
+    const mine=normalizeMemberEmail(firebase.user?.email||''),author=normalizeMemberEmail(turn.authorEmail||turn.createdBy||turn.userEmail||'');
+    return author?mine===author:(typeof canEditSharedWorld==='function'?canEditSharedWorld():true);
+  }
+  function ccRelSceneTurnForPerson(scene,personId){
+    if(!scene?.story)return null;const turns=typeof ccLifePointTurns==='function'?ccLifePointTurns(scene.story,scene.node):[];
+    return turns.find(turn=>String(turn.characterId||'')===String(personId))||turns.find(turn=>ccRelDialogueCardsFromText(turn?.text||'',personId).length)||null;
+  }
+  function ccRelSourceForPerspective(character,target,node,personId){
+    const targetId=String(personId)===String(character.id)?target.id:character.id;
+    const history=(node&&node._history)||ccRelPostHistory(character.id,target.id);const posts=history.byPerson?.[personId]||[];
+    let post=null;
+    if(node?.kind==='current')post=[...posts].reverse().find(item=>item.state||item.blurb)||[...posts].reverse()[0]||null;
+    else if(node?.post&&String(node.post.personId||'')===String(personId))post=node.post;
+    else if(node?.scene){
+      const same=posts.filter(item=>item.storyId===node.scene.storyId&&item.nodeId===node.scene.nodeId);post=same.find(item=>item.rank<=Number(node.rank||Infinity))||same[0]||null;
+    }
+    const story=post?.story||node?.scene?.story||null;let turn=null;
+    if(story&&post?.turnId)turn=ensureStoryDocument(story).find(item=>item.id===post.turnId)||null;
+    if(!turn&&node?.scene)turn=ccRelSceneTurnForPerson(node.scene,personId);
+    return {personId:String(personId),targetId:String(targetId),post,story,turn,cardIndex:Number.isInteger(post?.cardIndex)?post.cardIndex:-1};
+  }
+  function ccRelStateOptions(selected=''){
+    const values=ccRelStateLibrary();return `<option value="">No relationship state yet</option>${values.map(item=>`<option value="${esc(item.label)}" ${String(selected)===String(item.label)?'selected':''}>${esc(item.label)}</option>`).join('')}`;
+  }
+  function ccRelPointEditor(characterId,targetId,nodeKey){
+    const character=getItem('characters',characterId),target=getItem('characters',targetId);if(!character||!target)return;
+    const scenes=ccRelSharedScenes(character.id,target.id),record=ccRelRecord(character.id,target.id,false),nodes=ccRelNodesFor(character,target,scenes,record),node=ccRelNodeFromKey(character,target,nodes,nodeKey);if(!node)return;
+    const history=nodes._history||ccRelPostHistory(character.id,target.id),subjectAt=ccRelPerspectiveAtNode(record,character.id,history.byPerson[character.id]||[],node),targetAt=ccRelPerspectiveAtNode(record,target.id,history.byPerson[target.id]||[],node);
+    const subjectSource=ccRelSourceForPerspective(character,target,node,character.id),targetSource=ccRelSourceForPerspective(character,target,node,target.id);
+    const section=(person,other,at,source,side)=>{
+      const can=source.turn&&ccRelCanEditTurn(source.turn),sourceLabel=source.turn?`${source.story?.name||'RP'} · ${node.scene?.title||node.subtitle||node.title}${source.post?.postNumber?` · Post ${source.post.postNumber}`:''}`:'No post by this character was found in this Story Point.';
+      return `<section class="cc-rel-point-edit-person"><header><strong>${esc(person.name)} → ${esc(other.name)}</strong><small>${esc(sourceLabel)}</small></header><label><span>Relationship state</span><select class="select" data-cc-rel-point-state="${side}" ${can?'':'disabled'}>${ccRelStateOptions(at.state||'')}</select></label><label><span>Thought / blurb at this moment</span><textarea class="textarea" rows="4" data-cc-rel-point-blurb="${side}" ${can?'':'disabled'} placeholder="What does ${esc(person.name)} think or feel about ${esc(other.name)} here?">${esc(at.blurb||'')}</textarea></label>${source.turn?ccRelInspectorPostLink({...source.post,storyId:source.story.id,nodeId:node.scene?.nodeId||source.post?.nodeId,turnId:source.turn.id},'Open source RP'):''}${!can?`<p class="muted">${source.turn?'Only the post author or workspace Owner can change this RP post.':'Add a post for this character in the Story Point before adding a relationship state from here.'}</p>`:''}</section>`;
+    };
+    showModal(`Edit relationship point`, `<div class="cc-rel-point-editor" data-cc-rel-point-editor="${esc(character.id)}|${esc(target.id)}|${encodeURIComponent(node.key)}"><div class="cc-rel-point-edit-head"><span class="eyebrow">${esc(node.kind==='current'?'Current relationship':node.title)}</span><h3>${esc(node.scene?.title||node.subtitle||node.title)}</h3><p>Changes here update the source RP relationship data for this exact moment. Story order, dates, and locations stay controlled by the Story Point.</p></div>${section(character,target,subjectAt,subjectSource,'subject')}${section(target,character,targetAt,targetSource,'target')}<div class="cc-rel-point-editor-note"><strong>Relationship states are global.</strong><span>Changing a state's color in the global library changes that state everywhere in Codex.</span><button class="button ghost small" type="button" data-cc-rel-manage-state-library>Manage global states</button></div></div>`, `<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-cc-rel-save-point-edit>Save changes</button>`);
+  }
+  function ccRelReplaceDialogueCard(text,characterId,cardIndex,targetId,stateValue,blurbValue){
+    let seen=-1,changed=false;const clean=value=>String(value||'').replace(/"/g,'');
+    const output=String(text||'').replace(/\[dialogue\s+([^\]]+)\]([\s\S]*?)\[\/dialogue\]/gi,(whole,attributeText,body)=>{
+      const attrs={};attributeText.replace(/([a-z]+)="([^"]*)"/gi,(m,key,value)=>{attrs[key.toLowerCase()]=value;return m;});
+      if(String(attrs.character||'')!==String(characterId))return whole;seen+=1;if(seen!==Number(cardIndex))return whole;
+      let aboutIds=String(attrs.about||'').split(',').map(v=>v.trim()).filter(Boolean);if(!aboutIds.includes(String(targetId)))aboutIds.push(String(targetId));
+      const states=ccDialogueDecodeRelStates(attrs.relstates||'');if(String(stateValue||'').trim())states[String(targetId)]=String(stateValue).trim();else delete states[String(targetId)];
+      const updates={aboutmode:'targets',about:aboutIds.join(','),relstates:ccDialogueEncodeRelStates(aboutIds,states),blurb:clean(blurbValue)};
+      let next=attributeText;
+      for(const [key,value] of Object.entries(updates)){
+        const re=new RegExp(`\\b${key}="[^"]*"`,'i');if(re.test(next))next=next.replace(re,`${key}="${clean(value)}"`);else next+=` ${key}="${clean(value)}"`;
+      }
+      changed=true;return `[dialogue ${next}]${body}[/dialogue]`;
+    });
+    return {text:output,changed};
+  }
+  function ccRelWritePointPerspective(source,stateValue,blurbValue){
+    if(!source?.turn)return false;const stateText=String(stateValue||'').trim(),blurbText=String(blurbValue||'').trim();
+    if(source.cardIndex>=0){const updated=ccRelReplaceDialogueCard(source.turn.text,source.personId,source.cardIndex,source.targetId,stateText,blurbText);if(updated.changed){source.turn.text=updated.text;return true;}}
+    const meta=ccRelTurnMetaFor(source.turn,source.personId,source.targetId,true);meta.state=stateText;meta.blurb=blurbText;meta.updatedAt=nowISO();meta.updatedBy=normalizeMemberEmail(firebase.user?.email||'');
+    if(!stateText&&!blurbText){delete source.turn.relationshipMeta?.[source.personId]?.[source.targetId];if(source.turn.relationshipMeta?.[source.personId]&&!Object.keys(source.turn.relationshipMeta[source.personId]).length)delete source.turn.relationshipMeta[source.personId];}
+    return true;
+  }
+  function ccRelSavePointEdit(){
+    const root=el.modal.querySelector('[data-cc-rel-point-editor]');if(!root)return;const [characterId,targetId,keyEncoded]=root.dataset.ccRelPointEditor.split('|');const character=getItem('characters',characterId),target=getItem('characters',targetId);if(!character||!target)return;
+    const scenes=ccRelSharedScenes(character.id,target.id),record=ccRelRecord(character.id,target.id,false),nodes=ccRelNodesFor(character,target,scenes,record),node=ccRelNodeFromKey(character,target,nodes,decodeURIComponent(keyEncoded));if(!node)return;
+    let changed=false;for(const side of ['subject','target']){
+      const personId=side==='subject'?character.id:target.id,source=ccRelSourceForPerspective(character,target,node,personId);if(!source.turn||!ccRelCanEditTurn(source.turn))continue;
+      const stateValue=root.querySelector(`[data-cc-rel-point-state="${side}"]`)?.value||'',blurbValue=root.querySelector(`[data-cc-rel-point-blurb="${side}"]`)?.value||'';
+      changed=ccRelWritePointPerspective(source,stateValue,blurbValue)||changed;
+    }
+    if(!changed){toast('There was no editable RP post for this point.','error');return;}
+    if(node.scene?.story){node.scene.story.updatedAt=nowISO();node.scene.story.updatedBy=normalizeMemberEmail(firebase.user?.email||'');}
+    scheduleSave('Saving relationship point…');closeModal();ccRelationshipSelections.set(character.id,{targetId:target.id,nodeKey:node.key});renderCharacterLifeStory(character);toast('Relationship point updated from the source RP.');
+  }
+
   function ccRelTurnScene(story,turn){
     if(!story||!turn)return null;const nodeId=ccrhTurnStoryPointId(story,turn);if(!nodeId)return null;const owner=storyById(turn.storyPointStoryId||story.id)||story;const node=(owner.nodes||[]).find(item=>item.id===nodeId);if(!node)return null;const point=typeof cc2Point==='function'?cc2Point(owner,node):(node.point||{});return {storyId:owner.id,nodeId:node.id,story:owner,node,point,title:storyPointTitle(owner,node),time:typeof cc2TimeLabel==='function'?cc2TimeLabel(owner,node):(point.exactDate||`Story point ${node.order||''}`),rank:0};
   }
@@ -19736,6 +19842,8 @@ initFirebase();
   document.addEventListener('click',event=>{
     const relReview=event.target.closest?.('[data-cc-rel-review-unassigned]');if(relReview){event.preventDefault();event.stopImmediatePropagation();ccRelUnassignedPicker(relReview.dataset.ccRelReviewUnassigned);return;}
     const relSaveAssignments=event.target.closest?.('[data-cc-rel-save-assignments]');if(relSaveAssignments){event.preventDefault();event.stopImmediatePropagation();ccRelSaveAssignments(relSaveAssignments.dataset.ccRelSaveAssignments);return;}
+    const relPointEdit=event.target.closest?.('[data-cc-rel-edit-point]');if(relPointEdit){event.preventDefault();event.stopImmediatePropagation();const [characterId,targetId,keyEncoded]=relPointEdit.dataset.ccRelEditPoint.split('|');ccRelPointEditor(characterId,targetId,decodeURIComponent(keyEncoded));return;}
+    if(event.target.closest?.('[data-cc-rel-save-point-edit]')){event.preventDefault();event.stopImmediatePropagation();ccRelSavePointEdit();return;}
     const relSelect=event.target.closest?.('[data-cc-rel-select]');if(relSelect){event.preventDefault();const [characterId,targetId,keyEncoded]=relSelect.dataset.ccRelSelect.split('|');ccRelationshipSelections.set(characterId,{targetId,nodeKey:decodeURIComponent(keyEncoded)});const character=getItem('characters',characterId);if(character)renderCharacterLifeStory(character);return;}
     const relEdit=event.target.closest?.('[data-cc-rel-edit-pair]');if(relEdit){event.preventDefault();event.stopImmediatePropagation();const [characterId,targetId]=relEdit.dataset.ccRelEditPair.split('|');ccRelPairEditor(characterId,targetId);return;}
     const relAdd=event.target.closest?.('[data-cc-rel-add-relationship]');if(relAdd){event.preventDefault();event.stopImmediatePropagation();ccRelAddRelationshipPicker(relAdd.dataset.ccRelAddRelationship);return;}
