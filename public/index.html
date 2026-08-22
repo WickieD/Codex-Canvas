@@ -22126,5 +22126,280 @@ initFirebase();
 @media(max-width:760px){.cc-nav-setting-grid{grid-template-columns:1fr}.cc-explorer-select select,.cc-explorer-focus select{font-size:13px}.cc-explorer-stack-head{font-size:13px}}
 </style>
 
+
+<style>
+/* === Simplified purpose-built graph modes === */
+.cc-graph-shell{display:grid;gap:16px}
+.cc-graph-mode-tabs{display:flex;gap:8px;flex-wrap:wrap;padding:8px;border:1px solid var(--border);border-radius:16px;background:var(--panel-soft)}
+.cc-graph-mode-tabs button{flex:1 1 150px;min-height:44px;border:1px solid transparent;border-radius:12px;background:transparent;color:var(--muted);font:inherit;font-weight:750;cursor:pointer}
+.cc-graph-mode-tabs button:hover{color:var(--text);background:var(--panel-strong)}
+.cc-graph-mode-tabs button.active{color:var(--accent-strong);border-color:var(--accent);background:var(--accent-soft)}
+.cc-graph-purpose{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 16px;border:1px solid var(--border);border-radius:14px;background:var(--panel)}
+.cc-graph-purpose-copy{min-width:220px;flex:1 1 260px}
+.cc-graph-purpose-copy strong{display:block;font-size:15px;margin-bottom:3px}
+.cc-graph-purpose-copy span{display:block;color:var(--muted);font-size:13px;line-height:1.45}
+.cc-graph-controls{display:flex;align-items:end;gap:10px;flex-wrap:wrap}
+.cc-graph-controls label{display:grid;gap:5px;min-width:min(320px,70vw)}
+.cc-graph-controls label>span{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.cc-graph-controls .select{min-width:230px}
+.cc-graph-context,.cc-graph-help,.cc-graph-advanced,.cc-graph-branches{border:1px solid var(--border);border-radius:13px;background:var(--panel-soft)}
+.cc-graph-context>summary,.cc-graph-help>summary,.cc-graph-advanced>summary,.cc-graph-branches>summary{cursor:pointer;list-style:none;padding:12px 14px;font-weight:800;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cc-graph-context>summary::-webkit-details-marker,.cc-graph-help>summary::-webkit-details-marker,.cc-graph-advanced>summary::-webkit-details-marker,.cc-graph-branches>summary::-webkit-details-marker{display:none}
+.cc-graph-context>summary::after,.cc-graph-help>summary::after,.cc-graph-advanced>summary::after,.cc-graph-branches>summary::after{content:'+';font-size:18px;color:var(--muted)}
+.cc-graph-context[open]>summary::after,.cc-graph-help[open]>summary::after,.cc-graph-advanced[open]>summary::after,.cc-graph-branches[open]>summary::after{content:'−'}
+.cc-graph-context-body,.cc-graph-help-body,.cc-graph-advanced-body,.cc-graph-branches-body{padding:0 14px 14px}
+.cc-graph-context-grid{display:flex;gap:8px;flex-wrap:wrap}
+.cc-graph-context-grid label{display:flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:999px;padding:7px 10px;background:var(--panel);font-size:12px;font-weight:700;cursor:pointer}
+.cc-graph-context-grid input{accent-color:var(--accent)}
+.cc-graph-help-body{color:var(--muted);line-height:1.55}
+.cc-graph-help-body strong{color:var(--text)}
+.cc-graph-advanced .graph-filter-panel{margin:0;border:0;padding:0;background:transparent}
+.cc-graph-stage-title{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.cc-graph-stage-title h2{margin:0;font-size:18px}
+.cc-graph-stage-title span{font-size:12px;color:var(--muted)}
+.cc-graph-empty{padding:36px 18px;text-align:center;border:1px dashed var(--border);border-radius:14px;color:var(--muted)}
+@media(max-width:760px){
+ .cc-graph-mode-tabs{display:grid;grid-template-columns:1fr 1fr}
+ .cc-graph-mode-tabs button{min-width:0;min-height:42px}
+ .cc-graph-purpose{align-items:stretch}
+ .cc-graph-controls{width:100%;display:grid;grid-template-columns:1fr}
+ .cc-graph-controls label,.cc-graph-controls .select{min-width:0;width:100%}
+ .cc-graph-controls .button{width:100%}
+ .cc-graph-context-grid{display:grid;grid-template-columns:1fr}
+ .cc-graph-context-grid label{border-radius:10px}
+}
+</style>
+<script>
+/* === Simplified purpose-built graph modes === */
+(() => {
+  if(typeof graphSettings==='undefined' || typeof drawGraph!=='function') return;
+
+  const ccGraphBaseData = graphData;
+  const ccGraphModes = [
+    ['story','Story Path'],
+    ['locations','Locations'],
+    ['characters','Characters'],
+    ['world','World']
+  ];
+
+  function ccGraphLocationContext(){
+    graphSettings.locationContext ||= {related:false,people:false,keyPeople:false,events:false,factions:false};
+    return graphSettings.locationContext;
+  }
+  function ccGraphModeCopy(mode){
+    if(mode==='story') return ['Follow one RP from Story Point to Story Point.','Only the story path and its branches are emphasized.'];
+    if(mode==='locations') return ['Explore one place at a time.','Parent and child locations stay primary; add people, events, factions, or related places only when you want them.'];
+    if(mode==='characters') return ['Focus on one character and the people connected to them.','Relationship lines use the latest RP relationship state when Codex can determine one.'];
+    return ['Explore the full Codex network.','World mode intentionally keeps the advanced filters for cross-database exploration.'];
+  }
+  function ccGraphModeTitle(mode){return ccGraphModes.find(([key])=>key===mode)?.[1]||'Graphs';}
+
+  function ccGraphSetDefaults(mode,{keepFocus=false}={}){
+    graphSettings.graphType=mode;
+    graphSettings.hiddenNodeIds=[];
+    graphSelectedNode='';
+    graphSettings.visibleTypes ||= {};
+    graphSettings.visibleRelations ||= {};
+    if(mode==='story'){
+      graphSettings.layout='story';
+      graphSettings.focus='';
+      if(!activeStoryGraph())graphSettings.storyId=state.storyGraphs?.[0]?.id||'';
+      graphSettings.visibleRelations.story=true;
+      graphSettings.visibleRelations.sceneLocation=false;
+      graphSettings.visibleRelations.custom=true;
+    }else if(mode==='locations'){
+      graphSettings.layout='focus';
+      if(!keepFocus || !String(graphSettings.focus||'').startsWith('location:'))graphSettings.focus=state.locations?.[0]?`location:${state.locations[0].id}`:'';
+      Object.assign(graphSettings.visibleTypes,{Location:true,Person:true,Faction:true,Event:true});
+      Object.assign(graphSettings.visibleRelations,{parent:true,related:true,current:true,keyPerson:true,custom:true});
+    }else if(mode==='characters'){
+      graphSettings.layout='focus';
+      if(!keepFocus || !String(graphSettings.focus||'').startsWith('character:'))graphSettings.focus=state.characters?.[0]?`character:${state.characters[0].id}`:'';
+      graphSettings.visibleTypes.Person=true;
+      graphSettings.visibleRelations.relationship=true;
+      graphSettings.visibleRelations.custom=false;
+    }else{
+      graphSettings.layout=graphSettings.focus?'focus':'network';
+      Object.assign(graphSettings.visibleTypes,{Location:true,Person:true,Species:true,Faction:true,Event:true});
+      Object.assign(graphSettings.visibleRelations,{parent:true,related:true,relationship:true,current:true,speciesMember:true,member:true,event:true,keyPerson:true,custom:true});
+    }
+  }
+
+  function ccGraphSyncExplorer(mode){
+    const map={story:'stories',locations:'locations',characters:'characters'};
+    const target=map[mode];
+    if(!target || typeof ccNavExplorerPrefs!=='function' || typeof ccNavExplorerSave!=='function')return;
+    try{
+      const prefs=ccNavExplorerPrefs();
+      if(prefs.mode!=='single' || !prefs.enabled?.[target] || prefs.active===target)return;
+      prefs.active=target;
+      ccNavExplorerSave(prefs,{quiet:true});
+    }catch(error){console.warn('Graph Explorer sync skipped',error);}
+  }
+
+  function ccGraphLocationData(){
+    const raw=String(graphSettings.focus||'');
+    const locationId=raw.startsWith('location:')?raw.slice(9):state.locations?.[0]?.id;
+    const focus=getItem('locations',locationId);
+    if(!focus)return {nodes:[],links:[]};
+    const context=ccGraphLocationContext(),nodes=[],links=[],nodeSet=new Set(),linkSet=new Set();
+    const addNode=(id,label,type,refId,kind)=>{if(!nodeSet.has(id)){nodeSet.add(id);nodes.push({id,label,type,refId,kind});}};
+    const addLink=(source,target,type,label='')=>{if(!source||!target||source===target)return;const key=`${source}|${target}|${type}|${label}`;if(!linkSet.has(key)){linkSet.add(key);links.push({source,target,type,label});}};
+    const addLocation=loc=>{if(loc)addNode(`location:${loc.id}`,loc.name,'Location',loc.id,'locations');};
+    addLocation(focus);
+    const parent=focus.parentLocationId?getItem('locations',focus.parentLocationId):null;
+    if(parent){addLocation(parent);addLink(`location:${parent.id}`,`location:${focus.id}`,'parent','contains');}
+    for(const child of (state.locations||[]).filter(loc=>loc.parentLocationId===focus.id)){
+      addLocation(child);addLink(`location:${focus.id}`,`location:${child.id}`,'parent','contains');
+    }
+    if(context.related){
+      const ids=new Set(focus.relatedLocationIds||[]);
+      for(const loc of state.locations||[])if((loc.relatedLocationIds||[]).includes(focus.id))ids.add(loc.id);
+      for(const idValue of ids){const loc=getItem('locations',idValue);if(loc){addLocation(loc);addLink(`location:${focus.id}`,`location:${loc.id}`,'related','related place');}}
+    }
+    const currentPeople=(state.characters||[]).filter(person=>(person.currentLocationIds||[]).includes(focus.id));
+    if(context.people){for(const person of currentPeople){addNode(`character:${person.id}`,person.name,'Person',person.id,'characters');addLink(`character:${person.id}`,`location:${focus.id}`,'current','currently here');}}
+    if(context.keyPeople){for(const personId of focus.keyCharacterIds||[]){const person=getItem('characters',personId);if(person){addNode(`character:${person.id}`,person.name,'Person',person.id,'characters');addLink(`location:${focus.id}`,`character:${person.id}`,'keyPerson','key person');}}}
+    if(context.events){
+      const eventIds=new Set();
+      for(const event of state.events||[]){if(event.locationId===focus.id||(event.locationIds||[]).includes?.(focus.id))eventIds.add(event.id);}
+      if(typeof cc2Point==='function'){
+        for(const story of state.storyGraphs||[])for(const node of story.nodes||[]){try{const point=cc2Point(story,node);if((point.locationIds||[]).includes(focus.id))for(const eventId of point.timelineEventIds||[])eventIds.add(eventId);}catch{}}
+      }
+      for(const eventId of eventIds){const item=getItem('events',eventId);if(item){addNode(`event:${item.id}`,item.name,'Event',item.id,'events');addLink(`event:${item.id}`,`location:${focus.id}`,'custom','timeline event here');}}
+    }
+    if(context.factions){
+      const seen=new Set();
+      const controlled=String(focus.controlledBy||'').trim().toLowerCase();
+      if(controlled){for(const faction of state.factions||[])if(String(faction.id).toLowerCase()===controlled||String(faction.name||'').trim().toLowerCase()===controlled)seen.add(faction.id);}
+      const peopleHere=new Set([...currentPeople.map(p=>p.id),...(focus.keyCharacterIds||[])]);
+      for(const faction of state.factions||[])if((faction.keyMemberIds||[]).some(idValue=>peopleHere.has(idValue)))seen.add(faction.id);
+      for(const factionId of seen){const faction=getItem('factions',factionId);if(faction){addNode(`faction:${faction.id}`,faction.name,'Faction',faction.id,'factions');addLink(`faction:${faction.id}`,`location:${focus.id}`,'custom',controlled&&String(faction.name||'').trim().toLowerCase()===controlled?'controls':'connected faction');}}
+    }
+    return {nodes,links};
+  }
+
+  function ccGraphCharacterData(){
+    const raw=String(graphSettings.focus||'');
+    const characterId=raw.startsWith('character:')?raw.slice(10):state.characters?.[0]?.id;
+    const focus=getItem('characters',characterId);
+    if(!focus)return {nodes:[],links:[]};
+    const nodes=[],links=[],ids=new Set(focus.relationshipIds||[]);
+    for(const person of state.characters||[])if(person.id!==focus.id&&(person.relationshipIds||[]).includes(focus.id))ids.add(person.id);
+    nodes.push({id:`character:${focus.id}`,label:focus.name,type:'Person',refId:focus.id,kind:'characters'});
+    for(const otherId of ids){
+      const other=getItem('characters',otherId);if(!other)continue;
+      nodes.push({id:`character:${other.id}`,label:other.name,type:'Person',refId:other.id,kind:'characters'});
+      let label='relationship';
+      try{
+        if(typeof ccRelPostHistory==='function'){
+          const history=ccRelPostHistory(focus.id,other.id),posts=history?.byPerson?.[focus.id]||[];
+          const latest=[...posts].reverse().find(post=>String(post.state||'').trim());
+          if(latest?.state)label=latest.state;
+        }
+      }catch{}
+      links.push({source:`character:${focus.id}`,target:`character:${other.id}`,type:'relationship',label});
+    }
+    return {nodes,links};
+  }
+
+  graphData = function(){
+    if(graphSettings.graphType==='locations')return ccGraphLocationData();
+    if(graphSettings.graphType==='characters')return ccGraphCharacterData();
+    return ccGraphBaseData();
+  };
+
+  function ccGraphFilterPanel(){
+    const items=graphItemsForCurrentType(),typeOptions=graphTypeFilters(),relationOptions=graphRelationFilters();
+    return `<div class="graph-filter-panel" aria-label="World graph filters"><div class="graph-filter-heading"><div><h2>What appears in World</h2><p>World mode is the advanced cross-database graph. Hide anything you do not need.</p></div><div class="graph-filter-actions"><button class="button secondary small" type="button" data-graph-items="all">Select all items</button><button class="button ghost small" type="button" data-graph-items="none">Clear all items</button></div></div><div class="graph-filter-grid"><fieldset class="graph-filter-group"><legend>Item types</legend><div class="graph-check-row">${typeOptions.map(option=>graphCheckbox(`type:${option.key}`,option.label,graphSettings.visibleTypes[option.key]!==false,'data-graph-type')).join('')}</div></fieldset><fieldset class="graph-filter-group"><legend>Connections</legend><div class="graph-check-row">${relationOptions.map(option=>graphCheckbox(`relation:${option.key}`,option.label,graphSettings.visibleRelations[option.key]!==false,'data-graph-relation')).join('')}</div></fieldset></div><details class="graph-item-details"><summary>Included world items <span id="graphItemCount">${items.filter(item=>!graphSettings.hiddenNodeIds.includes(item.nodeId)).length} of ${items.length}</span></summary><div class="graph-item-list">${items.map(item=>graphCheckbox(item.nodeId,item.label,!graphSettings.hiddenNodeIds.includes(item.nodeId),'data-graph-node',item.type)).join('')}</div></details></div>`;
+  }
+
+  function ccGraphToolbar(mode){
+    if(mode==='story'){
+      const stories=state.storyGraphs||[];
+      return `<div class="cc-graph-controls"><label><span>Story</span><select class="select" id="ccGraphStory">${stories.map(story=>`<option value="${esc(story.id)}" ${graphSettings.storyId===story.id?'selected':''}>${esc(story.name||'Untitled story')}</option>`).join('')}</select></label><button class="button secondary" type="button" data-reset-graph-layout>Reset layout</button></div>`;
+    }
+    if(mode==='locations'){
+      const selected=String(graphSettings.focus||'').replace(/^location:/,'');
+      return `<div class="cc-graph-controls"><label><span>Location</span><select class="select" id="ccGraphLocation">${(state.locations||[]).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))).map(item=>`<option value="${esc(item.id)}" ${selected===item.id?'selected':''}>${esc(item.name)}</option>`).join('')}</select></label><button class="button secondary" type="button" data-reset-graph-layout>Reset layout</button></div>`;
+    }
+    if(mode==='characters'){
+      const selected=String(graphSettings.focus||'').replace(/^character:/,'');
+      return `<div class="cc-graph-controls"><label><span>Character</span><select class="select" id="ccGraphCharacter">${(state.characters||[]).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))).map(item=>`<option value="${esc(item.id)}" ${selected===item.id?'selected':''}>${esc(item.name)}</option>`).join('')}</select></label><button class="button secondary" type="button" data-reset-graph-layout>Reset layout</button></div>`;
+    }
+    const options=graphFocusOptions();
+    return `<div class="cc-graph-controls"><label><span>World view</span><select class="select" id="ccGraphWorldFocus"><option value="">Entire world</option>${options.map(item=>`<option value="${esc(item.value)}" ${graphSettings.focus===item.value?'selected':''}>${esc(item.label)}</option>`).join('')}</select></label><button class="button secondary" type="button" data-reset-graph-layout>Reset layout</button></div>`;
+  }
+
+  function ccGraphContextMarkup(){
+    const c=ccGraphLocationContext();
+    const choices=[['related','Related locations'],['people','People currently here'],['keyPeople','Key people'],['events','Timeline events'],['factions','Factions']];
+    return `<details class="cc-graph-context"><summary>+ Add connected context</summary><div class="cc-graph-context-body"><p class="page-subtitle">Parent and child locations stay visible automatically. Turn on only the extra context you want.</p><div class="cc-graph-context-grid">${choices.map(([key,label])=>`<label><input type="checkbox" data-cc-graph-location-context="${key}" ${c[key]?'checked':''}>${label}</label>`).join('')}</div></div></details>`;
+  }
+
+  function ccGraphHowTo(mode){
+    const text=mode==='story'
+      ? '<strong>Story Path:</strong> read the main path in order. Branch lines show where the story splits or rejoins. Drag points only to improve the visual arrangement.'
+      : mode==='locations'
+      ? '<strong>Locations:</strong> the selected place is the center. Its parent and direct children appear first. Optional context adds only the extra information you choose.'
+      : mode==='characters'
+      ? '<strong>Characters:</strong> the selected character stays in the center. Each connected person appears once; the line label may show the latest relationship state found in RP Dialogue Cards.'
+      : '<strong>World:</strong> this is the advanced network. Every visible line explains why two Codex records are connected. Use Advanced filters when the graph becomes too dense.';
+    return `<details class="cc-graph-help"><summary>? How to read this graph</summary><div class="cc-graph-help-body">${text}</div></details>`;
+  }
+
+  renderGraphPage = function(){
+    const mode=ccGraphModes.some(([key])=>key===graphSettings.graphType)?graphSettings.graphType:'story';
+    ccGraphSetDefaults(mode,{keepFocus:true});
+    const [purpose,description]=ccGraphModeCopy(mode);
+    const context=mode==='locations'?ccGraphContextMarkup():'';
+    const branches=mode==='story'?`<details class="cc-graph-branches"><summary>Story branches & connections</summary><div class="cc-graph-branches-body">${graphConnectionManagerHtml()}</div></details>`:'';
+    const advanced=mode==='world'?`<details class="cc-graph-advanced"><summary>Advanced filters</summary><div class="cc-graph-advanced-body">${ccGraphFilterPanel()}${graphConnectionManagerHtml()}</div></details>`:'';
+    const empty=(mode==='story'&&!state.storyGraphs?.length)||(mode==='locations'&&!state.locations?.length)||(mode==='characters'&&!state.characters?.length);
+    const inspectorEmpty=mode==='story'?'<span class="eyebrow">Story Path</span><h2>Choose a point</h2><p class="graph-empty-inspector">Select a point to see its connections and open the related Codex page.</p>':mode==='locations'?'<span class="eyebrow">Location</span><h2>Select a place</h2><p class="graph-empty-inspector">Choose a location above or select a node in the graph.</p>':mode==='characters'?'<span class="eyebrow">Character</span><h2>Select a person</h2><p class="graph-empty-inspector">Choose a character above or select a person in the graph.</p>':'<span class="eyebrow">World network</span><h2>Select an item</h2><p class="graph-empty-inspector">Select a node to see why it is connected.</p>';
+    el.main.innerHTML=`<section class="${sectionCssClass('graph')}" style="${sectionThemeStyle('graph')}">${sectionDesignToolbar('graph')}${pageHead('Connections','Graphs','Choose one purpose at a time. Story, Location, and Character graphs stay focused; World is the advanced all-connections view.','')}<div class="cc-graph-shell"><div class="cc-graph-mode-tabs" role="tablist" aria-label="Graph mode">${ccGraphModes.map(([key,label])=>`<button type="button" data-cc-graph-mode="${key}" class="${mode===key?'active':''}" aria-selected="${mode===key?'true':'false'}">${label}</button>`).join('')}</div><div class="cc-graph-purpose"><div class="cc-graph-purpose-copy"><strong>${esc(purpose)}</strong><span>${esc(description)}</span></div>${ccGraphToolbar(mode)}</div>${context}${branches}${advanced}${ccGraphHowTo(mode)}${empty?'<div class="cc-graph-empty">There is nothing to graph in this mode yet.</div>':`<div class="cc-graph-stage-title"><h2>${esc(ccGraphModeTitle(mode))}</h2><span>Click a node for details · drag to rearrange</span></div><div class="graph-visual-grid"><div class="graph-stage" id="graphStage"><svg id="graphSvg" role="img" aria-label="Interactive Codex graph"></svg><div class="graph-legend" id="graphLegend"></div></div><aside class="graph-inspector" id="graphInspector" aria-live="polite">${inspectorEmpty}</aside></div>`}</div></section>`;
+    if(!empty)requestAnimationFrame(()=>{drawGraph();requestAnimationFrame(applyGraphTemplateVisuals);});
+  };
+
+  document.addEventListener('click',event=>{
+    const button=event.target.closest?.('[data-cc-graph-mode]');
+    if(!button)return;
+    event.preventDefault();event.stopImmediatePropagation();
+    const mode=button.dataset.ccGraphMode;
+    ccGraphSetDefaults(mode);
+    ccGraphSyncExplorer(mode);
+    renderGraphPage();
+  },true);
+
+  document.addEventListener('change',event=>{
+    if(event.target.id==='ccGraphStory'){
+      graphSettings.storyId=event.target.value;graphSettings.hiddenNodeIds=[];graphSelectedNode='';renderGraphPage();return;
+    }
+    if(event.target.id==='ccGraphLocation'){
+      graphSettings.focus=`location:${event.target.value}`;graphSettings.layout='focus';graphSelectedNode=graphSettings.focus;drawGraph();return;
+    }
+    if(event.target.id==='ccGraphCharacter'){
+      graphSettings.focus=`character:${event.target.value}`;graphSettings.layout='focus';graphSelectedNode=graphSettings.focus;drawGraph();return;
+    }
+    if(event.target.id==='ccGraphWorldFocus'){
+      graphSettings.focus=event.target.value;graphSettings.layout=graphSettings.focus?'focus':'network';graphSelectedNode=graphSettings.focus||'';drawGraph();return;
+    }
+    if(event.target.matches?.('[data-cc-graph-location-context]')){
+      ccGraphLocationContext()[event.target.dataset.ccGraphLocationContext]=event.target.checked;drawGraph();return;
+    }
+  },true);
+
+  const oldGraphKindHandlerMarker=true;
+  // Keep the sidebar Explorer visually aligned when entering Graphs from a database's Graph view button.
+  document.addEventListener('click',event=>{
+    const button=event.target.closest?.('[data-graph-kind]');if(!button)return;
+    const raw=button.dataset.graphKind,mode=raw==='locations'?'locations':raw==='characters'?'characters':raw==='story'?'story':'world';
+    ccGraphSyncExplorer(mode);
+  },true);
+
+  try{if(route?.view==='graph')setTimeout(()=>renderGraphPage(),0);}catch{}
+})();
+</script>
+
 </body>
 </html>
