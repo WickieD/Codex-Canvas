@@ -13544,9 +13544,12 @@ function ccIntersectionSidePanel({side='left',story,node,turn,characterIds,featu
 }
 function ccIntersectionParticipantStyle(styles,idValue,sideAccent,character){
   const raw=(styles&&typeof styles==='object'&&!Array.isArray(styles))?(styles[String(idValue)]||{}):{};
+  const clampPercent=value=>Math.max(0,Math.min(100,Number.isFinite(Number(value))?Number(value):50));
   return {
     imageId:String(raw.imageId||'default'),
-    accent:ccIntersectionSafeColor(raw.accent,ccIntersectionSafeColor(sideAccent,ccIntersectionCharacterAccent(character)))
+    accent:ccIntersectionSafeColor(raw.accent,ccIntersectionSafeColor(sideAccent,ccIntersectionCharacterAccent(character))),
+    positionX:clampPercent(raw.positionX),
+    positionY:clampPercent(raw.positionY)
   };
 }
 function ccIntersectionParticipantsHtml(sourceIds,targetIds,sourceStory,targetStory,sourceAccent,targetAccent,participantStyles={}){
@@ -13561,7 +13564,7 @@ function ccIntersectionParticipantsHtml(sourceIds,targetIds,sourceStory,targetSt
     const sideAccent=onSource?sourceAccent:targetAccent;
     const style=ccIntersectionParticipantStyle(participantStyles,idValue,sideAccent,character);
     const image=ccIntersectionCharacterImage(character,style.imageId);
-    return `<article class="cc-int2-person" style="--cc-int-accent:${esc(style.accent)}"><div class="cc-int2-person-art">${image?`<img src="${esc(image)}" alt="${esc(character.name||'Character')}">`:`<span>${esc(initials(character.name||'Character'))}</span>`}</div><div class="cc-int2-person-copy"><strong>${esc(character.name||'Character')}</strong><small>${esc(storyLabel)}</small></div></article>`;
+    return `<article class="cc-int2-person" style="--cc-int-accent:${esc(style.accent)}"><div class="cc-int2-person-art">${image?`<img src="${esc(image)}" alt="${esc(character.name||'Character')}" style="object-position:${style.positionX}% ${style.positionY}%">`:`<span>${esc(initials(character.name||'Character'))}</span>`}</div><div class="cc-int2-person-copy"><strong>${esc(character.name||'Character')}</strong><small>${esc(storyLabel)}</small></div></article>`;
   }).join('')}</div></section>`;
 }
 function ccIntersectionSuggestedHandoff(a,b){
@@ -23154,7 +23157,7 @@ initFirebase();
       const sideAccent=side==='source'?s.sourceAccent:s.targetAccent;
       const style=ccIntersectionParticipantStyle(styles,idValue,sideAccent,character);
       const image=ccIntersectionCharacterImage(character,style.imageId);
-      return `<article class="cc-int3-roster-art-card" data-cc-int-participant-card="${side}|${esc(idValue)}" style="--cc-int-accent:${esc(style.accent)}"><div class="cc-int3-roster-art-preview" data-cc-int-participant-preview="${side}|${esc(idValue)}">${image?`<img src="${esc(image)}" alt="${esc(character.name||'Character')}">`:`<span>${esc(initials(character.name||'Character'))}</span>`}</div><div class="cc-int3-roster-art-copy"><div><strong>${esc(character.name||'Character')}</strong><small>${esc(storyLabel)}</small></div><div class="cc-int3-roster-art-controls"><label><span>Image shown on finished card</span><select class="select" data-cc-int-participant-image="${side}|${esc(idValue)}">${ccIntersectionImageOptions(character,style.imageId)}</select></label><label class="cc-int3-person-color"><span>Trim color</span><input type="color" data-cc-int-participant-accent="${side}|${esc(idValue)}" value="${esc(style.accent)}"></label></div></div></article>`;
+      return `<article class="cc-int3-roster-art-card" data-cc-int-participant-card="${side}|${esc(idValue)}" style="--cc-int-accent:${esc(style.accent)}"><div class="cc-int3-roster-art-preview" data-cc-int-participant-preview="${side}|${esc(idValue)}">${image?`<img src="${esc(image)}" alt="${esc(character.name||'Character')}" style="object-position:${style.positionX}% ${style.positionY}%">`:`<span>${esc(initials(character.name||'Character'))}</span>`}</div><div class="cc-int3-roster-art-copy"><div><strong>${esc(character.name||'Character')}</strong><small>${esc(storyLabel)}</small></div><div class="cc-int3-roster-art-controls"><label class="cc-int3-art-image-select"><span>Image shown on finished card</span><select class="select" data-cc-int-participant-image="${side}|${esc(idValue)}">${ccIntersectionImageOptions(character,style.imageId)}</select></label><label class="cc-int3-person-color"><span>Trim color</span><input type="color" data-cc-int-participant-accent="${side}|${esc(idValue)}" value="${esc(style.accent)}"></label><div class="cc-int3-position-controls"><label><span>Horizontal focus</span><input type="range" min="0" max="100" step="1" value="${style.positionX}" data-cc-int-participant-position-x="${side}|${esc(idValue)}"><small><b>Left</b><b>Right</b></small></label><label><span>Vertical focus</span><input type="range" min="0" max="100" step="1" value="${style.positionY}" data-cc-int-participant-position-y="${side}|${esc(idValue)}"><small><b>Top</b><b>Bottom</b></small></label></div></div></div></article>`;
     }).join('')}</div>`;
   }
   function ccIntersectionEditorUpdateParticipantCard(side,idValue){
@@ -23168,7 +23171,7 @@ initFirebase();
     const preview=[...card.querySelectorAll('[data-cc-int-participant-preview]')][0];
     if(preview){
       const image=ccIntersectionCharacterImage(character,style.imageId);
-      preview.innerHTML=image?`<img src="${esc(image)}" alt="${esc(character.name||'Character')}">`:`<span>${esc(initials(character.name||'Character'))}</span>`;
+      preview.innerHTML=image?`<img src="${esc(image)}" alt="${esc(character.name||'Character')}" style="object-position:${style.positionX}% ${style.positionY}%">`:`<span>${esc(initials(character.name||'Character'))}</span>`;
     }
   }
   function ccIntersectionEditorPreviewHtml(s){
@@ -23243,7 +23246,7 @@ initFirebase();
     sourceTurn.intersectionTargetStoryId=targetStory.id;sourceTurn.intersectionTargetNodeId=targetNode.id;sourceTurn.intersectionTargetTurnId=targetTurn.id;
     sourceTurn.intersectionPreviewOverride=String(s.sourcePreview||'').trim();sourceTurn.intersectionTargetPreviewOverride=String(s.targetPreview||'').trim();sourceTurn.intersectionHandoffPhrase=String(s.handoff||'').trim();sourceTurn.intersectionTitle=String(s.title||'').trim();
     sourceTurn.intersectionSourceCharacterIds=ccIntersectionIds(s.sourceCharacterIds);sourceTurn.intersectionTargetCharacterIds=ccIntersectionIds(s.targetCharacterIds);sourceTurn.intersectionCharactersConfirmed=true;
-    sourceTurn.intersectionSourceFeaturedId=String(s.sourceFeaturedId||s.sourceCharacterIds?.[0]||'');sourceTurn.intersectionTargetFeaturedId=String(s.targetFeaturedId||s.targetCharacterIds?.[0]||'');sourceTurn.intersectionSourceImageId=String(s.sourceImageId||'default');sourceTurn.intersectionTargetImageId=String(s.targetImageId||'default');sourceTurn.intersectionSourceAccent=ccIntersectionSafeColor(s.sourceAccent);sourceTurn.intersectionTargetAccent=ccIntersectionSafeColor(s.targetAccent);sourceTurn.intersectionParticipantStyles=Object.fromEntries([...new Set([...ccIntersectionIds(s.sourceCharacterIds),...ccIntersectionIds(s.targetCharacterIds)])].map(idValue=>{const character=getItem('characters',idValue);const raw=(s.participantStyles&&s.participantStyles[idValue])||{};const sourceSide=ccIntersectionIds(s.sourceCharacterIds).includes(String(idValue));const fallback=sourceSide?s.sourceAccent:s.targetAccent;return [String(idValue),{imageId:String(raw.imageId||'default'),accent:ccIntersectionSafeColor(raw.accent,ccIntersectionSafeColor(fallback,ccIntersectionCharacterAccent(character)))}];}));
+    sourceTurn.intersectionSourceFeaturedId=String(s.sourceFeaturedId||s.sourceCharacterIds?.[0]||'');sourceTurn.intersectionTargetFeaturedId=String(s.targetFeaturedId||s.targetCharacterIds?.[0]||'');sourceTurn.intersectionSourceImageId=String(s.sourceImageId||'default');sourceTurn.intersectionTargetImageId=String(s.targetImageId||'default');sourceTurn.intersectionSourceAccent=ccIntersectionSafeColor(s.sourceAccent);sourceTurn.intersectionTargetAccent=ccIntersectionSafeColor(s.targetAccent);sourceTurn.intersectionParticipantStyles=Object.fromEntries([...new Set([...ccIntersectionIds(s.sourceCharacterIds),...ccIntersectionIds(s.targetCharacterIds)])].map(idValue=>{const character=getItem('characters',idValue);const raw=(s.participantStyles&&s.participantStyles[idValue])||{};const sourceSide=ccIntersectionIds(s.sourceCharacterIds).includes(String(idValue));const fallback=sourceSide?s.sourceAccent:s.targetAccent;return [String(idValue),{imageId:String(raw.imageId||'default'),accent:ccIntersectionSafeColor(raw.accent,ccIntersectionSafeColor(fallback,ccIntersectionCharacterAccent(character))),positionX:Math.max(0,Math.min(100,Number.isFinite(Number(raw.positionX))?Number(raw.positionX):50)),positionY:Math.max(0,Math.min(100,Number.isFinite(Number(raw.positionY))?Number(raw.positionY):50))}];}));
     sourceTurn.storyPointStoryId=targetStory.id;sourceTurn.storyPointId=targetNode.id;sourceTurn.updatedAt=nowISO();sourceTurn.updatedBy=normalizeMemberEmail(firebase.user?.email||'');
     scheduleSave('Saving intersection…');toast('Intersection updated.');ccIntersectionEditorState=null;renderStoryLibrary();requestAnimationFrame(()=>document.querySelector('.intersection-board')?.scrollIntoView({behavior:'smooth',block:'start'}));
   }
@@ -23288,7 +23291,7 @@ initFirebase();
     if(event.target.closest('[data-cc-int-back]')){event.preventDefault();ccIntersectionEditorState=null;renderStoryLibrary();requestAnimationFrame(()=>document.querySelector('.intersection-board')?.scrollIntoView({behavior:'smooth',block:'start'}));return;}
     if(event.target.closest('[data-cc-int-delete]')){event.preventDefault();ccDeleteIntersectionEditor();return;}
     if(event.target.closest('[data-cc-int-save]')){event.preventDefault();ccSaveIntersectionEditor();return;}
-    const add=event.target.closest('[data-cc-int-add-person]');if(add&&ccIntersectionEditorState){event.preventDefault();const side=add.dataset.ccIntAddPerson;const select=document.querySelector(`[data-cc-int-add-select="${side}"]`);const value=String(select?.value||'');if(value){ccIntersectionEditorState[`${side}CharacterIds`]=ccIntersectionIds([...(ccIntersectionEditorState[`${side}CharacterIds`]||[]),value]);if(!ccIntersectionEditorState[`${side}FeaturedId`])ccIntersectionEditorState[`${side}FeaturedId`]=value;ccIntersectionEditorState.participantStyles ||= {};const character=getItem('characters',value);ccIntersectionEditorState.participantStyles[value] ||= {imageId:'default',accent:ccIntersectionSafeColor(ccIntersectionEditorState[`${side}Accent`],ccIntersectionCharacterAccent(character))};ccRenderIntersectionEditorPage();}return;}
+    const add=event.target.closest('[data-cc-int-add-person]');if(add&&ccIntersectionEditorState){event.preventDefault();const side=add.dataset.ccIntAddPerson;const select=document.querySelector(`[data-cc-int-add-select="${side}"]`);const value=String(select?.value||'');if(value){ccIntersectionEditorState[`${side}CharacterIds`]=ccIntersectionIds([...(ccIntersectionEditorState[`${side}CharacterIds`]||[]),value]);if(!ccIntersectionEditorState[`${side}FeaturedId`])ccIntersectionEditorState[`${side}FeaturedId`]=value;ccIntersectionEditorState.participantStyles ||= {};const character=getItem('characters',value);ccIntersectionEditorState.participantStyles[value] ||= {imageId:'default',accent:ccIntersectionSafeColor(ccIntersectionEditorState[`${side}Accent`],ccIntersectionCharacterAccent(character)),positionX:50,positionY:50};ccRenderIntersectionEditorPage();}return;}
     const remove=event.target.closest('[data-cc-int-remove-person]');if(remove&&ccIntersectionEditorState){event.preventDefault();const [side,value]=String(remove.dataset.ccIntRemovePerson||'').split('|');ccIntersectionEditorState[`${side}CharacterIds`]=ccIntersectionIds((ccIntersectionEditorState[`${side}CharacterIds`]||[]).filter(idValue=>idValue!==value));if(ccIntersectionEditorState[`${side}FeaturedId`]===value)ccIntersectionEditorState[`${side}FeaturedId`]=ccIntersectionEditorState[`${side}CharacterIds`][0]||'';const stillUsed=ccIntersectionIds(ccIntersectionEditorState.sourceCharacterIds).includes(value)||ccIntersectionIds(ccIntersectionEditorState.targetCharacterIds).includes(value);if(!stillUsed&&ccIntersectionEditorState.participantStyles)delete ccIntersectionEditorState.participantStyles[value];ccRenderIntersectionEditorPage();return;}
     if(event.target.closest('[data-cc-int-use-suggestion]')&&ccIntersectionEditorState){event.preventDefault();ccIntersectionEditorState.handoff=ccIntersectionSuggestedHandoff(ccIntersectionEditorState.sourcePreview,ccIntersectionEditorState.targetPreview);ccRenderIntersectionEditorPage();return;}
     const editPost=event.target.closest('[data-cc-int-edit-post]');if(editPost){event.preventDefault();const [storyId,nodeId,turnId]=String(editPost.dataset.ccIntEditPost||'').split('|');if(!storyId||!turnId)return;navigate('story',storyRouteValue(storyId,nodeId||''));requestAnimationFrame(()=>setTimeout(()=>{const context=ccrhStoryFromRoute();const turn=ensureStoryDocument(context?.story).find(item=>item.id===turnId);if(turn){ccrhEditingPostId=turn.id;ccrhPreviewMode=false;ccrhRenderReader();requestAnimationFrame(()=>document.getElementById('rp-composer')?.scrollIntoView({behavior:'smooth',block:'start'}));}},90));return;}
@@ -23297,14 +23300,16 @@ initFirebase();
     if(!ccIntersectionEditorState)return;
     const field=event.target.closest('[data-cc-int-field]');if(field){ccIntersectionEditorState[field.dataset.ccIntField]=field.value;ccIntersectionEditorSyncPreview();return;}
     const accent=event.target.closest('[data-cc-int-accent]');if(accent){ccIntersectionEditorState[`${accent.dataset.ccIntAccent}Accent`]=accent.value;ccIntersectionEditorSyncPreview();return;}
-    const participantAccent=event.target.closest('[data-cc-int-participant-accent]');if(participantAccent){const [side,idValue]=String(participantAccent.dataset.ccIntParticipantAccent||'').split('|');ccIntersectionEditorState.participantStyles ||= {};const character=getItem('characters',idValue);const current=ccIntersectionEditorState.participantStyles[idValue]||{};ccIntersectionEditorState.participantStyles[idValue]={...current,imageId:String(current.imageId||'default'),accent:ccIntersectionSafeColor(participantAccent.value,ccIntersectionCharacterAccent(character))};ccIntersectionEditorUpdateParticipantCard(side,idValue);ccIntersectionEditorSyncPreview();return;}
+    const participantAccent=event.target.closest('[data-cc-int-participant-accent]');if(participantAccent){const [side,idValue]=String(participantAccent.dataset.ccIntParticipantAccent||'').split('|');ccIntersectionEditorState.participantStyles ||= {};const character=getItem('characters',idValue);const current=ccIntersectionEditorState.participantStyles[idValue]||{};ccIntersectionEditorState.participantStyles[idValue]={...current,imageId:String(current.imageId||'default'),accent:ccIntersectionSafeColor(participantAccent.value,ccIntersectionCharacterAccent(character)),positionX:Number.isFinite(Number(current.positionX))?Number(current.positionX):50,positionY:Number.isFinite(Number(current.positionY))?Number(current.positionY):50};ccIntersectionEditorUpdateParticipantCard(side,idValue);ccIntersectionEditorSyncPreview();return;}
+    const participantPositionX=event.target.closest('[data-cc-int-participant-position-x]');if(participantPositionX){const [side,idValue]=String(participantPositionX.dataset.ccIntParticipantPositionX||'').split('|');ccIntersectionEditorState.participantStyles ||= {};const character=getItem('characters',idValue);const current=ccIntersectionParticipantStyle(ccIntersectionEditorState.participantStyles,idValue,ccIntersectionEditorState[`${side}Accent`]||'#b99663',character);ccIntersectionEditorState.participantStyles[idValue]={...current,positionX:Math.max(0,Math.min(100,Number(participantPositionX.value)||0))};ccIntersectionEditorUpdateParticipantCard(side,idValue);ccIntersectionEditorSyncPreview();return;}
+    const participantPositionY=event.target.closest('[data-cc-int-participant-position-y]');if(participantPositionY){const [side,idValue]=String(participantPositionY.dataset.ccIntParticipantPositionY||'').split('|');ccIntersectionEditorState.participantStyles ||= {};const character=getItem('characters',idValue);const current=ccIntersectionParticipantStyle(ccIntersectionEditorState.participantStyles,idValue,ccIntersectionEditorState[`${side}Accent`]||'#b99663',character);ccIntersectionEditorState.participantStyles[idValue]={...current,positionY:Math.max(0,Math.min(100,Number(participantPositionY.value)||0))};ccIntersectionEditorUpdateParticipantCard(side,idValue);ccIntersectionEditorSyncPreview();return;}
   },true);
   document.addEventListener('change',event=>{
     if(!ccIntersectionEditorState)return;
     const storySelect=event.target.closest('[data-cc-int-target-story]');if(storySelect){ccIntersectionEditorState.targetStoryId=storySelect.value;ccIntersectionEditorState.targetNodeId='';ccIntersectionEditorState.targetTurnId='';ccIntersectionEditorState.targetCharacterIds=[];ccIntersectionEditorState.targetFeaturedId='';ccRenderIntersectionEditorPage();return;}
     const pointSelect=event.target.closest('[data-cc-int-target-point]');if(pointSelect){ccIntersectionEditorState.targetNodeId=pointSelect.value;ccIntersectionEditorState.targetTurnId='';const story=storyById(ccIntersectionEditorState.targetStoryId),node=(story?.nodes||[]).find(item=>item.id===ccIntersectionEditorState.targetNodeId)||null;const ids=ccIntersectionIds(ccIntersectionCharacterIdsForPoint(story,node,null)).filter(idValue=>!ccIntersectionIds(ccIntersectionEditorState.sourceCharacterIds).includes(String(idValue)));ccIntersectionEditorState.targetCharacterIds=ids;ccIntersectionEditorState.targetFeaturedId=ids[0]||'';ccRenderIntersectionEditorPage();return;}
     const postSelect=event.target.closest('[data-cc-int-target-post]');if(postSelect){ccIntersectionEditorState.targetTurnId=postSelect.value;const story=storyById(ccIntersectionEditorState.targetStoryId),node=(story?.nodes||[]).find(item=>item.id===ccIntersectionEditorState.targetNodeId)||null,turn=story?ensureStoryDocument(story).find(item=>item.id===ccIntersectionEditorState.targetTurnId)||null:null;const ids=ccIntersectionIds(ccIntersectionCharacterIdsForPoint(story,node,turn)).filter(idValue=>!ccIntersectionIds(ccIntersectionEditorState.sourceCharacterIds).includes(String(idValue)));ccIntersectionEditorState.targetCharacterIds=ids;ccIntersectionEditorState.targetFeaturedId=ids[0]||'';ccIntersectionEditorState.targetPreview=String(ccrhIntersectionPassage(turn?.text||'')||intersectionPlainText(turn?.text||'',190)||'').trim();if(!ccIntersectionEditorState.handoff)ccIntersectionEditorState.handoff=ccIntersectionSuggestedHandoff(ccIntersectionEditorState.sourcePreview,ccIntersectionEditorState.targetPreview);ccRenderIntersectionEditorPage();return;}
-    const participantImage=event.target.closest('[data-cc-int-participant-image]');if(participantImage){const [side,idValue]=String(participantImage.dataset.ccIntParticipantImage||'').split('|');ccIntersectionEditorState.participantStyles ||= {};const character=getItem('characters',idValue);const current=ccIntersectionEditorState.participantStyles[idValue]||{};ccIntersectionEditorState.participantStyles[idValue]={...current,imageId:String(participantImage.value||'default'),accent:ccIntersectionSafeColor(current.accent,ccIntersectionSafeColor(ccIntersectionEditorState[`${side}Accent`],ccIntersectionCharacterAccent(character)))};ccIntersectionEditorUpdateParticipantCard(side,idValue);ccIntersectionEditorSyncPreview();return;}
+    const participantImage=event.target.closest('[data-cc-int-participant-image]');if(participantImage){const [side,idValue]=String(participantImage.dataset.ccIntParticipantImage||'').split('|');ccIntersectionEditorState.participantStyles ||= {};const character=getItem('characters',idValue);const current=ccIntersectionEditorState.participantStyles[idValue]||{};ccIntersectionEditorState.participantStyles[idValue]={...current,imageId:String(participantImage.value||'default'),accent:ccIntersectionSafeColor(current.accent,ccIntersectionSafeColor(ccIntersectionEditorState[`${side}Accent`],ccIntersectionCharacterAccent(character))),positionX:Number.isFinite(Number(current.positionX))?Number(current.positionX):50,positionY:Number.isFinite(Number(current.positionY))?Number(current.positionY):50};ccIntersectionEditorUpdateParticipantCard(side,idValue);ccIntersectionEditorSyncPreview();return;}
     const featured=event.target.closest('[data-cc-int-featured]');if(featured){const side=featured.dataset.ccIntFeatured;ccIntersectionEditorState[`${side}FeaturedId`]=featured.value;ccIntersectionEditorState[`${side}ImageId`]='default';ccRenderIntersectionEditorPage();return;}
     const image=event.target.closest('[data-cc-int-image]');if(image){ccIntersectionEditorState[`${image.dataset.ccIntImage}ImageId`]=image.value;ccIntersectionEditorSyncPreview();return;}
   },true);
@@ -24721,5 +24726,69 @@ initFirebase();
   .cc-int2-participant-grid{grid-template-columns:1fr!important;}
 }
 </style>
+<style id="cc-intersection-roster-large-art-position-style">
+/* Larger character artwork with a compact caption, plus per-character focal-position controls. */
+.cc-int2-person{
+  grid-template-rows:minmax(230px,1fr) auto!important;
+  min-height:292px!important;
+}
+.cc-int2-person-art{
+  height:230px!important;
+  min-height:230px!important;
+}
+.cc-int2-person-art img{
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover!important;
+}
+.cc-int2-person-copy{
+  min-height:54px!important;
+  padding:8px 11px!important;
+  gap:2px!important;
+  align-content:center!important;
+}
+.cc-int2-person-copy strong{font-size:.92rem!important;line-height:1.15!important}
+.cc-int2-person-copy small{font-size:.76rem!important;line-height:1.15!important}
+.cc-int3-roster-art-card{
+  grid-template-columns:minmax(180px,42%) minmax(0,1fr)!important;
+  align-items:stretch!important;
+}
+.cc-int3-roster-art-preview{
+  width:100%!important;
+  height:260px!important;
+  min-height:260px!important;
+}
+.cc-int3-roster-art-preview img{
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover!important;
+}
+.cc-int3-roster-art-controls{grid-template-columns:minmax(0,1fr) auto!important}
+.cc-int3-art-image-select{grid-column:1/2}
+.cc-int3-person-color{grid-column:2/3}
+.cc-int3-position-controls{
+  grid-column:1/-1;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  padding-top:2px;
+}
+.cc-int3-position-controls label{display:grid;gap:5px}
+.cc-int3-position-controls input[type="range"]{width:100%;accent-color:var(--cc-int-accent)}
+.cc-int3-position-controls small{display:flex;justify-content:space-between;color:var(--muted);font-size:.68rem;font-weight:650}
+.cc-int3-position-controls small b{font-weight:650}
+@media(max-width:760px){
+  .cc-int3-roster-art-card{grid-template-columns:130px minmax(0,1fr)!important}
+  .cc-int3-roster-art-preview{height:190px!important;min-height:190px!important}
+  .cc-int3-position-controls{grid-template-columns:1fr}
+  .cc-int2-person{grid-template-rows:200px auto!important;min-height:258px!important}
+  .cc-int2-person-art{height:200px!important;min-height:200px!important}
+}
+@media(max-width:480px){
+  .cc-int3-roster-art-card{grid-template-columns:1fr!important}
+  .cc-int3-roster-art-preview{height:260px!important}
+}
+</style>
+
 </body>
 </html>
