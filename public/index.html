@@ -17826,6 +17826,18 @@ initFirebase();
 
   let ccDialogueSelection={start:0,end:0,text:''};
   let ccDialogueState=null;
+  let ccDialogueRestoreQueued=false;
+
+  function ccDialogueSessionStoryId(){
+    return String(window.ccDialogueBuilderStoryId||'');
+  }
+
+  function ccDialogueSessionMatchesRoute(){
+    if(typeof route==='undefined'||!route||route.view!=='story')return false;
+    const storyId=String(ccrhStoryFromRoute()?.story?.id||'');
+    const sessionStoryId=ccDialogueSessionStoryId();
+    return Boolean(storyId)&&(!sessionStoryId||storyId===sessionStoryId);
+  }
 
   function ccDialogueDefaults(){
     if(!state.workspace.dialogueCardDefaults||typeof state.workspace.dialogueCardDefaults!=='object'){
@@ -18564,6 +18576,9 @@ initFirebase();
       return;
     }
     try{
+      ccrhLockCurrentEditor();
+      window.ccDialogueBuilderSessionActive=true;
+      window.ccDialogueBuilderStoryId=String(ccrhStoryFromRoute()?.story?.id||'');
       const start=editor.selectionStart??0;
       const end=editor.selectionEnd??start;
       ccDialogueSelection={start,end,text:editor.value.slice(start,end).trim()};
@@ -18580,6 +18595,8 @@ initFirebase();
     }catch(error){
       console.error('Dialogue Card failed to open.',error);
       ccDialogueState=null;
+      window.ccDialogueBuilderSessionActive=false;
+      window.ccDialogueBuilderStoryId='';
       mount.hidden=true;
       mount.innerHTML='';
       toast('The Dialogue Card could not open. Refresh Codex and try again.','error');
@@ -18590,6 +18607,8 @@ initFirebase();
     const mount=document.querySelector('[data-cc-dialogue-builder-mount]');
     if(mount){mount.hidden=true;mount.innerHTML='';}
     ccDialogueState=null;
+    window.ccDialogueBuilderSessionActive=false;
+    window.ccDialogueBuilderStoryId='';
   }
 
   function ccDialogueSync(){
@@ -19128,9 +19147,14 @@ initFirebase();
 
   function ccrhEditorIsProtected(){
     if(typeof route==='undefined'||!route||route.view!=='story')return false;
+    const context=ccrhStoryFromRoute();
+    const dialogueStoryId=String(window.ccDialogueBuilderStoryId||'');
+    const dialogueProtected=Boolean(window.ccDialogueBuilderSessionActive)&&(
+      !dialogueStoryId||String(context?.story?.id||'')===dialogueStoryId
+    );
+    if(dialogueProtected)return true;
     const editor=document.querySelector('[data-ccrh-editor]');
     if(!editor)return false;
-    const context=ccrhStoryFromRoute();
     const sameStory=!ccrhEditorLock.storyId||
       String(context?.story?.id||'')===String(ccrhEditorLock.storyId);
     return sameStory&&(
@@ -19155,9 +19179,38 @@ initFirebase();
 
   document.addEventListener('click',event=>{
     if(event.target.closest('[data-ccrh-submit],[data-ccrh-cancel-edit]')){
+      if(window.ccDialogueBuilderSessionActive)ccDialogueClose();
       ccrhUnlockEditor();
     }
   },true);
+
+  function ccDialogueRestoreAfterReaderRender(){
+    if(!ccDialogueState||!window.ccDialogueBuilderSessionActive)return;
+    if(!ccDialogueSessionMatchesRoute()){
+      ccDialogueClose();
+      return;
+    }
+    const mount=document.querySelector('[data-cc-dialogue-builder-mount]');
+    if(!mount||(!mount.hidden&&mount.querySelector('.cc-dialogue-builder')))return;
+    mount.hidden=false;
+    mount.innerHTML=ccDialogueBuilderHtml();
+    ccDialogueRefreshPreview();
+    ccrhRestoreLockedEditor();
+  }
+
+  function ccDialogueQueueRestoreAfterReaderRender(){
+    if(ccDialogueRestoreQueued||!ccDialogueState||!window.ccDialogueBuilderSessionActive)return;
+    const mount=document.querySelector('[data-cc-dialogue-builder-mount]');
+    if(mount&&!mount.hidden&&mount.querySelector('.cc-dialogue-builder'))return;
+    ccDialogueRestoreQueued=true;
+    requestAnimationFrame(()=>{
+      ccDialogueRestoreQueued=false;
+      ccDialogueRestoreAfterReaderRender();
+    });
+  }
+
+  const ccDialogueReaderObserver=new MutationObserver(ccDialogueQueueRestoreAfterReaderRender);
+  ccDialogueReaderObserver.observe(el.main,{childList:true,subtree:true});
 
   /* Expose the shared media helpers used by the character/species media extension script. */
   Object.assign(window,{
@@ -21098,7 +21151,7 @@ initFirebase();
 
   /* === End Character rich writing editor === */
 
-  window.CODEX_BUILD='dialogue-tabbed-advanced-no-image-fix-2026-08-28';
+  window.CODEX_BUILD='dialogue-refresh-safe-tabbed-advanced-2026-08-28';
   /* === End Character clean view / explicit edit mode === */
 
   // The main app can render the initial route before this extension is installed.
