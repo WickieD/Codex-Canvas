@@ -24683,5 +24683,43 @@ initFirebase();
 @media(max-width:680px){.cc-int3-member-card{grid-template-columns:50px minmax(0,1fr)}.cc-int3-member-card>.button{grid-column:1/-1;width:100%}.cc-int3-roster-art-card{grid-template-columns:90px minmax(0,1fr)}.cc-int3-roster-art-preview{width:90px;height:116px}.cc-int3-roster-art-controls{grid-template-columns:1fr}}
 </style>
 
+
+<style id="cc-intersection-participant-even-fill-style">
+/* Finished intersection roster: distribute every character evenly across the full available width. */
+.cc-int2-participant-grid{
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(190px,1fr))!important;
+  gap:14px!important;
+  align-items:stretch!important;
+  width:100%!important;
+}
+.cc-int2-person{
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  grid-template-rows:170px auto!important;
+  height:100%!important;
+}
+.cc-int2-person-art{
+  width:100%!important;
+  height:170px!important;
+}
+.cc-int2-person-art img{
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover!important;
+}
+.cc-int2-person-copy{
+  min-height:72px;
+  align-content:center!important;
+}
+@media(max-width:720px){
+  .cc-int2-participant-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+  .cc-int2-person{width:100%!important;min-width:0!important;}
+}
+@media(max-width:460px){
+  .cc-int2-participant-grid{grid-template-columns:1fr!important;}
+}
+</style>
 </body>
 </html>
