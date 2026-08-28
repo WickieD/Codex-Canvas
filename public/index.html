@@ -3601,8 +3601,29 @@ button:disabled { cursor: not-allowed; opacity: .48; }
   .story-library-card{border:1px solid var(--border);border-radius:18px;background:var(--panel);padding:18px;display:grid;gap:13px;box-shadow:0 12px 28px rgba(0,0,0,.04)}
   .story-library-card h3{margin:0;font:700 24px Georgia,serif}.story-library-card p{margin:0;color:var(--muted);line-height:1.55}
   .story-card-stats{display:flex;gap:8px;flex-wrap:wrap}.story-card-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:3px}
-  .story-intersection-list{display:grid;gap:10px}.story-intersection-card{border:1px solid var(--border);border-radius:14px;background:var(--panel);padding:13px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center}
+  .story-intersection-list{display:grid;gap:14px}
+  .story-intersection-card{border:1px solid color-mix(in srgb,var(--accent) 22%,var(--border));border-radius:22px;background:linear-gradient(180deg,color-mix(in srgb,var(--accent-soft) 10%,var(--panel)) 0%,var(--panel) 100%);padding:18px;display:grid;gap:16px;box-shadow:0 18px 40px rgba(0,0,0,.08);position:relative;overflow:hidden}
+  .story-intersection-card::before{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 0%,color-mix(in srgb,var(--accent) 14%,transparent),transparent 42%)}
   .story-intersection-card strong{display:block}.story-intersection-card small{display:block;color:var(--muted);margin-top:4px;line-height:1.45}
+  .story-intersection-card.is-manual{grid-template-columns:minmax(0,1fr) auto;align-items:center;padding:14px 15px;border-radius:16px;background:var(--panel)}
+  .story-intersection-card.is-manual::before{display:none}
+  .story-intersection-rail{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:16px;align-items:center}
+  .story-intersection-side{display:grid;gap:10px;min-width:0;align-content:start}
+  .story-intersection-story{display:grid;gap:2px}
+  .story-intersection-story strong{font:700 24px Georgia,serif;line-height:1.08}
+  .story-intersection-story small{margin:0;color:var(--muted);font-size:.78rem;letter-spacing:.05em;text-transform:uppercase}
+  .story-intersection-character-line{font-weight:800;color:var(--text);line-height:1.45}
+  .story-intersection-point{color:var(--accent-strong);font-size:.92rem;font-weight:700}
+  .story-intersection-quote{margin:0;padding:12px 14px;border-radius:16px;border:1px solid color-mix(in srgb,var(--accent) 18%,var(--border));background:color-mix(in srgb,var(--accent-soft) 14%,var(--surface));color:var(--text);line-height:1.6;min-height:74px}
+  .story-intersection-quote span{display:block;font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+  .story-intersection-center{display:grid;justify-items:center;gap:8px;min-width:118px}
+  .story-intersection-center-line{width:100%;height:2px;border-radius:999px;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--accent) 72%,var(--border)),transparent)}
+  .story-intersection-center-orb{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;border:1px solid color-mix(in srgb,var(--accent) 34%,var(--border));background:radial-gradient(circle,color-mix(in srgb,var(--accent-soft) 72%,var(--surface)) 0%,color-mix(in srgb,var(--accent-soft) 18%,var(--surface)) 65%,transparent 100%);box-shadow:0 0 0 8px color-mix(in srgb,var(--accent-soft) 22%,transparent)}
+  .story-intersection-center-orb::before{content:'✦';font-size:24px;color:var(--accent-strong)}
+  .story-intersection-center-label{font-size:.86rem;font-weight:800;color:var(--accent-strong);text-align:center}
+  .story-intersection-actions{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .story-intersection-open{min-width:186px;justify-content:center}
+  .story-intersection-route-note{font-size:.86rem;color:var(--muted);line-height:1.55;margin-top:-4px}
   .story-manager{display:grid;gap:18px}.story-manager-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.story-manager-section{border:1px solid var(--border);border-radius:16px;padding:15px;background:var(--panel)}
   .story-manager-section h3{margin:0 0 11px;font-size:18px}.story-point-manager-list,.graph-connection-manager-list{display:grid;gap:8px;margin-top:12px}
   .story-point-manager-row,.graph-connection-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:center;border:1px solid var(--border);border-radius:12px;padding:10px;background:var(--surface)}
@@ -3616,7 +3637,7 @@ button:disabled { cursor: not-allowed; opacity: .48; }
   .intersection-board{margin-top:24px}.intersection-board h2{margin-bottom:8px}
   .empty-story-workspace{border:1px dashed var(--border);border-radius:20px;padding:34px;text-align:center;background:var(--panel)}
   .empty-story-workspace h2{font:700 28px Georgia,serif;margin:0 0 10px}.empty-story-workspace p{max-width:680px;margin:0 auto 18px;color:var(--muted);line-height:1.55}
-  @media(max-width:780px){.member-row{grid-template-columns:1fr}.member-admin-actions{justify-content:flex-start}.story-manager-grid,.story-manager-add,.graph-connection-form,.story-intersection-form{grid-template-columns:1fr}.story-intersection-form .intersection-wide{grid-column:auto}.graph-connection-row{grid-template-columns:1fr}.story-intersection-card,.story-intersection-path{grid-template-columns:1fr}}
+  @media(max-width:780px){.member-row{grid-template-columns:1fr}.member-admin-actions{justify-content:flex-start}.story-manager-grid,.story-manager-add,.graph-connection-form,.story-intersection-form{grid-template-columns:1fr}.story-intersection-form .intersection-wide{grid-column:auto}.graph-connection-row{grid-template-columns:1fr}.story-intersection-card,.story-intersection-path,.story-intersection-card.is-manual{grid-template-columns:1fr}.story-intersection-rail{grid-template-columns:1fr}.story-intersection-center{order:-1;min-width:0}.story-intersection-center-line{width:2px;height:34px;background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--accent) 72%,var(--border)),transparent)}.story-intersection-actions{flex-direction:column}.story-intersection-open{width:100%}}
 </style>
 
 
@@ -13181,6 +13202,71 @@ function allGraphPointOptions(){
   ];
 }
 function storyPointOptions(story){return (story?.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0)).map(node=>({value:node.id,label:`${node.order||''} · ${storyPointTitle(story,node)}`}));}
+
+function intersectionPlainText(value,limit=150){
+  return shortText(String(value||'').replace(/\[[^\]]+\]/g,' ').replace(/\s+/g,' ').trim(),limit);
+}
+function intersectionJoinNames(names){
+  const items=[...new Set((names||[]).map(item=>String(item||'').trim()).filter(Boolean))];
+  if(!items.length)return 'Unknown character';
+  if(items.length===1)return items[0];
+  if(items.length===2)return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0,-1).join(', ')}, and ${items.at(-1)}`;
+}
+function intersectionParticipantsFromTurns(turns,limit=3){
+  const names=[];
+  for(const turn of turns||[]){
+    const name=storySpeakerMeta(turn).name;
+    if(name&&!names.includes(name))names.push(name);
+    if(names.length>=limit)break;
+  }
+  return intersectionJoinNames(names);
+}
+function intersectionTargetDetails(story,node){
+  const range=story&&node?storyPointRange(story,node):{turns:[]};
+  const firstTurn=(range.turns||[])[0]||null;
+  return {
+    characters: intersectionParticipantsFromTurns(range.turns||[]),
+    excerpt: firstTurn ? intersectionPlainText(firstTurn.text||'',160) : intersectionPlainText(ensureStoryPassage(node).summary||'',160),
+    openRef: firstTurn ? `${story.id}|${node.id}|${firstTurn.id}` : '',
+    hasPosts: !!firstTurn
+  };
+}
+function renderStoryPostIntersectionCard(item,{compact=false,currentStoryId=''}={}){
+  const source=storyById(item.sourceStoryId),target=storyById(item.targetStoryId);
+  const sourceTurns=ensureStoryDocument(source);
+  const sourceTurn=sourceTurns.find(turn=>turn.id===item.sourceTurnId)||null;
+  const sourceNode=(source?.nodes||[]).find(node=>node.id===item.sourceNodeId)||null;
+  const targetNode=(target?.nodes||[]).find(node=>node.id===item.targetNodeId);
+  if(!source||!target||!targetNode)return '';
+  const routeNode=item.sourceNodeId||source.nodes?.[0]?.id||'';
+  const sourceOpenRef=`${source.id}|${routeNode}|${item.sourceTurnId}`;
+  const targetMeta=intersectionTargetDetails(target,targetNode);
+  const sourceStoryPoint=sourceNode?storyPointTitle(source,sourceNode):'Exact post';
+  const targetStoryPoint=storyPointTitle(target,targetNode);
+  const sourceCharacters=intersectionJoinNames([item.speakerName||storySpeakerMeta(sourceTurn||{}).name].filter(Boolean));
+  const sourceExcerpt=intersectionPlainText(sourceTurn?.text||item.excerpt||'',160);
+  const currentIsSource=!currentStoryId||currentStoryId===source.id;
+  const leftStory=currentIsSource?source:target;
+  const rightStory=currentIsSource?target:source;
+  const leftCharacters=currentIsSource?sourceCharacters:targetMeta.characters;
+  const rightCharacters=currentIsSource?targetMeta.characters:sourceCharacters;
+  const leftPoint=currentIsSource?sourceStoryPoint:targetStoryPoint;
+  const rightPoint=currentIsSource?targetStoryPoint:sourceStoryPoint;
+  const leftExcerpt=currentIsSource?sourceExcerpt:targetMeta.excerpt;
+  const rightExcerpt=currentIsSource?targetMeta.excerpt:sourceExcerpt;
+  const leftOpen=currentIsSource?sourceOpenRef:(targetMeta.openRef||storyRouteValue(target.id,targetNode.id));
+  const rightOpen=currentIsSource?(targetMeta.openRef||storyRouteValue(target.id,targetNode.id)):sourceOpenRef;
+  const leftAttr=currentIsSource?(sourceOpenRef?`data-ccrh-open-linked-post="${esc(sourceOpenRef)}"`:`data-open-story="${esc(source.id)}"`):(targetMeta.openRef?`data-ccrh-open-linked-post="${esc(targetMeta.openRef)}"`:`data-story-point="${esc(storyRouteValue(target.id,targetNode.id))}"`);
+  const rightAttr=currentIsSource?(targetMeta.openRef?`data-ccrh-open-linked-post="${esc(targetMeta.openRef)}"`:`data-story-point="${esc(storyRouteValue(target.id,targetNode.id))}"`):(sourceOpenRef?`data-ccrh-open-linked-post="${esc(sourceOpenRef)}"`:`data-open-story="${esc(source.id)}"`);
+  const routeNote=currentIsSource
+    ? `This exact post in <strong>${esc(source.name)}</strong> crosses into <strong>${esc(targetStoryPoint)}</strong> in <strong>${esc(target.name)}</strong>.`
+    : `This moment in <strong>${esc(source.name)}</strong> crosses into <strong>${esc(targetStoryPoint)}</strong> and touches the current story here.`;
+  if(compact){
+    return `<article class="story-intersection-card"><div class="story-intersection-rail"><div class="story-intersection-side"><div class="story-intersection-story"><small>${esc(leftPoint)}</small><strong>${esc(leftStory.name)}</strong></div><div class="story-intersection-character-line">${esc(leftCharacters)}</div><blockquote class="story-intersection-quote"><span>Words leading in</span>${esc(leftExcerpt||'No excerpt yet.')}</blockquote></div><div class="story-intersection-center"><div class="story-intersection-center-line"></div><div class="story-intersection-center-orb"></div><div class="story-intersection-center-label">Story intersection</div><div class="story-intersection-center-line"></div></div><div class="story-intersection-side"><div class="story-intersection-story"><small>${esc(rightPoint)}</small><strong>${esc(rightStory.name)}</strong></div><div class="story-intersection-character-line">${esc(rightCharacters)}</div><blockquote class="story-intersection-quote"><span>Words leading in</span>${esc(rightExcerpt||'No excerpt yet.')}</blockquote></div></div><p class="story-intersection-route-note">${routeNote}</p><div class="story-intersection-actions"><button class="button secondary small story-intersection-open" type="button" ${leftAttr}>Open ${esc(leftStory.name)}</button><button class="button small story-intersection-open" type="button" ${rightAttr}>Open ${esc(rightStory.name)}</button></div></article>`;
+  }
+  return `<article class="story-intersection-card"><div class="story-intersection-rail"><div class="story-intersection-side"><div class="story-intersection-story"><small>${esc(leftPoint)}</small><strong>${esc(leftStory.name)}</strong></div><div class="story-intersection-character-line">${esc(leftCharacters)}</div><blockquote class="story-intersection-quote"><span>Words leading in</span>${esc(leftExcerpt||'No excerpt yet.')}</blockquote></div><div class="story-intersection-center"><div class="story-intersection-center-line"></div><div class="story-intersection-center-orb"></div><div class="story-intersection-center-label">Story intersection</div><div class="story-intersection-center-line"></div></div><div class="story-intersection-side"><div class="story-intersection-story"><small>${esc(rightPoint)}</small><strong>${esc(rightStory.name)}</strong></div><div class="story-intersection-character-line">${esc(rightCharacters)}</div><blockquote class="story-intersection-quote"><span>Words leading in</span>${esc(rightExcerpt||'No excerpt yet.')}</blockquote></div></div><div class="story-intersection-actions"><button class="button secondary story-intersection-open" type="button" ${leftAttr}>Open ${esc(leftStory.name)}</button><button class="button story-intersection-open" type="button" ${rightAttr}>Open ${esc(rightStory.name)}</button></div></article>`;
+}
 function renderStoryLibrary(){
   const stories=state.storyGraphs||[];
   const cards=stories.map(story=>{
@@ -13191,16 +13277,11 @@ function renderStoryLibrary(){
     const a=storyById(item.storyAId),b=storyById(item.storyBId);if(!a||!b)return '';
     const aNode=(a.nodes||[]).find(node=>node.id===item.nodeAId),bNode=(b.nodes||[]).find(node=>node.id===item.nodeBId);
     const aTitle=aNode?storyPointTitle(a,aNode):storyNodeName(item.nodeAId),bTitle=bNode?storyPointTitle(b,bNode):storyNodeName(item.nodeBId);
-    return `<article class="story-intersection-card cc-story-uniform-card"><div><strong>${esc(item.label||`${aTitle} ↔ ${bTitle}`)}</strong><small>Story-point convergence · ${esc(a.name)} · ${esc(aTitle)} ↔ ${esc(b.name)} · ${esc(bTitle)}${item.description?` · ${esc(item.description)}`:''}</small></div><button class="button ghost small" type="button" data-delete-intersection="${esc(item.id)}">Remove</button></article>`;
+    return `<article class="story-intersection-card is-manual cc-story-uniform-card"><div><strong>${esc(item.label||`${aTitle} ↔ ${bTitle}`)}</strong><small>Story-point convergence · ${esc(a.name)} · ${esc(aTitle)} ↔ ${esc(b.name)} · ${esc(bTitle)}${item.description?` · ${esc(item.description)}`:''}</small></div><button class="button ghost small" type="button" data-delete-intersection="${esc(item.id)}">Remove</button></article>`;
   }).join('');
-  const postIntersectionCards=storyPostIntersections().map(item=>{
-    const source=storyById(item.sourceStoryId),target=storyById(item.targetStoryId),targetNode=(target?.nodes||[]).find(node=>node.id===item.targetNodeId);if(!source||!target||!targetNode)return '';
-    const routeNode=item.sourceNodeId||source.nodes?.[0]?.id||'';
-    const openRef=`${source.id}|${routeNode}|${item.sourceTurnId}`;
-    return `<article class="story-intersection-card cc-story-uniform-card"><div><strong>${esc(source.name)} · Post ${item.sourcePostNumber} ↔ ${esc(storyPointTitle(target,targetNode))}</strong><small>Exact-post intersection · ${esc(item.speakerName)}${item.excerpt?` · “${esc(item.excerpt)}${item.excerpt.length>=110?'…':''}”`:''} · linked to ${esc(target.name)} · ${esc(storyPointTitle(target,targetNode))}</small></div><button class="button ghost small" type="button" data-ccrh-open-linked-post="${esc(openRef)}">Open post</button></article>`;
-  }).join('');
+  const postIntersectionCards=storyPostIntersections().map(item=>renderStoryPostIntersectionCard(item)).join('');
   const intersectionCards=postIntersectionCards+manualIntersectionCards;
-  el.main.innerHTML=`${pageHead('Roleplay writing','Story Library','Create as many independent or interconnected stories as your world needs.',`<button class="button" type="button" data-new-story>New story</button><button class="button secondary" type="button" data-nav="graph">Open graphs</button>`)}<div class="story-library-toolbar"><p class="page-subtitle">Each story keeps its own RP sheet and graph points. To make an exact-post intersection, edit that RP post and choose a Story Point that belongs to another story.</p></div>${cards?`<div class="story-library-grid">${cards}</div>`:'<div class="empty-story-workspace"><h2>No stories yet</h2><p>Create the first story, then add people, places, factions, species, or events as story points.</p><button class="button" type="button" data-new-story>Create the first story</button></div>'}<section class="intersection-board"><h2>Story intersections</h2><p class="page-subtitle">Exact-post intersections are detected automatically from the Story Point selected on each RP post. Older story-point convergences remain listed too.</p><div class="story-intersection-list">${intersectionCards||'<div class="panel empty-state">No story intersections have been detected yet.</div>'}</div></section>`;
+  el.main.innerHTML=`${pageHead('Roleplay writing','Story Library','Create as many independent or interconnected stories as your world needs.',`<button class="button" type="button" data-new-story>New story</button><button class="button secondary" type="button" data-nav="graph">Open graphs</button>`)}<div class="story-library-toolbar"><p class="page-subtitle">Each story keeps its own RP sheet and graph points. To make an exact-post intersection, edit that RP post and choose a Story Point that belongs to another story.</p></div>${cards?`<div class="story-library-grid">${cards}</div>`:'<div class="empty-story-workspace"><h2>No stories yet</h2><p>Create the first story, then add people, places, factions, species, or events as story points.</p><button class="button" type="button" data-new-story>Create the first story</button></div>'}<section class="intersection-board"><h2>Story intersections</h2><p class="page-subtitle">Connections are shown as the exact crossover moments between stories. Each card focuses on the characters involved, the words leading into the interaction, and quick open buttons for either side.</p><div class="story-intersection-list">${intersectionCards||'<div class="panel empty-state">No story intersections have been detected yet.</div>'}</div></section>`;
 }
 function showNewStoryModal(){
   showModal('Create a story',`<div class="story-manager"><label><span>Story name</span><input id="newStoryName" class="input" type="text" placeholder="Story name"></label><label><span>Description</span><textarea id="newStoryDescription" class="textarea" rows="4" placeholder="What arc, RP, or time period does this story cover?"></textarea></label></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-create-story>Create story</button>`);
@@ -14683,18 +14764,7 @@ const CC2_VERSION = 'story-timeline-2026-08';
 
   function cc2StoryIntersectionManagerHtml(story){
     const groups=storyIntersectionsFor(story.id);
-    const postRows=groups.post.map(item=>{
-      const source=storyById(item.sourceStoryId),target=storyById(item.targetStoryId);
-      const targetNode=(target?.nodes||[]).find(node=>node.id===item.targetNodeId);
-      if(!source||!target||!targetNode)return '';
-      const currentIsSource=item.sourceStoryId===story.id;
-      const routeNode=item.sourceNodeId||source.nodes?.[0]?.id||'';
-      const openRef=`${source.id}|${routeNode}|${item.sourceTurnId}`;
-      const route=currentIsSource
-        ? `<b>Post ${item.sourcePostNumber}</b><span class="story-intersection-arrow">→</span><span>${esc(target.name)}</span><span>·</span><b>${esc(storyPointTitle(target,targetNode))}</b>`
-        : `<span>${esc(source.name)}</span><span>·</span><b>Post ${item.sourcePostNumber}</b><span class="story-intersection-arrow">→</span><b>${esc(storyPointTitle(target,targetNode))}</b>`;
-      return `<div class="story-intersection-path"><div class="story-intersection-path-main"><strong>Exact-post intersection</strong><div class="story-intersection-route">${route}</div><small>${esc(item.speakerName)}${item.excerpt?` · “${esc(item.excerpt)}${item.excerpt.length>=110?'…':''}”`:''}</small></div><button class="button secondary small" type="button" data-ccrh-open-linked-post="${esc(openRef)}">Open post</button></div>`;
-    }).join('');
+    const postRows=groups.post.map(item=>renderStoryPostIntersectionCard(item,{compact:true,currentStoryId:story.id})).join('');
     const manualRows=groups.manual.map(item=>{
       const currentIsA=item.storyAId===story.id;
       const currentNode=(story.nodes||[]).find(node=>node.id===(currentIsA?item.nodeAId:item.nodeBId));
@@ -14705,7 +14775,7 @@ const CC2_VERSION = 'story-timeline-2026-08';
       return `<div class="story-intersection-path"><div class="story-intersection-path-main"><strong>${esc(item.label||`${currentTitle} ↔ ${otherTitle}`)}</strong><div class="story-intersection-route"><b>${esc(currentTitle)}</b><span class="story-intersection-arrow">↔</span><span>${esc(other?.name||'Other story')}</span><span>·</span><b>${esc(otherTitle)}</b></div><small>Older story-point convergence${item.description?` · ${esc(item.description)}`:''}</small></div><button class="button ghost small" type="button" data-delete-intersection="${esc(item.id)}">Remove</button></div>`;
     }).join('');
     const rows=postRows+manualRows;
-    return `<section class="story-manager-section story-manager-intersections-first"><div class="story-manager-section-heading"><div><span class="eyebrow">Shared story moment</span><h3>Story intersections</h3></div><span class="tag">${storyIntersectionCount(story.id)} connected</span></div><div class="story-intersection-manager"><p class="story-intersection-intro"><strong>Exact-post intersections are automatic.</strong> In Roleplay Hub, edit the exact post where the crossover happens. Under <strong>Context → Story Point</strong>, choose a Story Point from the other story. That one post becomes the intersection; you do not need to add that point to this story under Manage Story.</p>${rows?`<div class="story-intersection-existing"><div class="story-intersection-existing-title">Detected intersections</div>${rows}</div>`:'<div class="story-intersection-empty">No intersections detected yet. Edit the crossover post and choose a Story Point from another story.</div>'}</div></section>`;
+    return `<section class="story-manager-section story-manager-intersections-first"><div class="story-manager-section-heading"><div><span class="eyebrow">Shared story moment</span><h3>Story intersections</h3></div><span class="tag">${storyIntersectionCount(story.id)} connected</span></div><div class="story-intersection-manager"><p class="story-intersection-intro"><strong>Exact-post intersections are automatic.</strong> In Roleplay Hub, edit the exact post where the crossover happens. Under <strong>Context → Story Point</strong>, choose a Story Point from the other story. That one post becomes the intersection; you do not need to add that point to this story under Manage Story.</p>${rows?`<div class="story-intersection-existing"><div class="story-intersection-existing-title">Intersection moments</div>${rows}</div>`:'<div class="story-intersection-empty">No intersections detected yet. Edit the crossover post and choose a Story Point from another story.</div>'}</div></section>`;
   }
 
   function cc2ShowStoryManager(storyId){
