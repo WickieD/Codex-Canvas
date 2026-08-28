@@ -4204,6 +4204,150 @@ button.ccrh-context-chip:hover{border-color:var(--accent);color:var(--text)}
 }
 </style>
 
+<style id="ccrh-cute-composer-toolbar-style">
+/* Roleplay Hub composer toolbar: fixed-height theme-aware tabs with floating popovers. */
+.ccrh-composer{position:relative;isolation:isolate}
+.ccrh-cute-toolbar{
+  --ccrh-accent-soft:color-mix(in srgb,var(--accent) 16%,var(--panel));
+  --ccrh-accent-ink:color-mix(in srgb,var(--accent) 78%,var(--text));
+  position:relative;z-index:30;display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr)) 76px;
+  align-items:start;gap:10px;min-height:116px;padding:16px 17px 14px;
+  border-bottom:1px solid var(--border);
+  background:
+    radial-gradient(circle at 12% 15%,color-mix(in srgb,var(--accent) 10%,transparent),transparent 28%),
+    color-mix(in srgb,var(--panel-soft) 78%,var(--panel));
+  overflow:visible;
+}
+.ccrh-tool-cluster{position:relative;min-width:0;display:grid;justify-items:stretch;gap:7px}
+.ccrh-tool-tab{
+  position:relative;display:flex;align-items:center;justify-content:center;gap:9px;min-width:0;
+  min-height:58px;padding:10px 14px;border:1px solid color-mix(in srgb,var(--border) 86%,var(--accent));
+  border-radius:999px;background:linear-gradient(180deg,color-mix(in srgb,var(--panel) 94%,var(--ccrh-accent-soft)),var(--panel));
+  color:var(--text);font-family:var(--display-font,Georgia,serif);font-size:17px;font-weight:780;
+  letter-spacing:.01em;box-shadow:inset 0 1px 0 color-mix(in srgb,#fff 42%,transparent),0 7px 18px rgb(0 0 0 / 8%);
+  transition:border-color .16s ease,background .16s ease,box-shadow .16s ease,transform .16s ease,color .16s ease;
+  white-space:nowrap;overflow:hidden;
+}
+.ccrh-tool-tab::after{content:'✦';position:absolute;right:10px;top:7px;color:var(--accent);font-size:8px;opacity:.34;pointer-events:none}
+.ccrh-tool-tab:hover{
+  border-color:color-mix(in srgb,var(--accent) 62%,var(--border));
+  background:linear-gradient(180deg,color-mix(in srgb,var(--ccrh-accent-soft) 56%,var(--panel)),var(--panel));
+  transform:translateY(-1px);
+}
+.ccrh-tool-tab[aria-expanded="true"]{
+  border-color:color-mix(in srgb,var(--accent) 82%,var(--border));
+  background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 26%,var(--panel)),color-mix(in srgb,var(--ccrh-accent-soft) 62%,var(--panel)));
+  color:var(--ccrh-accent-ink);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 20%,transparent),0 0 0 2px color-mix(in srgb,var(--accent) 12%,transparent),0 10px 24px color-mix(in srgb,var(--accent) 20%,transparent);
+}
+.ccrh-tool-tab-icon{width:26px;height:26px;flex:0 0 26px;display:grid;place-items:center;color:var(--ccrh-accent-ink)}
+.ccrh-tool-tab-icon svg{width:25px;height:25px;fill:currentColor;stroke:currentColor;stroke-width:1.25;stroke-linecap:round;stroke-linejoin:round}
+.ccrh-tool-cluster-insert .ccrh-tool-tab-icon svg,.ccrh-tool-cluster-roleplay .ccrh-tool-tab-icon svg{fill:none;stroke-width:1.55}
+.ccrh-tool-cluster-context .ccrh-tool-tab-icon svg{fill:none;stroke-width:1.7}
+.ccrh-tool-caption{display:block;text-align:center;color:var(--muted);font-size:11px;font-weight:700;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 4px}
+.ccrh-context-tab{padding-inline:12px;gap:2px}
+.ccrh-context-tab::after{display:none}
+.ccrh-context-tab.has-context{border-color:color-mix(in srgb,var(--accent) 68%,var(--border));background:color-mix(in srgb,var(--ccrh-accent-soft) 52%,var(--panel));box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 10%,transparent)}
+.ccrh-context-chevron{font-size:12px;color:var(--muted);margin-left:-2px}
+.ccrh-context-caption{font-size:10px}
+
+.ccrh-tool-popover{
+  position:absolute;top:calc(100% + 14px);z-index:80;width:min(350px,calc(100vw - 34px));
+  padding:15px;border:1px solid color-mix(in srgb,var(--accent) 30%,var(--border));border-radius:18px;
+  background:color-mix(in srgb,var(--panel) 96%,var(--ccrh-accent-soft));color:var(--text);
+  box-shadow:0 22px 55px rgb(0 0 0 / 22%),inset 0 1px 0 color-mix(in srgb,#fff 38%,transparent);
+  backdrop-filter:blur(12px);
+}
+.ccrh-tool-popover::before{
+  content:'';position:absolute;top:-8px;left:50%;width:15px;height:15px;transform:translateX(-50%) rotate(45deg);
+  background:color-mix(in srgb,var(--panel) 96%,var(--ccrh-accent-soft));
+  border-left:1px solid color-mix(in srgb,var(--accent) 30%,var(--border));border-top:1px solid color-mix(in srgb,var(--accent) 30%,var(--border));
+}
+.ccrh-tool-popover-text{left:0;transform:none;width:min(390px,calc(100vw - 34px))}
+.ccrh-tool-popover-text::before{left:24%}
+.ccrh-tool-popover-insert{left:50%;transform:translateX(-50%);width:min(310px,calc(100vw - 34px))}
+.ccrh-tool-popover-roleplay{left:50%;transform:translateX(-50%);width:min(310px,calc(100vw - 34px))}
+.ccrh-tool-popover-posting{right:-6px;width:min(330px,calc(100vw - 34px))}
+.ccrh-tool-popover-posting::before{left:auto;right:72px;transform:rotate(45deg)}
+.ccrh-tool-popover-context{right:0;width:min(390px,calc(100vw - 34px))}
+.ccrh-tool-popover-context::before{left:auto;right:24px;transform:rotate(45deg)}
+.ccrh-popover-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:13px;padding-bottom:10px;border-bottom:1px solid color-mix(in srgb,var(--border) 72%,transparent)}
+.ccrh-popover-heading strong{font-family:var(--display-font,Georgia,serif);font-size:16px;color:var(--ccrh-accent-ink)}
+.ccrh-popover-heading span{font-size:10px;color:var(--muted);font-weight:750}
+
+.ccrh-format-grid{display:grid;gap:9px}
+.ccrh-format-grid-basics{grid-template-columns:repeat(4,minmax(0,1fr))}
+.ccrh-format-button{
+  min-height:48px;border:1px solid var(--border);border-radius:13px;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--panel-strong) 92%,var(--ccrh-accent-soft)),var(--panel));
+  color:var(--text);display:flex;align-items:center;justify-content:center;gap:7px;padding:9px 11px;
+  box-shadow:inset 0 1px 0 color-mix(in srgb,#fff 32%,transparent),0 4px 10px rgb(0 0 0 / 6%);
+  transition:.15s ease;
+}
+button.ccrh-format-button:hover,.ccrh-format-button:has(input:hover),.ccrh-mini-details summary:hover{border-color:var(--accent);background:color-mix(in srgb,var(--ccrh-accent-soft) 45%,var(--panel));transform:translateY(-1px)}
+.ccrh-format-icon{font-family:var(--display-font,Georgia,serif);font-size:20px}
+.ccrh-format-wide{grid-column:span 2;cursor:pointer;list-style:none}
+.ccrh-mini-details{position:relative;grid-column:span 2;min-width:0}
+.ccrh-mini-details summary::-webkit-details-marker{display:none}
+.ccrh-mini-details[open] summary{border-color:var(--accent);background:color-mix(in srgb,var(--ccrh-accent-soft) 52%,var(--panel))}
+.ccrh-mini-popover{position:absolute;top:calc(100% + 8px);left:0;z-index:95;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:190px;padding:8px;border:1px solid var(--border);border-radius:12px;background:var(--panel);box-shadow:0 12px 28px rgb(0 0 0 / 20%)}
+.ccrh-mini-popover button{min-height:35px;border:1px solid var(--border);border-radius:9px;background:var(--panel-soft);color:var(--text);font-weight:800}
+.ccrh-mini-popover button:hover{border-color:var(--accent);background:var(--ccrh-accent-soft)}
+.ccrh-aa{font-family:var(--display-font,Georgia,serif);font-size:18px;color:var(--ccrh-accent-ink);font-weight:850}
+.ccrh-chevron{margin-left:auto;color:var(--muted)}
+.ccrh-color-button{grid-column:span 2;cursor:pointer}
+.ccrh-palette-mark{width:23px;height:23px;display:grid;place-items:center;border-radius:50%;background:conic-gradient(#d85858,#e7b54e,#6aa66a,#5e8fd6,#9866c7,#d85858);color:transparent;box-shadow:inset 0 0 0 4px color-mix(in srgb,var(--panel) 72%,transparent)}
+.ccrh-color-button input[type="color"]{width:26px;height:26px;padding:0;border:0;background:transparent;cursor:pointer;margin-left:auto}
+.ccrh-color-button input[type="color"]::-webkit-color-swatch-wrapper{padding:2px}
+.ccrh-color-button input[type="color"]::-webkit-color-swatch{border:1px solid var(--border);border-radius:50%}
+.ccrh-popover-divider{height:1px;background:color-mix(in srgb,var(--border) 75%,transparent);margin:13px 0}
+.ccrh-alignment-heading{text-align:center;color:var(--ccrh-accent-ink);font-size:11px;font-weight:850;letter-spacing:.03em;margin-bottom:8px}
+.ccrh-alignment-heading span{font-size:8px;margin:0 5px}
+.ccrh-alignment-group{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--border);border-radius:13px;overflow:hidden}
+.ccrh-alignment-group .ccrh-align-button{border:0;border-radius:0;box-shadow:none;min-height:45px}
+.ccrh-alignment-group .ccrh-align-button+button{border-left:1px solid var(--border)}
+.ccrh-align-glyph{width:24px;display:grid;gap:4px}
+.ccrh-align-glyph i{display:block;height:3px;border-radius:999px;background:currentColor}
+.ccrh-align-glyph i:nth-child(2){width:16px}
+.ccrh-align-glyph.align-left i{justify-self:start}.ccrh-align-glyph.align-center i{justify-self:center}.ccrh-align-glyph.align-right i{justify-self:end}
+
+.ccrh-action-list{display:grid;gap:8px}
+.ccrh-popover-action{
+  width:100%;min-height:48px;border:1px solid var(--border);border-radius:13px;display:flex;align-items:center;gap:11px;
+  padding:10px 13px;text-align:left;background:linear-gradient(180deg,color-mix(in srgb,var(--panel-strong) 92%,var(--ccrh-accent-soft)),var(--panel));color:var(--text);
+  box-shadow:inset 0 1px 0 color-mix(in srgb,#fff 30%,transparent),0 4px 11px rgb(0 0 0 / 6%);
+}
+.ccrh-popover-action:hover{border-color:var(--accent);background:color-mix(in srgb,var(--ccrh-accent-soft) 48%,var(--panel));transform:translateY(-1px)}
+.ccrh-action-icon{width:30px;height:30px;display:grid;place-items:center;flex:0 0 30px;border-radius:10px;background:color-mix(in srgb,var(--ccrh-accent-soft) 78%,var(--panel));color:var(--ccrh-accent-ink);font-size:18px;font-weight:900}
+.ccrh-featured-action{border-color:color-mix(in srgb,var(--accent) 58%,var(--border));background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 22%,var(--panel)),color-mix(in srgb,var(--ccrh-accent-soft) 62%,var(--panel)));color:var(--ccrh-accent-ink);font-weight:850}
+
+.ccrh-popover-field{display:grid;gap:6px;margin-top:10px;color:var(--muted);font-size:10px;font-weight:850;letter-spacing:.02em}
+.ccrh-popover-field:first-of-type{margin-top:0}
+.ccrh-popover-field select,.ccrh-popover-field input{width:100%;min-width:0;border:1px solid var(--border);border-radius:11px;background:var(--panel-soft);color:var(--text);padding:10px 11px;font:inherit;font-size:12px}
+.ccrh-popover-field select:focus,.ccrh-popover-field input:focus{outline:2px solid color-mix(in srgb,var(--accent) 35%,transparent);outline-offset:1px;border-color:var(--accent)}
+.ccrh-context-section{display:grid;gap:9px}
+.ccrh-context-section-title{display:flex;align-items:center;gap:7px;color:var(--ccrh-accent-ink);font-family:var(--display-font,Georgia,serif);font-size:14px;font-weight:800;margin-bottom:1px}
+
+@media(max-width:900px){
+  .ccrh-cute-toolbar{gap:7px;padding-inline:12px;grid-template-columns:repeat(4,minmax(0,1fr)) 62px}
+  .ccrh-tool-tab{font-size:14px;gap:6px;padding-inline:9px;min-height:54px}
+  .ccrh-tool-tab-icon{width:22px;height:22px;flex-basis:22px}.ccrh-tool-tab-icon svg{width:21px;height:21px}
+  .ccrh-tool-caption{font-size:10px}
+}
+@media(max-width:620px){
+  .ccrh-cute-toolbar{min-height:82px;padding:11px 8px 10px;gap:5px;grid-template-columns:repeat(4,minmax(0,1fr)) 48px}
+  .ccrh-tool-caption{display:none}
+  .ccrh-tool-tab{min-height:52px;font-family:inherit;font-size:11px;font-weight:850;padding:7px 5px;gap:4px}
+  .ccrh-tool-tab-icon{width:19px;height:19px;flex-basis:19px}.ccrh-tool-tab-icon svg{width:18px;height:18px}
+  .ccrh-tool-tab::after{display:none}
+  .ccrh-context-tab{padding-inline:4px}
+  .ccrh-context-chevron{display:none}
+  .ccrh-tool-popover{position:fixed;top:auto;left:12px!important;right:12px!important;bottom:14px;width:auto!important;max-height:min(70vh,520px);overflow:auto;transform:none!important;z-index:240}
+  .ccrh-tool-popover::before{display:none}
+  .ccrh-popover-heading{position:sticky;top:-15px;z-index:2;background:color-mix(in srgb,var(--panel) 96%,var(--ccrh-accent-soft));padding-top:2px}
+}
+</style>
 
 <style id="ccrh-post-edit-delete-style">
 .ccrh-editing-notice{margin:0 0 12px;padding:10px 12px;border:1px solid color-mix(in srgb,var(--accent) 55%,var(--border));border-radius:10px;background:color-mix(in srgb,var(--accent) 12%,var(--panel));font-size:13px}
@@ -16507,6 +16651,53 @@ initFirebase();
       timelineEventId:document.querySelector('[data-ccrh-timeline-event]')?.value||''
     };
   }
+  function ccrhCloseComposerPopovers(except=''){
+    document.querySelectorAll('[data-ccrh-popover]').forEach(panel=>{
+      const name=String(panel.dataset.ccrhPopover||'');
+      if(except&&name===except)return;
+      panel.hidden=true;
+      panel.querySelectorAll('details[open]').forEach(details=>details.open=false);
+    });
+    document.querySelectorAll('[data-ccrh-popover-toggle]').forEach(button=>{
+      const name=String(button.dataset.ccrhPopoverToggle||'');
+      if(except&&name===except)return;
+      button.setAttribute('aria-expanded','false');
+    });
+  }
+  function ccrhToggleComposerPopover(button){
+    const name=String(button?.dataset?.ccrhPopoverToggle||'');
+    if(!name)return;
+    const panel=document.querySelector(`[data-ccrh-popover="${CSS.escape(name)}"]`);
+    if(!panel)return;
+    const opening=panel.hidden;
+    ccrhCloseComposerPopovers(opening?name:'');
+    panel.hidden=!opening;
+    button.setAttribute('aria-expanded',opening?'true':'false');
+    if(opening){
+      requestAnimationFrame(()=>{
+        const first=panel.querySelector('select,input:not([type="color"]),button:not([data-ccrh-wrap]):not([data-ccrh-tag])');
+        if(name==='posting'||name==='context')first?.focus({preventScroll:true});
+      });
+    }
+  }
+  function ccrhSyncToolbarLabels(){
+    const speaker=document.querySelector('[data-ccrh-speaker]');
+    const caption=document.querySelector('[data-ccrh-posting-caption]');
+    if(speaker&&caption){
+      let label=speaker.options[speaker.selectedIndex]?.textContent?.trim()||'Choose character';
+      if(speaker.value==='custom')label=document.querySelector('[data-ccrh-custom-name]')?.value.trim()||'Custom character';
+      caption.textContent=label;
+      caption.title=label;
+    }
+    const location=document.querySelector('[data-ccrh-location]')?.value||'inherit';
+    const point=document.querySelector('[data-ccrh-story-point]')?.value||'';
+    const timeline=document.querySelector('[data-ccrh-timeline-event]')?.value||'';
+    const contextButton=document.querySelector('[data-ccrh-popover-toggle="context"]');
+    const contextCaption=document.querySelector('.ccrh-context-caption');
+    const linked=(location&&location!=='inherit')||point||timeline;
+    contextButton?.classList.toggle('has-context',!!linked);
+    if(contextCaption)contextCaption.textContent=linked?'Linked':'Context';
+  }
   function ccrhPersistComposerDraft(){
     const {story}=ccrhStoryFromRoute();
     if(!story||ccrhEditingPostId)return;
@@ -16767,16 +16958,102 @@ initFirebase();
       <section class="ccrh-composer" id="rp-composer">
         <div class="ccrh-composer-title">${editingTurn?'Edit post':'Post a reply'}</div>
         ${editingTurn?`<div class="ccrh-editing-notice"><strong>Editing ${esc(storySpeakerMeta(editingTurn).name)}’s post.</strong> Saving will update this exact post and will not create a new one.</div>`:''}
-        <div class="ccrh-compose-controls"><label>Posting as<select class="select" data-ccrh-speaker>${ccrhSpeakerOptions(story)}</select></label><label data-ccrh-custom-wrap hidden>Custom name<input class="input" data-ccrh-custom-name placeholder="Speaker name"></label></div>
-        <div class="ccrh-compose-context">
-          <label>Location<select class="select" data-ccrh-location>${ccrhLocationChoiceOptions(story,composerLocationChoice)}</select></label>
-          <label>Story point<select class="select" data-ccrh-story-point>${ccrhStoryPointOptions(story,composerStoryPointId)}</select></label>
-          <label>Timeline event<select class="select" data-ccrh-timeline-event>${ccrhTimelineEventOptions(composerTimelineEventId)}</select></label>
-        </div>
-        <div class="ccrh-bb-toolbar">
-          <button type="button" data-ccrh-tag="b">B</button><button type="button" data-ccrh-tag="i"><i>I</i></button><button type="button" data-ccrh-tag="u"><u>U</u></button><button type="button" data-ccrh-tag="s"><s>S</s></button>
-          <button type="button" data-ccrh-wrap="[size=18]|[/size]">Size</button><button type="button" data-ccrh-wrap="[color=#8f6aae]|[/color]">Color</button><button type="button" data-ccrh-wrap="[quote]|[/quote]">Quote</button><button type="button" data-cc-dialogue-card-open>Dialogue Card</button><button type="button" data-ccrh-wrap="[list]\n[*]|\n[/list]">List</button>
-          <button type="button" data-ccrh-wrap="[url=https://]|[/url]">Link</button><button type="button" data-cc-post-media-open aria-label="Insert hosted image or GIF">Image/GIF</button><button type="button" data-cc-emoji-picker>😊 Emoji</button><button type="button" data-ccrh-wrap="[center]|[/center]">Center</button><button type="button" data-ccrh-wrap="[spoiler=Hidden]|[/spoiler]">Spoiler</button><button type="button" data-ccrh-wrap="[ooc]|[/ooc]">OOC</button>
+        <div class="ccrh-cute-toolbar" data-ccrh-format-toolbar>
+          <div class="ccrh-tool-cluster ccrh-tool-cluster-text">
+            <button class="ccrh-tool-tab" type="button" data-ccrh-popover-toggle="text" aria-expanded="false" aria-controls="ccrh-popover-text">
+              <span class="ccrh-tool-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2l1.5 5.1L18 9l-4.5 1.9L12 16l-1.5-5.1L6 9l4.5-1.9L12 2Zm6.5 10.5.8 2.7 2.7.8-2.7.8-.8 2.7-.8-2.7-2.7-.8 2.7-.8.8-2.7Z"/></svg></span>
+              <span>Text</span>
+            </button>
+            <span class="ccrh-tool-caption">Format your writing</span>
+            <div class="ccrh-tool-popover ccrh-tool-popover-text" id="ccrh-popover-text" data-ccrh-popover="text" hidden>
+              <div class="ccrh-popover-heading"><strong>Text</strong><span>Format your writing</span></div>
+              <div class="ccrh-format-grid ccrh-format-grid-basics">
+                <button class="ccrh-format-button ccrh-format-icon" type="button" data-ccrh-tag="b" title="Bold"><strong>B</strong></button>
+                <button class="ccrh-format-button ccrh-format-icon" type="button" data-ccrh-tag="i" title="Italic"><i>I</i></button>
+                <button class="ccrh-format-button ccrh-format-icon" type="button" data-ccrh-tag="u" title="Underline"><u>U</u></button>
+                <button class="ccrh-format-button ccrh-format-icon" type="button" data-ccrh-tag="s" title="Strikethrough"><s>S</s></button>
+                <details class="ccrh-mini-details">
+                  <summary class="ccrh-format-button ccrh-format-wide"><span class="ccrh-aa">Aa</span><span>Size</span><span class="ccrh-chevron">⌄</span></summary>
+                  <div class="ccrh-mini-popover" aria-label="Text size">
+                    <button type="button" data-ccrh-wrap="[size=12]|[/size]">12</button><button type="button" data-ccrh-wrap="[size=14]|[/size]">14</button><button type="button" data-ccrh-wrap="[size=16]|[/size]">16</button><button type="button" data-ccrh-wrap="[size=18]|[/size]">18</button><button type="button" data-ccrh-wrap="[size=22]|[/size]">22</button><button type="button" data-ccrh-wrap="[size=28]|[/size]">28</button>
+                  </div>
+                </details>
+                <label class="ccrh-format-button ccrh-color-button" title="Text color"><span class="ccrh-palette-mark" aria-hidden="true">●</span><span>Color</span><input type="color" value="#8f6aae" data-ccrh-color-picker aria-label="Choose text color"></label>
+              </div>
+              <div class="ccrh-popover-divider"></div>
+              <div class="ccrh-alignment-heading"><span>✦</span> Alignment <span>✦</span></div>
+              <div class="ccrh-alignment-group" role="group" aria-label="Text alignment">
+                <button class="ccrh-format-button ccrh-align-button" type="button" data-ccrh-wrap="[left]|[/left]" title="Align left"><span class="ccrh-align-glyph align-left"><i></i><i></i><i></i></span></button>
+                <button class="ccrh-format-button ccrh-align-button" type="button" data-ccrh-wrap="[center]|[/center]" title="Align center"><span class="ccrh-align-glyph align-center"><i></i><i></i><i></i></span></button>
+                <button class="ccrh-format-button ccrh-align-button" type="button" data-ccrh-wrap="[right]|[/right]" title="Align right"><span class="ccrh-align-glyph align-right"><i></i><i></i><i></i></span></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="ccrh-tool-cluster ccrh-tool-cluster-insert">
+            <button class="ccrh-tool-tab" type="button" data-ccrh-popover-toggle="insert" aria-expanded="false" aria-controls="ccrh-popover-insert">
+              <span class="ccrh-tool-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.7 3.2c-4.4.1-8 1.5-10.6 4.1C6.5 9.9 5 13.5 4.9 17.9l3.2-2.1 1.1 3.5 2.1-4c3.6-.7 6.3-2.4 8.1-5.2 1.4-2.2 1.9-4.5 1.7-7l-1.4.1ZM7.3 17.4 4 20.7"/></svg></span>
+              <span>Insert</span>
+            </button>
+            <span class="ccrh-tool-caption">Add elements &amp; media</span>
+            <div class="ccrh-tool-popover ccrh-tool-popover-insert" id="ccrh-popover-insert" data-ccrh-popover="insert" hidden>
+              <div class="ccrh-popover-heading"><strong>Insert</strong><span>Add elements &amp; media</span></div>
+              <div class="ccrh-action-list">
+                <button class="ccrh-popover-action" type="button" data-ccrh-wrap="[quote]|[/quote]"><span class="ccrh-action-icon">❝</span><span>Quote</span></button>
+                <button class="ccrh-popover-action" type="button" data-ccrh-wrap="[list]\n[*]|\n[/list]"><span class="ccrh-action-icon">☷</span><span>List</span></button>
+                <button class="ccrh-popover-action" type="button" data-ccrh-wrap="[url=https://]|[/url]"><span class="ccrh-action-icon">↗</span><span>Link</span></button>
+                <button class="ccrh-popover-action" type="button" data-cc-post-media-open aria-label="Insert hosted image or GIF"><span class="ccrh-action-icon">▧</span><span>Image / GIF</span></button>
+                <button class="ccrh-popover-action" type="button" data-cc-emoji-picker><span class="ccrh-action-icon">☺</span><span>Emoji</span></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="ccrh-tool-cluster ccrh-tool-cluster-roleplay">
+            <button class="ccrh-tool-tab" type="button" data-ccrh-popover-toggle="roleplay" aria-expanded="false" aria-controls="ccrh-popover-roleplay">
+              <span class="ccrh-tool-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5c2.7-.9 5.4-.9 8 0v6.2c0 3.2-1.8 5.5-4 6.8-2.2-1.3-4-3.6-4-6.8V5.5Zm2.2 4.1c.6.5 1.2.7 1.8.7s1.2-.2 1.8-.7M6.7 13.2c.4-.3.9-.5 1.3-.5s.9.2 1.3.5M13 7.2c2.4-.7 4.7-.6 7 .2v5.4c0 3-1.7 5.1-3.5 6.2-1.3-.8-2.5-2-3.1-3.6m1.4-4.6c.5-.4 1-.6 1.6-.6.5 0 1.1.2 1.6.6m-3.1 3.1c.5.3 1 .4 1.5.4.6 0 1.1-.1 1.6-.4"/></svg></span>
+              <span>Roleplay</span>
+            </button>
+            <span class="ccrh-tool-caption">Special post actions</span>
+            <div class="ccrh-tool-popover ccrh-tool-popover-roleplay" id="ccrh-popover-roleplay" data-ccrh-popover="roleplay" hidden>
+              <div class="ccrh-popover-heading"><strong>Roleplay</strong><span>Special post actions</span></div>
+              <div class="ccrh-action-list">
+                <button class="ccrh-popover-action ccrh-featured-action" type="button" data-cc-dialogue-card-open><span class="ccrh-action-icon">✦</span><span>Dialogue Card</span></button>
+                <button class="ccrh-popover-action" type="button" data-ccrh-wrap="[spoiler=Hidden]|[/spoiler]"><span class="ccrh-action-icon">◌</span><span>Spoiler</span></button>
+                <button class="ccrh-popover-action" type="button" data-ccrh-wrap="[ooc]|[/ooc]"><span class="ccrh-action-icon">○</span><span>OOC</span></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="ccrh-tool-cluster ccrh-tool-cluster-posting">
+            <button class="ccrh-tool-tab" type="button" data-ccrh-popover-toggle="posting" aria-expanded="false" aria-controls="ccrh-popover-posting">
+              <span class="ccrh-tool-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8c.5-4.1 3-6.2 7-6.2s6.5 2.1 7 6.2H5Z"/></svg></span>
+              <span>Posting as</span>
+            </button>
+            <span class="ccrh-tool-caption" data-ccrh-posting-caption>Choose character</span>
+            <div class="ccrh-tool-popover ccrh-tool-popover-posting" id="ccrh-popover-posting" data-ccrh-popover="posting" hidden>
+              <div class="ccrh-popover-heading"><strong>Posting as</strong><span>Choose who is speaking</span></div>
+              <label class="ccrh-popover-field"><span>Character</span><select class="select" data-ccrh-speaker>${ccrhSpeakerOptions(story)}</select></label>
+              <label class="ccrh-popover-field" data-ccrh-custom-wrap hidden><span>Custom name</span><input class="input" data-ccrh-custom-name placeholder="Speaker name"></label>
+            </div>
+          </div>
+
+          <div class="ccrh-tool-cluster ccrh-tool-cluster-context">
+            <button class="ccrh-tool-tab ccrh-context-tab" type="button" data-ccrh-popover-toggle="context" aria-expanded="false" aria-controls="ccrh-popover-context" aria-label="Location, story point, and timeline event" title="Post context">
+              <span class="ccrh-tool-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21s6-5.3 6-11a6 6 0 1 0-12 0c0 5.7 6 11 6 11Zm0-8.2A2.8 2.8 0 1 1 12 7a2.8 2.8 0 0 1 0 5.6Z"/></svg></span>
+              <span class="ccrh-context-chevron">⌄</span>
+            </button>
+            <span class="ccrh-tool-caption ccrh-context-caption">Context</span>
+            <div class="ccrh-tool-popover ccrh-tool-popover-context" id="ccrh-popover-context" data-ccrh-popover="context" hidden>
+              <div class="ccrh-popover-heading"><strong>Post context</strong><span>Connect this reply to your world</span></div>
+              <div class="ccrh-context-section">
+                <div class="ccrh-context-section-title"><span>⌖</span> Location / Story Point</div>
+                <label class="ccrh-popover-field"><span>Location</span><select class="select" data-ccrh-location>${ccrhLocationChoiceOptions(story,composerLocationChoice)}</select></label>
+                <label class="ccrh-popover-field"><span>Story point</span><select class="select" data-ccrh-story-point>${ccrhStoryPointOptions(story,composerStoryPointId)}</select></label>
+              </div>
+              <div class="ccrh-popover-divider"></div>
+              <label class="ccrh-popover-field"><span>Timeline event</span><select class="select" data-ccrh-timeline-event>${ccrhTimelineEventOptions(composerTimelineEventId)}</select></label>
+            </div>
+          </div>
         </div>
         <div class="ccrh-editor-tabs"><button class="${ccrhPreviewMode?'':'active'}" type="button" data-ccrh-tab="write">Write (BBCode)</button><button class="${ccrhPreviewMode?'active':''}" type="button" data-ccrh-tab="preview">Preview</button></div>
         <div class="ccrh-editor-wrap"><textarea class="ccrh-editor" data-ccrh-editor maxlength="50000" ${ccrhPreviewMode?'hidden':''} placeholder="Write your roleplay post here. BBCode and images or GIF URLs are supported.">${esc(draft)}</textarea><div class="ccrh-preview ccrh-post-body" data-ccrh-preview ${ccrhPreviewMode?'':'hidden'}>${ccrhBbcode(draft)||'<span class="muted">Your preview will appear here.</span>'}</div></div>
@@ -16808,6 +17085,7 @@ initFirebase();
       const customName=document.querySelector('[data-ccrh-custom-name]');
       if(customWrap)customWrap.hidden=speakerSelect.value!=='custom';
       if(customName&&speakerSelect.value==='custom')customName.value=editingTurn?(editingTurn.speakerName||''):(storedDraft.customName||'');
+      ccrhSyncToolbarLabels();
     });
   }
   function ccrhInsert(open,close=''){
@@ -16943,6 +17221,14 @@ initFirebase();
   };
 
   document.addEventListener('click',async event=>{
+    const composerPopoverToggle=event.target.closest('[data-ccrh-popover-toggle]');
+    if(composerPopoverToggle){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      ccrhToggleComposerPopover(composerPopoverToggle);
+      return;
+    }
+    if(!event.target.closest('[data-ccrh-popover]')&&!event.target.closest('[data-ccrh-format-toolbar]'))ccrhCloseComposerPopovers();
     const linkedPost=event.target.closest('[data-ccrh-open-linked-post]');
     if(linkedPost){
       event.preventDefault();
@@ -16973,6 +17259,7 @@ initFirebase();
     if(dialogueCardButton){
       event.preventDefault();
       event.stopImmediatePropagation();
+      ccrhCloseComposerPopovers();
       ccDialogueOpen();
       return;
     }
@@ -16985,7 +17272,7 @@ initFirebase();
     const tag=event.target.closest('[data-ccrh-tag]'); if(tag){event.preventDefault();const t=tag.dataset.ccrhTag;ccrhInsert(`[${t}]`,`[/${t}]`);return;}
     const wrap=event.target.closest('[data-ccrh-wrap]'); if(wrap){event.preventDefault();const [a,b='']=wrap.dataset.ccrhWrap.split('|');ccrhInsert(a,b);return;}
     const tab=event.target.closest('[data-ccrh-tab]'); if(tab){event.preventDefault();ccrhPreviewMode=tab.dataset.ccrhTab==='preview';const area=document.querySelector('[data-ccrh-editor]');if(area&&!ccrhEditingPostId)ccrhSaveDraft(ccrhStoryFromRoute().story,area.value,ccrhComposerDraftMeta());ccrhRenderReader();return;}
-    if(event.target.closest('[data-ccrh-clear-reply]')){event.preventDefault();const {story,node}=ccrhStoryFromRoute();const area=document.querySelector('[data-ccrh-editor]');if(!story||!area)return;if(area.value&&!window.confirm('Clear this reply? This will remove the text in the reply box and reset its draft options.'))return;area.value='';ccrhTypingStoryId='';ccrhTypingValue='';const speaker=document.querySelector('[data-ccrh-speaker]');if(speaker){if([...speaker.options].some(option=>option.value==='narrator'))speaker.value='narrator';else speaker.selectedIndex=0;}const customWrap=document.querySelector('[data-ccrh-custom-wrap]');if(customWrap)customWrap.hidden=true;const customName=document.querySelector('[data-ccrh-custom-name]');if(customName)customName.value='';const locationSelect=document.querySelector('[data-ccrh-location]');if(locationSelect)locationSelect.value='inherit';const pointSelect=document.querySelector('[data-ccrh-story-point]');if(pointSelect)pointSelect.value=node?storyRouteValue(story.id,node.id):'';const eventSelect=document.querySelector('[data-ccrh-timeline-event]');if(eventSelect)eventSelect.value='';ccrhClearDraft(story);const count=document.querySelector('[data-ccrh-count]');if(count)count.textContent='0';const preview=document.querySelector('[data-ccrh-preview]');if(preview)preview.innerHTML='<span class="muted">Your preview will appear here.</span>';area.focus();toast('Reply cleared.');return;}
+    if(event.target.closest('[data-ccrh-clear-reply]')){event.preventDefault();const {story,node}=ccrhStoryFromRoute();const area=document.querySelector('[data-ccrh-editor]');if(!story||!area)return;if(area.value&&!window.confirm('Clear this reply? This will remove the text in the reply box and reset its draft options.'))return;area.value='';ccrhTypingStoryId='';ccrhTypingValue='';const speaker=document.querySelector('[data-ccrh-speaker]');if(speaker){if([...speaker.options].some(option=>option.value==='narrator'))speaker.value='narrator';else speaker.selectedIndex=0;}const customWrap=document.querySelector('[data-ccrh-custom-wrap]');if(customWrap)customWrap.hidden=true;const customName=document.querySelector('[data-ccrh-custom-name]');if(customName)customName.value='';const locationSelect=document.querySelector('[data-ccrh-location]');if(locationSelect)locationSelect.value='inherit';const pointSelect=document.querySelector('[data-ccrh-story-point]');if(pointSelect)pointSelect.value=node?storyRouteValue(story.id,node.id):'';const eventSelect=document.querySelector('[data-ccrh-timeline-event]');if(eventSelect)eventSelect.value='';ccrhClearDraft(story);const count=document.querySelector('[data-ccrh-count]');if(count)count.textContent='0';const preview=document.querySelector('[data-ccrh-preview]');if(preview)preview.innerHTML='<span class="muted">Your preview will appear here.</span>';ccrhSyncToolbarLabels();area.focus();toast('Reply cleared.');return;}
     if(event.target.closest('[data-ccrh-save-draft]')){event.preventDefault();const {story}=ccrhStoryFromRoute();const area=document.querySelector('[data-ccrh-editor]');ccrhSaveDraft(story,area?.value||'',ccrhComposerDraftMeta());toast('Draft saved.');return;}
     if(event.target.closest('[data-ccrh-submit]')){event.preventDefault();await ccrhSubmit();return;}
     const quote=event.target.closest('[data-ccrh-quote]'); if(quote){event.preventDefault();const {story}=ccrhStoryFromRoute();const turn=ensureStoryDocument(story).find(x=>x.id===quote.dataset.ccrhQuote);if(turn){const speaker=storySpeakerMeta(turn);document.getElementById('rp-composer')?.scrollIntoView({behavior:'smooth'});setTimeout(()=>ccrhInsert(`[quote="${speaker.name}"]\n${turn.text}\n[/quote]\n\n`,''),250);}return;}
@@ -17024,11 +17311,12 @@ initFirebase();
     ccrhDraftTimer=setTimeout(()=>ccrhSaveDraft(story,area.value,ccrhComposerDraftMeta()),400);
   },true);
   document.addEventListener('change',event=>{
-    const speaker=event.target.closest('[data-ccrh-speaker]');if(speaker){const wrap=document.querySelector('[data-ccrh-custom-wrap]');if(wrap)wrap.hidden=speaker.value!=='custom';ccrhPersistComposerDraft();return;}
-    if(event.target.closest('[data-ccrh-location]')||event.target.closest('[data-ccrh-story-point]')||event.target.closest('[data-ccrh-timeline-event]')){ccrhPersistComposerDraft();return;}
+    const colorPicker=event.target.closest('[data-ccrh-color-picker]');if(colorPicker){ccrhInsert(`[color=${colorPicker.value}]`,`[/color]`);return;}
+    const speaker=event.target.closest('[data-ccrh-speaker]');if(speaker){const wrap=document.querySelector('[data-ccrh-custom-wrap]');if(wrap)wrap.hidden=speaker.value!=='custom';ccrhPersistComposerDraft();ccrhSyncToolbarLabels();return;}
+    if(event.target.closest('[data-ccrh-location]')||event.target.closest('[data-ccrh-story-point]')||event.target.closest('[data-ccrh-timeline-event]')){ccrhPersistComposerDraft();ccrhSyncToolbarLabels();return;}
   },true);
   document.addEventListener('input',event=>{
-    if(event.target.closest('[data-ccrh-custom-name]'))ccrhPersistComposerDraft();
+    if(event.target.closest('[data-ccrh-custom-name]')){ccrhPersistComposerDraft();ccrhSyncToolbarLabels();}
   },true);
 
 
@@ -17040,6 +17328,7 @@ initFirebase();
     if(!emojiButton)return;
     event.preventDefault();
     event.stopImmediatePropagation();
+    ccrhCloseComposerPopovers();
     ccOpenEmojiPicker(emojiButton);
   },true);
 
@@ -17671,6 +17960,7 @@ initFirebase();
     if(open){
       event.preventDefault();
       event.stopImmediatePropagation();
+      ccrhCloseComposerPopovers();
       ccPostMediaOpen();
       return;
     }
