@@ -4155,15 +4155,9 @@ button.ccrh-context-chip{cursor:pointer}
 button.ccrh-context-chip:hover{border-color:var(--accent);color:var(--text)}
 .ccrh-bb-toolbar{display:flex;gap:5px;flex-wrap:wrap;padding:10px 17px;border-bottom:1px solid var(--border);background:var(--panel-soft)}
 .ccrh-bb-toolbar button{min-width:34px;border:1px solid var(--border);border-radius:7px;background:var(--panel);color:var(--text);padding:7px 9px;font:inherit;cursor:pointer}
-.ccrh-editor-tabs{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 17px 0}
-.ccrh-editor-tab-buttons{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ccrh-editor-tabs{display:flex;justify-content:flex-end;gap:6px;padding:10px 17px 0}
 .ccrh-editor-tabs button{border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);padding:8px 12px;font:inherit;font-weight:800;cursor:pointer}
 .ccrh-editor-tabs button.active{color:var(--text);border-color:var(--accent)}
-.ccrh-history-actions{display:flex;align-items:center;gap:6px;flex:0 0 auto}
-.ccrh-history-button{width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--border);border-radius:999px;background:var(--panel-soft);color:var(--muted);padding:0;cursor:pointer;transition:border-color .18s ease,background .18s ease,color .18s ease,transform .18s ease}
-.ccrh-history-button svg{width:16px;height:16px;display:block;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.ccrh-history-button:hover:not(:disabled){border-color:var(--accent);background:var(--accent-soft);color:var(--accent-strong);transform:translateY(-1px)}
-.ccrh-history-button:disabled{opacity:.45;cursor:default;transform:none}
 .ccrh-editor-wrap{padding:10px 17px 17px}
 .ccrh-editor{width:100%;min-height:360px;resize:vertical;border:1px solid var(--border);border-radius:10px;background:var(--panel-soft);color:var(--text);padding:15px;font:14px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace}
 .ccrh-preview{min-height:360px;border:1px solid var(--border);border-radius:10px;background:var(--panel-soft);padding:20px}
@@ -4173,7 +4167,7 @@ button.ccrh-context-chip:hover{border-color:var(--accent);color:var(--text)}
 .ccrh-anchor-modal-grid{display:grid;gap:12px}
 .ccrh-anchor-modal-grid label{display:grid;gap:6px;font-weight:800;font-size:12px}
 .ccrh-thread-empty{padding:35px;text-align:center;border:1px dashed var(--border);border-radius:14px;color:var(--muted)}
-@media(max-width:760px){.ccrh-post-body{padding:18px}.ccrh-post-head{grid-template-columns:auto 1fr}.ccrh-post-number{grid-column:2}.ccrh-compose-foot{align-items:stretch;flex-direction:column}.ccrh-compose-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr))}.ccrh-compose-context{grid-template-columns:1fr}.ccrh-thread-head{display:block}.ccrh-thread-tools{justify-content:flex-start;margin-top:12px}.ccrh-editor-tabs{flex-direction:column;align-items:stretch}.ccrh-history-actions{justify-content:flex-end}}
+@media(max-width:760px){.ccrh-post-body{padding:18px}.ccrh-post-head{grid-template-columns:auto 1fr}.ccrh-post-number{grid-column:2}.ccrh-compose-foot{align-items:stretch;flex-direction:column}.ccrh-compose-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr))}.ccrh-compose-context{grid-template-columns:1fr}.ccrh-thread-head{display:block}.ccrh-thread-tools{justify-content:flex-start;margin-top:12px}}
 .ccrh-story-scroll-jump{
   position:fixed;
   right:24px;
@@ -6286,19 +6280,35 @@ button.ccrh-format-button:hover,.ccrh-format-button:has(input:hover),.ccrh-mini-
 </style>
 
 <style id="cc-rel-blurb-anchor-layout-fix">
-/* Keep each relationship blurb visually attached to the exact point that owns it. */
-.cc-rel-track{align-items:flex-start;gap:26px;padding:4px 8px 4px 2px}
-.cc-rel-step{position:relative;width:128px;min-width:128px;display:grid;justify-items:center;align-content:start;gap:8px;isolation:isolate}
-.cc-rel-step:not(:last-child)::after{content:"";position:absolute;z-index:-1;top:79px;left:calc(50% + 9px);width:calc(100% + 8px);height:3px;border-radius:999px;background:linear-gradient(90deg,var(--rel-color),var(--rel-next));opacity:.9}
-.cc-rel-step .cc-rel-node{width:128px;min-width:128px;height:88px;box-sizing:border-box;align-content:end}
+/* Keep the relationship path as one uninterrupted line. Point blurbs open above it in a floating popover. */
+.cc-rel-track{--rel-step-gap:26px;align-items:flex-start;gap:var(--rel-step-gap);padding:4px 8px 4px 2px}
+.cc-rel-step{position:relative;width:128px;min-width:128px;display:grid;justify-items:center;align-content:start;isolation:isolate}
+.cc-rel-step:not(:last-child)::after{content:"";position:absolute;z-index:0;top:79px;left:50%;width:calc(100% + var(--rel-step-gap));height:3px;border-radius:999px;background:linear-gradient(90deg,var(--rel-color),var(--rel-next));opacity:.9;pointer-events:none}
+.cc-rel-step .cc-rel-node{position:relative;z-index:1;width:128px;min-width:128px;height:88px;box-sizing:border-box;align-content:end}
 .cc-rel-step .cc-rel-node i{z-index:2}
-.cc-rel-point-thought{width:128px;min-width:128px;display:grid;gap:4px;border:1px solid var(--border);border-radius:9px;background:color-mix(in srgb,var(--panel-soft) 72%,transparent);color:var(--muted);padding:7px 8px;text-align:left;cursor:pointer;box-sizing:border-box}
-.cc-rel-point-thought:hover{border-color:var(--rel-color,var(--accent));background:color-mix(in srgb,var(--rel-color,var(--accent)) 7%,var(--panel-soft))}
-.cc-rel-point-thought small{font:800 8px/1.2 system-ui,sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--accent-strong)}
-.cc-rel-point-thought span{font:italic 10px/1.35 Georgia,serif;color:var(--muted)}
-.cc-rel-step.is-state-change .cc-rel-point-thought small{color:var(--rel-color)}
-.cc-rel-step.is-selected .cc-rel-point-thought{border-color:color-mix(in srgb,var(--rel-color) 70%,var(--border))}
-@media(max-width:720px){.cc-rel-track{gap:20px}.cc-rel-step,.cc-rel-step .cc-rel-node,.cc-rel-point-thought{width:122px;min-width:122px}.cc-rel-step:not(:last-child)::after{width:calc(100% + 2px)}}
+.cc-rel-point-thought{display:none!important}
+.cc-rel-point-popover{position:fixed;z-index:260;width:min(370px,calc(100vw - 24px));max-height:min(560px,calc(100vh - 24px));overflow:auto;border:1px solid color-mix(in srgb,var(--rel-color,var(--accent)) 62%,var(--border));border-radius:15px;background:color-mix(in srgb,var(--panel) 96%,transparent);color:var(--text);box-shadow:0 18px 50px rgba(0,0,0,.32);padding:0;overscroll-behavior:contain}
+.cc-rel-point-popover::before{content:"";position:absolute;left:var(--cc-rel-arrow-x,50%);width:11px;height:11px;background:var(--panel);border:1px solid color-mix(in srgb,var(--rel-color,var(--accent)) 62%,var(--border));transform:translateX(-50%) rotate(45deg);z-index:-1}
+.cc-rel-point-popover[data-placement="above"]::before{bottom:-6px;border-left:0;border-top:0}
+.cc-rel-point-popover[data-placement="below"]::before{top:-6px;border-right:0;border-bottom:0}
+.cc-rel-point-popover-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px 13px;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--rel-color,var(--accent)) 8%,var(--panel-soft))}
+.cc-rel-point-popover-kicker{display:block;font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--rel-color,var(--accent-strong))}
+.cc-rel-point-popover-head h3{margin:3px 0 0;font:700 17px/1.2 Georgia,serif;color:var(--text)}
+.cc-rel-point-popover-close{width:30px;height:30px;display:grid;place-items:center;flex:0 0 auto;border:1px solid var(--border);border-radius:9px;background:var(--panel);color:var(--muted);font:inherit;font-size:18px;cursor:pointer}
+.cc-rel-point-popover-close:hover{border-color:var(--rel-color,var(--accent));color:var(--text)}
+.cc-rel-point-popover-body{display:grid;gap:0;padding:0 13px 13px}
+.cc-rel-point-popover-meta{display:flex;gap:7px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--border);color:var(--muted);font-size:10px}
+.cc-rel-point-popover-meta span{display:inline-flex;align-items:center;gap:5px}
+.cc-rel-point-popover-section{display:grid;gap:6px;padding:11px 0;border-bottom:1px solid var(--border)}
+.cc-rel-point-popover-section:last-of-type{border-bottom:0}
+.cc-rel-point-popover-label{font-size:9px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.cc-rel-point-popover-state{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:850}
+.cc-rel-point-popover-state i{width:9px;height:9px;border-radius:50%;background:var(--state-color);box-shadow:0 0 7px color-mix(in srgb,var(--state-color) 50%,transparent)}
+.cc-rel-point-popover blockquote{margin:0;border:1px solid var(--border);border-left:3px solid var(--rel-color,var(--accent));border-radius:9px;background:var(--panel-soft);padding:9px 10px;font:italic 12px/1.5 Georgia,serif;color:var(--text)}
+.cc-rel-point-popover p{margin:0;color:var(--muted);font-size:11px;line-height:1.45}
+.cc-rel-point-popover-actions{display:flex;gap:6px;flex-wrap:wrap;padding-top:11px}
+.cc-rel-point-popover-actions .button{min-height:31px}
+@media(max-width:720px){.cc-rel-track{--rel-step-gap:20px}.cc-rel-step,.cc-rel-step .cc-rel-node{width:122px;min-width:122px}.cc-rel-point-popover{width:min(350px,calc(100vw - 16px));max-height:calc(100vh - 16px)}}
 </style>
 </head>
 <body>
@@ -7522,23 +7532,6 @@ window.CODEX_BUILD = "graph-modes-scope-fix-2026-08-21";
     const draft=el.modal._worldQuickLinksDraft;if(!draft)return;
     const index=Number(field.dataset.worldLinkIndex);if(!draft[index])return;
     draft[index][field.dataset.worldLinkField]=field.value;
-  },true);
-
-  document.addEventListener('keydown',event=>{
-    const area=event.target.closest('[data-ccrh-editor]');
-    if(!area)return;
-    const key=String(event.key||'').toLowerCase();
-    if(!(event.ctrlKey||event.metaKey)||event.altKey)return;
-    if(key==='z'){
-      event.preventDefault();
-      if(event.shiftKey)ccrhRedoEditor();
-      else ccrhUndoEditor();
-      return;
-    }
-    if(key==='y'){
-      event.preventDefault();
-      ccrhRedoEditor();
-    }
   },true);
 
   document.addEventListener('change',event=>{
@@ -10053,22 +10046,13 @@ window.CODEX_BUILD = "graph-modes-scope-fix-2026-08-21";
   window.addEventListener('scroll',()=>{
     const rail=document.querySelector('[data-ccrh-story-scroll-jump]');
     if(!rail)return;
-    const posts=[...document.querySelectorAll('.ccrh-posts .ccrh-post')];
-    const firstPost=posts[0];
-    const lastPost=posts[posts.length-1];
+    const doc=document.scrollingElement||document.documentElement;
+    const maxScroll=Math.max(0,doc.scrollHeight-window.innerHeight);
     const topButton=rail.querySelector('[data-ccrh-story-scroll="top"]');
     const bottomButton=rail.querySelector('[data-ccrh-story-scroll="bottom"]');
-    if(!firstPost||!lastPost){
-      if(topButton)topButton.disabled=true;
-      if(bottomButton)bottomButton.disabled=true;
-      rail.hidden=true;
-      return;
-    }
-    const firstTop=window.scrollY+firstPost.getBoundingClientRect().top;
-    const lastTop=window.scrollY+lastPost.getBoundingClientRect().top;
-    if(topButton)topButton.disabled=window.scrollY<=firstTop+4;
-    if(bottomButton)bottomButton.disabled=window.scrollY>=lastTop-4;
-    rail.hidden=false;
+    if(topButton)topButton.disabled=window.scrollY<=4;
+    if(bottomButton)bottomButton.disabled=window.scrollY>=maxScroll-4;
+    rail.hidden=maxScroll<=8;
   },{passive:true});
 
   document.addEventListener('input',event=>{
@@ -16305,122 +16289,8 @@ initFirebase();
   let ccrhTypingValue='';
   let ccrhPendingRemoteRefresh=false;
   let ccrhKnownPostCount=0;
-  let ccrhEditorHistoryKey='';
-  let ccrhEditorHistory=[];
-  let ccrhEditorHistoryIndex=-1;
-  let ccrhEditorHistoryApplying=false;
-  let ccrhEditorHistoryLastInputAt=0;
-  const CCRH_EDITOR_HISTORY_LIMIT=120;
 
   function ccrhStoryFromRoute(){ return storyPointContext(route.id); }
-  function ccrhComposerHistoryKey(){
-    const {story}=ccrhStoryFromRoute();
-    return `${story?.id||'story'}::${ccrhEditingPostId||'draft'}`;
-  }
-  function ccrhHistoryCurrent(){
-    return ccrhEditorHistoryIndex>=0?ccrhEditorHistory[ccrhEditorHistoryIndex]:null;
-  }
-  function ccrhUpdateHistoryButtons(){
-    const undo=document.querySelector('[data-ccrh-undo]');
-    const redo=document.querySelector('[data-ccrh-redo]');
-    if(undo)undo.disabled=ccrhEditorHistoryIndex<=0;
-    if(redo)redo.disabled=ccrhEditorHistoryIndex<0||ccrhEditorHistoryIndex>=ccrhEditorHistory.length-1;
-  }
-  function ccrhUpdateComposerPreview(text){
-    const safeText=String(text||'');
-    const preview=document.querySelector('[data-ccrh-preview]');
-    if(preview)preview.innerHTML=ccrhBbcode(safeText)||'<span class="muted">Your preview will appear here.</span>';
-    const count=document.querySelector('[data-ccrh-count]');
-    if(count)count.textContent=safeText.length.toLocaleString();
-  }
-  function ccrhResetEditorHistory(text=''){
-    const value=String(text||'');
-    ccrhEditorHistoryKey=ccrhComposerHistoryKey();
-    ccrhEditorHistory=[{value,start:value.length,end:value.length}];
-    ccrhEditorHistoryIndex=0;
-    ccrhEditorHistoryLastInputAt=0;
-    ccrhUpdateHistoryButtons();
-  }
-  function ccrhEnsureEditorHistory(seed){
-    const area=document.querySelector('[data-ccrh-editor]');
-    const nextKey=ccrhComposerHistoryKey();
-    const fallbackValue=typeof seed==='string'?seed:(area?.value||'');
-    if(nextKey!==ccrhEditorHistoryKey||ccrhEditorHistoryIndex<0||!ccrhEditorHistory.length){
-      ccrhResetEditorHistory(fallbackValue);
-    }
-    const current=ccrhHistoryCurrent();
-    if(area&&current&&area.value!==current.value){
-      area.value=current.value;
-      try{area.setSelectionRange(Math.min(current.start,area.value.length),Math.min(current.end,area.value.length));}catch{}
-    }
-    ccrhUpdateComposerPreview(area?area.value:(current?.value||fallbackValue));
-    ccrhUpdateHistoryButtons();
-  }
-  function ccrhRecordEditorHistory(value,start,end,{forcePush=false}={}){
-    const nextValue=String(value||'');
-    const nextStart=Number.isFinite(start)?start:nextValue.length;
-    const nextEnd=Number.isFinite(end)?end:nextStart;
-    if(ccrhComposerHistoryKey()!==ccrhEditorHistoryKey||ccrhEditorHistoryIndex<0||!ccrhEditorHistory.length){
-      ccrhResetEditorHistory(nextValue);
-      ccrhEditorHistory[0].start=nextStart;
-      ccrhEditorHistory[0].end=nextEnd;
-      return;
-    }
-    const current=ccrhHistoryCurrent();
-    if(current&&current.value===nextValue){
-      current.start=nextStart;
-      current.end=nextEnd;
-      ccrhUpdateHistoryButtons();
-      return;
-    }
-    const now=Date.now();
-    const shouldReplace=!forcePush&&current&&ccrhEditorHistoryIndex===ccrhEditorHistory.length-1&&(now-ccrhEditorHistoryLastInputAt<700);
-    if(shouldReplace){
-      current.value=nextValue;
-      current.start=nextStart;
-      current.end=nextEnd;
-    }else{
-      ccrhEditorHistory=ccrhEditorHistory.slice(0,ccrhEditorHistoryIndex+1);
-      ccrhEditorHistory.push({value:nextValue,start:nextStart,end:nextEnd});
-      if(ccrhEditorHistory.length>CCRH_EDITOR_HISTORY_LIMIT){
-        const over=ccrhEditorHistory.length-CCRH_EDITOR_HISTORY_LIMIT;
-        ccrhEditorHistory.splice(0,over);
-        ccrhEditorHistoryIndex=Math.max(0,ccrhEditorHistoryIndex-over);
-      }
-      ccrhEditorHistoryIndex=ccrhEditorHistory.length-1;
-    }
-    ccrhEditorHistoryLastInputAt=now;
-    ccrhUpdateHistoryButtons();
-  }
-  function ccrhApplyEditorHistory(step){
-    const area=document.querySelector('[data-ccrh-editor]');
-    const current=ccrhHistoryCurrent();
-    if(!current)return;
-    const nextIndex=ccrhEditorHistoryIndex+step;
-    if(nextIndex<0||nextIndex>=ccrhEditorHistory.length)return;
-    ccrhEditorHistoryIndex=nextIndex;
-    const entry=ccrhHistoryCurrent();
-    const {story}=ccrhStoryFromRoute();
-    ccrhEditorHistoryApplying=true;
-    if(area){
-      area.value=entry.value;
-      if(!area.hidden){
-        area.focus();
-        try{area.setSelectionRange(Math.min(entry.start,area.value.length),Math.min(entry.end,area.value.length));}catch{}
-      }
-    }
-    if(story){
-      ccrhTypingStoryId=story.id;
-      ccrhTypingValue=entry.value;
-      if(!ccrhEditingPostId)ccrhSaveDraft(story,entry.value,ccrhComposerDraftMeta());
-    }
-    ccrhUpdateComposerPreview(entry.value);
-    ccrhLockCurrentEditor();
-    ccrhEditorHistoryApplying=false;
-    ccrhUpdateHistoryButtons();
-  }
-  function ccrhUndoEditor(){ ccrhApplyEditorHistory(-1); }
-  function ccrhRedoEditor(){ ccrhApplyEditorHistory(1); }
 
   function ccrhFollowerEmail(){
     return normalizeMemberEmail(firebase.user?.email||'');
@@ -17098,8 +16968,8 @@ initFirebase();
       <div class="ccrh-anchor-strip">${anchorChips}</div>
       <section class="ccrh-posts">${turns.length?turns.map((turn,index)=>ccrhPostHtml(turn,index,story)).join(''):'<div class="ccrh-thread-empty"><h3>No posts yet</h3><p>Use the reply editor below to begin this roleplay.</p></div>'}</section>
       <div class="ccrh-story-scroll-jump" data-ccrh-story-scroll-jump aria-label="Story scroll shortcuts">
-        <button type="button" data-ccrh-story-scroll="top" title="Go to the first post">↑ First post</button>
-        <button type="button" data-ccrh-story-scroll="bottom" title="Go to the beginning of the last post">↓ Last post</button>
+        <button type="button" data-ccrh-story-scroll="top" title="Go to the top of this story">↑ Top</button>
+        <button type="button" data-ccrh-story-scroll="bottom" title="Go to the bottom of this story">↓ Bottom</button>
       </div>
       <section class="ccrh-composer" id="rp-composer">
         <div class="ccrh-composer-title">${editingTurn?'Edit post':'Post a reply'}</div>
@@ -17201,9 +17071,9 @@ initFirebase();
             </div>
           </div>
         </div>
-        <div class="ccrh-editor-tabs"><div class="ccrh-editor-tab-buttons"><button class="${ccrhPreviewMode?'':'active'}" type="button" data-ccrh-tab="write">Write (BBCode)</button><button class="${ccrhPreviewMode?'active':''}" type="button" data-ccrh-tab="preview">Preview</button></div><div class="ccrh-history-actions" aria-label="Editor history"><button class="ccrh-history-button" type="button" data-ccrh-undo aria-label="Undo" title="Undo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7H4v5"/><path d="M4 12c1.8-3.7 5.4-6 9.5-6 5.8 0 10.5 4.7 10.5 10.5S19.3 27 13.5 27c-3.5 0-6.6-1.7-8.5-4.3" transform="translate(0 -3)"/></svg></button><button class="ccrh-history-button" type="button" data-ccrh-redo aria-label="Redo" title="Redo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7h5v5"/><path d="M20 12c-1.8-3.7-5.4-6-9.5-6C4.7 6 0 10.7 0 16.5S4.7 27 10.5 27c3.5 0 6.6-1.7 8.5-4.3" transform="translate(2 -3)"/></svg></button></div></div>
+        <div class="ccrh-editor-tabs"><button class="${ccrhPreviewMode?'':'active'}" type="button" data-ccrh-tab="write">Write (BBCode)</button><button class="${ccrhPreviewMode?'active':''}" type="button" data-ccrh-tab="preview">Preview</button></div>
         <div class="ccrh-editor-wrap"><textarea class="ccrh-editor" data-ccrh-editor maxlength="50000" ${ccrhPreviewMode?'hidden':''} placeholder="Write your roleplay post here. BBCode and images or GIF URLs are supported.">${esc(draft)}</textarea><div class="ccrh-preview ccrh-post-body" data-ccrh-preview ${ccrhPreviewMode?'':'hidden'}>${ccrhBbcode(draft)||'<span class="muted">Your preview will appear here.</span>'}</div></div>
-        <div class="cc-dialogue-builder-mount" data-cc-dialogue-builder-mount hidden></div><div class="ccrh-compose-foot"><span class="ccrh-char-count"><span data-ccrh-count>${(draft||'').length.toLocaleString()}</span></span><div class="ccrh-compose-actions">${editingTurn?`<button class="button secondary" type="button" data-ccrh-cancel-edit>Cancel edit</button>`:`<button class="button secondary" type="button" data-ccrh-clear-reply>Clear</button><button class="button secondary" type="button" data-ccrh-save-draft>Save draft</button>`}<button class="button" type="button" data-ccrh-submit>${editingTurn?'Save changes':'Submit post'}</button></div></div>
+        <div class="cc-dialogue-builder-mount" data-cc-dialogue-builder-mount hidden></div><div class="ccrh-compose-foot"><span class="ccrh-char-count"><span></span></span><div class="ccrh-compose-actions">${editingTurn?`<button class="button secondary" type="button" data-ccrh-cancel-edit>Cancel edit</button>`:`<button class="button secondary" type="button" data-ccrh-clear-reply>Clear</button><button class="button secondary" type="button" data-ccrh-save-draft>Save draft</button>`}<button class="button" type="button" data-ccrh-submit>${editingTurn?'Save changes':'Submit post'}</button></div></div>
       </section>`;
 
     const storyScrollRail=document.querySelector('[data-ccrh-story-scroll-jump]');
@@ -17211,20 +17081,11 @@ initFirebase();
     const storyScrollBottom=storyScrollRail?.querySelector('[data-ccrh-story-scroll="bottom"]');
     const syncStoryScrollButtons=()=>{
       if(!storyScrollRail)return;
-      const posts=[...document.querySelectorAll('.ccrh-posts .ccrh-post')];
-      const firstPost=posts[0];
-      const lastPost=posts[posts.length-1];
-      if(!firstPost||!lastPost){
-        if(storyScrollTop)storyScrollTop.disabled=true;
-        if(storyScrollBottom)storyScrollBottom.disabled=true;
-        storyScrollRail.hidden=true;
-        return;
-      }
-      const firstTop=window.scrollY+firstPost.getBoundingClientRect().top;
-      const lastTop=window.scrollY+lastPost.getBoundingClientRect().top;
-      if(storyScrollTop)storyScrollTop.disabled=window.scrollY<=firstTop+4;
-      if(storyScrollBottom)storyScrollBottom.disabled=window.scrollY>=lastTop-4;
-      storyScrollRail.hidden=false;
+      const doc=document.scrollingElement||document.documentElement;
+      const maxScroll=Math.max(0,doc.scrollHeight-window.innerHeight);
+      if(storyScrollTop)storyScrollTop.disabled=window.scrollY<=4;
+      if(storyScrollBottom)storyScrollBottom.disabled=window.scrollY>=maxScroll-4;
+      storyScrollRail.hidden=maxScroll<=8;
     };
     requestAnimationFrame(syncStoryScrollButtons);
     setTimeout(syncStoryScrollButtons,120);
@@ -17241,7 +17102,6 @@ initFirebase();
       if(customWrap)customWrap.hidden=speakerSelect.value!=='custom';
       if(customName&&speakerSelect.value==='custom')customName.value=editingTurn?(editingTurn.speakerName||''):(storedDraft.customName||'');
       ccrhSyncToolbarLabels();
-      ccrhEnsureEditorHistory(draft);
     });
   }
   function ccrhInsert(open,close=''){
@@ -17306,7 +17166,6 @@ initFirebase();
       ccrhEditingPostId='';
       ccrhTypingStoryId='';
       ccrhTypingValue='';
-      ccrhResetEditorHistory('');
       ccrhPendingRemoteRefresh=false;
       scheduleSave('Saving post changes…');
       toast('Post updated.');
@@ -17317,7 +17176,6 @@ initFirebase();
       ccrhTypingStoryId='';
       ccrhTypingValue='';
       ccrhPendingRemoteRefresh=false;
-      ccrhResetEditorHistory('');
       ccrhKnownPostCount=turns.length;
       scheduleSave('Posting…');
     }
@@ -17421,20 +17279,16 @@ initFirebase();
       ccDialogueOpen();
       return;
     }
-    if(event.target.closest('[data-ccrh-undo]')){event.preventDefault();ccrhUndoEditor();return;}
-    if(event.target.closest('[data-ccrh-redo]')){event.preventDefault();ccrhRedoEditor();return;}
     const storyScroll=event.target.closest('[data-ccrh-story-scroll]');
     if(storyScroll){
       event.preventDefault();
-      const posts=[...document.querySelectorAll('.ccrh-posts .ccrh-post')];
-      const target=storyScroll.dataset.ccrhStoryScroll==='top'?posts[0]:posts[posts.length-1];
-      target?.scrollIntoView({behavior:'smooth',block:'start'});
+      window.scrollTo({top:storyScroll.dataset.ccrhStoryScroll==='top'?0:(document.scrollingElement||document.documentElement).scrollHeight,behavior:'smooth'});
       return;
     }
     const tag=event.target.closest('[data-ccrh-tag]'); if(tag){event.preventDefault();const t=tag.dataset.ccrhTag;ccrhInsert(`[${t}]`,`[/${t}]`);return;}
     const wrap=event.target.closest('[data-ccrh-wrap]'); if(wrap){event.preventDefault();const [a,b='']=wrap.dataset.ccrhWrap.split('|');ccrhInsert(a,b);return;}
     const tab=event.target.closest('[data-ccrh-tab]'); if(tab){event.preventDefault();ccrhPreviewMode=tab.dataset.ccrhTab==='preview';const area=document.querySelector('[data-ccrh-editor]');if(area&&!ccrhEditingPostId)ccrhSaveDraft(ccrhStoryFromRoute().story,area.value,ccrhComposerDraftMeta());ccrhRenderReader();return;}
-    if(event.target.closest('[data-ccrh-clear-reply]')){event.preventDefault();const {story,node}=ccrhStoryFromRoute();const area=document.querySelector('[data-ccrh-editor]');if(!story||!area)return;if(area.value&&!window.confirm('Clear this reply? This will remove the text in the reply box and reset its draft options.'))return;area.value='';ccrhTypingStoryId='';ccrhTypingValue='';const speaker=document.querySelector('[data-ccrh-speaker]');if(speaker){if([...speaker.options].some(option=>option.value==='narrator'))speaker.value='narrator';else speaker.selectedIndex=0;}const customWrap=document.querySelector('[data-ccrh-custom-wrap]');if(customWrap)customWrap.hidden=true;const customName=document.querySelector('[data-ccrh-custom-name]');if(customName)customName.value='';const locationSelect=document.querySelector('[data-ccrh-location]');if(locationSelect)locationSelect.value='inherit';const pointSelect=document.querySelector('[data-ccrh-story-point]');if(pointSelect)pointSelect.value=node?storyRouteValue(story.id,node.id):'';const eventSelect=document.querySelector('[data-ccrh-timeline-event]');if(eventSelect)eventSelect.value='';ccrhClearDraft(story);ccrhResetEditorHistory('');ccrhUpdateComposerPreview('');ccrhSyncToolbarLabels();area.focus();toast('Reply cleared.');return;}
+    if(event.target.closest('[data-ccrh-clear-reply]')){event.preventDefault();const {story,node}=ccrhStoryFromRoute();const area=document.querySelector('[data-ccrh-editor]');if(!story||!area)return;if(area.value&&!window.confirm('Clear this reply? This will remove the text in the reply box and reset its draft options.'))return;area.value='';ccrhTypingStoryId='';ccrhTypingValue='';const speaker=document.querySelector('[data-ccrh-speaker]');if(speaker){if([...speaker.options].some(option=>option.value==='narrator'))speaker.value='narrator';else speaker.selectedIndex=0;}const customWrap=document.querySelector('[data-ccrh-custom-wrap]');if(customWrap)customWrap.hidden=true;const customName=document.querySelector('[data-ccrh-custom-name]');if(customName)customName.value='';const locationSelect=document.querySelector('[data-ccrh-location]');if(locationSelect)locationSelect.value='inherit';const pointSelect=document.querySelector('[data-ccrh-story-point]');if(pointSelect)pointSelect.value=node?storyRouteValue(story.id,node.id):'';const eventSelect=document.querySelector('[data-ccrh-timeline-event]');if(eventSelect)eventSelect.value='';ccrhClearDraft(story);const count=document.querySelector('[data-ccrh-count]');if(count)count.textContent='0';const preview=document.querySelector('[data-ccrh-preview]');if(preview)preview.innerHTML='<span class="muted">Your preview will appear here.</span>';ccrhSyncToolbarLabels();area.focus();toast('Reply cleared.');return;}
     if(event.target.closest('[data-ccrh-save-draft]')){event.preventDefault();const {story}=ccrhStoryFromRoute();const area=document.querySelector('[data-ccrh-editor]');ccrhSaveDraft(story,area?.value||'',ccrhComposerDraftMeta());toast('Draft saved.');return;}
     if(event.target.closest('[data-ccrh-submit]')){event.preventDefault();await ccrhSubmit();return;}
     const quote=event.target.closest('[data-ccrh-quote]'); if(quote){event.preventDefault();const {story}=ccrhStoryFromRoute();const turn=ensureStoryDocument(story).find(x=>x.id===quote.dataset.ccrhQuote);if(turn){const speaker=storySpeakerMeta(turn);document.getElementById('rp-composer')?.scrollIntoView({behavior:'smooth'});setTimeout(()=>ccrhInsert(`[quote="${speaker.name}"]\n${turn.text}\n[/quote]\n\n`,''),250);}return;}
@@ -17456,7 +17310,6 @@ initFirebase();
       ccrhTypingStoryId='';
       ccrhTypingValue='';
       ccrhPendingRemoteRefresh=false;
-      ccrhResetEditorHistory('');
       ccrhPreviewMode=false;
       ccrhRenderReader();
       toast('Edit cancelled.');
@@ -17468,8 +17321,8 @@ initFirebase();
   document.addEventListener('input',event=>{
     const area=event.target.closest('[data-ccrh-editor]'); if(!area)return;
     const {story}=ccrhStoryFromRoute();
-    ccrhUpdateComposerPreview(area.value);
-    if(!ccrhEditorHistoryApplying)ccrhRecordEditorHistory(area.value,area.selectionStart,area.selectionEnd);
+    const count=document.querySelector('[data-ccrh-count]');
+    if(count)count.textContent=area.value.length.toLocaleString();
     clearTimeout(ccrhDraftTimer);
     ccrhDraftTimer=setTimeout(()=>ccrhSaveDraft(story,area.value,ccrhComposerDraftMeta()),400);
   },true);
@@ -17958,10 +17811,10 @@ initFirebase();
       return;
     }
     ccPostMediaUrl='';
-    el.modal.innerHTML=`<div class="modal-backdrop" data-close-modal><section class="modal cc-post-media-modal" role="dialog" aria-modal="true">
+    el.modal.innerHTML=`<div class="modal-backdrop"><section class="modal cc-post-media-modal" role="dialog" aria-modal="true">
       <header class="modal-head">
         <div><span class="eyebrow">Roleplay post media</span><h2>Insert an image or GIF</h2></div>
-        <button class="icon-button" type="button" data-close-modal aria-label="Close">×</button>
+        <button class="icon-button" type="button" data-modal-close>×</button>
       </header>
       <div class="modal-body">
         <div class="cc-post-media-grid">
@@ -17996,7 +17849,7 @@ initFirebase();
         </div>
       </div>
       <footer class="modal-actions">
-        <button class="button secondary" type="button" data-close-modal>Cancel</button>
+        <button class="button secondary" type="button" data-modal-close>Cancel</button>
         <button class="button" type="button" data-cc-post-media-insert disabled>Insert into post</button>
       </footer>
     </section></div>`;
@@ -20381,6 +20234,53 @@ initFirebase();
     const sourceLabel=node.kind==='opening'?'Opening thought':node.kind==='milestone'?'Off-screen thought':'RP blurb';
     return `<button class="cc-rel-point-thought" type="button" data-cc-rel-select="${esc(character.id)}|${esc(target.id)}|${encodeURIComponent(node.key)}"><small>${esc(sourceLabel)}</small><span>“${esc(shortText(blurb,130))}”</span></button>`;
   }
+  let ccRelPointPopover=null;
+  let ccRelPointPopoverAnchor=null;
+  function ccRelClosePointPopover(){
+    if(ccRelPointPopover?.isConnected)ccRelPointPopover.remove();
+    ccRelPointPopover=null;ccRelPointPopoverAnchor=null;
+  }
+  function ccRelPositionPointPopover(){
+    const pop=ccRelPointPopover,anchor=ccRelPointPopoverAnchor;
+    if(!pop||!anchor?.isConnected){ccRelClosePointPopover();return;}
+    const rect=anchor.getBoundingClientRect(),margin=10,gap=11;
+    const width=pop.offsetWidth,height=pop.offsetHeight;
+    let left=rect.left+(rect.width/2)-(width/2);
+    left=Math.max(margin,Math.min(window.innerWidth-width-margin,left));
+    const roomAbove=rect.top-margin,roomBelow=window.innerHeight-rect.bottom-margin;
+    const above=roomAbove>=height+gap||roomAbove>roomBelow;
+    let top=above?rect.top-height-gap:rect.bottom+gap;
+    top=Math.max(margin,Math.min(window.innerHeight-height-margin,top));
+    pop.style.left=`${Math.round(left)}px`;pop.style.top=`${Math.round(top)}px`;
+    pop.dataset.placement=above?'above':'below';
+    const arrowX=Math.max(18,Math.min(width-18,rect.left+(rect.width/2)-left));
+    pop.style.setProperty('--cc-rel-arrow-x',`${Math.round(arrowX)}px`);
+  }
+  function ccRelPointPopoverState(state,color,label='No relationship state recorded'){
+    const safeColor=ccRelColor(color,CC_REL_NEUTRAL);
+    return `<div class="cc-rel-point-popover-state" style="--state-color:${esc(safeColor)}"><i></i><span>${esc(state||label)}</span></div>`;
+  }
+  function ccRelOpenPointPopover(anchor,characterId,targetId,nodeKey){
+    const character=getItem('characters',characterId),target=getItem('characters',targetId);if(!anchor||!character||!target)return;
+    if(ccRelPointPopover&&ccRelPointPopoverAnchor===anchor){ccRelClosePointPopover();return;}
+    const record=ccRelRecord(characterId,targetId,false),scenes=ccRelSharedScenes(characterId,targetId),nodes=ccRelNodesFor(character,target,scenes,record),node=ccRelNodeFromKey(character,target,nodes,nodeKey);if(!node)return;
+    const subjectAt=node.perspectives?.[character.id]||{state:node.state||'',color:node.color,blurb:node.blurb||'',post:node.post||null,whatChanged:''};
+    const targetAt=node.perspectives?.[target.id]||{state:'',color:CC_REL_NEUTRAL,blurb:'',post:null,whatChanged:''};
+    const milestone=node.kind==='milestone'?(record?.milestones||[]).find(item=>item.id===node.milestoneId)||null:null;
+    const sourceLabel=node.kind==='opening'?'Opening':node.kind==='milestone'?'Relationship milestone':node.kind==='rp-anchor'?'RP point':'Current';
+    const subjectContext=String(subjectAt.whatChanged||'').trim(),targetContext=String(targetAt.whatChanged||'').trim();
+    const thoughtSection=(person,perspective,context,emptyText)=>`<section class="cc-rel-point-popover-section"><span class="cc-rel-point-popover-label">${esc(person.name)}</span>${ccRelPointPopoverState(perspective.state,perspective.color)}${perspective.blurb?`<blockquote>“${esc(perspective.blurb)}”</blockquote>`:`<p>${esc(emptyText)}</p>`}${context?`<p><strong>Context:</strong> ${esc(context)}</p>`:''}</section>`;
+    const note=milestone?.note?`<section class="cc-rel-point-popover-section"><span class="cc-rel-point-popover-label">What happened off-screen</span><p>${esc(milestone.note)}</p></section>`:'';
+    const source=node.kind==='rp-anchor'&&node.scene?`<section class="cc-rel-point-popover-section"><span class="cc-rel-point-popover-label">RP source</span><p>${esc(node.scene.story?.name||'Roleplay')} · ${esc(node.scene.title||node.title)}</p>${ccRelInspectorPostLink(subjectAt.post||node.post)}</section>`:'';
+    const editAction=node.kind==='opening'?`<button class="button small" type="button" data-cc-rel-edit-opening="${esc(character.id)}|${esc(target.id)}">✎ Edit opening</button>`:node.kind==='rp-anchor'?`<button class="button small" type="button" data-cc-rel-edit-point="${esc(character.id)}|${esc(target.id)}|${encodeURIComponent(node.key)}">✎ Edit RP point</button>`:milestone?`<button class="button small" type="button" data-cc-rel-edit-milestone="${esc(character.id)}|${esc(target.id)}|${esc(milestone.id)}">✎ Edit milestone</button>`:'';
+    ccRelClosePointPopover();
+    const pop=document.createElement('div');
+    pop.className='cc-rel-point-popover';pop.dataset.ccRelPointPopover='';pop.style.setProperty('--rel-color',ccRelColor(node.color,CC_REL_NEUTRAL));
+    pop.innerHTML=`<header class="cc-rel-point-popover-head"><div><span class="cc-rel-point-popover-kicker">${esc(sourceLabel)}</span><h3>${esc(node.title||node.explicitState||'Relationship point')}</h3></div><button class="cc-rel-point-popover-close" type="button" data-cc-rel-point-popover-close aria-label="Close relationship point">×</button></header><div class="cc-rel-point-popover-body"><div class="cc-rel-point-popover-meta"><span>${esc(node.time||'')}</span>${node.explicitState?`<span>• ${esc(node.explicitState)}</span>`:''}</div>${note}${thoughtSection(character,subjectAt,subjectContext,node.kind==='opening'?'No opening thought has been written yet.':'No relationship blurb was recorded from this perspective.')}${thoughtSection(target,targetAt,targetContext,node.kind==='opening'?'No opening thought has been written yet.':'No relationship blurb was recorded from this perspective.')}${source}<div class="cc-rel-point-popover-actions">${editAction}<button class="button secondary small" type="button" data-open="characters:${esc(target.id)}">Open Bio</button></div></div>`;
+    document.body.appendChild(pop);ccRelPointPopover=pop;ccRelPointPopoverAnchor=anchor;
+    const inspector=document.querySelector('.cc-rel-inspector');if(inspector)inspector.outerHTML=ccRelInspectorHtml(character,target,nodes,record,node);
+    requestAnimationFrame(ccRelPositionPointPopover);
+  }
   function ccRelTrackHtml(character,target,nodes,record){
     const selected=ccRelationshipSelections.get(character.id),personImage=ccRelPersonImage(target),current=ccRelPerspective(record,character.id),currentNode=nodes.find(node=>node.kind==='current'),autoCurrent=currentNode?.state||'',autoColor=currentNode?.color||CC_REL_CURRENT,pieces=[];
     nodes.forEach((node,index)=>{
@@ -20388,7 +20288,7 @@ initFirebase();
       const classes=[node.kind==='current'?'is-current':'',node.kind==='opening'?'is-opening':'',node.kind==='milestone'?'is-milestone':'',node.kind==='rp-anchor'?'is-rp-anchor':'',node.stateChanged?'is-state-change':'',isSelected?'is-selected':''].filter(Boolean).join(' ');
       const label=node.kind==='opening'?'Opening':node.kind==='milestone'?'Off-screen':node.kind==='rp-anchor'?(node.stateChanged?'State change':'RP'):'Now';
       const next=index<nodes.length-1?nodes[index+1]:null;
-      pieces.push(`<div class="cc-rel-step ${classes}" style="--rel-color:${esc(node.color)};--rel-next:${esc(next?.color||node.color)}"><button class="cc-rel-node ${classes}" type="button" data-cc-rel-select="${esc(character.id)}|${esc(target.id)}|${encodeURIComponent(node.key)}"><span class="cc-rel-node-kind">${esc(label)}</span><span class="cc-rel-node-title">${esc(node.title)}</span>${node.explicitState&&node.title!==node.explicitState?`<span class="cc-rel-node-state">${esc(node.explicitState)}</span>`:''}<span class="cc-rel-node-time">${esc(node.time||'')}</span><i></i></button>${ccRelPointThoughtHtml(character,target,node)}</div>`);
+      pieces.push(`<div class="cc-rel-step ${classes}" style="--rel-color:${esc(node.color)};--rel-next:${esc(next?.color||node.color)}"><button class="cc-rel-node ${classes}" type="button" data-cc-rel-select="${esc(character.id)}|${esc(target.id)}|${encodeURIComponent(node.key)}"><span class="cc-rel-node-kind">${esc(label)}</span><span class="cc-rel-node-title">${esc(node.title)}</span>${node.explicitState&&node.title!==node.explicitState?`<span class="cc-rel-node-state">${esc(node.explicitState)}</span>`:''}<span class="cc-rel-node-time">${esc(node.time||'')}</span><i></i></button></div>`);
     });
     return `<article class="cc-rel-row" data-cc-rel-row="${esc(target.id)}"><div class="cc-rel-person"><button type="button" class="cc-rel-avatar" data-open="characters:${esc(target.id)}">${personImage?`<img src="${esc(personImage)}" alt="">`:esc(initials(target.name||'?'))}</button><div><button class="cc-rel-person-name" type="button" data-open="characters:${esc(target.id)}">${esc(target.name)}</button>${current.type?`<span class="cc-rel-type">${esc(current.type)}</span>`:''}${autoCurrent?`<strong class="cc-rel-current-label" style="--rel-color:${esc(autoColor)}">Current: ${esc(autoCurrent)}</strong>`:'<span class="cc-rel-current-empty">Current state not recorded yet</span>'}</div></div><div class="cc-rel-timeline"><div class="cc-rel-track">${pieces.join('')}</div></div><div class="cc-rel-row-actions"><button class="button secondary small cc-rel-edit-only" type="button" data-cc-rel-edit-pair="${esc(character.id)}|${esc(target.id)}">Colors & relationship</button><button class="button ghost small" type="button" data-cc-rel-add-milestone="${esc(character.id)}|${esc(target.id)}">+ Relationship milestone</button></div></article>`;
   }
@@ -20812,13 +20712,19 @@ initFirebase();
     const row=event.target.closest?.('[data-cc-life-drop-key]');if(!row||!ccLifeDragged)return;event.preventDefault();const [characterId,keyEncoded]=row.dataset.ccLifeDropKey.split('|');if(characterId!==ccLifeDragged.characterId)return;const rect=row.getBoundingClientRect(),targetKey=decodeURIComponent(keyEncoded),dragKey=ccLifeDragged.key;ccLifeDragged=null;ccLifeDropPoint(characterId,dragKey,targetKey,event.clientY>rect.top+rect.height/2);
   });
   document.addEventListener('dragend',()=>{ccLifeDragged=null;document.querySelectorAll('.cc-life-row').forEach(row=>row.classList.remove('is-dragging','drop-before','drop-after'));});
+  window.addEventListener('resize',()=>{if(ccRelPointPopover)ccRelPositionPointPopover();});
+  window.addEventListener('scroll',()=>{if(ccRelPointPopover)ccRelPositionPointPopover();},true);
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&ccRelPointPopover)ccRelClosePointPopover();},true);
 
   document.addEventListener('click',event=>{
+    const relPopoverAction=event.target.closest?.('[data-cc-rel-point-popover] button');if(relPopoverAction&&!relPopoverAction.hasAttribute('data-cc-rel-point-popover-close'))setTimeout(ccRelClosePointPopover,0);
     const relReview=event.target.closest?.('[data-cc-rel-review-unassigned]');if(relReview){event.preventDefault();event.stopImmediatePropagation();ccRelUnassignedPicker(relReview.dataset.ccRelReviewUnassigned);return;}
     const relSaveAssignments=event.target.closest?.('[data-cc-rel-save-assignments]');if(relSaveAssignments){event.preventDefault();event.stopImmediatePropagation();ccRelSaveAssignments(relSaveAssignments.dataset.ccRelSaveAssignments);return;}
     const relPointEdit=event.target.closest?.('[data-cc-rel-edit-point]');if(relPointEdit){event.preventDefault();event.stopImmediatePropagation();const [characterId,targetId,keyEncoded]=relPointEdit.dataset.ccRelEditPoint.split('|');ccRelPointEditor(characterId,targetId,decodeURIComponent(keyEncoded));return;}
     if(event.target.closest?.('[data-cc-rel-save-point-edit]')){event.preventDefault();event.stopImmediatePropagation();ccRelSavePointEdit();return;}
-    const relSelect=event.target.closest?.('[data-cc-rel-select]');if(relSelect){event.preventDefault();const [characterId,targetId,keyEncoded]=relSelect.dataset.ccRelSelect.split('|');ccRelationshipSelections.set(characterId,{targetId,nodeKey:decodeURIComponent(keyEncoded)});const character=getItem('characters',characterId);if(character)renderCharacterLifeStory(character);return;}
+    const relPopupClose=event.target.closest?.('[data-cc-rel-point-popover-close]');if(relPopupClose){event.preventDefault();event.stopImmediatePropagation();ccRelClosePointPopover();return;}
+    const relSelect=event.target.closest?.('[data-cc-rel-select]');if(relSelect){event.preventDefault();event.stopImmediatePropagation();const [characterId,targetId,keyEncoded]=relSelect.dataset.ccRelSelect.split('|'),nodeKey=decodeURIComponent(keyEncoded);ccRelationshipSelections.set(characterId,{targetId,nodeKey});document.querySelectorAll('.cc-rel-step.is-selected,.cc-rel-node.is-selected').forEach(item=>item.classList.remove('is-selected'));relSelect.classList.add('is-selected');relSelect.closest('.cc-rel-step')?.classList.add('is-selected');ccRelOpenPointPopover(relSelect,characterId,targetId,nodeKey);return;}
+    if(ccRelPointPopover&&!event.target.closest?.('[data-cc-rel-point-popover]'))ccRelClosePointPopover();
     const relEdit=event.target.closest?.('[data-cc-rel-edit-pair]');if(relEdit){event.preventDefault();event.stopImmediatePropagation();const [characterId,targetId]=relEdit.dataset.ccRelEditPair.split('|');ccRelPairEditor(characterId,targetId);return;}
     const relAdd=event.target.closest?.('[data-cc-rel-add-relationship]');if(relAdd){event.preventDefault();event.stopImmediatePropagation();ccRelAddRelationshipPicker(relAdd.dataset.ccRelAddRelationship);return;}
     const relAddPerson=event.target.closest?.('[data-cc-rel-add-person]');if(relAddPerson){event.preventDefault();event.stopImmediatePropagation();const [characterId,targetId]=relAddPerson.dataset.ccRelAddPerson.split('|');closeModal();ccRelRecord(characterId,targetId,true);scheduleSave('Adding relationship…');ccRelPairEditor(characterId,targetId);return;}
