@@ -5148,6 +5148,35 @@ button.ccrh-context-chip:hover{border-color:var(--accent);color:var(--text)}
 .cc-dialogue-accent{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
 .cc-dialogue-accent i{width:24px;height:24px;border-radius:50%;background:var(--dialogue-accent);border:2px solid rgba(255,255,255,.4)}
 .cc-dialogue-preview{margin-top:7px;padding:14px;border:1px dashed var(--border);border-radius:12px;background:var(--panel-soft)}
+.cc-dialogue-quick-layout{display:grid;grid-template-columns:minmax(270px,.72fr) minmax(340px,1.28fr);gap:16px;padding:16px}
+.cc-dialogue-quick-fields{display:grid;gap:14px;align-content:start}
+.cc-dialogue-quick-fields label{display:grid;gap:6px}
+.cc-dialogue-quick-fields textarea{min-height:150px;resize:vertical}
+.cc-dialogue-quick-title{display:grid;gap:3px}
+.cc-dialogue-quick-title small,.cc-dialogue-saved-style-note{color:var(--muted)}
+.cc-dialogue-saved-style-note{display:flex;align-items:flex-start;gap:8px;padding:10px 11px;border:1px solid var(--border);border-radius:10px;background:var(--panel-soft);font-size:12px;line-height:1.45}
+.cc-dialogue-saved-style-note::before{content:'✓';color:var(--accent-strong);font-weight:900}
+.cc-dialogue-quick-preview{display:grid;gap:7px;align-content:start;min-width:0}
+.cc-dialogue-quick-preview>strong{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.cc-dialogue-quick-preview .cc-dialogue-preview{margin-top:0;min-height:100%;display:grid;align-items:center}
+.cc-dialogue-advanced{margin:0 16px 16px;border:1px solid var(--border);border-radius:13px;background:var(--panel-soft);overflow:hidden}
+.cc-dialogue-advanced>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;cursor:pointer;list-style:none;background:var(--panel-soft)}
+.cc-dialogue-advanced>summary::-webkit-details-marker{display:none}
+.cc-dialogue-advanced>summary>span{display:grid;gap:3px}
+.cc-dialogue-advanced>summary strong{font-size:14px}
+.cc-dialogue-advanced>summary small{color:var(--muted);font-size:11px;font-weight:600}
+.cc-dialogue-advanced>summary::after{content:'+';display:grid;place-items:center;width:28px;height:28px;flex:0 0 28px;border:1px solid var(--border);border-radius:50%;color:var(--accent-strong);font-size:18px}
+.cc-dialogue-advanced[open]>summary{border-bottom:1px solid var(--border)}
+.cc-dialogue-advanced[open]>summary::after{content:'−'}
+.cc-dialogue-advanced .cc-dialogue-builder-grid{padding:16px;background:var(--panel)}
+.cc-dialogue-card[data-cc-dialogue-index]{cursor:pointer}
+.cc-dialogue-card-tools{position:absolute;z-index:60;right:10px;bottom:10px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px;max-width:calc(100% - 20px);padding:6px;border:1px solid color-mix(in srgb,var(--dialogue-accent) 55%,var(--border));border-radius:10px;background:color-mix(in srgb,var(--panel) 94%,transparent);box-shadow:0 10px 28px rgba(0,0,0,.34);backdrop-filter:blur(8px)}
+.cc-dialogue-card-tools button{min-height:30px;border:1px solid var(--border);border-radius:7px;background:var(--panel-strong);color:var(--text);padding:5px 8px;font:inherit;font-size:11px;font-weight:800;cursor:pointer}
+.cc-dialogue-card-tools button:hover{border-color:var(--dialogue-accent);color:color-mix(in srgb,var(--dialogue-accent) 75%,var(--text))}
+.cc-dialogue-card-tools button.danger{color:var(--danger)}
+.cc-dialogue-quick-edit{display:grid;gap:12px}
+.cc-dialogue-quick-edit label{display:grid;gap:6px;font-weight:800;font-size:12px}
+.cc-dialogue-quick-edit textarea{min-height:180px;resize:vertical}
 
 .cc-dialogue-card{position:relative;display:flex;align-items:center;gap:18px;width:min(100%,860px);max-width:100%;min-width:0;margin:20px auto;padding:20px 22px;border:1px solid color-mix(in srgb,var(--dialogue-accent) 75%,var(--border));border-radius:15px;background:linear-gradient(135deg,color-mix(in srgb,var(--dialogue-accent) 9%,transparent),transparent 42%),var(--panel-strong);box-shadow:0 0 28px color-mix(in srgb,var(--dialogue-accent) 14%,transparent);clear:both;box-sizing:border-box}
 .cc-dialogue-card::before,.cc-dialogue-card::after{content:"✧";position:absolute;color:var(--dialogue-accent);opacity:.65}
@@ -5172,6 +5201,7 @@ button.ccrh-context-chip:hover{border-color:var(--accent);color:var(--text)}
 .cc-dialogue-popover-initials{width:64px;height:64px;display:grid;place-items:center;border-radius:50%;border:2px solid var(--dialogue-accent);float:left;margin:0 12px 8px 0;color:var(--dialogue-accent);font-weight:900}
 .cc-dialogue-profile-popover p{clear:both;margin:10px 0}
 @media(max-width:760px){
+  .cc-dialogue-quick-layout{grid-template-columns:1fr}
   .cc-dialogue-builder-grid{grid-template-columns:1fr}
   .cc-dialogue-builder-grid .wide{grid-column:auto}
   .cc-dialogue-builder-actions{align-items:flex-start;flex-direction:column}
@@ -6097,228 +6127,6 @@ button.ccrh-context-chip:hover{border-color:var(--accent);color:var(--text)}
 .cc-rel-step.is-state-change .cc-rel-point-thought small{color:var(--rel-color)}
 .cc-rel-step.is-selected .cc-rel-point-thought{border-color:color-mix(in srgb,var(--rel-color) 70%,var(--border))}
 @media(max-width:720px){.cc-rel-track{gap:20px}.cc-rel-step,.cc-rel-step .cc-rel-node,.cc-rel-point-thought{width:122px;min-width:122px}.cc-rel-step:not(:last-child)::after{width:calc(100% + 2px)}}
-</style>
-
-<style id="cc-rel-point-popup-alignment-fix">
-/* Relationship rows stay compact; thoughts/blurb text appears only after a point is opened. */
-.cc-rel-layout{grid-template-columns:minmax(0,1fr)}
-.cc-rel-track{display:flex;align-items:flex-end;gap:24px;min-width:max-content;overflow:visible;padding:6px 8px 8px 2px}
-.cc-rel-step{position:relative;width:128px;min-width:128px;display:block;isolation:isolate}
-.cc-rel-step .cc-rel-node{position:relative;z-index:2;width:128px;min-width:128px;height:88px;box-sizing:border-box;align-content:end}
-.cc-rel-step:not(:last-child)::after{content:"";position:absolute;z-index:0;left:calc(50% + 9px);bottom:9px;width:calc(100% + 30px);height:3px;border-radius:999px;background:linear-gradient(90deg,var(--rel-color),var(--rel-next));opacity:.9;pointer-events:none}
-.cc-rel-point-thought{display:none!important}
-.cc-rel-row{grid-template-columns:205px minmax(0,1fr);align-items:center}
-.cc-rel-timeline{align-self:center;overflow-x:auto;padding:2px 0 5px}
-.cc-rel-point-popup-modal{width:min(720px,calc(100vw - 28px))!important;max-width:720px!important}
-.cc-rel-point-popup .cc-rel-inspector{position:static;max-height:none;width:100%;border:0;border-radius:0;background:transparent;overflow:visible}
-.cc-rel-point-popup .cc-rel-inspector-head{border:1px solid var(--border);border-radius:14px 14px 0 0}
-.cc-rel-point-popup .cc-rel-inspector-body{border:1px solid var(--border);border-top:0;border-radius:0 0 14px 14px;background:var(--panel);padding:0 16px 16px}
-.cc-rel-point-popup .cc-rel-main-thought{margin:2px 0 0;border-left:3px solid var(--accent);border-radius:8px;background:var(--panel-soft);padding:10px 12px;font-family:Georgia,serif;line-height:1.5}
-@media(max-width:720px){.cc-rel-row{grid-template-columns:1fr}.cc-rel-track{gap:18px}.cc-rel-step,.cc-rel-step .cc-rel-node{width:120px;min-width:120px}.cc-rel-step:not(:last-child)::after{width:calc(100% + 24px)}.cc-rel-point-popup-modal{width:calc(100vw - 16px)!important}}
-</style>
-
-<style id="cc-rel-readonly-blurb-popup-fix">
-.cc-rel-blurb-popup-modal{width:min(520px,calc(100vw - 28px))!important;max-width:520px!important}
-.cc-rel-blurb-popup-modal .modal-head{min-height:38px;padding:8px 12px;border-bottom:0}
-.cc-rel-blurb-popup-modal .modal-head h2{display:none}
-.cc-rel-blurb-popup-modal .modal-body{padding:4px 16px 14px}
-.cc-rel-blurb-popup-modal .modal-foot{padding:10px 16px 14px;border-top:0}
-.cc-rel-blurb-popup{display:grid;gap:13px}
-.cc-rel-blurb-person{display:flex;align-items:center;gap:11px}
-.cc-rel-blurb-person img,.cc-rel-blurb-person>span{width:42px;height:42px;border-radius:10px;object-fit:cover;background:var(--accent-soft);display:grid;place-items:center;font-weight:850}
-.cc-rel-blurb-person div{display:grid;gap:2px}.cc-rel-blurb-person small{font-size:9px;font-weight:850;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.cc-rel-blurb-person strong{font-size:17px}
-.cc-rel-blurb-meta{display:flex;flex-wrap:wrap;align-items:center;gap:7px 10px;color:var(--muted);font-size:11px}
-.cc-rel-blurb-state{display:inline-flex;align-items:center;gap:6px;font-weight:850;color:var(--text)}
-.cc-rel-blurb-state i{width:9px;height:9px;border-radius:50%;background:var(--rel-color);box-shadow:0 0 0 2px color-mix(in srgb,var(--rel-color) 22%,transparent)}
-.cc-rel-blurb-quote{margin:0;padding:16px 17px;border:1px solid color-mix(in srgb,var(--accent) 46%,var(--border));border-radius:14px;background:color-mix(in srgb,var(--accent-soft) 34%,var(--panel-soft));font:italic 17px/1.55 Georgia,serif;color:var(--text)}
-.cc-rel-blurb-empty{padding:14px;border:1px dashed var(--border);border-radius:12px;color:var(--muted);font-size:12px}
-.cc-rel-blurb-note{margin:0;color:var(--muted);line-height:1.5}
-.cc-rel-blurb-other{border-top:1px solid var(--border);padding-top:9px}.cc-rel-blurb-other summary{cursor:pointer;color:var(--muted);font-size:11px;font-weight:800}.cc-rel-blurb-other blockquote{margin:9px 0 0;padding:10px 12px;border-left:3px solid var(--border);font:italic 13px/1.5 Georgia,serif;color:var(--muted)}
-.cc-life-view-mode .cc-rel-edit-only{display:none!important}
-@media(max-width:720px){.cc-rel-blurb-popup-modal{width:calc(100vw - 18px)!important}.cc-rel-blurb-quote{font-size:16px;padding:14px}}
-</style>
-<style id="cc-rel-readonly-blurb-popup-center-fix">
-/* Read-only relationship moment popup: one centered composition, with the bottom Close button as the only dismiss control. */
-.cc-rel-blurb-popup-modal .modal-head{display:none!important}
-.cc-rel-blurb-popup-modal .modal-body{display:flex;justify-content:center;padding-top:18px}
-.cc-rel-blurb-popup{width:100%;max-width:460px;justify-items:center;text-align:center}
-.cc-rel-blurb-person{width:100%;justify-content:center;text-align:center}
-.cc-rel-blurb-person div{justify-items:center;text-align:center}
-.cc-rel-blurb-meta{width:100%;justify-content:center;text-align:center}
-.cc-rel-blurb-quote,.cc-rel-blurb-empty,.cc-rel-blurb-note,.cc-rel-blurb-other{width:100%;box-sizing:border-box;text-align:center}
-.cc-rel-blurb-other summary{text-align:center}
-.cc-rel-blurb-popup-modal .modal-foot{display:flex;justify-content:center}
-.cc-rel-blurb-popup-modal .modal-foot .button{min-width:110px}
-.cc-rel-empty-blurb-toggle{display:flex!important;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--panel-soft);font-size:13px;line-height:1.35}
-.cc-rel-empty-blurb-toggle input{margin-top:2px;flex:0 0 auto}
-@media(max-width:720px){.cc-rel-blurb-popup{max-width:none}.cc-rel-blurb-popup-modal .modal-body{padding-top:14px}}
-</style>
-
-<style id="cc-relationship-responsive-width-fix">
-/* Relationship timelines use the full available row width.
-   The track only becomes horizontally scrollable when its points genuinely
-   cannot fit inside the current viewport/container. */
-.cc-rel-layout{
-  grid-template-columns:minmax(0,1fr) !important;
-  width:100%;
-}
-.cc-rel-list,.cc-rel-row{
-  width:100%;
-  max-width:none;
-}
-.cc-rel-row{
-  grid-template-columns:205px minmax(0,1fr);
-}
-.cc-rel-timeline{
-  width:100%;
-  min-width:0;
-  overflow-x:auto;
-  overflow-y:hidden;
-  padding-bottom:3px;
-}
-.cc-rel-track{
-  width:max-content;
-  min-width:100%;
-  box-sizing:border-box;
-}
-.cc-rel-segment{
-  flex:1 1 80px;
-  min-width:48px;
-}
-@media (max-width:1050px){
-  .cc-rel-row{grid-template-columns:180px minmax(0,1fr);}
-}
-@media (max-width:720px){
-  .cc-rel-row{grid-template-columns:1fr;}
-  .cc-rel-timeline{width:100%;}
-  .cc-rel-track{min-width:100%;}
-}
-</style>
-
-<style id="cc-relationship-equal-width-timeline-fix">
-/* Keep every relationship point evenly distributed across the full row.
-   Points shrink together with the window; horizontal scrolling starts only
-   after the labels would become too narrow to remain usable. */
-.cc-rel-timeline{
-  width:100%;
-  min-width:0;
-  overflow-x:auto;
-  overflow-y:hidden;
-}
-.cc-rel-track{
-  display:grid !important;
-  grid-template-columns:repeat(var(--cc-rel-count,1),minmax(92px,1fr));
-  gap:0 !important;
-  width:100% !important;
-  min-width:0 !important;
-  box-sizing:border-box;
-  align-items:end;
-  padding:6px 0 8px !important;
-}
-.cc-rel-step{
-  position:relative;
-  width:100% !important;
-  min-width:0 !important;
-  max-width:none !important;
-  display:block;
-  isolation:isolate;
-}
-.cc-rel-step .cc-rel-node{
-  width:100% !important;
-  min-width:0 !important;
-  max-width:none !important;
-  padding-left:6px;
-  padding-right:6px;
-  box-sizing:border-box;
-}
-.cc-rel-step:not(:last-child)::after{
-  left:50% !important;
-  width:100% !important;
-  bottom:9px !important;
-}
-.cc-rel-node-title,.cc-rel-node-state,.cc-rel-node-time{
-  max-width:100%;
-  overflow-wrap:anywhere;
-}
-@media(max-width:720px){
-  .cc-rel-track{
-    grid-template-columns:repeat(var(--cc-rel-count,1),minmax(82px,1fr));
-  }
-  .cc-rel-step .cc-rel-node{padding-left:4px;padding-right:4px}
-}
-</style>
-
-<style id="cc-relationship-fixed-full-rail-fix">
-/* Every relationship row shares one full-length rail. Point count changes only
-   the spacing between markers, never the rail length. */
-.cc-rel-timeline{
-  width:100%;
-  min-width:0;
-  overflow-x:auto;
-  overflow-y:hidden;
-  padding:2px 0 5px;
-}
-.cc-rel-track{
-  position:relative !important;
-  display:block !important;
-  /* Keep each 112px end marker completely inside the timeline viewport.
-     The previous 54px gutters left 2px of each marker overflowing, which
-     was enough to create a scrollbar even when every point was visible. */
-  width:calc(100% - 112px) !important;
-  min-width:var(--cc-rel-min-track,180px) !important;
-  height:96px;
-  margin:0 56px !important;
-  padding:0 !important;
-  box-sizing:border-box;
-  overflow:visible;
-}
-.cc-rel-step{
-  position:absolute !important;
-  left:var(--rel-pos) !important;
-  bottom:0;
-  width:112px !important;
-  min-width:112px !important;
-  max-width:112px !important;
-  transform:translateX(-50%);
-  display:block !important;
-  isolation:isolate;
-  z-index:2;
-}
-.cc-rel-step .cc-rel-node{
-  width:112px !important;
-  min-width:112px !important;
-  max-width:112px !important;
-  height:88px;
-  padding-left:4px !important;
-  padding-right:4px !important;
-  box-sizing:border-box;
-}
-.cc-rel-step:not(:last-child)::after{display:none !important}
-.cc-rel-rail-segment{
-  position:absolute;
-  left:0;
-  bottom:9px;
-  height:3px;
-  border-radius:999px;
-  background:linear-gradient(90deg,var(--rel-from),var(--rel-to));
-  opacity:.92;
-  z-index:0;
-  pointer-events:none;
-}
-.cc-rel-node i{z-index:3}
-@media(max-width:720px){
-  .cc-rel-track{
-    width:calc(100% - 100px) !important;
-    margin-left:50px !important;
-    margin-right:50px !important;
-  }
-  .cc-rel-step,.cc-rel-step .cc-rel-node{
-    width:100px !important;
-    min-width:100px !important;
-    max-width:100px !important;
-  }
-}
 </style>
 </head>
 <body>
@@ -17779,6 +17587,63 @@ initFirebase();
     return rendered;
   };
 
+  function ccDialogueCardSource(raw,index){
+    const source=String(raw||'');
+    const pattern=/\[dialogue\s+([^\]]+)\]([\s\S]*?)\[\/dialogue\]/gi;
+    let match,count=0;
+    while((match=pattern.exec(source))){
+      if(count===Number(index))return {source,start:match.index,end:pattern.lastIndex,full:match[0],attributes:match[1],text:match[2].trim()};
+      count+=1;
+    }
+    return null;
+  }
+  function ccDialogueCardSetAttribute(attributes,key,value){
+    const cleanValue=String(value??'').replace(/"/g,'');
+    const pattern=new RegExp(`\\b${key}="[^"]*"`,'i');
+    const replacement=`${key}="${cleanValue}"`;
+    return pattern.test(attributes)?attributes.replace(pattern,replacement):`${String(attributes||'').trim()} ${replacement}`.trim();
+  }
+  function ccDialogueCardBlock(attributes,text){return `[dialogue ${String(attributes||'').trim()}]\n${String(text||'').trim()}\n[/dialogue]`;}
+  function ccDialogueCanManageTurn(turn){
+    return Boolean(turn&&(normalizeMemberEmail(turn.authorEmail||'')===normalizeMemberEmail(firebase.user?.email||'')||isWorkspaceOwner()));
+  }
+  function ccDialogueExistingContext(card){
+    const post=card?.closest?.('[data-rp-post]');
+    const index=Number(card?.dataset?.ccDialogueIndex);
+    const {story}=ccrhStoryFromRoute();
+    const turn=story&&post?ensureStoryDocument(story).find(item=>String(item.id)===String(post.dataset.rpPost)):null;
+    const source=turn&&Number.isInteger(index)?ccDialogueCardSource(turn.text||'',index):null;
+    return story&&turn&&source?{story,turn,index,source}:null;
+  }
+  function ccDialogueSaveExisting(context,replacement,message){
+    if(!context||!context.turn||!context.source)return false;
+    context.turn.text=`${context.source.source.slice(0,context.source.start)}${replacement}${context.source.source.slice(context.source.end)}`.replace(/\n{4,}/g,'\n\n\n');
+    context.turn.updatedAt=nowISO();
+    scheduleSave('Saving Dialogue Card…');
+    ccrhRenderReader();
+    toast(message);
+    return true;
+  }
+  let ccDialogueExistingEdit=null;
+  function ccDialogueOpenTextEditor(context){
+    ccDialogueExistingEdit={storyId:context.story.id,turnId:context.turn.id,index:context.index,mode:'text'};
+    showModal('Edit dialogue',`<div class="cc-dialogue-quick-edit"><label>Dialogue<textarea class="textarea" data-cc-dialogue-existing-text>${esc(context.source.text)}</textarea></label><small class="muted">Only this Dialogue Card will change.</small></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-cc-dialogue-existing-save-text>Save dialogue</button>`);
+    requestAnimationFrame(()=>el.modal.querySelector('[data-cc-dialogue-existing-text]')?.focus());
+  }
+  function ccDialogueOpenSpeakerEditor(context){
+    const current={};context.source.attributes.replace(/([a-z]+)="([^"]*)"/gi,(match,key,value)=>{current[key.toLowerCase()]=value;return match;});
+    const options=(state.characters||[]).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))).map(character=>`<option value="${esc(character.id)}" ${String(character.id)===String(current.character||'')?'selected':''}>${esc(character.name||'Unnamed character')}</option>`).join('');
+    ccDialogueExistingEdit={storyId:context.story.id,turnId:context.turn.id,index:context.index,mode:'speaker'};
+    showModal('Change dialogue speaker',`<div class="cc-dialogue-quick-edit"><label>Who is speaking?<select class="select" data-cc-dialogue-existing-speaker>${options}</select></label><small class="muted">The new character’s portrait, name, profile color, subtitle, and preview blurb will be applied. The card’s layout stays the same.</small></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-cc-dialogue-existing-save-speaker>Change speaker</button>`);
+  }
+  function ccDialogueFreshExistingEdit(){
+    if(!ccDialogueExistingEdit)return null;
+    const story=storyById(ccDialogueExistingEdit.storyId);
+    const turn=story?ensureStoryDocument(story).find(item=>String(item.id)===String(ccDialogueExistingEdit.turnId)):null;
+    const source=turn?ccDialogueCardSource(turn.text||'',ccDialogueExistingEdit.index):null;
+    return story&&turn&&source?{story,turn,index:ccDialogueExistingEdit.index,source}:null;
+  }
+
   document.addEventListener('click',event=>{
     const open=event.target.closest('[data-cc-post-media-open]');
     if(open){
@@ -18235,6 +18100,8 @@ initFirebase();
       portraitX:ccDialogueClamp(saved.portraitX,0,100,50),
       portraitY:ccDialogueClamp(saved.portraitY,0,100,50),
       portraitZoom:ccDialogueClamp(saved.portraitZoom,1,2.5,1),
+      text:'',
+      advancedOpen:false,
       aboutMode:'unassigned',
       aboutIds:[],
       relStates:{},
@@ -18280,7 +18147,7 @@ initFirebase();
   function ccDialogueMarkup({
     character,name,subtitle,blurb,shape,imagePlacement,cardAlignment,namePlacement,
     theme,accentMode,customAccent,imageChoice,selectedImage,imageUrl,showImage,showBorder,showCorners,showBackground,glow,
-    innerPadding,spaceBefore,spaceAfter,portraitGap,cardWidth,portraitSize,imageCrop,imageFrame,portraitX,portraitY,portraitZoom,text
+    innerPadding,spaceBefore,spaceAfter,portraitGap,cardWidth,portraitSize,imageCrop,imageFrame,portraitX,portraitY,portraitZoom,text,cardIndex=null
   }){
     const accent=ccDialogueResolvedAccent(character,{accentMode,customAccent});
     const imageSource=String(imageUrl||'')||ccDialogueSelectedImage(character,{imageChoice,selectedImage});
@@ -18318,7 +18185,7 @@ initFirebase();
       `width-${esc(cardWidth)}`
     ].join(' ');
 
-    return `<aside class="${cardClasses}" style="--dialogue-accent:${esc(accent)}">
+    return `<aside class="${cardClasses}" style="--dialogue-accent:${esc(accent)}" ${Number.isInteger(cardIndex)?`data-cc-dialogue-index="${cardIndex}"`:''}>
       ${showCorners?`<span class="cc-dialogue-corner corner-tl"></span><span class="cc-dialogue-corner corner-tr"></span><span class="cc-dialogue-corner corner-bl"></span><span class="cc-dialogue-corner corner-br"></span>`:''}
       ${imagePlacement==='top'?portraitGroup:''}
       ${imagePlacement==='left'?portraitGroup:''}
@@ -18356,6 +18223,8 @@ initFirebase();
     const shapes=Object.entries(shapeLabels).map(([value,label])=>`<button type="button" class="${ccDialogueState.shape===value?'active':''}" data-cc-dialogue-shape="${value}">${label}</button>`).join('');
 
     const placements=[['left','Left'],['right','Right'],['top','Center top'],['bottom','Center bottom']]
+      .map(([value,label])=>`<button type="button" class="${ccDialogueState.imagePlacement===value?'active':''}" data-cc-dialogue-placement="${value}">${label}</button>`).join('');
+    const quickPlacements=[['left','Left'],['right','Right']]
       .map(([value,label])=>`<button type="button" class="${ccDialogueState.imagePlacement===value?'active':''}" data-cc-dialogue-placement="${value}">${label}</button>`).join('');
 
     const alignments=[['left','Left'],['center','Center'],['right','Right'],['full','Full width']]
@@ -18409,12 +18278,24 @@ initFirebase();
 
     return `<section class="cc-dialogue-builder">
       <header class="cc-dialogue-builder-head">
-        <div><span class="eyebrow">BBCode widget</span><h3>Dialogue Card</h3></div>
+        <div><span class="eyebrow">Quick builder</span><h3>Add Dialogue Card</h3></div>
         <button class="icon-button" type="button" data-cc-dialogue-close>×</button>
       </header>
 
-      <div class="cc-dialogue-builder-grid">
-        <label>Character<select class="select" data-cc-dialogue-character>${options}</select></label>
+      <div class="cc-dialogue-quick-layout">
+        <div class="cc-dialogue-quick-fields">
+          <div class="cc-dialogue-quick-title"><strong>Create the card</strong><small>Choose the speaker, write the dialogue, and pick the portrait side.</small></div>
+          <label>Who is speaking?<select class="select" data-cc-dialogue-character>${options}</select></label>
+          <label>Dialogue<textarea class="textarea" rows="6" data-cc-dialogue-text placeholder="Write or paste the dialogue here…">${esc(ccDialogueState.text||'')}</textarea></label>
+          <div><strong>Portrait side</strong><div class="cc-dialogue-options">${quickPlacements}</div>${!['left','right'].includes(ccDialogueState.imagePlacement)?`<small class="muted">Current saved placement: ${ccDialogueState.imagePlacement==='top'?'Center top':'Center bottom'}. Choose a side here or change it under Advanced formatting.</small>`:''}</div>
+          <div class="cc-dialogue-saved-style-note">${esc(activeCharacter?.name||'This character')}’s saved portrait, profile color, subtitle, and card style are already applied.</div>
+        </div>
+        <div class="cc-dialogue-quick-preview"><strong>Live preview</strong><div class="cc-dialogue-preview" data-cc-dialogue-preview></div></div>
+      </div>
+
+      <details class="cc-dialogue-advanced" data-cc-dialogue-advanced ${ccDialogueState.advancedOpen?'open':''}>
+        <summary><span><strong>Advanced formatting</strong><small>Card style, identity, relationship details, portrait controls, spacing, and images</small></span></summary>
+        <div class="cc-dialogue-builder-grid">
         <label>Display name<input class="input" data-cc-dialogue-name value="${esc(ccDialogueState.name)}"></label>
 
         <label>Subtitle<input class="input" data-cc-dialogue-subtitle value="${esc(ccDialogueState.subtitle)}" placeholder="Optional title or role"></label>
@@ -18494,11 +18375,11 @@ initFirebase();
           </div>
           ${selectedImageSource?`<div class="cc-dialogue-selected-image-note">Selected image will stay attached to this Dialogue Card.</div>`:''}
         </div>
-        <div class="wide"><strong>Live preview</strong><div class="cc-dialogue-preview" data-cc-dialogue-preview></div></div>
-      </div>
+        </div>
+      </details>
 
       <footer class="cc-dialogue-builder-actions">
-        <label class="cc-dialogue-check"><input type="checkbox" data-cc-dialogue-save-default checked><span>Save these settings as this character’s default</span></label>
+        <label class="cc-dialogue-check"><input type="checkbox" data-cc-dialogue-save-default ${ccDialogueState.saveDefault?'checked':''}><span>Remember this style for ${esc(activeCharacter?.name||'this character')}</span></label>
         <div>
           <button class="button secondary" type="button" data-cc-dialogue-close>Cancel</button>
           <button class="button" type="button" data-cc-dialogue-insert>Insert Dialogue Card</button>
@@ -18552,7 +18433,7 @@ initFirebase();
       portraitX:ccDialogueState.portraitX,
       portraitY:ccDialogueState.portraitY,
       portraitZoom:ccDialogueState.portraitZoom,
-      text:ccDialogueSelection.text||'Selected dialogue will appear here.'
+      text:String(ccDialogueState.text||'').trim()||'Your dialogue will appear here.'
     });
   }
 
@@ -18591,6 +18472,7 @@ initFirebase();
       const speakerId=speakerValue.startsWith('character:')?speakerValue.slice('character:'.length):'';
       const first=(state.characters||[]).find(item=>String(item.id)===String(speakerId))||(state.characters||[])[0]||null;
       ccDialogueState=ccDialogueLoad(first);
+      ccDialogueState.text=ccDialogueSelection.text||'';
       ccDialogueApplyAboutDefaults(first);
       mount.hidden=false;
       mount.innerHTML=ccDialogueBuilderHtml();
@@ -18618,11 +18500,13 @@ initFirebase();
     const nameInput=mount.querySelector('[data-cc-dialogue-name]');
     const subtitleInput=mount.querySelector('[data-cc-dialogue-subtitle]');
     const blurbInput=mount.querySelector('[data-cc-dialogue-blurb]');
+    const dialogueInput=mount.querySelector('[data-cc-dialogue-text]');
     const customAccentInput=mount.querySelector('[data-cc-dialogue-custom-accent]');
 
     if(nameInput)ccDialogueState.name=nameInput.value;
     if(subtitleInput)ccDialogueState.subtitle=subtitleInput.value;
     if(blurbInput)ccDialogueState.blurb=blurbInput.value;
+    if(dialogueInput)ccDialogueState.text=dialogueInput.value;
     if(customAccentInput)ccDialogueState.customAccent=customAccentInput.value;
     const checkedTargets=[...mount.querySelectorAll('[data-cc-dialogue-about-target]:checked')].map(input=>String(input.value)).filter(Boolean);
     if(checkedTargets.length){ccDialogueState.aboutMode='targets';ccDialogueState.aboutIds=[...new Set(checkedTargets)];}
@@ -18652,7 +18536,7 @@ initFirebase();
     }
 
     ccDialogueSync();
-    const body=ccDialogueSelection.text||'Dialogue';
+    const body=String(ccDialogueState.text||'').trim()||'Dialogue';
     const clean=value=>String(value||'').replace(/"/g,'');
 
     let aboutMode=String(ccDialogueState.aboutMode||'unassigned');
@@ -18726,6 +18610,7 @@ initFirebase();
         const token=`CCDIALOGUE${cards.length}TOKEN`;
 
         cards.push(ccDialogueMarkup({
+          cardIndex:cards.length,
           character,
           name:attrs.name??character?.name??'Character',
           subtitle:attrs.subtitle||'',
@@ -18773,6 +18658,68 @@ initFirebase();
   document.addEventListener('click',event=>{
     if(event.target.closest('[data-cc-dialogue-card-open]')){event.preventDefault();try{ccDialogueOpen();}catch(error){console.error('Dialogue Card click failed.',error);toast('The Dialogue Card could not open.','error');}return;}
     if(event.target.closest('[data-cc-dialogue-close]')){event.preventDefault();ccDialogueClose();return;}
+
+    if(event.target.closest('[data-cc-dialogue-existing-save-text]')){
+      event.preventDefault();
+      const context=ccDialogueFreshExistingEdit(),value=el.modal.querySelector('[data-cc-dialogue-existing-text]')?.value||'';
+      if(!context){toast('That Dialogue Card could not be found. Refresh Codex and try again.','error');return;}
+      ccDialogueSaveExisting(context,ccDialogueCardBlock(context.source.attributes,value),'Dialogue updated.');
+      ccDialogueExistingEdit=null;closeModal();return;
+    }
+    if(event.target.closest('[data-cc-dialogue-existing-save-speaker]')){
+      event.preventDefault();
+      const context=ccDialogueFreshExistingEdit(),characterId=el.modal.querySelector('[data-cc-dialogue-existing-speaker]')?.value||'';
+      const character=getItem('characters',characterId);
+      if(!context||!character){toast('Choose a character first.','error');return;}
+      const saved=ccDialogueDefaults()[character.id]||{};
+      let attributes=context.source.attributes;
+      attributes=ccDialogueCardSetAttribute(attributes,'character',character.id);
+      attributes=ccDialogueCardSetAttribute(attributes,'name',Object.prototype.hasOwnProperty.call(saved,'name')?saved.name:(character.name||'Character'));
+      attributes=ccDialogueCardSetAttribute(attributes,'subtitle',saved.subtitle||'');
+      attributes=ccDialogueCardSetAttribute(attributes,'blurb',saved.blurb||ccDialogueBlurb(character));
+      attributes=ccDialogueCardSetAttribute(attributes,'accent','profile');
+      attributes=ccDialogueCardSetAttribute(attributes,'imagechoice','default');
+      attributes=ccDialogueCardSetAttribute(attributes,'imageid','');
+      attributes=ccDialogueCardSetAttribute(attributes,'aboutmode','unassigned');
+      attributes=ccDialogueCardSetAttribute(attributes,'about','');
+      attributes=ccDialogueCardSetAttribute(attributes,'relstates','');
+      ccDialogueSaveExisting(context,ccDialogueCardBlock(attributes,context.source.text),'Dialogue speaker changed.');
+      ccDialogueExistingEdit=null;closeModal();return;
+    }
+
+    const existingAction=event.target.closest('[data-cc-dialogue-card-action]');
+    if(existingAction){
+      event.preventDefault();event.stopPropagation();
+      const card=existingAction.closest('.cc-dialogue-card'),context=ccDialogueExistingContext(card);
+      if(!context||!ccDialogueCanManageTurn(context.turn)){toast('Only the post author or workspace owner can change this Dialogue Card.','error');return;}
+      const action=existingAction.dataset.ccDialogueCardAction;
+      if(action==='text'){ccDialogueOpenTextEditor(context);return;}
+      if(action==='speaker'){ccDialogueOpenSpeakerEditor(context);return;}
+      if(action==='flip'){
+        const current=(context.source.attributes.match(/\bimage="([^"]*)"/i)?.[1]||'right').toLowerCase();
+        const next=current==='left'?'right':'left';
+        const attributes=ccDialogueCardSetAttribute(context.source.attributes,'image',next);
+        ccDialogueSaveExisting(context,ccDialogueCardBlock(attributes,context.source.text),`Portrait moved to the ${next}.`);return;
+      }
+      if(action==='duplicate'){
+        ccDialogueSaveExisting(context,`${context.source.full}\n${context.source.full}`,'Dialogue Card duplicated.');return;
+      }
+      if(action==='delete'&&confirm('Delete this Dialogue Card?')){
+        ccDialogueSaveExisting(context,'','Dialogue Card deleted.');return;
+      }
+    }
+
+    const existingCard=event.target.closest('.cc-dialogue-card[data-cc-dialogue-index]');
+    if(existingCard&&!event.target.closest('[data-cc-dialogue-profile-toggle],.cc-dialogue-profile-popover')){
+      const context=ccDialogueExistingContext(existingCard);
+      if(context&&ccDialogueCanManageTurn(context.turn)){
+        event.preventDefault();
+        const alreadyOpen=Boolean(existingCard.querySelector('.cc-dialogue-card-tools'));
+        document.querySelectorAll('.cc-dialogue-card-tools').forEach(toolbar=>toolbar.remove());
+        if(!alreadyOpen)existingCard.insertAdjacentHTML('beforeend','<div class="cc-dialogue-card-tools" role="toolbar" aria-label="Dialogue Card actions"><button type="button" data-cc-dialogue-card-action="text">Edit text</button><button type="button" data-cc-dialogue-card-action="speaker">Change speaker</button><button type="button" data-cc-dialogue-card-action="flip">Flip portrait</button><button type="button" data-cc-dialogue-card-action="duplicate">Duplicate</button><button class="danger" type="button" data-cc-dialogue-card-action="delete">Delete</button></div>');
+        return;
+      }
+    }
 
 
 
@@ -18870,7 +18817,7 @@ initFirebase();
     if(placement){
       event.preventDefault();
       ccDialogueState.imagePlacement=placement.dataset.ccDialoguePlacement;
-      placement.parentElement.querySelectorAll('button').forEach(button=>button.classList.toggle('active',button===placement));
+      document.querySelectorAll('[data-cc-dialogue-placement]').forEach(button=>button.classList.toggle('active',button.dataset.ccDialoguePlacement===ccDialogueState.imagePlacement));
       ccDialogueRefreshPreview();
       return;
     }
@@ -18914,6 +18861,9 @@ initFirebase();
     if(!event.target.closest('.cc-dialogue-profile-popover')){
       document.querySelectorAll('.cc-dialogue-profile-popover').forEach(popover=>popover.hidden=true);
     }
+    if(!event.target.closest('.cc-dialogue-card')){
+      document.querySelectorAll('.cc-dialogue-card-tools').forEach(toolbar=>toolbar.remove());
+    }
   },true);
 
   document.addEventListener('change',async event=>{
@@ -18940,8 +18890,13 @@ initFirebase();
   document.addEventListener('change',event=>{
     const characterSelect=event.target.closest('[data-cc-dialogue-character]');
     if(characterSelect){
+      ccDialogueSync();
+      const dialogueText=String(ccDialogueState?.text||'');
+      const advancedOpen=Boolean(ccDialogueState?.advancedOpen);
       const character=(state.characters||[]).find(item=>String(item.id)===String(characterSelect.value))||null;
       ccDialogueState=ccDialogueLoad(character);
+      ccDialogueState.text=dialogueText;
+      ccDialogueState.advancedOpen=advancedOpen;
       ccDialogueApplyAboutDefaults(character);
       const mount=document.querySelector('[data-cc-dialogue-builder-mount]');
       if(mount){mount.innerHTML=ccDialogueBuilderHtml();ccDialogueRefreshPreview();}
@@ -18962,7 +18917,12 @@ initFirebase();
   },true);
 
   document.addEventListener('input',event=>{
-    if(event.target.closest('[data-cc-dialogue-name],[data-cc-dialogue-subtitle],[data-cc-dialogue-blurb],[data-cc-dialogue-custom-accent],[data-cc-dialogue-portrait-x],[data-cc-dialogue-portrait-y],[data-cc-dialogue-portrait-zoom]'))ccDialogueSync();
+    if(event.target.closest('[data-cc-dialogue-text],[data-cc-dialogue-name],[data-cc-dialogue-subtitle],[data-cc-dialogue-blurb],[data-cc-dialogue-custom-accent],[data-cc-dialogue-portrait-x],[data-cc-dialogue-portrait-y],[data-cc-dialogue-portrait-zoom]'))ccDialogueSync();
+  },true);
+
+  document.addEventListener('toggle',event=>{
+    const advanced=event.target.closest?.('[data-cc-dialogue-advanced]');
+    if(advanced&&ccDialogueState)ccDialogueState.advancedOpen=advanced.open;
   },true);
 
   let ccDialoguePortraitDrag=null;
@@ -19711,7 +19671,7 @@ initFirebase();
   function ccRelMilestonePlacementLabel(index,scenes){
     const value=Math.max(0,Math.min(scenes.length,Number(index)||0));
     if(!scenes.length)return 'Off-screen / undated';
-    if(value===0)return 'First impressions';
+    if(value===0)return `Before first interaction · ${scenes[0].title}`;
     if(value>=scenes.length)return `After ${scenes[scenes.length-1].title} · before Now`;
     return `Between ${scenes[value-1].title} and ${scenes[value].title}`;
   }
@@ -19771,22 +19731,15 @@ initFirebase();
     return `<button class="cc-rel-point-thought" type="button" data-cc-rel-select="${esc(character.id)}|${esc(target.id)}|${encodeURIComponent(node.key)}"><small>${esc(sourceLabel)}</small><span>“${esc(shortText(blurb,130))}”</span></button>`;
   }
   function ccRelTrackHtml(character,target,nodes,record){
-    const selected=ccRelationshipSelections.get(character.id),personImage=ccRelPersonImage(target),current=ccRelPerspective(record,character.id),currentNode=nodes.find(node=>node.kind==='current'),autoCurrent=currentNode?.state||'',autoColor=currentNode?.color||CC_REL_CURRENT,pieces=[],segments=[];
-    const nodeCount=Math.max(1,nodes.length),denominator=Math.max(1,nodeCount-1);
+    const selected=ccRelationshipSelections.get(character.id),personImage=ccRelPersonImage(target),current=ccRelPerspective(record,character.id),currentNode=nodes.find(node=>node.kind==='current'),autoCurrent=currentNode?.state||'',autoColor=currentNode?.color||CC_REL_CURRENT,pieces=[];
     nodes.forEach((node,index)=>{
       const isSelected=selected?.targetId===target.id&&selected?.nodeKey===node.key;
       const classes=[node.kind==='current'?'is-current':'',node.kind==='milestone'?'is-milestone':'',node.kind==='rp-anchor'?'is-rp-anchor':'',node.stateChanged?'is-state-change':'',isSelected?'is-selected':''].filter(Boolean).join(' ');
       const label=node.kind==='milestone'?'Off-screen':node.kind==='rp-anchor'?(node.stateChanged?'State change':'RP'):'Now';
       const next=index<nodes.length-1?nodes[index+1]:null;
-      const position=nodeCount===1?50:(index/denominator)*100;
-      pieces.push(`<div class="cc-rel-step ${classes}" style="--rel-color:${esc(node.color)};--rel-next:${esc(next?.color||node.color)};--rel-pos:${position.toFixed(4)}%"><button class="cc-rel-node ${classes}" type="button" data-cc-rel-select="${esc(character.id)}|${esc(target.id)}|${encodeURIComponent(node.key)}"><span class="cc-rel-node-kind">${esc(label)}</span><span class="cc-rel-node-title">${esc(node.title)}</span>${node.explicitState&&node.title!==node.explicitState?`<span class="cc-rel-node-state">${esc(node.explicitState)}</span>`:''}<span class="cc-rel-node-time">${esc(node.time||'')}</span><i></i></button></div>`);
-      if(next){
-        const nextPosition=((index+1)/denominator)*100;
-        segments.push(`<span class="cc-rel-rail-segment" style="left:${position.toFixed(4)}%;width:${(nextPosition-position).toFixed(4)}%;--rel-from:${esc(node.color)};--rel-to:${esc(next.color||node.color)}"></span>`);
-      }
+      pieces.push(`<div class="cc-rel-step ${classes}" style="--rel-color:${esc(node.color)};--rel-next:${esc(next?.color||node.color)}"><button class="cc-rel-node ${classes}" type="button" data-cc-rel-select="${esc(character.id)}|${esc(target.id)}|${encodeURIComponent(node.key)}"><span class="cc-rel-node-kind">${esc(label)}</span><span class="cc-rel-node-title">${esc(node.title)}</span>${node.explicitState&&node.title!==node.explicitState?`<span class="cc-rel-node-state">${esc(node.explicitState)}</span>`:''}<span class="cc-rel-node-time">${esc(node.time||'')}</span><i></i></button>${ccRelPointThoughtHtml(character,target,node)}</div>`);
     });
-    const minTrack=Math.max(180,(nodeCount-1)*92);
-    return `<article class="cc-rel-row" data-cc-rel-row="${esc(target.id)}"><div class="cc-rel-person"><button type="button" class="cc-rel-avatar" data-open="characters:${esc(target.id)}">${personImage?`<img src="${esc(personImage)}" alt="">`:esc(initials(target.name||'?'))}</button><div><button class="cc-rel-person-name" type="button" data-open="characters:${esc(target.id)}">${esc(target.name)}</button>${current.type?`<span class="cc-rel-type">${esc(current.type)}</span>`:''}${autoCurrent?`<strong class="cc-rel-current-label" style="--rel-color:${esc(autoColor)}">Current: ${esc(autoCurrent)}</strong>`:'<span class="cc-rel-current-empty">Current state not recorded yet</span>'}</div></div><div class="cc-rel-timeline"><div class="cc-rel-track" style="--cc-rel-count:${nodeCount};--cc-rel-min-track:${minTrack}px">${segments.join('')}${pieces.join('')}</div></div><div class="cc-rel-row-actions"><button class="button secondary small cc-rel-edit-only" type="button" data-cc-rel-edit-pair="${esc(character.id)}|${esc(target.id)}">Colors & relationship</button><button class="button ghost small cc-rel-edit-only" type="button" data-cc-rel-add-milestone="${esc(character.id)}|${esc(target.id)}">+ Relationship milestone</button></div></article>`;
+    return `<article class="cc-rel-row" data-cc-rel-row="${esc(target.id)}"><div class="cc-rel-person"><button type="button" class="cc-rel-avatar" data-open="characters:${esc(target.id)}">${personImage?`<img src="${esc(personImage)}" alt="">`:esc(initials(target.name||'?'))}</button><div><button class="cc-rel-person-name" type="button" data-open="characters:${esc(target.id)}">${esc(target.name)}</button>${current.type?`<span class="cc-rel-type">${esc(current.type)}</span>`:''}${autoCurrent?`<strong class="cc-rel-current-label" style="--rel-color:${esc(autoColor)}">Current: ${esc(autoCurrent)}</strong>`:'<span class="cc-rel-current-empty">Current state not recorded yet</span>'}</div></div><div class="cc-rel-timeline"><div class="cc-rel-track">${pieces.join('')}</div></div><div class="cc-rel-row-actions"><button class="button secondary small cc-rel-edit-only" type="button" data-cc-rel-edit-pair="${esc(character.id)}|${esc(target.id)}">Colors & relationship</button><button class="button ghost small" type="button" data-cc-rel-add-milestone="${esc(character.id)}|${esc(target.id)}">+ Relationship milestone</button></div></article>`;
   }
   function ccRelInspectorPostLink(post,label='Open exact RP post'){
     if(!post)return '';if(post.turnId)return `<button class="button secondary small" type="button" data-ccrh-open-linked-post="${esc(post.storyId)}|${esc(post.nodeId)}|${esc(post.turnId)}">${esc(label)} →</button>`;return `<button class="button secondary small" type="button" data-story-point="${esc(storyRouteValue(post.storyId,post.nodeId))}">${esc(label)} →</button>`;
@@ -19801,40 +19754,6 @@ initFirebase();
     const milestoneActions=milestone?`<button class="button small" type="button" data-cc-rel-edit-milestone="${esc(character.id)}|${esc(target.id)}|${esc(milestone.id)}">✎ Edit milestone</button><button class="button secondary small" type="button" data-cc-rel-move-milestone="${esc(character.id)}|${esc(target.id)}|${esc(milestone.id)}|earlier" ${Number(node.placementIndex)<=0?'disabled':''}>← Move earlier</button><button class="button secondary small" type="button" data-cc-rel-move-milestone="${esc(character.id)}|${esc(target.id)}|${esc(milestone.id)}|later" ${Number(node.placementIndex)>=Number(nodes._scenes?.length||0)?'disabled':''}>Move later →</button><button class="button ghost small" type="button" data-cc-rel-delete-milestone="${esc(character.id)}|${esc(target.id)}|${esc(milestone.id)}">Delete milestone</button>`:'';
     return `<aside class="cc-rel-inspector"><header class="cc-rel-inspector-head"><div class="cc-rel-inspector-person">${targetImage?`<img src="${esc(targetImage)}" alt="">`:`<span>${esc(initials(target.name||'?'))}</span>`}<div><strong>${esc(target.name)}</strong>${subjectPerspective.type?`<small>${esc(subjectPerspective.type)}</small>`:''}</div></div></header><div class="cc-rel-inspector-body"><section><span class="cc-rel-inspector-label">Relationship progression</span><h3>${esc(node.explicitState||node.title)}</h3>${node.subtitle?`<p>${esc(node.subtitle)}</p>`:''}<small>${esc(node.time||'')}</small>${node.kind==='milestone'?`<small class="cc-rel-placement-note">◇ ${esc(node.placementLabel||'Off-screen milestone')}</small>`:''}</section>${note}<div class="cc-rel-inspector-section"><span class="cc-rel-inspector-label">${esc(character.name)} at this point</span>${stateLine(subjectAt.state,subjectAt.color)}${subjectAt.blurb?`<blockquote class="cc-rel-main-thought">“${esc(subjectAt.blurb)}”</blockquote>`:'<p class="muted">No relationship blurb was recorded at this point.</p>'}</div><div class="cc-rel-inspector-section"><span class="cc-rel-inspector-label">${esc(target.name)} at the same point</span>${stateLine(targetAt.state,targetAt.color)}${targetAt.blurb?`<blockquote class="cc-rel-main-thought">“${esc(targetAt.blurb)}”</blockquote>`:'<p class="muted">No relationship blurb was recorded from this perspective.</p>'}</div>${source}<div class="cc-rel-inspector-section"><span class="cc-rel-inspector-label">Where they are now</span>${stateLine(currentSubject,current?.color||CC_REL_CURRENT,`${character.name}: no state`)}${currentTarget?`<small>${esc(target.name)}: ${esc(currentTarget)}</small>`:''}</div><div class="cc-rel-inspector-actions">${node.kind==='rp-anchor'?`<button class="button small" type="button" data-cc-rel-edit-point="${esc(character.id)}|${esc(target.id)}|${encodeURIComponent(node.key)}">✎ Edit RP relationship point</button>`:''}${milestoneActions}<button class="button secondary small" type="button" data-open="characters:${esc(target.id)}">Open Bio</button><button class="button secondary small" type="button" data-cc-life-story="${esc(target.id)}">Open Life Story</button></div></div></aside>`;
   }
-  function ccRelPointPopup(character,target,nodes,record,node){
-    if(!character||!target||!node)return;
-    const targetImage=ccRelPersonImage(target);
-    const subjectAt=node.perspectives?.[character.id]||{state:node.state||'',color:node.color,blurb:node.blurb||''};
-    const targetAt=node.perspectives?.[target.id]||{state:'',color:CC_REL_NEUTRAL,blurb:''};
-    const milestone=node.kind==='milestone'?(record?.milestones||[]).find(item=>item.id===node.milestoneId)||null:null;
-    const stateLabel=subjectAt.explicitState||node.explicitState||subjectAt.state||node.state||'';
-    const sourceLabel=node.kind==='rp-anchor'&&node.scene
-      ? `${node.scene.story?.name||'Roleplay'} · ${node.scene.title||node.title}`
-      : node.kind==='milestone'
-        ? (node.placementLabel||node.time||'Off-screen milestone')
-        : 'Present';
-    const primaryBlurb=String(subjectAt.blurb||'').trim();
-    const otherBlurb=String(targetAt.blurb||'').trim();
-    const showEmptyBlurbNotice=node.kind==='milestone'?Boolean(milestone?.showEmptyBlurbNotice):true;
-    const quote=primaryBlurb
-      ? `<blockquote class="cc-rel-blurb-quote">“${esc(primaryBlurb)}”</blockquote>`
-      : showEmptyBlurbNotice
-        ? `<div class="cc-rel-blurb-empty">No relationship blurb was recorded for ${esc(character.name)} at this point.</div>`
-        : '';
-    const other=otherBlurb
-      ? `<details class="cc-rel-blurb-other"><summary>${esc(target.name)}'s perspective</summary><blockquote>“${esc(otherBlurb)}”</blockquote></details>`
-      : '';
-    const offscreenNote=milestone?.note?`<p class="cc-rel-blurb-note">${esc(milestone.note)}</p>`:'';
-    showModal('',`<div class="cc-rel-blurb-popup">
-      <div class="cc-rel-blurb-person">${targetImage?`<img src="${esc(targetImage)}" alt="">`:`<span>${esc(initials(target.name||'?'))}</span>`}<div><small>${node.kind==='milestone'?'Off-screen milestone':node.kind==='current'?'Current relationship':'Relationship moment'}</small><strong>${esc(target.name)}</strong></div></div>
-      <div class="cc-rel-blurb-meta">${stateLabel?`<span class="cc-rel-blurb-state" style="--rel-color:${esc(subjectAt.color||node.color||CC_REL_NEUTRAL)}"><i></i>${esc(stateLabel)}</span>`:''}<span>${esc(sourceLabel)}</span></div>
-      ${offscreenNote}${quote}${other}
-    </div>`,`<button class="button secondary" type="button" data-close-modal>Close</button>`);
-    const modal=el.modal.querySelector('.modal');
-    modal?.classList.add('cc-rel-blurb-popup-modal');
-    modal?.querySelector('.modal-head')?.classList.add('cc-rel-blurb-popup-head');
-  }
-
   function ccRelTurnMeta(turn){
     if(!turn)return {};turn.relationshipMeta ||= {};return turn.relationshipMeta;
   }
@@ -19975,7 +19894,7 @@ initFirebase();
     let selection=ccRelationshipSelections.get(character.id)||null;if(!selection||!rows.some(row=>row.person.id===selection.targetId&&row.nodes.some(node=>node.key===selection.nodeKey))){const firstRow=rows[0],preferred=firstRow?.nodes.find(node=>node.stateChanged)||firstRow?.nodes[0];selection=firstRow?{targetId:firstRow.person.id,nodeKey:preferred?.key||'current'}:null;if(selection)ccRelationshipSelections.set(character.id,selection);}
     const activeRow=selection?rows.find(row=>row.person.id===selection.targetId):null,activeNode=activeRow?ccRelNodeFromKey(character,activeRow.person,activeRow.nodes,selection.nodeKey):null;
     const interactions=rows.reduce((sum,row)=>sum+(row.scenes?.length||0),0),stateChanges=rows.reduce((sum,row)=>sum+row.nodes.filter(node=>node.stateChanged&&node.kind!=='current').length,0),manualMilestones=rows.reduce((sum,row)=>sum+(row.record?.milestones?.length||0),0),rpThoughts=rows.reduce((sum,row)=>sum+((row.nodes._history?.byPerson?.[character.id]||[]).filter(post=>post.blurb).length),0);
-    return `<section class="cc-rel-view">${unassigned.length?`<button class="cc-rel-unassigned-notice cc-rel-edit-only" type="button" data-cc-rel-review-unassigned="${esc(character.id)}"><span><strong>${unassigned.length} blurb${unassigned.length===1?'':'s'} need a person</strong><small>Older multi-character RP scenes are waiting for a quick assignment.</small></span><b>Review →</b></button>`:''}<div class="cc-rel-view-head"><div><span class="eyebrow">Relationships</span><h2>${esc(character.name)}'s relationship history over time</h2><p>Every shared RP scene stays anchored in story order. Relationship states begin only where they are actually recorded, and you can add off-screen milestones between those anchors without changing the RP.</p></div><button class="button secondary small cc-rel-edit-only" type="button" data-cc-rel-add-relationship="${esc(character.id)}">+ Add off-screen relationship</button></div><div class="cc-rel-stats"><span><strong>${rows.length}</strong> people</span><span><strong>${interactions}</strong> RP interactions</span><span><strong>${stateChanges}</strong> relationship changes</span><span><strong>${manualMilestones}</strong> off-screen milestones</span><span><strong>${rpThoughts}</strong> character blurbs</span></div><div class="cc-rel-point-legend"><span><i class="rp"></i> RP anchor</span><span><i class="manual"></i> Off-screen milestone</span><span><i class="change"></i> Relationship state changed here</span></div>${rows.length?`<div class="cc-rel-layout"><div class="cc-rel-list">${rows.map(row=>ccRelTrackHtml(character,row.person,row.nodes,row.record)).join('')}</div></div>`:`<div class="cc-life-empty"><h3>No relationship paths yet</h3><p>When ${esc(character.name)} and another character share RP scenes, those scenes become fixed relationship anchors. You can also add off-screen milestones between them.</p><button class="button cc-rel-edit-only" type="button" data-cc-rel-add-relationship="${esc(character.id)}">+ Add off-screen relationship</button></div>`}</section>`;
+    return `<section class="cc-rel-view">${unassigned.length?`<button class="cc-rel-unassigned-notice cc-rel-edit-only" type="button" data-cc-rel-review-unassigned="${esc(character.id)}"><span><strong>${unassigned.length} blurb${unassigned.length===1?'':'s'} need a person</strong><small>Older multi-character RP scenes are waiting for a quick assignment.</small></span><b>Review →</b></button>`:''}<div class="cc-rel-view-head"><div><span class="eyebrow">Relationships</span><h2>${esc(character.name)}'s relationship history over time</h2><p>Every shared RP scene stays anchored in story order. Relationship states begin only where they are actually recorded, and you can add off-screen milestones between those anchors without changing the RP.</p></div><button class="button secondary small cc-rel-edit-only" type="button" data-cc-rel-add-relationship="${esc(character.id)}">+ Add off-screen relationship</button></div><div class="cc-rel-stats"><span><strong>${rows.length}</strong> people</span><span><strong>${interactions}</strong> RP interactions</span><span><strong>${stateChanges}</strong> relationship changes</span><span><strong>${manualMilestones}</strong> off-screen milestones</span><span><strong>${rpThoughts}</strong> character blurbs</span></div><div class="cc-rel-point-legend"><span><i class="rp"></i> RP anchor</span><span><i class="manual"></i> Off-screen milestone</span><span><i class="change"></i> Relationship state changed here</span></div>${rows.length?`<div class="cc-rel-layout"><div class="cc-rel-list">${rows.map(row=>ccRelTrackHtml(character,row.person,row.nodes,row.record)).join('')}</div>${ccRelInspectorHtml(character,activeRow?.person,activeRow?.nodes||[],activeRow?.record,activeNode)}</div>`:`<div class="cc-life-empty"><h3>No relationship paths yet</h3><p>When ${esc(character.name)} and another character share RP scenes, those scenes become fixed relationship anchors. You can also add off-screen milestones between them.</p><button class="button cc-rel-edit-only" type="button" data-cc-rel-add-relationship="${esc(character.id)}">+ Add off-screen relationship</button></div>`}</section>`;
   }
   function ccRelTopFilters(characterId,filter){return `<div class="cc-life-tools"><div class="cc-life-filters"><button type="button" class="${filter==='all'?'is-active':''}" data-cc-life-filter="${esc(characterId)}|all">Full Life</button><button type="button" class="${filter==='relationships'?'is-active':''}" data-cc-life-filter="${esc(characterId)}|relationships">Relationships</button><button type="button" class="${filter==='story'?'is-active':''}" data-cc-life-filter="${esc(characterId)}|story">Story / RP only</button></div></div>`;}
 
@@ -19997,15 +19916,15 @@ initFirebase();
   }
   function ccRelMilestoneEditor(subjectId,targetId,milestoneId=''){
     const subject=getItem('characters',subjectId),target=getItem('characters',targetId);if(!subject||!target)return;const record=ccRelRecord(subjectId,targetId,true),existing=(record.milestones||[]).find(item=>item.id===milestoneId)||null,scenes=ccRelSharedScenes(subjectId,targetId);
-    const defaultPlacement=existing?ccRelMilestonePlacement(existing,scenes):scenes.length,draft=existing||{id:'',title:'',timeLabel:'',exactDate:'',note:'',placementIndex:defaultPlacement,perspectives:{},showEmptyBlurbNotice:false};
+    const defaultPlacement=existing?ccRelMilestonePlacement(existing,scenes):scenes.length,draft=existing||{id:'',title:'',timeLabel:'',exactDate:'',note:'',placementIndex:defaultPlacement,perspectives:{}};
     const placementOptions=Array.from({length:scenes.length+1},(_,index)=>`<option value="${index}" ${Number(defaultPlacement)===index?'selected':''}>${esc(ccRelMilestonePlacementLabel(index,scenes))}</option>`).join('');
     const perspectivePanel=(person)=>{const perspective=existing?ccRelMilestonePerspective(record,existing,person.id):{state:'',color:CC_REL_NEUTRAL,blurbSource:'none',customBlurb:'',whatChanged:''};const states=ccRelStateLibrary();const stateOptions=states.map(item=>`<option value="${esc(item.label)}" ${ccRelStateKey(item.label)===ccRelStateKey(perspective.state)?'selected':''}>${esc(item.label)}</option>`).join('');const stateColor=perspective.state?ccRelStatePaletteColor(perspective.state):CC_REL_NEUTRAL;return `<section class="cc-rel-edit-perspective"><h3>${esc(person.name)}'s perspective</h3><label><span>Relationship state beginning here</span><select class="select" data-cc-rel-mile-field="${esc(person.id)}|state"><option value="">No state change</option>${stateOptions}</select></label><div class="cc-rel-detected-current"><span>Global state color</span><strong><i class="cc-rel-state-library-dot" style="--rel-state-color:${esc(stateColor)}"></i> ${esc(perspective.state||'No state change')}</strong></div><label><span>Off-screen thought / blurb (optional)</span><textarea class="textarea" rows="3" data-cc-rel-mile-field="${esc(person.id)}|customBlurb" placeholder="Only add a thought if something new happened off-screen. RP blurbs stay on their original RP point.">${esc(perspective.customBlurb||'')}</textarea></label><input type="hidden" data-cc-rel-mile-field="${esc(person.id)}|blurbSource" value="custom"><label><span>What changed for ${esc(person.name)}?</span><textarea class="textarea" rows="3" data-cc-rel-mile-field="${esc(person.id)}|whatChanged" placeholder="Trust increased, attraction became obvious, resentment grew…">${esc(perspective.whatChanged||'')}</textarea></label></section>`;};
-    showModal(existing?'Edit relationship milestone':'Add relationship milestone',`<div class="cc-rel-edit-shell" data-cc-rel-mile-editor="${esc(subjectId)}|${esc(targetId)}|${esc(existing?.id||'')}"><p class="muted">This is an off-screen relationship point. It can move between RP anchors, but it cannot reorder the RP itself. RP blurbs remain attached to their original RP point; only thoughts written specifically here appear on this milestone.</p><label><span>Milestone label</span><input class="input" data-cc-rel-mile-title value="${esc(draft.title||'')}" placeholder="Began trusting each other, First spark, Quiet reconciliation…"></label><label><span>Place this milestone</span><select class="select" data-cc-rel-mile-placement>${placementOptions||'<option value="0">Off-screen / undated</option>'}</select></label><div class="cc-rel-edit-columns"><label><span>Exact date (optional)</span><input class="input" type="date" data-cc-rel-mile-date value="${esc(draft.exactDate||'')}"></label><label><span>Relative time label (optional)</span><input class="input" data-cc-rel-mile-time value="${esc(draft.timeLabel||'')}" placeholder="A few days later, over the following weeks…"></label></div><label><span>What happened off-screen?</span><textarea class="textarea" rows="3" data-cc-rel-mile-note placeholder="Briefly describe the moment or change that was not written as an RP scene.">${esc(draft.note||'')}</textarea></label><label class="cc-rel-empty-blurb-toggle"><input type="checkbox" data-cc-rel-mile-show-empty ${draft.showEmptyBlurbNotice?'checked':''}><span>Show a “No relationship blurb was recorded” notice in the view popup when this milestone has no thought.</span></label><div class="cc-rel-edit-columns">${perspectivePanel(subject)}${perspectivePanel(target)}</div></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button>${existing?`<button class="button danger ghost" type="button" data-cc-rel-delete-milestone="${esc(subjectId)}|${esc(targetId)}|${esc(existing.id)}">Delete</button>`:''}<button class="button" type="button" data-cc-rel-save-milestone="${esc(subjectId)}|${esc(targetId)}|${esc(existing?.id||'')}">Save milestone</button>`);
+    showModal(existing?'Edit relationship milestone':'Add relationship milestone',`<div class="cc-rel-edit-shell" data-cc-rel-mile-editor="${esc(subjectId)}|${esc(targetId)}|${esc(existing?.id||'')}"><p class="muted">This is an off-screen relationship point. It can move between RP anchors, but it cannot reorder the RP itself. RP blurbs remain attached to their original RP point; only thoughts written specifically here appear on this milestone.</p><label><span>Milestone label</span><input class="input" data-cc-rel-mile-title value="${esc(draft.title||'')}" placeholder="Began trusting each other, First spark, Quiet reconciliation…"></label><label><span>Place this milestone</span><select class="select" data-cc-rel-mile-placement>${placementOptions||'<option value="0">Off-screen / undated</option>'}</select></label><div class="cc-rel-edit-columns"><label><span>Exact date (optional)</span><input class="input" type="date" data-cc-rel-mile-date value="${esc(draft.exactDate||'')}"></label><label><span>Relative time label (optional)</span><input class="input" data-cc-rel-mile-time value="${esc(draft.timeLabel||'')}" placeholder="A few days later, over the following weeks…"></label></div><label><span>What happened off-screen?</span><textarea class="textarea" rows="3" data-cc-rel-mile-note placeholder="Briefly describe the moment or change that was not written as an RP scene.">${esc(draft.note||'')}</textarea></label><div class="cc-rel-edit-columns">${perspectivePanel(subject)}${perspectivePanel(target)}</div></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button>${existing?`<button class="button danger ghost" type="button" data-cc-rel-delete-milestone="${esc(subjectId)}|${esc(targetId)}|${esc(existing.id)}">Delete</button>`:''}<button class="button" type="button" data-cc-rel-save-milestone="${esc(subjectId)}|${esc(targetId)}|${esc(existing?.id||'')}">Save milestone</button>`);
     requestAnimationFrame(()=>el.modal.querySelector('.modal')?.classList.add('cc-rel-editor-modal'));
   }
   function ccRelSaveMilestone(subjectId,targetId,milestoneId=''){
     const record=ccRelRecord(subjectId,targetId,true);if(!record)return;let milestone=(record.milestones||[]).find(item=>item.id===milestoneId)||null;const scenes=ccRelSharedScenes(subjectId,targetId),placement=Math.max(0,Math.min(scenes.length,Number(el.modal.querySelector('[data-cc-rel-mile-placement]')?.value)||0));
-    if(!milestone){milestone={id:id('relationship-milestone'),title:'',timeLabel:'',exactDate:'',note:'',placementIndex:placement,order:(record.milestones||[]).filter(item=>ccRelMilestonePlacement(item,scenes)===placement).length,perspectives:{},createdAt:nowISO()};record.milestones.push(milestone);}milestone.placementIndex=placement;milestone.title=el.modal.querySelector('[data-cc-rel-mile-title]')?.value.trim()||'Off-screen relationship milestone';milestone.timeLabel=el.modal.querySelector('[data-cc-rel-mile-time]')?.value.trim()||'';milestone.exactDate=el.modal.querySelector('[data-cc-rel-mile-date]')?.value||'';milestone.note=el.modal.querySelector('[data-cc-rel-mile-note]')?.value.trim()||'';milestone.showEmptyBlurbNotice=Boolean(el.modal.querySelector('[data-cc-rel-mile-show-empty]')?.checked);milestone.perspectives ||= {};
+    if(!milestone){milestone={id:id('relationship-milestone'),title:'',timeLabel:'',exactDate:'',note:'',placementIndex:placement,order:(record.milestones||[]).filter(item=>ccRelMilestonePlacement(item,scenes)===placement).length,perspectives:{},createdAt:nowISO()};record.milestones.push(milestone);}milestone.placementIndex=placement;milestone.title=el.modal.querySelector('[data-cc-rel-mile-title]')?.value.trim()||'Off-screen relationship milestone';milestone.timeLabel=el.modal.querySelector('[data-cc-rel-mile-time]')?.value.trim()||'';milestone.exactDate=el.modal.querySelector('[data-cc-rel-mile-date]')?.value||'';milestone.note=el.modal.querySelector('[data-cc-rel-mile-note]')?.value.trim()||'';milestone.perspectives ||= {};
     for(const personId of [record.aId,record.bId]){const perspective=ccRelMilestonePerspective(record,milestone,personId);for(const field of ['state','blurbSource','customBlurb','whatChanged']){const input=el.modal.querySelector(`[data-cc-rel-mile-field="${CSS.escape(personId)}|${field}"]`);if(input)perspective[field]=input.value.trim();}perspective.blurbSource=perspective.blurbSource||'custom';perspective.color=perspective.state?ccRelStatePaletteColor(perspective.state):CC_REL_NEUTRAL;}
     milestone.updatedAt=nowISO();record.updatedAt=milestone.updatedAt;scheduleSave('Saving relationship milestone…');closeModal();const character=getItem('characters',subjectId);if(character)renderCharacterLifeStory(character);toast('Relationship milestone saved.');
   }
@@ -20233,7 +20152,7 @@ initFirebase();
     const relSaveAssignments=event.target.closest?.('[data-cc-rel-save-assignments]');if(relSaveAssignments){event.preventDefault();event.stopImmediatePropagation();ccRelSaveAssignments(relSaveAssignments.dataset.ccRelSaveAssignments);return;}
     const relPointEdit=event.target.closest?.('[data-cc-rel-edit-point]');if(relPointEdit){event.preventDefault();event.stopImmediatePropagation();const [characterId,targetId,keyEncoded]=relPointEdit.dataset.ccRelEditPoint.split('|');ccRelPointEditor(characterId,targetId,decodeURIComponent(keyEncoded));return;}
     if(event.target.closest?.('[data-cc-rel-save-point-edit]')){event.preventDefault();event.stopImmediatePropagation();ccRelSavePointEdit();return;}
-    const relSelect=event.target.closest?.('[data-cc-rel-select]');if(relSelect){event.preventDefault();event.stopImmediatePropagation();const [characterId,targetId,keyEncoded]=relSelect.dataset.ccRelSelect.split('|');const character=getItem('characters',characterId),target=getItem('characters',targetId);if(!character||!target)return;const scenes=ccRelSharedScenes(character.id,target.id),record=ccRelRecord(character.id,target.id,false),nodes=ccRelNodesFor(character,target,scenes,record),node=ccRelNodeFromKey(character,target,nodes,decodeURIComponent(keyEncoded));if(!node)return;ccRelationshipSelections.set(characterId,{targetId,nodeKey:node.key});if(ccIsLifeEditing(characterId)){if(node.kind==='rp-anchor'){ccRelPointEditor(character,target,nodes,record,node);}else if(node.kind==='milestone'){ccRelMilestoneEditor(characterId,targetId,node.milestoneId);}else if(node.kind==='current'){ccRelPairEditor(characterId,targetId);}return;}ccRelPointPopup(character,target,nodes,record,node);return;}
+    const relSelect=event.target.closest?.('[data-cc-rel-select]');if(relSelect){event.preventDefault();const [characterId,targetId,keyEncoded]=relSelect.dataset.ccRelSelect.split('|');ccRelationshipSelections.set(characterId,{targetId,nodeKey:decodeURIComponent(keyEncoded)});const character=getItem('characters',characterId);if(character)renderCharacterLifeStory(character);return;}
     const relEdit=event.target.closest?.('[data-cc-rel-edit-pair]');if(relEdit){event.preventDefault();event.stopImmediatePropagation();const [characterId,targetId]=relEdit.dataset.ccRelEditPair.split('|');ccRelPairEditor(characterId,targetId);return;}
     const relAdd=event.target.closest?.('[data-cc-rel-add-relationship]');if(relAdd){event.preventDefault();event.stopImmediatePropagation();ccRelAddRelationshipPicker(relAdd.dataset.ccRelAddRelationship);return;}
     const relAddPerson=event.target.closest?.('[data-cc-rel-add-person]');if(relAddPerson){event.preventDefault();event.stopImmediatePropagation();const [characterId,targetId]=relAddPerson.dataset.ccRelAddPerson.split('|');closeModal();ccRelRecord(characterId,targetId,true);scheduleSave('Adding relationship…');ccRelPairEditor(characterId,targetId);return;}
@@ -21060,7 +20979,7 @@ initFirebase();
 
   /* === End Character rich writing editor === */
 
-  window.CODEX_BUILD='character-rich-writing-edit-mode-2026-08-14';
+  window.CODEX_BUILD='dialogue-quick-builder-advanced-formatting-2026-08-28';
   /* === End Character clean view / explicit edit mode === */
 
   // The main app can render the initial route before this extension is installed.
