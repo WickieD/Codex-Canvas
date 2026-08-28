@@ -5414,6 +5414,12 @@ button.ccrh-format-button:hover,.ccrh-format-button:has(input:hover),.ccrh-mini-
 .cc-intersection-link-status{display:grid;gap:4px;padding:10px 11px;border:1px solid var(--border);border-radius:10px;background:var(--surface);font-size:12px;line-height:1.5;color:var(--muted)}
 .cc-intersection-link-status strong{color:var(--text)}
 .cc-intersection-link-status.is-linked{border-color:color-mix(in srgb,var(--accent) 40%,var(--border));background:color-mix(in srgb,var(--accent-soft) 18%,var(--surface))}
+.cc-intersection-link-picker{display:grid;gap:10px;padding:12px;border:1px solid color-mix(in srgb,var(--accent) 24%,var(--border));border-radius:12px;background:color-mix(in srgb,var(--accent-soft) 10%,var(--surface))}
+.cc-intersection-link-picker>strong{font-size:13px;color:var(--text)}
+.cc-intersection-link-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cc-intersection-link-grid label{display:grid;gap:5px;min-width:0}
+.cc-intersection-link-grid label>span{font-size:11px;font-weight:800;color:var(--muted)}
+.cc-intersection-link-help{font-size:11px;color:var(--muted);line-height:1.45}
 .cc-intersection-empty-selection{padding:18px;text-align:center;color:var(--muted)}
 @media(max-width:760px){
   .cc-dialogue-quick-layout{grid-template-columns:1fr}
@@ -5426,6 +5432,7 @@ button.ccrh-format-button:hover,.ccrh-format-button:has(input:hover),.ccrh-mini-
   .cc-dialogue-builder-actions{align-items:flex-start;flex-direction:column}
   .cc-intersection-guide{grid-template-columns:1fr 1fr}
   .cc-intersection-builder-grid{grid-template-columns:1fr}
+  .cc-intersection-link-grid{grid-template-columns:1fr}
   .cc-intersection-builder-actions{align-items:flex-start;flex-direction:column}
   .cc-dialogue-card,.cc-dialogue-card.align-left,.cc-dialogue-card.align-right{width:100%;max-width:100%}
   .cc-dialogue-portrait{width:88px;height:88px;flex-basis:88px}
@@ -7612,6 +7619,22 @@ window.CODEX_BUILD = "graph-modes-scope-fix-2026-08-21";
     if(!preview||!ccIntersectionState)return;
     ccIntersectionState.preview=preview.value;
     ccIntersectionState.previewEdited=true;
+  },true);
+
+  document.addEventListener('change',event=>{
+    if(!ccIntersectionState)return;
+    const storySelect=event.target.closest('[data-cc-intersection-target-story]');
+    if(storySelect){
+      ccIntersectionState.targetStoryId=storySelect.value||'';
+      ccIntersectionState.targetNodeId='';
+      ccIntersectionRefreshBuilder();
+      return;
+    }
+    const pointSelect=event.target.closest('[data-cc-intersection-target-point]');
+    if(pointSelect){
+      ccIntersectionState.targetNodeId=pointSelect.value||'';
+      ccIntersectionRefreshBuilder();
+    }
   },true);
 
   document.addEventListener('change',event=>{
@@ -17109,20 +17132,49 @@ initFirebase();
     const area=document.querySelector('[data-ccrh-editor]');
     ccrhSaveDraft(story,area?.value||'',ccrhComposerDraftMeta());
   }
-  function ccIntersectionTargetMeta(){
+  function ccIntersectionOtherStories(){
+    const {story}=ccrhStoryFromRoute();
+    return (state.storyGraphs||[]).filter(item=>item&&item.id!==story?.id&&(item.nodes||[]).length).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  }
+  function ccIntersectionTargetStoryOptions(selectedId=''){
+    const stories=ccIntersectionOtherStories();
+    return `<option value="">Choose another story</option>${stories.map(item=>`<option value="${esc(item.id)}" ${item.id===selectedId?'selected':''}>${esc(item.name||'Untitled story')}</option>`).join('')}`;
+  }
+  function ccIntersectionTargetPointOptions(storyId,selectedNodeId=''){
+    const target=storyById(storyId);
+    const points=(target?.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0));
+    if(!target)return '<option value="">Choose a story first</option>';
+    if(!points.length)return '<option value="">No Story Points in this story</option>';
+    return `<option value="">Choose a Story Point</option>${points.map(node=>`<option value="${esc(node.id)}" ${node.id===selectedNodeId?'selected':''}>${esc(storyPointTitle(target,node))}</option>`).join('')}`;
+  }
+  function ccIntersectionCurrentLink(){
     const {story}=ccrhStoryFromRoute();
     const selected=document.querySelector('[data-ccrh-story-point]')?.value||'';
-    if(!story||!selected)return {linked:false,label:'No story point selected'};
+    if(!story||!selected)return {storyId:'',nodeId:''};
+    const parsed=parseStoryRouteValue(selected);
+    const storyId=parsed.storyId||story.id;
+    const nodeId=parsed.nodeId||(selected.includes('~')?'':selected);
+    return storyId&&storyId!==story.id?{storyId,nodeId}:{storyId:'',nodeId:''};
+  }
+
+  function ccIntersectionTargetMeta(){
+    const {story}=ccrhStoryFromRoute();
+    const stateStoryId=String(ccIntersectionState?.targetStoryId||'');
+    const stateNodeId=String(ccIntersectionState?.targetNodeId||'');
+    if(story&&stateStoryId){
+      const targetStory=storyById(stateStoryId);
+      const targetNode=(targetStory?.nodes||[]).find(node=>node.id===stateNodeId);
+      if(targetStory&&targetNode&&targetStory.id!==story.id)return {linked:true,label:`${targetStory.name} · ${storyPointTitle(targetStory,targetNode)}`,story:targetStory,node:targetNode};
+      if(targetStory&&!stateNodeId)return {linked:false,label:`Choose a Story Point in ${targetStory.name}`,story:targetStory};
+    }
+    const selected=document.querySelector('[data-ccrh-story-point]')?.value||'';
+    if(!story||!selected)return {linked:false,label:'Choose the other story and Story Point below'};
     const parsed=parseStoryRouteValue(selected);
     const targetStory=storyById(parsed.storyId||story.id)||story;
     const targetNode=(targetStory.nodes||[]).find(node=>node.id===(parsed.nodeId||(selected.includes('~')?'':selected)));
-    if(!targetNode)return {linked:false,label:'Story point not found'};
+    if(!targetNode)return {linked:false,label:'Choose the other story and Story Point below'};
     const external=targetStory.id!==story.id;
-    return {
-      linked:external,
-      label:external?`${targetStory.name} · ${storyPointTitle(targetStory,targetNode)}`:`${storyPointTitle(targetStory,targetNode)} · same story`,
-      story:targetStory,node:targetNode
-    };
+    return {linked:external,label:external?`${targetStory.name} · ${storyPointTitle(targetStory,targetNode)}`:'Choose a Story Point from another story',story:targetStory,node:targetNode};
   }
   function ccIntersectionAutoPreview(value){
     return shortText(ccrhExportPlainText(String(value||'')),180);
@@ -17149,7 +17201,7 @@ initFirebase();
       <div class="cc-intersection-guide">
         <div class="cc-intersection-step"><b>1</b><span><strong>Select text</strong>Highlight the exact words where the stories cross.</span></div>
         <div class="cc-intersection-step"><b>2</b><span><strong>Confirm selection</strong>Review the passage Codex will use.</span></div>
-        <div class="cc-intersection-step"><b>3</b><span><strong>Link to story point</strong>Use Context to choose the other story’s point.</span></div>
+        <div class="cc-intersection-step"><b>3</b><span><strong>Connect stories</strong>Choose the other story and exact Story Point here.</span></div>
         <div class="cc-intersection-step"><b>4</b><span><strong>Save</strong>The post keeps normal formatting; the tag stays invisible.</span></div>
       </div>
       <div class="cc-intersection-builder-grid">
@@ -17164,12 +17216,20 @@ initFirebase();
         <div class="cc-intersection-preview-panel">
           <div class="cc-intersection-panel-head"><strong>Intersection card preview</strong><small>${preview.length.toLocaleString()} characters</small></div>
           <label><span class="muted">This is what appears on the Story intersections card. You can shorten or rewrite it without changing the RP post.</span><textarea class="textarea" rows="5" data-cc-intersection-preview-text placeholder="Preview text appears here…">${esc(preview)}</textarea></label>
-          <div class="cc-intersection-link-status ${target.linked?'is-linked':''}"><strong>${target.linked?'Linked story point':'Link still needed'}</strong><span>${esc(target.label)}</span>${target.linked?'':'<span>Open the pin / Context menu above and choose a Story Point from another story before submitting the post.</span>'}</div>
+          <div class="cc-intersection-link-picker">
+            <strong>Connect this passage to</strong>
+            <div class="cc-intersection-link-grid">
+              <label><span>Other story</span><select class="select" data-cc-intersection-target-story>${ccIntersectionTargetStoryOptions(ccIntersectionState?.targetStoryId||'')}</select></label>
+              <label><span>Story Point</span><select class="select" data-cc-intersection-target-point ${ccIntersectionState?.targetStoryId?'':'disabled'}>${ccIntersectionTargetPointOptions(ccIntersectionState?.targetStoryId||'',ccIntersectionState?.targetNodeId||'')}</select></label>
+            </div>
+            <div class="cc-intersection-link-status ${target.linked?'is-linked':''}"><strong>${target.linked?'Stories connected':'Connection needed'}</strong><span>${esc(target.label)}</span></div>
+            <div class="cc-intersection-link-help">Saving sets this post’s Context → Story Point automatically. You do not need to link it separately with the pin menu.</div>
+          </div>
         </div>
       </div>
       <footer class="cc-intersection-builder-actions">
         <div><button class="button secondary" type="button" data-cc-intersection-close>Cancel</button></div>
-        <div><button class="button" type="button" data-cc-intersection-save ${selected?'':'disabled'}>Save intersection passage</button></div>
+        <div><button class="button" type="button" data-cc-intersection-save ${(selected&&target.linked)?'':'disabled'}>Save intersection</button></div>
       </footer>
     </section>`;
   }
@@ -17193,7 +17253,8 @@ initFirebase();
     const hidden=document.querySelector('[data-ccrh-intersection-preview]');
     const selectedSavedPassage=!!existing&&start===existing.bodyStart&&end===existing.bodyEnd;
     const savedPreview=selectedSavedPassage?String(hidden?.value||''):'';
-    ccIntersectionState={start,end,text:selected,existing,preview:String(savedPreview||ccIntersectionAutoPreview(selected)||''),previewEdited:Boolean(savedPreview),hadExplicitSelection};
+    const currentLink=ccIntersectionCurrentLink();
+    ccIntersectionState={start,end,text:selected,existing,preview:String(savedPreview||ccIntersectionAutoPreview(selected)||''),previewEdited:Boolean(savedPreview),hadExplicitSelection,targetStoryId:currentLink.storyId,targetNodeId:currentLink.nodeId};
     ccrhCloseComposerPopovers();
     ccIntersectionRefreshBuilder();
     mount.scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -17238,6 +17299,10 @@ initFirebase();
   function ccIntersectionSave(){
     const editor=document.querySelector('[data-ccrh-editor]');
     if(!editor||!ccIntersectionState)return;
+    const {story}=ccrhStoryFromRoute();
+    const targetStory=storyById(ccIntersectionState.targetStoryId||'');
+    const targetNode=(targetStory?.nodes||[]).find(node=>node.id===ccIntersectionState.targetNodeId);
+    if(!targetStory||targetStory.id===story?.id||!targetNode){toast('Choose the other story and its Story Point before saving the intersection.','error');return;}
     let start=ccIntersectionState.start,end=ccIntersectionState.end;
     if(start===end){toast('Select the exact crossover passage first.','error');return;}
     let raw=editor.value;
@@ -17273,12 +17338,20 @@ initFirebase();
     const previewField=document.querySelector('[data-cc-intersection-preview-text]');
     const previewValue=String(previewField?.value||ccIntersectionAutoPreview(editor.value.slice(start,end))||'').trim();
     const hidden=document.querySelector('[data-ccrh-intersection-preview]');if(hidden)hidden.value=previewValue;
-    const {story}=ccrhStoryFromRoute();if(ccrhEditingPostId)ccIntersectionPreviewSession={storyId:story?.id||'',turnId:ccrhEditingPostId,value:previewValue};
+    const contextPoint=document.querySelector('[data-ccrh-story-point]');
+    if(contextPoint){
+      const targetRef=storyRouteValue(targetStory.id,targetNode.id);
+      if([...contextPoint.options].some(option=>option.value===targetRef)){
+        contextPoint.value=targetRef;
+        contextPoint.dispatchEvent(new Event('change',{bubbles:true}));
+      }
+    }
+    if(ccrhEditingPostId)ccIntersectionPreviewSession={storyId:story?.id||'',turnId:ccrhEditingPostId,value:previewValue};
     editor.dispatchEvent(new Event('input',{bubbles:true}));
     ccrhPersistComposerDraft();
     ccIntersectionClose();
     editor.focus();
-    toast('Intersection passage saved.');
+    toast(`Intersection saved to ${targetStory.name} · ${storyPointTitle(targetStory,targetNode)}.`);
   }
   function ccrhSpeakerOptions(story){
     const allCharacters=(state.characters||[]).filter(Boolean);
