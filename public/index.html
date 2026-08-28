@@ -13332,7 +13332,7 @@ document.addEventListener('click',event=>{
   const addPoint=event.target.closest('[data-add-story-point]');if(addPoint){event.preventDefault();addStoryPoint(addPoint.dataset.addStoryPoint);return;}
   const removePoint=event.target.closest('[data-remove-story-point]');if(removePoint){event.preventDefault();const [storyId,nodeId]=removePoint.dataset.removeStoryPoint.split('|');removeStoryPoint(storyId,nodeId);return;}
   const addIntersection=event.target.closest('[data-add-intersection]');if(addIntersection){event.preventDefault();addStoryIntersection(addIntersection.dataset.addIntersection);return;}
-  const deleteIntersection=event.target.closest('[data-delete-intersection]');if(deleteIntersection){event.preventDefault();state.storyIntersections=(state.storyIntersections||[]).filter(item=>item.id!==deleteIntersection.dataset.deleteIntersection);rebuildSharedStoryIntersectionGroups();scheduleSave('Removing story intersection…');if(document.getElementById('modal')&&!document.getElementById('modal').hidden){const storyId=document.querySelector('[data-story-name]')?.dataset.storyName;if(storyId)showStoryManager(storyId);else renderStoryLibrary();}else renderStoryLibrary();return;}
+  const deleteIntersection=event.target.closest('[data-delete-intersection]');if(deleteIntersection){event.preventDefault();state.storyIntersections=(state.storyIntersections||[]).filter(item=>item.id!==deleteIntersection.dataset.deleteIntersection);rebuildSharedStoryIntersectionGroups();scheduleSave('Removing story intersection…');if(document.getElementById('modal')&&!document.getElementById('modal').hidden){const legacyStory=document.querySelector('[data-story-name]');const cc2StoryInput=document.querySelector('[data-cc2-story-name]');const storyId=legacyStory?.dataset.storyName||cc2StoryInput?.dataset.cc2StoryName;if(storyId)showStoryManager(storyId);else renderStoryLibrary();}else renderStoryLibrary();return;}
   const addConnection=event.target.closest('[data-add-graph-connection]');if(addConnection){event.preventDefault();addGraphConnection();return;}
   const deleteStoryLink=event.target.closest('[data-delete-story-link]');if(deleteStoryLink){event.preventDefault();const [storyId,linkId]=deleteStoryLink.dataset.deleteStoryLink.split('|'),story=storyById(storyId);if(story){story.links=(story.links||[]).filter(link=>link.id!==linkId);scheduleSave();renderGraphPage();}return;}
   const deleteCustomLink=event.target.closest('[data-delete-custom-link]');if(deleteCustomLink){event.preventDefault();state.graphConnections=(state.graphConnections||[]).filter(link=>link.id!==deleteCustomLink.dataset.deleteCustomLink);scheduleSave();renderGraphPage();return;}
@@ -14639,10 +14639,30 @@ const CC2_VERSION = 'story-timeline-2026-08';
     const target=document.querySelector('.story-jump-panel') || document.querySelector('.story-reader-page'); target?.insertAdjacentHTML('beforebegin',panel);
   };
 
+  function cc2StoryIntersectionManagerHtml(story){
+    const points=storyPointOptions(story);
+    const otherStories=(state.storyGraphs||[]).filter(item=>item.id!==story.id);
+    const connectableStories=otherStories.filter(item=>(item.nodes||[]).length);
+    const existing=(state.storyIntersections||[]).filter(item=>item.storyAId===story.id||item.storyBId===story.id).map(item=>{
+      const currentIsA=item.storyAId===story.id;
+      const currentNode=(story.nodes||[]).find(node=>node.id===(currentIsA?item.nodeAId:item.nodeBId));
+      const other=storyById(currentIsA?item.storyBId:item.storyAId);
+      const otherNode=(other?.nodes||[]).find(node=>node.id===(currentIsA?item.nodeBId:item.nodeAId));
+      const currentTitle=currentNode?storyPointTitle(story,currentNode):storyNodeName(currentIsA?item.nodeAId:item.nodeBId);
+      const otherTitle=otherNode?storyPointTitle(other,otherNode):storyNodeName(currentIsA?item.nodeBId:item.nodeAId);
+      return `<div class="story-intersection-path"><div class="story-intersection-path-main"><strong>${esc(item.label||`${currentTitle} ↔ ${otherTitle}`)}</strong><div class="story-intersection-route"><b>${esc(currentTitle)}</b><span class="story-intersection-arrow">↔</span><span>${esc(other?.name||'Other story')}</span><span>·</span><b>${esc(otherTitle)}</b></div>${item.description?`<small>${esc(item.description)}</small>`:''}</div><button class="button ghost small" type="button" data-delete-intersection="${esc(item.id)}">Remove</button></div>`;
+    }).join('');
+    const form=points.length&&connectableStories.length
+      ? `<div class="story-intersection-manager"><p class="story-intersection-intro">Connect one point in <strong>${esc(story.name)}</strong> to an existing point in another story. Neither Story Point is duplicated.</p><div class="story-intersection-form"><label><span>This story point</span><select id="intersectionThisPoint" class="select"><option value="">Choose a point</option>${points.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('')}</select></label><label><span>Intersects with</span><select id="intersectionOtherStory" class="select"><option value="">Choose another story</option>${connectableStories.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}</select></label><label><span>Their story point</span><select id="intersectionOtherPoint" class="select" disabled><option value="">Choose the other story first</option></select></label><label><span>Intersection name <small>(optional)</small></span><input id="intersectionLabel" class="input" placeholder="Defaults to both point names"></label><label class="intersection-wide"><span>Optional note</span><input id="intersectionDescription" class="input" placeholder="What is shared about this moment?"></label><button class="button" type="button" data-add-intersection="${esc(story.id)}">+ Add intersection</button></div>${existing?`<div class="story-intersection-existing"><div class="story-intersection-existing-title">Shared convergences</div>${existing}</div>`:'<div class="story-intersection-empty">No intersections have been added to this story yet.</div>'}</div>`
+      : `<p class="story-intersection-intro">${!points.length?'Add at least one Story Point to this story first.':!otherStories.length?'Create another story first.':'Add at least one Story Point to another story first.'}</p>${existing?`<div class="story-intersection-existing"><div class="story-intersection-existing-title">Shared convergences</div>${existing}</div>`:''}`;
+    return `<section class="story-manager-section story-manager-intersections-first"><div class="story-manager-section-heading"><div><span class="eyebrow">Shared story moment</span><h3>Story intersections</h3></div><span class="tag">${storyIntersectionCount(story.id)} connected</span></div>${form}</section>`;
+  }
+
   function cc2ShowStoryManager(storyId){
     const story=cc2Story(storyId); if(!story)return;
     const rows=cc2Ordered(story).map((node,index)=>{const p=cc2Point(story,node);return `<div class="cc2-manager-point" draggable="true" data-cc2-manager-drag="${esc(node.id)}"><span class="cc2-manager-handle">⋮⋮</span><span><strong>${esc(p.title)}</strong><small>${node.order} · ${esc(cc2TypeLabel(p.type))} · ${esc(p.status)}${p.branch!=='main'?` · ${esc(p.branch)}`:''}${cc2LocationNames(p).length?` · ${esc(cc2LocationNames(p).join(', '))}`:''}</small></span><div class="cc2-manager-actions"><button class="button ghost small" type="button" data-cc2-move-point="${esc(story.id)}|${esc(node.id)}|up" ${index===0?'disabled':''}>Up</button><button class="button ghost small" type="button" data-cc2-move-point="${esc(story.id)}|${esc(node.id)}|down" ${index===story.nodes.length-1?'disabled':''}>Down</button><button class="button secondary small" type="button" data-cc2-edit-point="${esc(story.id)}|${esc(node.id)}">Edit</button></div></div>`;}).join('');
-    showModal(`Manage ${story.name}`,`<div class="story-manager"><div class="story-manager-grid"><label><span>Story name</span><input class="input" value="${esc(story.name)}" data-cc2-story-name="${esc(story.id)}"></label><label><span>Description</span><textarea class="textarea" rows="3" data-cc2-story-description="${esc(story.id)}">${esc(story.description || '')}</textarea></label></div><section class="story-manager-section"><div class="dossier-section-heading"><h3>Story points</h3><button class="button" type="button" data-cc2-new-point="${esc(story.id)}">Add story point</button></div><p class="page-subtitle">Each point can connect multiple people, locations, timing, consequences, and an exact RP post.</p><div class="cc2-story-manager-list">${rows || '<p class="cc2-empty">No points yet.</p>'}</div></section></div>`,`<button class="button secondary" type="button" data-close-modal>Done</button><button class="button secondary" type="button" data-ccrh-download="${esc(story.id)}">Download</button><button class="button" type="button" data-cc2-open-map="${esc(story.id)}">Open timeline</button>`);
+    showModal(`Manage ${story.name}`,`<div class="story-manager"><div class="story-manager-grid"><label><span>Story name</span><input class="input" value="${esc(story.name)}" data-cc2-story-name="${esc(story.id)}"></label><label><span>Description</span><textarea class="textarea" rows="3" data-cc2-story-description="${esc(story.id)}">${esc(story.description || '')}</textarea></label></div>${cc2StoryIntersectionManagerHtml(story)}<section class="story-manager-section"><div class="dossier-section-heading"><h3>Story points</h3><button class="button" type="button" data-cc2-new-point="${esc(story.id)}">Add story point</button></div><p class="page-subtitle">Each point can connect multiple people, locations, timing, consequences, and an exact RP post.</p><div class="cc2-story-manager-list">${rows || '<p class="cc2-empty">No points yet.</p>'}</div></section></div>`,`<button class="button secondary" type="button" data-close-modal>Done</button><button class="button secondary" type="button" data-ccrh-download="${esc(story.id)}">Download</button><button class="button" type="button" data-cc2-open-map="${esc(story.id)}">Open timeline</button>`);
+    requestAnimationFrame(()=>el.modal.querySelector('.modal')?.classList.add('cc2-story-manager-modal'));
   }
   showStoryManager=cc2ShowStoryManager;
 
@@ -22920,6 +22940,28 @@ initFirebase();
   .modal.cc2-point-editor-modal .modal-body{padding:14px}
   .modal.cc2-point-editor-modal .cc2-character-role-grid,
   .modal.cc2-point-editor-modal .cc2-location-grid{max-height:min(48dvh,520px)}
+}
+/* Manage Story: grow to the available window first; scroll only when the viewport is too small. */
+.modal.cc2-story-manager-modal{
+  width:min(1050px,calc(100vw - 40px));
+  max-height:calc(100dvh - 40px);
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+.modal.cc2-story-manager-modal .modal-head,
+.modal.cc2-story-manager-modal .modal-foot{flex:0 0 auto}
+.modal.cc2-story-manager-modal .modal-body{
+  flex:0 1 auto;
+  min-height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+}
+.modal.cc2-story-manager-modal .story-manager{gap:14px}
+.modal.cc2-story-manager-modal .story-manager-section{padding:14px}
+@media(max-width:760px){
+  .modal.cc2-story-manager-modal{width:calc(100vw - 12px);max-height:calc(100dvh - 12px)}
+  .modal.cc2-story-manager-modal .modal-body{padding:14px}
 }
 .cc2-story-manager-list{display:grid;gap:9px;margin-top:12px}
 .cc2-manager-point{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid var(--border);border-radius:11px;background:var(--panel-strong);padding:10px}
