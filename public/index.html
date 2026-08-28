@@ -4154,6 +4154,7 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .ccrh-post-context .ccrh-context-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:999px;background:var(--panel-soft);color:var(--muted);padding:5px 9px;font-size:11px;font-weight:750}
 button.ccrh-context-chip{cursor:pointer}
 button.ccrh-context-chip:hover{border-color:var(--accent);color:var(--text)}
+.ccrh-post-context .ccrh-intersection-chip{border-color:color-mix(in srgb,var(--accent) 58%,var(--border));background:color-mix(in srgb,var(--accent-soft) 62%,var(--panel-soft));color:var(--accent-strong)}
 .ccrh-bb-toolbar{display:flex;gap:5px;flex-wrap:wrap;padding:10px 17px;border-bottom:1px solid var(--border);background:var(--panel-soft)}
 .ccrh-bb-toolbar button{min-width:34px;border:1px solid var(--border);border-radius:7px;background:var(--panel);color:var(--text);padding:7px 9px;font:inherit;cursor:pointer}
 .ccrh-editor-tabs{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 17px 0}
@@ -13135,7 +13136,41 @@ render = function(){renderBeforeStoryTools();requestAnimationFrame(ensurePromine
 
 function storyById(storyId){return (state.storyGraphs||[]).find(story=>story.id===storyId)||null;}
 function storyFirstRoute(story){const first=(story?.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0))[0];return first?storyRouteValue(story.id,first.id):story.id;}
-function storyIntersectionCount(storyId){return (state.storyIntersections||[]).filter(item=>item.storyAId===storyId||item.storyBId===storyId).length;}
+function storyPostIntersections(){
+  const results=[];
+  for(const sourceStory of state.storyGraphs||[]){
+    const turns=ensureStoryDocument(sourceStory);
+    turns.forEach((turn,index)=>{
+      const targetStoryId=String(turn?.storyPointStoryId||'');
+      const targetNodeId=String(turn?.storyPointId||'');
+      if(!targetStoryId||targetStoryId===sourceStory.id||!targetNodeId)return;
+      const targetStory=storyById(targetStoryId);
+      const targetNode=(targetStory?.nodes||[]).find(node=>node.id===targetNodeId);
+      if(!targetStory||!targetNode)return;
+      let sourceNode=null;
+      for(const node of (sourceStory.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0))){
+        if(storyPointRange(sourceStory,node).turns.some(item=>item.id===turn.id)){sourceNode=node;break;}
+      }
+      const speaker=typeof storySpeakerMeta==='function'?storySpeakerMeta(turn):null;
+      const speakerName=speaker?.name||turn.speakerName||'Narrator';
+      const raw=String(turn.text||'').replace(/\[[^\]]+\]/g,' ').replace(/\s+/g,' ').trim();
+      results.push({
+        id:`post-intersection:${sourceStory.id}:${turn.id}:${targetStory.id}:${targetNode.id}`,
+        type:'post',sourceStoryId:sourceStory.id,sourceTurnId:turn.id,sourcePostNumber:index+1,
+        sourceNodeId:sourceNode?.id||'',targetStoryId:targetStory.id,targetNodeId:targetNode.id,
+        speakerName,excerpt:raw.slice(0,110),
+        label:`${sourceStory.name} · Post ${index+1} ↔ ${targetStory.name} · ${storyPointTitle(targetStory,targetNode)}`
+      });
+    });
+  }
+  return results;
+}
+function storyIntersectionsFor(storyId){
+  const manual=(state.storyIntersections||[]).filter(item=>item.storyAId===storyId||item.storyBId===storyId);
+  const post=storyPostIntersections().filter(item=>item.sourceStoryId===storyId||item.targetStoryId===storyId);
+  return {manual,post};
+}
+function storyIntersectionCount(storyId){const groups=storyIntersectionsFor(storyId);return groups.manual.length+groups.post.length;}
 function allGraphPointOptions(){
   return [
     ...state.characters.map(x=>({value:`character:${x.id}`,label:`Person · ${x.name}`})),
@@ -13152,13 +13187,20 @@ function renderStoryLibrary(){
     const points=(story.nodes||[]).length,posts=(story.rpTurns||[]).length,intersections=storyIntersectionCount(story.id);
     return `<article class="story-library-card cc-story-uniform-card"><div><span class="eyebrow">Story workspace</span><h3>${esc(story.name)}</h3></div><p>${esc(story.description||'Add the purpose, arc, or time period covered by this story.')}</p><div class="story-card-stats story-stats"><span class="tag">${points} point${points===1?'':'s'}</span><span class="tag">${posts} RP post${posts===1?'':'s'}</span><span class="tag">${intersections} intersection${intersections===1?'':'s'}</span></div><div class="story-card-actions"><button class="button" type="button" data-open-story="${esc(story.id)}">${points?'Open story':'Set up story'}</button><button class="button secondary" type="button" data-manage-story="${esc(story.id)}">Manage</button><button class="button ghost" type="button" data-story-graph="${esc(story.id)}">Open graph</button><button class="story-delete" class="button ghost story-delete" type="button" data-delete-story="${esc(story.id)}">Delete</button></div></article>`;
   }).join('');
-  const intersectionCards=(state.storyIntersections||[]).map(item=>{
+  const manualIntersectionCards=(state.storyIntersections||[]).map(item=>{
     const a=storyById(item.storyAId),b=storyById(item.storyBId);if(!a||!b)return '';
     const aNode=(a.nodes||[]).find(node=>node.id===item.nodeAId),bNode=(b.nodes||[]).find(node=>node.id===item.nodeBId);
     const aTitle=aNode?storyPointTitle(a,aNode):storyNodeName(item.nodeAId),bTitle=bNode?storyPointTitle(b,bNode):storyNodeName(item.nodeBId);
-    return `<article class="story-intersection-card cc-story-uniform-card"><div><strong>${esc(item.label||`${aTitle} ↔ ${bTitle}`)}</strong><small>${esc(a.name)} · ${esc(aTitle)} ↔ ${esc(b.name)} · ${esc(bTitle)}${item.description?` · ${esc(item.description)}`:''}</small></div><button class="button ghost small" type="button" data-delete-intersection="${esc(item.id)}">Remove</button></article>`;
+    return `<article class="story-intersection-card cc-story-uniform-card"><div><strong>${esc(item.label||`${aTitle} ↔ ${bTitle}`)}</strong><small>Story-point convergence · ${esc(a.name)} · ${esc(aTitle)} ↔ ${esc(b.name)} · ${esc(bTitle)}${item.description?` · ${esc(item.description)}`:''}</small></div><button class="button ghost small" type="button" data-delete-intersection="${esc(item.id)}">Remove</button></article>`;
   }).join('');
-  el.main.innerHTML=`${pageHead('Roleplay writing','Story Library','Create as many independent or interconnected stories as your world needs.',`<button class="button" type="button" data-new-story>New story</button><button class="button secondary" type="button" data-nav="graph">Open graphs</button>`)}<div class="story-library-toolbar"><p class="page-subtitle">Each story keeps its own RP sheet and graph points. Intersections record where two stories meet without forcing every story into one path.</p></div>${cards?`<div class="story-library-grid">${cards}</div>`:'<div class="empty-story-workspace"><h2>No stories yet</h2><p>Create the first story, then add people, places, factions, species, or events as story points.</p><button class="button" type="button" data-new-story>Create the first story</button></div>'}<section class="intersection-board"><h2>Story intersections</h2><p class="page-subtitle">Intersections are shared moments where two otherwise separate stories cross.</p><div class="story-intersection-list">${intersectionCards||'<div class="panel empty-state">No story intersections have been added yet.</div>'}</div></section>`;
+  const postIntersectionCards=storyPostIntersections().map(item=>{
+    const source=storyById(item.sourceStoryId),target=storyById(item.targetStoryId),targetNode=(target?.nodes||[]).find(node=>node.id===item.targetNodeId);if(!source||!target||!targetNode)return '';
+    const routeNode=item.sourceNodeId||source.nodes?.[0]?.id||'';
+    const openRef=`${source.id}|${routeNode}|${item.sourceTurnId}`;
+    return `<article class="story-intersection-card cc-story-uniform-card"><div><strong>${esc(source.name)} · Post ${item.sourcePostNumber} ↔ ${esc(storyPointTitle(target,targetNode))}</strong><small>Exact-post intersection · ${esc(item.speakerName)}${item.excerpt?` · “${esc(item.excerpt)}${item.excerpt.length>=110?'…':''}”`:''} · linked to ${esc(target.name)} · ${esc(storyPointTitle(target,targetNode))}</small></div><button class="button ghost small" type="button" data-ccrh-open-linked-post="${esc(openRef)}">Open post</button></article>`;
+  }).join('');
+  const intersectionCards=postIntersectionCards+manualIntersectionCards;
+  el.main.innerHTML=`${pageHead('Roleplay writing','Story Library','Create as many independent or interconnected stories as your world needs.',`<button class="button" type="button" data-new-story>New story</button><button class="button secondary" type="button" data-nav="graph">Open graphs</button>`)}<div class="story-library-toolbar"><p class="page-subtitle">Each story keeps its own RP sheet and graph points. To make an exact-post intersection, edit that RP post and choose a Story Point that belongs to another story.</p></div>${cards?`<div class="story-library-grid">${cards}</div>`:'<div class="empty-story-workspace"><h2>No stories yet</h2><p>Create the first story, then add people, places, factions, species, or events as story points.</p><button class="button" type="button" data-new-story>Create the first story</button></div>'}<section class="intersection-board"><h2>Story intersections</h2><p class="page-subtitle">Exact-post intersections are detected automatically from the Story Point selected on each RP post. Older story-point convergences remain listed too.</p><div class="story-intersection-list">${intersectionCards||'<div class="panel empty-state">No story intersections have been detected yet.</div>'}</div></section>`;
 }
 function showNewStoryModal(){
   showModal('Create a story',`<div class="story-manager"><label><span>Story name</span><input id="newStoryName" class="input" type="text" placeholder="Story name"></label><label><span>Description</span><textarea id="newStoryDescription" class="textarea" rows="4" placeholder="What arc, RP, or time period does this story cover?"></textarea></label></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-create-story>Create story</button>`);
@@ -14640,22 +14682,30 @@ const CC2_VERSION = 'story-timeline-2026-08';
   };
 
   function cc2StoryIntersectionManagerHtml(story){
-    const points=storyPointOptions(story);
-    const otherStories=(state.storyGraphs||[]).filter(item=>item.id!==story.id);
-    const connectableStories=otherStories.filter(item=>(item.nodes||[]).length);
-    const existing=(state.storyIntersections||[]).filter(item=>item.storyAId===story.id||item.storyBId===story.id).map(item=>{
+    const groups=storyIntersectionsFor(story.id);
+    const postRows=groups.post.map(item=>{
+      const source=storyById(item.sourceStoryId),target=storyById(item.targetStoryId);
+      const targetNode=(target?.nodes||[]).find(node=>node.id===item.targetNodeId);
+      if(!source||!target||!targetNode)return '';
+      const currentIsSource=item.sourceStoryId===story.id;
+      const routeNode=item.sourceNodeId||source.nodes?.[0]?.id||'';
+      const openRef=`${source.id}|${routeNode}|${item.sourceTurnId}`;
+      const route=currentIsSource
+        ? `<b>Post ${item.sourcePostNumber}</b><span class="story-intersection-arrow">→</span><span>${esc(target.name)}</span><span>·</span><b>${esc(storyPointTitle(target,targetNode))}</b>`
+        : `<span>${esc(source.name)}</span><span>·</span><b>Post ${item.sourcePostNumber}</b><span class="story-intersection-arrow">→</span><b>${esc(storyPointTitle(target,targetNode))}</b>`;
+      return `<div class="story-intersection-path"><div class="story-intersection-path-main"><strong>Exact-post intersection</strong><div class="story-intersection-route">${route}</div><small>${esc(item.speakerName)}${item.excerpt?` · “${esc(item.excerpt)}${item.excerpt.length>=110?'…':''}”`:''}</small></div><button class="button secondary small" type="button" data-ccrh-open-linked-post="${esc(openRef)}">Open post</button></div>`;
+    }).join('');
+    const manualRows=groups.manual.map(item=>{
       const currentIsA=item.storyAId===story.id;
       const currentNode=(story.nodes||[]).find(node=>node.id===(currentIsA?item.nodeAId:item.nodeBId));
       const other=storyById(currentIsA?item.storyBId:item.storyAId);
       const otherNode=(other?.nodes||[]).find(node=>node.id===(currentIsA?item.nodeBId:item.nodeAId));
       const currentTitle=currentNode?storyPointTitle(story,currentNode):storyNodeName(currentIsA?item.nodeAId:item.nodeBId);
       const otherTitle=otherNode?storyPointTitle(other,otherNode):storyNodeName(currentIsA?item.nodeBId:item.nodeAId);
-      return `<div class="story-intersection-path"><div class="story-intersection-path-main"><strong>${esc(item.label||`${currentTitle} ↔ ${otherTitle}`)}</strong><div class="story-intersection-route"><b>${esc(currentTitle)}</b><span class="story-intersection-arrow">↔</span><span>${esc(other?.name||'Other story')}</span><span>·</span><b>${esc(otherTitle)}</b></div>${item.description?`<small>${esc(item.description)}</small>`:''}</div><button class="button ghost small" type="button" data-delete-intersection="${esc(item.id)}">Remove</button></div>`;
+      return `<div class="story-intersection-path"><div class="story-intersection-path-main"><strong>${esc(item.label||`${currentTitle} ↔ ${otherTitle}`)}</strong><div class="story-intersection-route"><b>${esc(currentTitle)}</b><span class="story-intersection-arrow">↔</span><span>${esc(other?.name||'Other story')}</span><span>·</span><b>${esc(otherTitle)}</b></div><small>Older story-point convergence${item.description?` · ${esc(item.description)}`:''}</small></div><button class="button ghost small" type="button" data-delete-intersection="${esc(item.id)}">Remove</button></div>`;
     }).join('');
-    const form=points.length&&connectableStories.length
-      ? `<div class="story-intersection-manager"><p class="story-intersection-intro">Connect one point in <strong>${esc(story.name)}</strong> to an existing point in another story. Neither Story Point is duplicated.</p><div class="story-intersection-form"><label><span>This story point</span><select id="intersectionThisPoint" class="select"><option value="">Choose a point</option>${points.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('')}</select></label><label><span>Intersects with</span><select id="intersectionOtherStory" class="select"><option value="">Choose another story</option>${connectableStories.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}</select></label><label><span>Their story point</span><select id="intersectionOtherPoint" class="select" disabled><option value="">Choose the other story first</option></select></label><label><span>Intersection name <small>(optional)</small></span><input id="intersectionLabel" class="input" placeholder="Defaults to both point names"></label><label class="intersection-wide"><span>Optional note</span><input id="intersectionDescription" class="input" placeholder="What is shared about this moment?"></label><button class="button" type="button" data-add-intersection="${esc(story.id)}">+ Add intersection</button></div>${existing?`<div class="story-intersection-existing"><div class="story-intersection-existing-title">Shared convergences</div>${existing}</div>`:'<div class="story-intersection-empty">No intersections have been added to this story yet.</div>'}</div>`
-      : `<p class="story-intersection-intro">${!points.length?'Add at least one Story Point to this story first.':!otherStories.length?'Create another story first.':'Add at least one Story Point to another story first.'}</p>${existing?`<div class="story-intersection-existing"><div class="story-intersection-existing-title">Shared convergences</div>${existing}</div>`:''}`;
-    return `<section class="story-manager-section story-manager-intersections-first"><div class="story-manager-section-heading"><div><span class="eyebrow">Shared story moment</span><h3>Story intersections</h3></div><span class="tag">${storyIntersectionCount(story.id)} connected</span></div>${form}</section>`;
+    const rows=postRows+manualRows;
+    return `<section class="story-manager-section story-manager-intersections-first"><div class="story-manager-section-heading"><div><span class="eyebrow">Shared story moment</span><h3>Story intersections</h3></div><span class="tag">${storyIntersectionCount(story.id)} connected</span></div><div class="story-intersection-manager"><p class="story-intersection-intro"><strong>Exact-post intersections are automatic.</strong> In Roleplay Hub, edit the exact post where the crossover happens. Under <strong>Context → Story Point</strong>, choose a Story Point from the other story. That one post becomes the intersection; you do not need to add that point to this story under Manage Story.</p>${rows?`<div class="story-intersection-existing"><div class="story-intersection-existing-title">Detected intersections</div>${rows}</div>`:'<div class="story-intersection-empty">No intersections detected yet. Edit the crossover post and choose a Story Point from another story.</div>'}</div></section>`;
   }
 
   function cc2ShowStoryManager(storyId){
@@ -17124,7 +17174,7 @@ initFirebase();
           const timelineEventIds=[...new Set([...(turn.timelineEventIds||[]),turn.timelineEventId].filter(Boolean))];
           const timelineEvents=timelineEventIds.map(eventId=>getItem('events',eventId)).filter(Boolean);
           if(!point&&!location&&!place.detail&&!timelineEvents.length)return '';
-          return `<div class="ccrh-post-context">${point?`<button class="ccrh-context-chip" type="button" data-story-point="${esc(storyRouteValue(pointStory.id,point.id))}">Story point: ${esc(storyPointTitle(pointStory,point))}${pointStory.id!==story.id?` · ${esc(pointStory.name)}`:''}</button>`:''}${location?`<button class="ccrh-context-chip" type="button" data-open="locations:${esc(location.id)}">Location: ${esc(storyLocationName(location.id,place.detail))}</button>`:place.detail?`<span class="ccrh-context-chip">Location: ${esc(place.detail)}</span>`:''}${timelineEvents.map(eventItem=>`<button class="ccrh-context-chip" type="button" data-open="events:${esc(eventItem.id)}">Timeline event: ${esc(eventItem.name)}</button>`).join('')}</div>`;
+          return `<div class="ccrh-post-context">${point?`<button class="ccrh-context-chip ${pointStory.id!==story.id?'ccrh-intersection-chip':''}" type="button" data-story-point="${esc(storyRouteValue(pointStory.id,point.id))}">${pointStory.id!==story.id?'Intersection':'Story point'}: ${esc(storyPointTitle(pointStory,point))}${pointStory.id!==story.id?` · ${esc(pointStory.name)}`:''}</button>`:''}${location?`<button class="ccrh-context-chip" type="button" data-open="locations:${esc(location.id)}">Location: ${esc(storyLocationName(location.id,place.detail))}</button>`:place.detail?`<span class="ccrh-context-chip">Location: ${esc(place.detail)}</span>`:''}${timelineEvents.map(eventItem=>`<button class="ccrh-context-chip" type="button" data-open="events:${esc(eventItem.id)}">Timeline event: ${esc(eventItem.name)}</button>`).join('')}</div>`;
         })()}
         ${typeof ccRelTurnMetaChips==='function'?ccRelTurnMetaChips(turn):''}
         <div class="ccrh-post-body">${ccrhBbcode(turn.text||'')}</div>
