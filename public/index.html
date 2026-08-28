@@ -23095,12 +23095,37 @@ initFirebase();
       const targetIds=confirmed?ccIntersectionIds(found.sourceTurn.intersectionTargetCharacterIds):cleanTarget;
       const sourcePassage=String(found.sourceTurn.intersectionPreviewOverride||ccrhIntersectionPassage(found.sourceTurn.text||'')||intersectionPlainText(found.sourceTurn.text||'',190)).trim();
       const targetPassage=String(found.sourceTurn.intersectionTargetPreviewOverride||ccrhIntersectionPassage(found.targetTurn?.text||'')||intersectionPlainText(found.targetTurn?.text||'',190)||(found.targetNode?ensureStoryPassage(found.targetNode).summary:'')).trim();
-      ccIntersectionEditorState={ref,sourceStoryId:found.sourceStory.id,sourceNodeId:found.sourceNode?.id||'',sourceTurnId:found.sourceTurn.id,targetStoryId:found.targetStory?.id||'',targetNodeId:found.targetNode?.id||'',targetTurnId:found.targetTurn?.id||'',sourcePreview:sourcePassage,targetPreview:targetPassage,handoff:String(found.sourceTurn.intersectionHandoffPhrase||ccIntersectionSuggestedHandoff(sourcePassage,targetPassage)||''),title:String(found.sourceTurn.intersectionTitle||''),sourceCharacterIds:sourceIds,targetCharacterIds:targetIds,sourceFeaturedId:String(found.sourceTurn.intersectionSourceFeaturedId||sourceIds[0]||''),targetFeaturedId:String(found.sourceTurn.intersectionTargetFeaturedId||targetIds[0]||''),sourceImageId:String(found.sourceTurn.intersectionSourceImageId||'default'),targetImageId:String(found.sourceTurn.intersectionTargetImageId||'default'),sourceAccent:ccIntersectionSafeColor(found.sourceTurn.intersectionSourceAccent,ccIntersectionCharacterAccent(getItem('characters',sourceIds[0]))),targetAccent:ccIntersectionSafeColor(found.sourceTurn.intersectionTargetAccent,ccIntersectionCharacterAccent(getItem('characters',targetIds[0])))};
+      ccIntersectionEditorState={ref,originHash:String(location.hash||''),sourceStoryId:found.sourceStory.id,sourceNodeId:found.sourceNode?.id||'',sourceTurnId:found.sourceTurn.id,targetStoryId:found.targetStory?.id||'',targetNodeId:found.targetNode?.id||'',targetTurnId:found.targetTurn?.id||'',sourcePreview:sourcePassage,targetPreview:targetPassage,handoff:String(found.sourceTurn.intersectionHandoffPhrase||ccIntersectionSuggestedHandoff(sourcePassage,targetPassage)||''),title:String(found.sourceTurn.intersectionTitle||''),sourceCharacterIds:sourceIds,targetCharacterIds:targetIds,sourceFeaturedId:String(found.sourceTurn.intersectionSourceFeaturedId||sourceIds[0]||''),targetFeaturedId:String(found.sourceTurn.intersectionTargetFeaturedId||targetIds[0]||''),sourceImageId:String(found.sourceTurn.intersectionSourceImageId||'default'),targetImageId:String(found.sourceTurn.intersectionTargetImageId||'default'),sourceAccent:ccIntersectionSafeColor(found.sourceTurn.intersectionSourceAccent,ccIntersectionCharacterAccent(getItem('characters',sourceIds[0]))),targetAccent:ccIntersectionSafeColor(found.sourceTurn.intersectionTargetAccent,ccIntersectionCharacterAccent(getItem('characters',targetIds[0])))};
       ccRenderIntersectionEditorPage();
       requestAnimationFrame(()=>window.scrollTo({top:0,behavior:'smooth'}));
     }catch(error){console.error('Could not open intersection editor',error);toast('The intersection editor could not open. Please try again.','error');}
   }
   window.ccOpenIntersectionEditorPage=ccOpenIntersectionEditorPage;
+
+  /* Keep the Intersection Editor open while shared-world snapshots refresh.
+     Firebase/presence updates call render() in the background; those renders used to
+     replace el.main and make the editor disappear after a few seconds.  As long as
+     the user is still on the same hash where the editor was opened, preserve the
+     editor and let its own live-preview handlers update it.  A real navigation
+     changes the hash, so the normal render pipeline resumes immediately. */
+  const ccIntersectionEditorRenderBase=render;
+  render=function(...args){
+    if(ccIntersectionEditorState){
+      const openedAt=String(ccIntersectionEditorState.originHash||'');
+      const currentHash=String(location.hash||'');
+      if(openedAt===currentHash){
+        requestAnimationFrame(()=>{
+          try{if(typeof ccrhRenderNotificationBell==='function')ccrhRenderNotificationBell();}catch{}
+          try{if(typeof cc16RenderPresence==='function')cc16RenderPresence();}catch{}
+          try{if(typeof ccMobileTopBarApply==='function')ccMobileTopBarApply();}catch{}
+        });
+        return;
+      }
+      ccIntersectionEditorState=null;
+    }
+    return ccIntersectionEditorRenderBase(...args);
+  };
+
   function ccRenderIntersectionEditorPage(){
     const s=ccIntersectionEditorState;if(!s)return;
     const sourceStory=storyById(s.sourceStoryId),sourceNode=(sourceStory?.nodes||[]).find(node=>node.id===s.sourceNodeId),sourceTurn=sourceStory?ensureStoryDocument(sourceStory).find(turn=>turn.id===s.sourceTurnId)||null:null;
