@@ -5169,6 +5169,24 @@ button.ccrh-context-chip:hover{border-color:var(--accent);color:var(--text)}
 .cc-dialogue-advanced[open]>summary{border-bottom:1px solid var(--border)}
 .cc-dialogue-advanced[open]>summary::after{content:'−'}
 .cc-dialogue-advanced .cc-dialogue-builder-grid{padding:16px;background:var(--panel)}
+.cc-dialogue-advanced-shell{background:var(--panel)}
+.cc-dialogue-tab-list{display:flex;gap:6px;overflow-x:auto;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel-soft);scrollbar-width:thin;overscroll-behavior-inline:contain}
+.cc-dialogue-tab-list button{flex:0 0 auto;white-space:nowrap;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--muted);padding:8px 11px;font:inherit;font-size:12px;font-weight:850;cursor:pointer}
+.cc-dialogue-tab-list button.active{border-color:var(--accent);background:var(--accent-soft);color:var(--text)}
+.cc-dialogue-tab-panel{padding:16px}
+.cc-dialogue-tab-panel[hidden]{display:none!important}
+.cc-dialogue-field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+.cc-dialogue-field-grid>.wide{grid-column:1/-1}
+.cc-dialogue-field-group{display:grid;gap:9px;min-width:0;padding:13px;border:1px solid var(--border);border-radius:12px;background:var(--panel-soft)}
+.cc-dialogue-field-group.wide{grid-column:1/-1}
+.cc-dialogue-field-group>header{display:grid;gap:3px}
+.cc-dialogue-field-group>header strong{font-size:13px}
+.cc-dialogue-field-group>header small,.cc-dialogue-field-group>small{color:var(--muted);font-size:11px;line-height:1.4}
+.cc-dialogue-field-group label{display:grid;gap:6px}
+.cc-dialogue-accent-field{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.cc-dialogue-custom-color{display:flex!important;grid-template-columns:auto auto!important;align-items:center;gap:8px!important;margin-left:auto;color:var(--muted);font-size:11px}
+.cc-dialogue-custom-color input{width:44px;height:34px;padding:3px;border:1px solid var(--border);border-radius:8px;background:var(--panel);cursor:pointer}
+.cc-dialogue-portrait-off-note{padding:10px 11px;border:1px solid color-mix(in srgb,var(--accent) 40%,var(--border));border-radius:9px;background:var(--accent-soft);color:var(--muted);font-size:12px}
 .cc-dialogue-card[data-cc-dialogue-index]{cursor:pointer}
 .cc-dialogue-card-tools{position:absolute;z-index:60;right:10px;bottom:10px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px;max-width:calc(100% - 20px);padding:6px;border:1px solid color-mix(in srgb,var(--dialogue-accent) 55%,var(--border));border-radius:10px;background:color-mix(in srgb,var(--panel) 94%,transparent);box-shadow:0 10px 28px rgba(0,0,0,.34);backdrop-filter:blur(8px)}
 .cc-dialogue-card-tools button{min-height:30px;border:1px solid var(--border);border-radius:7px;background:var(--panel-strong);color:var(--text);padding:5px 8px;font:inherit;font-size:11px;font-weight:800;cursor:pointer}
@@ -5202,6 +5220,10 @@ button.ccrh-context-chip:hover{border-color:var(--accent);color:var(--text)}
 .cc-dialogue-profile-popover p{clear:both;margin:10px 0}
 @media(max-width:760px){
   .cc-dialogue-quick-layout{grid-template-columns:1fr}
+  .cc-dialogue-field-grid{grid-template-columns:1fr}
+  .cc-dialogue-field-grid>.wide{grid-column:auto}
+  .cc-dialogue-field-group.wide{grid-column:auto}
+  .cc-dialogue-tab-list{padding-inline:9px}
   .cc-dialogue-builder-grid{grid-template-columns:1fr}
   .cc-dialogue-builder-grid .wide{grid-column:auto}
   .cc-dialogue-builder-actions{align-items:flex-start;flex-direction:column}
@@ -18070,6 +18092,7 @@ initFirebase();
 
   function ccDialogueLoad(character){
     const saved=ccDialogueDefaults()[character?.id]||{};
+    const savedImageChoice=String(saved.imageChoice||'default');
     return {
       characterId:character?.id||'',
       name:Object.prototype.hasOwnProperty.call(saved,'name')?String(saved.name):String(character?.name||'Character'),
@@ -18082,9 +18105,9 @@ initFirebase();
       theme:String(saved.theme||'classic'),
       accentMode:String(saved.accentMode||'profile'),
       customAccent:String(saved.customAccent||'#5fc7c4'),
-      imageChoice:String(saved.imageChoice||'default'),
+      imageChoice:savedImageChoice,
       selectedImage:String(saved.selectedImage||''),
-      showImage:saved.showImage!==false,
+      showImage:saved.showImage!==false&&savedImageChoice!=='none',
       showBorder:saved.showBorder!==false,
       showCorners:saved.showCorners!==false,
       showBackground:saved.showBackground!==false,
@@ -18102,6 +18125,7 @@ initFirebase();
       portraitZoom:ccDialogueClamp(saved.portraitZoom,1,2.5,1),
       text:'',
       advancedOpen:false,
+      advancedTab:'identity',
       aboutMode:'unassigned',
       aboutIds:[],
       relStates:{},
@@ -18128,8 +18152,8 @@ initFirebase();
     </button>`;
   }
 
-  function ccDialogueProfilePopover(character,name,blurb,imageOverride=''){
-    const image=imageOverride||ccDialogueImage(character);
+  function ccDialogueProfilePopover(character,name,blurb,imageOverride='',allowImage=true){
+    const image=allowImage?(imageOverride||ccDialogueImage(character)):'';
     const media=image
       ? `<img src="${esc(image)}" alt="" onerror="this.remove()">`
       : `<span class="cc-dialogue-popover-initials">${esc(ccDialogueInitials(character,name))}</span>`;
@@ -18151,7 +18175,8 @@ initFirebase();
   }){
     const accent=ccDialogueResolvedAccent(character,{accentMode,customAccent});
     const imageSource=String(imageUrl||'')||ccDialogueSelectedImage(character,{imageChoice,selectedImage});
-    const portrait=ccDialoguePortrait(character,name||character?.name||'',shape,showImage,imageSource,portraitSize,imageCrop,imageFrame,portraitX,portraitY,portraitZoom);
+    const portraitVisible=Boolean(showImage&&imageChoice!=='none');
+    const portrait=ccDialoguePortrait(character,name||character?.name||'',shape,portraitVisible,imageSource,portraitSize,imageCrop,imageFrame,portraitX,portraitY,portraitZoom);
     const visibleName=String(name||'').trim();
     const visibleSubtitle=String(subtitle||'').trim();
 
@@ -18162,12 +18187,12 @@ initFirebase();
         </div>`
       : '';
 
-    const portraitGroup=`<div class="cc-dialogue-portrait-group">
+    const portraitGroup=portraitVisible?`<div class="cc-dialogue-portrait-group">
       ${portrait}
       ${(namePlacement==='right'||namePlacement==='left'||namePlacement==='below')?identity:''}
-    </div>`;
+    </div>`:'';
 
-    const topIdentity=(namePlacement==='above')?identity:'';
+    const topIdentity=(namePlacement==='above'||(!portraitVisible&&namePlacement!=='hidden'))?identity:'';
     const cardClasses=[
       'cc-dialogue-card',
       `theme-${esc(theme)}`,
@@ -18195,7 +18220,7 @@ initFirebase();
       </div>
       ${imagePlacement==='right'?portraitGroup:''}
       ${imagePlacement==='bottom'?portraitGroup:''}
-      ${ccDialogueProfilePopover(character,visibleName||character?.name||'Character',blurb,imageSource)}
+      ${(portraitVisible||visibleName)?ccDialogueProfilePopover(character,visibleName||character?.name||'Character',blurb,imageSource,portraitVisible):''}
     </aside>`;
   }
 
@@ -18275,6 +18300,7 @@ initFirebase();
       console.error('Relationship-state controls could not be rendered.',error);
       relationshipStateRows=aboutMode==='targets'?`<div class="cc-dialogue-about-warning">Relationship states could not load, but the Dialogue Card can still be used. Close and reopen this editor after refreshing Codex.</div>`:'';
     }
+    const advancedTab=['identity','style','portrait','layout'].includes(ccDialogueState.advancedTab)?ccDialogueState.advancedTab:'identity';
 
     return `<section class="cc-dialogue-builder">
       <header class="cc-dialogue-builder-head">
@@ -18287,94 +18313,167 @@ initFirebase();
           <div class="cc-dialogue-quick-title"><strong>Create the card</strong><small>Choose the speaker, write the dialogue, and pick the portrait side.</small></div>
           <label>Who is speaking?<select class="select" data-cc-dialogue-character>${options}</select></label>
           <label>Dialogue<textarea class="textarea" rows="6" data-cc-dialogue-text placeholder="Write or paste the dialogue here…">${esc(ccDialogueState.text||'')}</textarea></label>
-          <div><strong>Portrait side</strong><div class="cc-dialogue-options">${quickPlacements}</div>${!['left','right'].includes(ccDialogueState.imagePlacement)?`<small class="muted">Current saved placement: ${ccDialogueState.imagePlacement==='top'?'Center top':'Center bottom'}. Choose a side here or change it under Advanced formatting.</small>`:''}</div>
-          <div class="cc-dialogue-saved-style-note">${esc(activeCharacter?.name||'This character')}’s saved portrait, profile color, subtitle, and card style are already applied.</div>
+          ${ccDialogueState.showImage&&ccDialogueState.imageChoice!=='none'?`<div><strong>Portrait side</strong><div class="cc-dialogue-options">${quickPlacements}</div>${!['left','right'].includes(ccDialogueState.imagePlacement)?`<small class="muted">Current saved placement: ${ccDialogueState.imagePlacement==='top'?'Center top':'Center bottom'}. Choose a side here or change it under Advanced formatting.</small>`:''}</div>`:'<div class="cc-dialogue-portrait-off-note">This card has no portrait. You can add one from the Portrait tab under Advanced formatting.</div>'}
+          <div class="cc-dialogue-saved-style-note">${esc(activeCharacter?.name||'This character')}’s saved ${ccDialogueState.showImage&&ccDialogueState.imageChoice!=='none'?'portrait, ':''}profile color, subtitle, and card style are already applied.</div>
         </div>
         <div class="cc-dialogue-quick-preview"><strong>Live preview</strong><div class="cc-dialogue-preview" data-cc-dialogue-preview></div></div>
       </div>
 
       <details class="cc-dialogue-advanced" data-cc-dialogue-advanced ${ccDialogueState.advancedOpen?'open':''}>
         <summary><span><strong>Advanced formatting</strong><small>Card style, identity, relationship details, portrait controls, spacing, and images</small></span></summary>
-        <div class="cc-dialogue-builder-grid">
-        <label>Display name<input class="input" data-cc-dialogue-name value="${esc(ccDialogueState.name)}"></label>
-
-        <label>Subtitle<input class="input" data-cc-dialogue-subtitle value="${esc(ccDialogueState.subtitle)}" placeholder="Optional title or role"></label>
-        <label>Custom accent<input class="input" type="color" data-cc-dialogue-custom-accent value="${esc(ccDialogueState.customAccent)}" ${ccDialogueState.accentMode==='custom'?'':'disabled'}></label>
-
-        <label class="wide">Character preview blurb
-          <textarea class="textarea" rows="4" data-cc-dialogue-blurb>${esc(ccDialogueState.blurb)}</textarea>
-          <small>This appears when the portrait or visible name is clicked. You can change it for this card or save it as the character default.</small>
-        </label>
-
-        <section class="wide cc-dialogue-about-panel">
-          <div class="cc-dialogue-about-head"><div><strong>Who is this blurb about?</strong><small>Codex uses this to build the correct relationship progression. You can choose more than one person.</small></div><span>${aboutUi.sceneIds.length===1?'Auto-assigned from this scene':aboutMode==='targets'&&aboutSelected.size?'Remembered from this story':aboutMode==='unassigned'?'Needs a person':'Not a one-to-one relationship blurb'}</span></div>
-          <div class="cc-dialogue-about-mode">
-            <button type="button" class="${aboutMode==='targets'?'active':''}" data-cc-dialogue-about-mode="targets">Character(s)</button>
-            <button type="button" class="${aboutMode==='self'?'active':''}" data-cc-dialogue-about-mode="self">Self</button>
-            <button type="button" class="${aboutMode==='general'?'active':''}" data-cc-dialogue-about-mode="general">General / scene</button>
-            <button type="button" class="${aboutMode==='unassigned'?'active':''}" data-cc-dialogue-about-mode="unassigned">Unassigned</button>
+        <div class="cc-dialogue-advanced-shell">
+          <div class="cc-dialogue-tab-list" role="tablist" aria-label="Dialogue Card formatting sections">
+            <button type="button" class="${advancedTab==='identity'?'active':''}" aria-selected="${advancedTab==='identity'}" data-cc-dialogue-tab="identity">Identity & relationships</button>
+            <button type="button" class="${advancedTab==='style'?'active':''}" aria-selected="${advancedTab==='style'}" data-cc-dialogue-tab="style">Style & color</button>
+            <button type="button" class="${advancedTab==='portrait'?'active':''}" aria-selected="${advancedTab==='portrait'}" data-cc-dialogue-tab="portrait">Portrait</button>
+            <button type="button" class="${advancedTab==='layout'?'active':''}" aria-selected="${advancedTab==='layout'}" data-cc-dialogue-tab="layout">Layout & spacing</button>
           </div>
-          <div class="cc-dialogue-about-targets ${aboutMode==='targets'?'':'is-muted'}">${aboutChips||'<span class="muted">No other character is marked in this scene yet.</span>'}</div>
-          ${aboutUi.other.length?`<details class="cc-dialogue-about-other"><summary>+ Other character</summary><div class="cc-dialogue-about-targets">${otherChips}</div></details>`:''}
-          ${aboutMode==='targets'&&relationshipStateRows?`<div class="cc-dialogue-rel-state-panel"><div class="cc-dialogue-rel-state-head"><div><strong>Relationship state</strong><small>Each person can have a different state. Once picked, that state stays automatic in this story until you change it.</small></div><button class="button ghost small" type="button" data-cc-rel-manage-state-library>Global colors</button></div><div class="cc-dialogue-rel-state-list">${relationshipStateRows}</div></div>`:''}
-          ${aboutMode==='unassigned'?'<p class="cc-dialogue-about-warning">Several characters may be involved, so Codex will not guess. You can leave this unassigned and identify the person later from Relationships edit mode.</p>':''}
-        </section>
 
-        <div class="wide"><strong>Card theme</strong><div class="cc-dialogue-theme-grid">${themes}</div></div>
-        <div class="wide"><strong>Accent</strong><div class="cc-dialogue-options">${accentChoices}</div><div class="cc-dialogue-accent-preview"><i style="--dialogue-accent:${esc(resolvedAccent)}"></i><span>${ccDialogueState.accentMode==='profile'?'Uses the character profile color':ccDialogueState.accentMode==='custom'?'Uses your custom color':'No accent color'}</span></div></div>
-        <div class="wide"><strong>Portrait shape</strong><div class="cc-dialogue-options">${shapes}</div></div>
+          <section class="cc-dialogue-tab-panel" data-cc-dialogue-tab-panel="identity" ${advancedTab==='identity'?'':'hidden'}>
+            <div class="cc-dialogue-field-grid">
+              <div class="cc-dialogue-field-group">
+                <header><strong>Display name</strong><small>The name shown on this card.</small></header>
+                <input class="input" data-cc-dialogue-name value="${esc(ccDialogueState.name)}">
+              </div>
+              <div class="cc-dialogue-field-group">
+                <header><strong>Subtitle</strong><small>An optional title, role, or relationship label.</small></header>
+                <input class="input" data-cc-dialogue-subtitle value="${esc(ccDialogueState.subtitle)}" placeholder="Optional title or role">
+              </div>
+              <div class="cc-dialogue-field-group wide">
+                <header><strong>Character preview blurb</strong><small>This appears when the portrait or visible name is clicked.</small></header>
+                <textarea class="textarea" rows="4" data-cc-dialogue-blurb>${esc(ccDialogueState.blurb)}</textarea>
+              </div>
+              <section class="wide cc-dialogue-about-panel">
+                <div class="cc-dialogue-about-head"><div><strong>Who is this blurb about?</strong><small>Codex uses this to build the correct relationship progression. You can choose more than one person.</small></div><span>${aboutUi.sceneIds.length===1?'Auto-assigned from this scene':aboutMode==='targets'&&aboutSelected.size?'Remembered from this story':aboutMode==='unassigned'?'Needs a person':'Not a one-to-one relationship blurb'}</span></div>
+                <div class="cc-dialogue-about-mode">
+                  <button type="button" class="${aboutMode==='targets'?'active':''}" data-cc-dialogue-about-mode="targets">Character(s)</button>
+                  <button type="button" class="${aboutMode==='self'?'active':''}" data-cc-dialogue-about-mode="self">Self</button>
+                  <button type="button" class="${aboutMode==='general'?'active':''}" data-cc-dialogue-about-mode="general">General / scene</button>
+                  <button type="button" class="${aboutMode==='unassigned'?'active':''}" data-cc-dialogue-about-mode="unassigned">Unassigned</button>
+                </div>
+                <div class="cc-dialogue-about-targets ${aboutMode==='targets'?'':'is-muted'}">${aboutChips||'<span class="muted">No other character is marked in this scene yet.</span>'}</div>
+                ${aboutUi.other.length?`<details class="cc-dialogue-about-other"><summary>+ Other character</summary><div class="cc-dialogue-about-targets">${otherChips}</div></details>`:''}
+                ${aboutMode==='targets'&&relationshipStateRows?`<div class="cc-dialogue-rel-state-panel"><div class="cc-dialogue-rel-state-head"><div><strong>Relationship state</strong><small>Each person can have a different state. Once picked, that state stays automatic in this story until you change it.</small></div><button class="button ghost small" type="button" data-cc-rel-manage-state-library>Global colors</button></div><div class="cc-dialogue-rel-state-list">${relationshipStateRows}</div></div>`:''}
+                ${aboutMode==='unassigned'?'<p class="cc-dialogue-about-warning">Several characters may be involved, so Codex will not guess. You can leave this unassigned and identify the person later from Relationships edit mode.</p>':''}
+              </section>
+            </div>
+          </section>
 
-        <div><strong>Image placement</strong><div class="cc-dialogue-options">${placements}</div></div>
-        <div><strong>Card alignment</strong><div class="cc-dialogue-options">${alignments}</div></div>
+          <section class="cc-dialogue-tab-panel" data-cc-dialogue-tab-panel="style" ${advancedTab==='style'?'':'hidden'}>
+            <div class="cc-dialogue-field-grid">
+              <div class="cc-dialogue-field-group wide">
+                <header><strong>Card theme</strong><small>Choose the overall treatment before adjusting individual effects.</small></header>
+                <div class="cc-dialogue-theme-grid">${themes}</div>
+              </div>
+              <div class="cc-dialogue-field-group wide">
+                <header><strong>Accent</strong><small>The custom picker stays with the accent choices.</small></header>
+                <div class="cc-dialogue-accent-field">
+                  <div class="cc-dialogue-options">${accentChoices}</div>
+                  <label class="cc-dialogue-custom-color">Custom color<input type="color" data-cc-dialogue-custom-accent value="${esc(ccDialogueState.customAccent)}" ${ccDialogueState.accentMode==='custom'?'':'disabled'}></label>
+                </div>
+                <div class="cc-dialogue-accent-preview"><i style="--dialogue-accent:${esc(resolvedAccent)}"></i><span>${ccDialogueState.accentMode==='profile'?'Uses the character profile color':ccDialogueState.accentMode==='custom'?'Uses your custom color':'No accent color'}</span></div>
+              </div>
+              <div class="cc-dialogue-field-group">
+                <header><strong>Glow</strong><small>Controls the light around the card and portrait.</small></header>
+                <div class="cc-dialogue-options">${glowChoices}</div>
+              </div>
+              <div class="cc-dialogue-field-group">
+                <header><strong>Card surfaces</strong><small>Turn the card frame elements on or off.</small></header>
+                <label class="cc-dialogue-check"><input type="checkbox" data-cc-dialogue-show-border ${ccDialogueState.showBorder?'checked':''}><span>Show border</span></label>
+                <label class="cc-dialogue-check"><input type="checkbox" data-cc-dialogue-show-corners ${ccDialogueState.showCorners?'checked':''}><span>Show decorative corners</span></label>
+                <label class="cc-dialogue-check"><input type="checkbox" data-cc-dialogue-show-background ${ccDialogueState.showBackground?'checked':''}><span>Show background panel</span></label>
+              </div>
+            </div>
+          </section>
 
-        <div class="wide"><strong>Name placement</strong><div class="cc-dialogue-options">${namePlacements}</div></div>
-        <div class="wide"><strong>Glow</strong><div class="cc-dialogue-options">${glowChoices}</div></div>
+          <section class="cc-dialogue-tab-panel" data-cc-dialogue-tab-panel="portrait" ${advancedTab==='portrait'?'':'hidden'}>
+            <div class="cc-dialogue-field-grid">
+              <div class="cc-dialogue-field-group wide">
+                <header><strong>Character portrait</strong><small>Choose a portrait or remove it completely from this card.</small></header>
+                <label class="cc-dialogue-check"><input type="checkbox" data-cc-dialogue-show-image ${ccDialogueState.showImage&&ccDialogueState.imageChoice!=='none'?'checked':''}><span>Show character portrait</span></label>
+                ${!ccDialogueState.showImage||ccDialogueState.imageChoice==='none'?'<div class="cc-dialogue-portrait-off-note">No portrait will appear on the card or in its profile popover.</div>':''}
+                <div class="cc-dialogue-image-library">
+                  <div class="cc-dialogue-library-head">
+                    <div><strong>Portrait image</strong><small>Use the default, choose a saved alternate, upload another, or select No image.</small></div>
+                    <label class="button secondary small cc-dialogue-upload-label">Upload image<input type="file" accept="image/*" data-cc-dialogue-image-upload hidden></label>
+                  </div>
+                  <div class="cc-dialogue-image-choice-row">
+                    <button type="button" class="cc-dialogue-image-choice ${ccDialogueState.imageChoice==='default'&&ccDialogueState.showImage?'active':''}" data-cc-dialogue-image-choice="default">
+                      <span class="cc-dialogue-image-thumb">${ccDialogueImage(activeCharacter)?`<img src="${esc(ccDialogueImage(activeCharacter))}" alt="">`:'<span>Default</span>'}</span><span>Default portrait</span>
+                    </button>
+                    ${imageLibrary.map(item=>`<div class="cc-dialogue-saved-image ${ccDialogueState.imageChoice==='saved'&&ccDialogueState.selectedImage===item.id&&ccDialogueState.showImage?'active':''}">
+                      <button type="button" class="cc-dialogue-image-choice" data-cc-dialogue-saved-image="${esc(item.id)}"><span class="cc-dialogue-image-thumb"><img src="${esc(item.src)}" alt=""></span><span>${esc(item.name)}</span></button>
+                      <button type="button" class="cc-dialogue-image-delete" data-cc-dialogue-delete-image="${esc(item.id)}" title="Delete saved image">×</button>
+                    </div>`).join('')}
+                    <button type="button" class="cc-dialogue-image-choice ${ccDialogueState.imageChoice==='none'||!ccDialogueState.showImage?'active':''}" data-cc-dialogue-image-choice="none"><span class="cc-dialogue-image-thumb cc-dialogue-no-image">×</span><span>No image</span></button>
+                  </div>
+                  ${selectedImageSource&&ccDialogueState.showImage?`<div class="cc-dialogue-selected-image-note">Selected image will stay attached to this Dialogue Card.</div>`:''}
+                </div>
+              </div>
+              <div class="cc-dialogue-field-group">
+                <header><strong>Portrait shape</strong><small>The frame shape around the portrait.</small></header>
+                <div class="cc-dialogue-options">${shapes}</div>
+              </div>
+              <div class="cc-dialogue-field-group">
+                <header><strong>Image placement</strong><small>Where the portrait sits around the dialogue.</small></header>
+                <div class="cc-dialogue-options">${placements}</div>
+              </div>
+              <div class="cc-dialogue-field-group">
+                <header><strong>Portrait size</strong></header>
+                <div class="cc-dialogue-options">${sizeChoices}</div>
+              </div>
+              <div class="cc-dialogue-field-group">
+                <header><strong>Image crop</strong></header>
+                <div class="cc-dialogue-options">${cropChoices}</div>
+              </div>
+              <div class="cc-dialogue-field-group wide">
+                <header><strong>Image frame</strong></header>
+                <div class="cc-dialogue-options">${frameChoices}</div>
+              </div>
+              <div class="cc-dialogue-field-group wide">
+                <header><strong>Portrait position and zoom</strong><small>Drag the portrait in the live preview or use these sliders.</small></header>
+                <div class="cc-dialogue-portrait-controls">
+                  <label>Zoom<input type="range" min="1" max="2.5" step="0.01" value="${esc(ccDialogueState.portraitZoom)}" data-cc-dialogue-portrait-zoom></label>
+                  <label>Move left or right<input type="range" min="0" max="100" step="1" value="${esc(ccDialogueState.portraitX)}" data-cc-dialogue-portrait-x></label>
+                  <label>Move up or down<input type="range" min="0" max="100" step="1" value="${esc(ccDialogueState.portraitY)}" data-cc-dialogue-portrait-y></label>
+                </div>
+                <div class="cc-dialogue-position-help"><span>These controls do not change the saved source image.</span><button class="button secondary small" type="button" data-cc-dialogue-portrait-reset>Reset portrait</button></div>
+              </div>
+            </div>
+          </section>
 
-        <div class="wide cc-dialogue-section-title"><strong>Spacing and size</strong><small>These settings control the room inside the card and the space between the card and the paragraphs around it.</small></div>
-        <div><strong>Inner padding</strong><div class="cc-dialogue-options">${paddingChoices}</div></div>
-        <div><strong>Portrait gap</strong><div class="cc-dialogue-options">${gapChoices}</div></div>
-        <div><strong>Space before card</strong><div class="cc-dialogue-options">${beforeChoices}</div></div>
-        <div><strong>Space after card</strong><div class="cc-dialogue-options">${afterChoices}</div></div>
-        <div class="wide"><strong>Card width</strong><div class="cc-dialogue-options">${widthChoices}</div></div>
-
-        <div class="wide cc-dialogue-section-title"><strong>Portrait appearance</strong><small>Adjust the portrait without changing the saved image itself.</small></div>
-        <div><strong>Portrait size</strong><div class="cc-dialogue-options">${sizeChoices}</div></div>
-        <div><strong>Image crop</strong><div class="cc-dialogue-options">${cropChoices}</div></div>
-        <div class="wide"><strong>Image frame</strong><div class="cc-dialogue-options">${frameChoices}</div></div>
-        <div class="wide"><strong>Portrait position and zoom</strong>
-          <div class="cc-dialogue-portrait-controls">
-            <label>Zoom<input type="range" min="1" max="2.5" step="0.01" value="${esc(ccDialogueState.portraitZoom)}" data-cc-dialogue-portrait-zoom></label>
-            <label>Move left or right<input type="range" min="0" max="100" step="1" value="${esc(ccDialogueState.portraitX)}" data-cc-dialogue-portrait-x></label>
-            <label>Move up or down<input type="range" min="0" max="100" step="1" value="${esc(ccDialogueState.portraitY)}" data-cc-dialogue-portrait-y></label>
-          </div>
-          <div class="cc-dialogue-position-help"><span>Drag the portrait in the live preview or use the sliders.</span><button class="button secondary small" type="button" data-cc-dialogue-portrait-reset>Reset portrait</button></div>
-        </div>
-
-        <div class="wide cc-dialogue-toggle-grid">
-          <label class="cc-dialogue-check"><input type="checkbox" data-cc-dialogue-show-image ${ccDialogueState.showImage?'checked':''}><span>Show character image</span></label>
-          <label class="cc-dialogue-check"><input type="checkbox" data-cc-dialogue-show-border ${ccDialogueState.showBorder?'checked':''}><span>Show border</span></label>
-          <label class="cc-dialogue-check"><input type="checkbox" data-cc-dialogue-show-corners ${ccDialogueState.showCorners?'checked':''}><span>Show decorative corners</span></label>
-          <label class="cc-dialogue-check"><input type="checkbox" data-cc-dialogue-show-background ${ccDialogueState.showBackground?'checked':''}><span>Show background panel</span></label>
-        </div>
-
-
-        <div class="wide cc-dialogue-image-library">
-          <div class="cc-dialogue-library-head">
-            <div><strong>Character image</strong><small>Choose the default portrait, a saved alternate image, upload another, or hide the image.</small></div>
-            <label class="button secondary small cc-dialogue-upload-label">Upload image<input type="file" accept="image/*" data-cc-dialogue-image-upload hidden></label>
-          </div>
-          <div class="cc-dialogue-image-choice-row">
-            <button type="button" class="cc-dialogue-image-choice ${ccDialogueState.imageChoice==='default'?'active':''}" data-cc-dialogue-image-choice="default">
-              <span class="cc-dialogue-image-thumb">${ccDialogueImage(activeCharacter)?`<img src="${esc(ccDialogueImage(activeCharacter))}" alt="">`:'<span>Default</span>'}</span><span>Default portrait</span>
-            </button>
-            ${imageLibrary.map(item=>`<div class="cc-dialogue-saved-image ${ccDialogueState.imageChoice==='saved'&&ccDialogueState.selectedImage===item.id?'active':''}">
-              <button type="button" class="cc-dialogue-image-choice" data-cc-dialogue-saved-image="${esc(item.id)}"><span class="cc-dialogue-image-thumb"><img src="${esc(item.src)}" alt=""></span><span>${esc(item.name)}</span></button>
-              <button type="button" class="cc-dialogue-image-delete" data-cc-dialogue-delete-image="${esc(item.id)}" title="Delete saved image">×</button>
-            </div>`).join('')}
-            <button type="button" class="cc-dialogue-image-choice ${ccDialogueState.imageChoice==='none'?'active':''}" data-cc-dialogue-image-choice="none"><span class="cc-dialogue-image-thumb cc-dialogue-no-image">×</span><span>No image</span></button>
-          </div>
-          ${selectedImageSource?`<div class="cc-dialogue-selected-image-note">Selected image will stay attached to this Dialogue Card.</div>`:''}
-        </div>
+          <section class="cc-dialogue-tab-panel" data-cc-dialogue-tab-panel="layout" ${advancedTab==='layout'?'':'hidden'}>
+            <div class="cc-dialogue-field-grid">
+              <div class="cc-dialogue-field-group">
+                <header><strong>Card alignment</strong></header>
+                <div class="cc-dialogue-options">${alignments}</div>
+              </div>
+              <div class="cc-dialogue-field-group">
+                <header><strong>Card width</strong></header>
+                <div class="cc-dialogue-options">${widthChoices}</div>
+              </div>
+              <div class="cc-dialogue-field-group wide">
+                <header><strong>Name placement</strong><small>Where the display name and subtitle appear.</small></header>
+                <div class="cc-dialogue-options">${namePlacements}</div>
+              </div>
+              <div class="cc-dialogue-field-group">
+                <header><strong>Inner padding</strong></header>
+                <div class="cc-dialogue-options">${paddingChoices}</div>
+              </div>
+              <div class="cc-dialogue-field-group">
+                <header><strong>Portrait gap</strong></header>
+                <div class="cc-dialogue-options">${gapChoices}</div>
+              </div>
+              <div class="cc-dialogue-field-group">
+                <header><strong>Space before card</strong></header>
+                <div class="cc-dialogue-options">${beforeChoices}</div>
+              </div>
+              <div class="cc-dialogue-field-group">
+                <header><strong>Space after card</strong></header>
+                <div class="cc-dialogue-options">${afterChoices}</div>
+              </div>
+            </div>
+          </section>
         </div>
       </details>
 
@@ -18515,7 +18614,12 @@ initFirebase();
     mount.querySelectorAll('[data-cc-dialogue-rel-state]').forEach(input=>{ccDialogueState.relStates[String(input.dataset.ccDialogueRelState||'')]=String(input.value||'').trim();});
     ccDialogueEnsureRelStates(ccDialogueCharacter());
 
-    ccDialogueState.showImage=Boolean(mount.querySelector('[data-cc-dialogue-show-image]')?.checked);
+    const showImageInput=mount.querySelector('[data-cc-dialogue-show-image]');
+    if(showImageInput){
+      ccDialogueState.showImage=Boolean(showImageInput.checked);
+      if(!ccDialogueState.showImage)ccDialogueState.imageChoice='none';
+      else if(ccDialogueState.imageChoice==='none')ccDialogueState.imageChoice='default';
+    }
     ccDialogueState.showBorder=Boolean(mount.querySelector('[data-cc-dialogue-show-border]')?.checked);
     ccDialogueState.showCorners=Boolean(mount.querySelector('[data-cc-dialogue-show-corners]')?.checked);
     ccDialogueState.showBackground=Boolean(mount.querySelector('[data-cc-dialogue-show-background]')?.checked);
@@ -18543,7 +18647,7 @@ initFirebase();
     const aboutIds=aboutMode==='targets'?[...new Set((ccDialogueState.aboutIds||[]).map(String).filter(Boolean))]:[];
     if(aboutMode==='targets'&&!aboutIds.length)aboutMode='unassigned';
     const relStatesEncoded=aboutMode==='targets'?ccDialogueEncodeRelStates(aboutIds,ccDialogueState.relStates||{}):'';
-    const tag=`[dialogue character="${clean(character.id)}" name="${clean(ccDialogueState.name)}" subtitle="${clean(ccDialogueState.subtitle)}" aboutmode="${clean(aboutMode)}" about="${clean(aboutIds.join(','))}" relstates="${clean(relStatesEncoded)}" shape="${ccDialogueState.shape}" image="${ccDialogueState.imagePlacement}" card="${ccDialogueState.cardAlignment}" namepos="${ccDialogueState.namePlacement}" theme="${ccDialogueState.theme}" accent="${ccDialogueState.accentMode}" customaccent="${clean(ccDialogueState.customAccent)}" imagechoice="${clean(ccDialogueState.imageChoice)}" imageid="${clean(ccDialogueState.selectedImage)}" border="${ccDialogueState.showBorder?'yes':'no'}" corners="${ccDialogueState.showCorners?'yes':'no'}" background="${ccDialogueState.showBackground?'yes':'no'}" glow="${ccDialogueState.glow}" padding="${ccDialogueState.innerPadding}" before="${ccDialogueState.spaceBefore}" after="${ccDialogueState.spaceAfter}" gap="${ccDialogueState.portraitGap}" width="${ccDialogueState.cardWidth}" portraitsize="${ccDialogueState.portraitSize}" crop="${ccDialogueState.imageCrop}" frame="${ccDialogueState.imageFrame}" px="${ccDialogueState.portraitX}" py="${ccDialogueState.portraitY}" pzoom="${ccDialogueState.portraitZoom}" blurb="${clean(ccDialogueState.blurb)}"]\n${body}\n[/dialogue]`;
+    const tag=`[dialogue character="${clean(character.id)}" name="${clean(ccDialogueState.name)}" subtitle="${clean(ccDialogueState.subtitle)}" aboutmode="${clean(aboutMode)}" about="${clean(aboutIds.join(','))}" relstates="${clean(relStatesEncoded)}" shape="${ccDialogueState.shape}" image="${ccDialogueState.imagePlacement}" card="${ccDialogueState.cardAlignment}" namepos="${ccDialogueState.namePlacement}" theme="${ccDialogueState.theme}" accent="${ccDialogueState.accentMode}" customaccent="${clean(ccDialogueState.customAccent)}" imagechoice="${clean(ccDialogueState.imageChoice)}" imageid="${clean(ccDialogueState.selectedImage)}" showimage="${ccDialogueState.showImage?'yes':'no'}" border="${ccDialogueState.showBorder?'yes':'no'}" corners="${ccDialogueState.showCorners?'yes':'no'}" background="${ccDialogueState.showBackground?'yes':'no'}" glow="${ccDialogueState.glow}" padding="${ccDialogueState.innerPadding}" before="${ccDialogueState.spaceBefore}" after="${ccDialogueState.spaceAfter}" gap="${ccDialogueState.portraitGap}" width="${ccDialogueState.cardWidth}" portraitsize="${ccDialogueState.portraitSize}" crop="${ccDialogueState.imageCrop}" frame="${ccDialogueState.imageFrame}" px="${ccDialogueState.portraitX}" py="${ccDialogueState.portraitY}" pzoom="${ccDialogueState.portraitZoom}" blurb="${clean(ccDialogueState.blurb)}"]\n${body}\n[/dialogue]`;
 
     editor.setRangeText(tag,ccDialogueSelection.start,ccDialogueSelection.end,'end');
     editor.dispatchEvent(new Event('input',{bubbles:true}));
@@ -18659,6 +18763,17 @@ initFirebase();
     if(event.target.closest('[data-cc-dialogue-card-open]')){event.preventDefault();try{ccDialogueOpen();}catch(error){console.error('Dialogue Card click failed.',error);toast('The Dialogue Card could not open.','error');}return;}
     if(event.target.closest('[data-cc-dialogue-close]')){event.preventDefault();ccDialogueClose();return;}
 
+    const dialogueTab=event.target.closest('[data-cc-dialogue-tab]');
+    if(dialogueTab&&ccDialogueState){
+      event.preventDefault();
+      const tab=dialogueTab.dataset.ccDialogueTab||'identity';
+      ccDialogueState.advancedTab=tab;
+      const shell=dialogueTab.closest('.cc-dialogue-advanced-shell');
+      shell?.querySelectorAll('[data-cc-dialogue-tab]').forEach(button=>{const active=button.dataset.ccDialogueTab===tab;button.classList.toggle('active',active);button.setAttribute('aria-selected',String(active));});
+      shell?.querySelectorAll('[data-cc-dialogue-tab-panel]').forEach(panel=>{panel.hidden=panel.dataset.ccDialogueTabPanel!==tab;});
+      return;
+    }
+
     if(event.target.closest('[data-cc-dialogue-existing-save-text]')){
       event.preventDefault();
       const context=ccDialogueFreshExistingEdit(),value=el.modal.querySelector('[data-cc-dialogue-existing-text]')?.value||'';
@@ -18725,11 +18840,11 @@ initFirebase();
 
     const imageChoiceButton=event.target.closest('[data-cc-dialogue-image-choice]');
     if(imageChoiceButton){
-      event.preventDefault();ccDialogueState.imageChoice=imageChoiceButton.dataset.ccDialogueImageChoice;ccDialogueState.selectedImage='';ccDialogueRefreshBuilder();return;
+      event.preventDefault();ccDialogueState.imageChoice=imageChoiceButton.dataset.ccDialogueImageChoice;ccDialogueState.selectedImage='';ccDialogueState.showImage=ccDialogueState.imageChoice!=='none';ccDialogueRefreshBuilder();return;
     }
     const savedImageButton=event.target.closest('[data-cc-dialogue-saved-image]');
     if(savedImageButton){
-      event.preventDefault();ccDialogueState.imageChoice='saved';ccDialogueState.selectedImage=savedImageButton.dataset.ccDialogueSavedImage;ccDialogueRefreshBuilder();return;
+      event.preventDefault();ccDialogueState.imageChoice='saved';ccDialogueState.selectedImage=savedImageButton.dataset.ccDialogueSavedImage;ccDialogueState.showImage=true;ccDialogueRefreshBuilder();return;
     }
     const deleteImageButton=event.target.closest('[data-cc-dialogue-delete-image]');
     if(deleteImageButton){
@@ -18880,6 +18995,7 @@ initFirebase();
       ccDialogueImageLibrary(character).push(entry);
       ccDialogueState.imageChoice='saved';
       ccDialogueState.selectedImage=entry.id;
+      ccDialogueState.showImage=true;
       scheduleSave('Saving character image…');
       ccDialogueRefreshBuilder();
       toast('Character image saved.');
@@ -18893,10 +19009,12 @@ initFirebase();
       ccDialogueSync();
       const dialogueText=String(ccDialogueState?.text||'');
       const advancedOpen=Boolean(ccDialogueState?.advancedOpen);
+      const advancedTab=String(ccDialogueState?.advancedTab||'identity');
       const character=(state.characters||[]).find(item=>String(item.id)===String(characterSelect.value))||null;
       ccDialogueState=ccDialogueLoad(character);
       ccDialogueState.text=dialogueText;
       ccDialogueState.advancedOpen=advancedOpen;
+      ccDialogueState.advancedTab=advancedTab;
       ccDialogueApplyAboutDefaults(character);
       const mount=document.querySelector('[data-cc-dialogue-builder-mount]');
       if(mount){mount.innerHTML=ccDialogueBuilderHtml();ccDialogueRefreshPreview();}
@@ -18910,7 +19028,8 @@ initFirebase();
       return;
     }
     if(event.target.closest('[data-cc-dialogue-rel-state]')){ccDialogueSync();ccDialogueRefreshBuilder();return;}
-    if(event.target.closest('[data-cc-dialogue-show-image],[data-cc-dialogue-show-border],[data-cc-dialogue-show-corners],[data-cc-dialogue-show-background],[data-cc-dialogue-save-default],[data-cc-dialogue-custom-accent],[data-cc-dialogue-portrait-x],[data-cc-dialogue-portrait-y],[data-cc-dialogue-portrait-zoom]'))ccDialogueSync();
+    if(event.target.closest('[data-cc-dialogue-show-image]')){ccDialogueSync();ccDialogueRefreshBuilder();return;}
+    if(event.target.closest('[data-cc-dialogue-show-border],[data-cc-dialogue-show-corners],[data-cc-dialogue-show-background],[data-cc-dialogue-save-default],[data-cc-dialogue-custom-accent],[data-cc-dialogue-portrait-x],[data-cc-dialogue-portrait-y],[data-cc-dialogue-portrait-zoom]'))ccDialogueSync();
     if(event.target.closest('[data-ccrh-story-point]')&&ccDialogueState){
       const character=ccDialogueCharacter();ccDialogueApplyAboutDefaults(character,{preserve:Boolean(ccDialogueState.aboutIds?.length)});ccDialogueRefreshBuilder();
     }
@@ -20979,7 +21098,7 @@ initFirebase();
 
   /* === End Character rich writing editor === */
 
-  window.CODEX_BUILD='dialogue-quick-builder-advanced-formatting-2026-08-28';
+  window.CODEX_BUILD='dialogue-tabbed-advanced-no-image-fix-2026-08-28';
   /* === End Character clean view / explicit edit mode === */
 
   // The main app can render the initial route before this extension is installed.
