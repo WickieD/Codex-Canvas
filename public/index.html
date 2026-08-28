@@ -17795,10 +17795,10 @@ initFirebase();
       return;
     }
     ccPostMediaUrl='';
-    el.modal.innerHTML=`<div class="modal-backdrop"><section class="modal cc-post-media-modal" role="dialog" aria-modal="true">
+    el.modal.innerHTML=`<div class="modal-backdrop" data-close-modal><section class="modal cc-post-media-modal" role="dialog" aria-modal="true">
       <header class="modal-head">
         <div><span class="eyebrow">Roleplay post media</span><h2>Insert an image or GIF</h2></div>
-        <button class="icon-button" type="button" data-modal-close>×</button>
+        <button class="icon-button" type="button" data-close-modal aria-label="Close">×</button>
       </header>
       <div class="modal-body">
         <div class="cc-post-media-grid">
@@ -17833,7 +17833,7 @@ initFirebase();
         </div>
       </div>
       <footer class="modal-actions">
-        <button class="button secondary" type="button" data-modal-close>Cancel</button>
+        <button class="button secondary" type="button" data-close-modal>Cancel</button>
         <button class="button" type="button" data-cc-post-media-insert disabled>Insert into post</button>
       </footer>
     </section></div>`;
