@@ -5419,6 +5419,7 @@ button.ccrh-format-button:hover,.ccrh-format-button:has(input:hover),.ccrh-mini-
 .cc-intersection-link-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .cc-intersection-link-grid label{display:grid;gap:5px;min-width:0}
 .cc-intersection-link-grid label>span{font-size:11px;font-weight:800;color:var(--muted)}
+.cc-intersection-link-grid .intersection-wide{grid-column:1/-1}
 .cc-intersection-link-help{font-size:11px;color:var(--muted);line-height:1.45}
 .cc-intersection-empty-selection{padding:18px;text-align:center;color:var(--muted)}
 @media(max-width:760px){
@@ -7627,12 +7628,20 @@ window.CODEX_BUILD = "graph-modes-scope-fix-2026-08-21";
     if(storySelect){
       ccIntersectionState.targetStoryId=storySelect.value||'';
       ccIntersectionState.targetNodeId='';
+      ccIntersectionState.targetTurnId='';
       ccIntersectionRefreshBuilder();
       return;
     }
     const pointSelect=event.target.closest('[data-cc-intersection-target-point]');
     if(pointSelect){
       ccIntersectionState.targetNodeId=pointSelect.value||'';
+      ccIntersectionState.targetTurnId='';
+      ccIntersectionRefreshBuilder();
+      return;
+    }
+    const postSelect=event.target.closest('[data-cc-intersection-target-post]');
+    if(postSelect){
+      ccIntersectionState.targetTurnId=postSelect.value||'';
       ccIntersectionRefreshBuilder();
     }
   },true);
@@ -8351,6 +8360,9 @@ window.CODEX_BUILD = "graph-modes-scope-fix-2026-08-21";
     turn.locationDetail ||= '';
     turn.storyPointId ||= '';
     turn.storyPointStoryId ||= '';
+    turn.intersectionTargetStoryId ||= '';
+    turn.intersectionTargetNodeId ||= '';
+    turn.intersectionTargetTurnId ||= '';
     turn.intersectionPreviewOverride ||= '';
     return turn;
   }
@@ -13232,12 +13244,16 @@ function storyPostIntersections(){
   for(const sourceStory of state.storyGraphs||[]){
     const turns=ensureStoryDocument(sourceStory);
     turns.forEach((turn,index)=>{
-      const targetStoryId=String(turn?.storyPointStoryId||'');
-      const targetNodeId=String(turn?.storyPointId||'');
+      const targetStoryId=String(turn?.intersectionTargetStoryId||turn?.storyPointStoryId||'');
+      const targetNodeId=String(turn?.intersectionTargetNodeId||turn?.storyPointId||'');
       if(!targetStoryId||targetStoryId===sourceStory.id||!targetNodeId)return;
       const targetStory=storyById(targetStoryId);
       const targetNode=(targetStory?.nodes||[]).find(node=>node.id===targetNodeId);
       if(!targetStory||!targetNode)return;
+      const requestedTargetTurnId=String(turn?.intersectionTargetTurnId||'');
+      const targetRange=storyPointRange(targetStory,targetNode);
+      const targetTurn=(targetRange.turns||[]).find(item=>item.id===requestedTargetTurnId)||(requestedTargetTurnId?null:(targetRange.turns||[])[0])||null;
+      if(requestedTargetTurnId&&!targetTurn)return;
       let sourceNode=null;
       for(const node of (sourceStory.nodes||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0))){
         if(storyPointRange(sourceStory,node).turns.some(item=>item.id===turn.id)){sourceNode=node;break;}
@@ -13248,9 +13264,9 @@ function storyPostIntersections(){
       const fallbackExcerpt=intersectionPlainText(turn.text||'',180);
       const excerpt=String(turn.intersectionPreviewOverride||markedPassage||fallbackExcerpt||'').trim();
       results.push({
-        id:`post-intersection:${sourceStory.id}:${turn.id}:${targetStory.id}:${targetNode.id}`,
+        id:`post-intersection:${sourceStory.id}:${turn.id}:${targetStory.id}:${targetNode.id}:${targetTurn?.id||'point'}`,
         type:'post',sourceStoryId:sourceStory.id,sourceTurnId:turn.id,sourcePostNumber:index+1,
-        sourceNodeId:sourceNode?.id||'',targetStoryId:targetStory.id,targetNodeId:targetNode.id,
+        sourceNodeId:sourceNode?.id||'',targetStoryId:targetStory.id,targetNodeId:targetNode.id,targetTurnId:targetTurn?.id||'',
         speakerName,excerpt,hasMarkedPassage:!!markedPassage,
         label:`${sourceStory.name} · Post ${index+1} ↔ ${targetStory.name} · ${storyPointTitle(targetStory,targetNode)}`
       });
@@ -13285,6 +13301,20 @@ function intersectionJoinNames(names){
   if(items.length===2)return `${items[0]} and ${items[1]}`;
   return `${items.slice(0,-1).join(', ')}, and ${items.at(-1)}`;
 }
+function intersectionCharactersFromTurn(turn){
+  if(!turn)return 'Unknown character';
+  const names=[];
+  const speaker=storySpeakerMeta(turn).name;
+  if(speaker)names.push(speaker);
+  String(turn.text||'').replace(/\[dialogue\s+([^\]]+)\]([\s\S]*?)\[\/dialogue\]/gi,(whole,attributeText)=>{
+    const attrs=typeof ccrhExportAttrs==='function'?ccrhExportAttrs(attributeText):{};
+    const character=getItem('characters',attrs.character||'');
+    const name=String(attrs.name||character?.name||'').trim();
+    if(name&&!names.includes(name))names.push(name);
+    return whole;
+  });
+  return intersectionJoinNames(names.slice(0,4));
+}
 function intersectionParticipantsFromTurns(turns,limit=3){
   const names=[];
   for(const turn of turns||[]){
@@ -13294,17 +13324,18 @@ function intersectionParticipantsFromTurns(turns,limit=3){
   }
   return intersectionJoinNames(names);
 }
-function intersectionTargetDetails(story,node){
+function intersectionTargetDetails(story,node,targetTurnId=''){
   const range=story&&node?storyPointRange(story,node):{turns:[]};
   const turns=range.turns||[];
-  const markedTurn=turns.find(turn=>ccrhIntersectionPassage(turn.text||''))||null;
-  const firstTurn=markedTurn||turns[0]||null;
+  const exactTurn=targetTurnId?turns.find(turn=>turn.id===targetTurnId)||null:null;
+  const markedTurn=!exactTurn?turns.find(turn=>ccrhIntersectionPassage(turn.text||''))||null:null;
+  const firstTurn=exactTurn||markedTurn||turns[0]||null;
   const markedPassage=firstTurn?ccrhIntersectionPassage(firstTurn.text||''):'';
   const excerpt=firstTurn
     ? String(firstTurn.intersectionPreviewOverride||markedPassage||intersectionPlainText(firstTurn.text||'',180)).trim()
     : intersectionPlainText(ensureStoryPassage(node).summary||'',180);
   return {
-    characters: intersectionParticipantsFromTurns(turns),
+    characters: exactTurn?intersectionCharactersFromTurn(exactTurn):intersectionParticipantsFromTurns(turns),
     excerpt,
     openRef: firstTurn ? `${story.id}|${node.id}|${firstTurn.id}` : '',
     hasPosts: !!firstTurn,
@@ -13320,11 +13351,11 @@ function renderStoryPostIntersectionCard(item,{compact=false,currentStoryId=''}=
   if(!source||!target||!targetNode)return '';
   const routeNode=item.sourceNodeId||source.nodes?.[0]?.id||'';
   const sourceOpenRef=`${source.id}|${routeNode}|${item.sourceTurnId}`;
-  const targetMeta=intersectionTargetDetails(target,targetNode);
+  const targetMeta=intersectionTargetDetails(target,targetNode,item.targetTurnId||'');
   const sourceStoryPoint=sourceNode?storyPointTitle(source,sourceNode):'Exact post';
   const targetStoryPoint=storyPointTitle(target,targetNode);
-  const sourceCharacters=intersectionJoinNames([item.speakerName||storySpeakerMeta(sourceTurn||{}).name].filter(Boolean));
-  const sourceExcerpt=intersectionPlainText(sourceTurn?.text||item.excerpt||'',160);
+  const sourceCharacters=sourceTurn?intersectionCharactersFromTurn(sourceTurn):intersectionJoinNames([item.speakerName].filter(Boolean));
+  const sourceExcerpt=intersectionPlainText(item.excerpt||sourceTurn?.text||'',160);
   const currentIsSource=!currentStoryId||currentStoryId===source.id;
   const leftStory=currentIsSource?source:target;
   const rightStory=currentIsSource?target:source;
@@ -13334,14 +13365,14 @@ function renderStoryPostIntersectionCard(item,{compact=false,currentStoryId=''}=
   const rightPoint=currentIsSource?targetStoryPoint:sourceStoryPoint;
   const leftExcerpt=currentIsSource?sourceExcerpt:targetMeta.excerpt;
   const rightExcerpt=currentIsSource?targetMeta.excerpt:sourceExcerpt;
-  const leftPassageLabel=currentIsSource?(item.hasMarkedPassage?'Selected passage':'Opening excerpt'):(targetMeta.hasMarkedPassage?'Selected passage':'Opening excerpt');
-  const rightPassageLabel=currentIsSource?(targetMeta.hasMarkedPassage?'Selected passage':'Opening excerpt'):(item.hasMarkedPassage?'Selected passage':'Opening excerpt');
+  const leftPassageLabel=currentIsSource?(item.hasMarkedPassage?'Selected passage':'Post preview'):(targetMeta.hasMarkedPassage?'Selected passage':'Post preview');
+  const rightPassageLabel=currentIsSource?(targetMeta.hasMarkedPassage?'Selected passage':'Post preview'):(item.hasMarkedPassage?'Selected passage':'Post preview');
   const leftOpen=currentIsSource?sourceOpenRef:(targetMeta.openRef||storyRouteValue(target.id,targetNode.id));
   const rightOpen=currentIsSource?(targetMeta.openRef||storyRouteValue(target.id,targetNode.id)):sourceOpenRef;
   const leftAttr=currentIsSource?(sourceOpenRef?`data-ccrh-open-linked-post="${esc(sourceOpenRef)}"`:`data-open-story="${esc(source.id)}"`):(targetMeta.openRef?`data-ccrh-open-linked-post="${esc(targetMeta.openRef)}"`:`data-story-point="${esc(storyRouteValue(target.id,targetNode.id))}"`);
   const rightAttr=currentIsSource?(targetMeta.openRef?`data-ccrh-open-linked-post="${esc(targetMeta.openRef)}"`:`data-story-point="${esc(storyRouteValue(target.id,targetNode.id))}"`):(sourceOpenRef?`data-ccrh-open-linked-post="${esc(sourceOpenRef)}"`:`data-open-story="${esc(source.id)}"`);
   const routeNote=currentIsSource
-    ? `This exact post in <strong>${esc(source.name)}</strong> crosses into <strong>${esc(targetStoryPoint)}</strong> in <strong>${esc(target.name)}</strong>.`
+    ? `This exact post in <strong>${esc(source.name)}</strong> crosses with an exact RP post inside <strong>${esc(targetStoryPoint)}</strong> in <strong>${esc(target.name)}</strong>.`
     : `This moment in <strong>${esc(source.name)}</strong> crosses into <strong>${esc(targetStoryPoint)}</strong> and touches the current story here.`;
   if(compact){
     return `<article class="story-intersection-card"><div class="story-intersection-rail"><div class="story-intersection-side"><div class="story-intersection-story"><small>${esc(leftPoint)}</small><strong>${esc(leftStory.name)}</strong></div><div class="story-intersection-character-line">${esc(leftCharacters)}</div><blockquote class="story-intersection-quote"><span>${esc(leftPassageLabel)}</span>${esc(leftExcerpt||'No excerpt yet.')}</blockquote></div><div class="story-intersection-center"><div class="story-intersection-center-line"></div><div class="story-intersection-center-orb"></div><div class="story-intersection-center-label">Story intersection</div><div class="story-intersection-center-line"></div></div><div class="story-intersection-side"><div class="story-intersection-story"><small>${esc(rightPoint)}</small><strong>${esc(rightStory.name)}</strong></div><div class="story-intersection-character-line">${esc(rightCharacters)}</div><blockquote class="story-intersection-quote"><span>${esc(rightPassageLabel)}</span>${esc(rightExcerpt||'No excerpt yet.')}</blockquote></div></div><p class="story-intersection-route-note">${routeNote}</p><div class="story-intersection-actions"><button class="button secondary small story-intersection-open" type="button" ${leftAttr}>Open ${esc(leftStory.name)}</button><button class="button small story-intersection-open" type="button" ${rightAttr}>Open ${esc(rightStory.name)}</button></div></article>`;
@@ -13362,7 +13393,7 @@ function renderStoryLibrary(){
   }).join('');
   const postIntersectionCards=storyPostIntersections().map(item=>renderStoryPostIntersectionCard(item)).join('');
   const intersectionCards=postIntersectionCards+manualIntersectionCards;
-  el.main.innerHTML=`${pageHead('Roleplay writing','Story Library','Create as many independent or interconnected stories as your world needs.',`<button class="button" type="button" data-new-story>New story</button><button class="button secondary" type="button" data-nav="graph">Open graphs</button>`)}<div class="story-library-toolbar"><p class="page-subtitle">Each story keeps its own RP sheet and graph points. To make an exact-post intersection, edit that RP post and choose a Story Point that belongs to another story.</p></div>${cards?`<div class="story-library-grid">${cards}</div>`:'<div class="empty-story-workspace"><h2>No stories yet</h2><p>Create the first story, then add people, places, factions, species, or events as story points.</p><button class="button" type="button" data-new-story>Create the first story</button></div>'}<section class="intersection-board"><h2>Story intersections</h2><p class="page-subtitle">Connections are shown as the exact crossover moments between stories. Each card focuses on the characters involved, the words leading into the interaction, and quick open buttons for either side.</p><div class="story-intersection-list">${intersectionCards||'<div class="panel empty-state">No story intersections have been detected yet.</div>'}</div></section>`;
+  el.main.innerHTML=`${pageHead('Roleplay writing','Story Library','Create as many independent or interconnected stories as your world needs.',`<button class="button" type="button" data-new-story>New story</button><button class="button secondary" type="button" data-nav="graph">Open graphs</button>`)}<div class="story-library-toolbar"><p class="page-subtitle">Each story keeps its own RP sheet and graph points. To make an intersection, edit the crossover post and choose the other story, its Story Point, and the exact RP post where the moment continues.</p></div>${cards?`<div class="story-library-grid">${cards}</div>`:'<div class="empty-story-workspace"><h2>No stories yet</h2><p>Create the first story, then add people, places, factions, species, or events as story points.</p><button class="button" type="button" data-new-story>Create the first story</button></div>'}<section class="intersection-board"><h2>Story intersections</h2><p class="page-subtitle">Connections are shown as the exact crossover moments between stories. Each card focuses on the characters involved, the words leading into the interaction, and quick open buttons for either side.</p><div class="story-intersection-list">${intersectionCards||'<div class="panel empty-state">No story intersections have been detected yet.</div>'}</div></section>`;
 }
 function showNewStoryModal(){
   showModal('Create a story',`<div class="story-manager"><label><span>Story name</span><input id="newStoryName" class="input" type="text" placeholder="Story name"></label><label><span>Description</span><textarea id="newStoryDescription" class="textarea" rows="4" placeholder="What arc, RP, or time period does this story cover?"></textarea></label></div>`,`<button class="button secondary" type="button" data-close-modal>Cancel</button><button class="button" type="button" data-create-story>Create story</button>`);
@@ -14856,7 +14887,7 @@ const CC2_VERSION = 'story-timeline-2026-08';
       return `<div class="story-intersection-path"><div class="story-intersection-path-main"><strong>${esc(item.label||`${currentTitle} ↔ ${otherTitle}`)}</strong><div class="story-intersection-route"><b>${esc(currentTitle)}</b><span class="story-intersection-arrow">↔</span><span>${esc(other?.name||'Other story')}</span><span>·</span><b>${esc(otherTitle)}</b></div><small>Older story-point convergence${item.description?` · ${esc(item.description)}`:''}</small></div><button class="button ghost small" type="button" data-delete-intersection="${esc(item.id)}">Remove</button></div>`;
     }).join('');
     const rows=postRows+manualRows;
-    return `<section class="story-manager-section story-manager-intersections-first"><div class="story-manager-section-heading"><div><span class="eyebrow">Shared story moment</span><h3>Story intersections</h3></div><span class="tag">${storyIntersectionCount(story.id)} connected</span></div><div class="story-intersection-manager"><p class="story-intersection-intro"><strong>Exact-post intersections are automatic.</strong> In Roleplay Hub, edit the exact post where the crossover happens. Under <strong>Context → Story Point</strong>, choose a Story Point from the other story. That one post becomes the intersection; you do not need to add that point to this story under Manage Story.</p>${rows?`<div class="story-intersection-existing"><div class="story-intersection-existing-title">Intersection moments</div>${rows}</div>`:'<div class="story-intersection-empty">No intersections detected yet. Edit the crossover post and choose a Story Point from another story.</div>'}</div></section>`;
+    return `<section class="story-manager-section story-manager-intersections-first"><div class="story-manager-section-heading"><div><span class="eyebrow">Shared story moment</span><h3>Story intersections</h3></div><span class="tag">${storyIntersectionCount(story.id)} connected</span></div><div class="story-intersection-manager"><p class="story-intersection-intro">In Roleplay Hub, edit the exact crossover post and use <strong>Roleplay → Mark Intersection</strong>. Choose the other story, its Story Point, and the exact RP post on the other side. The intersection then opens directly to either post.</p>${rows?`<div class="story-intersection-existing"><div class="story-intersection-existing-title">Intersection moments</div>${rows}</div>`:'<div class="story-intersection-empty">No intersections detected yet. Edit the crossover post and choose a Story Point from another story.</div>'}</div></section>`;
   }
 
   function cc2ShowStoryManager(storyId){
@@ -17003,16 +17034,16 @@ initFirebase();
   function ccrhLoadDraftData(story){
     try{
       const raw=localStorage.getItem(ccrhDraftKey(story))||'';
-      if(!raw)return {text:'',speaker:'',customName:'',locationChoice:'inherit',storyPointId:'',timelineEventId:'',intersectionPreview:''};
+      if(!raw)return {text:'',speaker:'',customName:'',locationChoice:'inherit',storyPointId:'',timelineEventId:'',intersectionPreview:'',intersectionTargetStoryId:'',intersectionTargetNodeId:'',intersectionTargetTurnId:''};
       if(raw.trim().startsWith('{')){
         const parsed=JSON.parse(raw);
         if(parsed&&typeof parsed==='object')return {
           text:String(parsed.text||''),speaker:String(parsed.speaker||''),customName:String(parsed.customName||''),
-          locationChoice:String(parsed.locationChoice||'inherit'),storyPointId:String(parsed.storyPointId||''),timelineEventId:String(parsed.timelineEventId||''),intersectionPreview:String(parsed.intersectionPreview||'')
+          locationChoice:String(parsed.locationChoice||'inherit'),storyPointId:String(parsed.storyPointId||''),timelineEventId:String(parsed.timelineEventId||''),intersectionPreview:String(parsed.intersectionPreview||''),intersectionTargetStoryId:String(parsed.intersectionTargetStoryId||''),intersectionTargetNodeId:String(parsed.intersectionTargetNodeId||''),intersectionTargetTurnId:String(parsed.intersectionTargetTurnId||'')
         };
       }
-      return {text:raw,speaker:'',customName:'',locationChoice:'inherit',storyPointId:'',timelineEventId:'',intersectionPreview:''};
-    }catch{return {text:'',speaker:'',customName:'',locationChoice:'inherit',storyPointId:'',timelineEventId:'',intersectionPreview:''};}
+      return {text:raw,speaker:'',customName:'',locationChoice:'inherit',storyPointId:'',timelineEventId:'',intersectionPreview:'',intersectionTargetStoryId:'',intersectionTargetNodeId:'',intersectionTargetTurnId:''};
+    }catch{return {text:'',speaker:'',customName:'',locationChoice:'inherit',storyPointId:'',timelineEventId:'',intersectionPreview:'',intersectionTargetStoryId:'',intersectionTargetNodeId:'',intersectionTargetTurnId:''};}
   }
   function ccrhLoadDraft(story){ return ccrhLoadDraftData(story).text; }
   function ccrhSaveDraft(story,value,meta={}){
@@ -17076,7 +17107,10 @@ initFirebase();
       locationChoice:document.querySelector('[data-ccrh-location]')?.value||'inherit',
       storyPointId:document.querySelector('[data-ccrh-story-point]')?.value||'',
       timelineEventId:document.querySelector('[data-ccrh-timeline-event]')?.value||'',
-      intersectionPreview:document.querySelector('[data-ccrh-intersection-preview]')?.value||''
+      intersectionPreview:document.querySelector('[data-ccrh-intersection-preview]')?.value||'',
+      intersectionTargetStoryId:document.querySelector('[data-ccrh-intersection-target-story]')?.value||'',
+      intersectionTargetNodeId:document.querySelector('[data-ccrh-intersection-target-node]')?.value||'',
+      intersectionTargetTurnId:document.querySelector('[data-ccrh-intersection-target-turn]')?.value||''
     };
   }
   function ccrhCloseComposerPopovers(except=''){
@@ -17147,24 +17181,49 @@ initFirebase();
     if(!points.length)return '<option value="">No Story Points in this story</option>';
     return `<option value="">Choose a Story Point</option>${points.map(node=>`<option value="${esc(node.id)}" ${node.id===selectedNodeId?'selected':''}>${esc(storyPointTitle(target,node))}</option>`).join('')}`;
   }
+  function ccIntersectionTargetPostOptions(storyId,nodeId,selectedTurnId=''){
+    const target=storyById(storyId);
+    const node=(target?.nodes||[]).find(item=>item.id===nodeId);
+    if(!target)return '<option value="">Choose a story first</option>';
+    if(!node)return '<option value="">Choose a Story Point first</option>';
+    const allTurns=ensureStoryDocument(target);
+    const turns=storyPointRange(target,node).turns||[];
+    if(!turns.length)return '<option value="">No RP posts in this Story Point</option>';
+    return `<option value="">Choose the exact RP post</option>${turns.map(turn=>{
+      const globalIndex=allTurns.findIndex(item=>item.id===turn.id);
+      const speaker=storySpeakerMeta(turn).name||'Narrator';
+      const excerpt=intersectionPlainText(turn.text||'',72)||storyTurnTypeLabel(turn.type);
+      return `<option value="${esc(turn.id)}" ${turn.id===selectedTurnId?'selected':''}>${globalIndex>=0?`Post ${globalIndex+1} · `:''}${esc(speaker)}${excerpt?` · ${esc(excerpt)}`:''}</option>`;
+    }).join('')}`;
+  }
   function ccIntersectionCurrentLink(){
     const {story}=ccrhStoryFromRoute();
+    const savedStoryId=document.querySelector('[data-ccrh-intersection-target-story]')?.value||'';
+    const savedNodeId=document.querySelector('[data-ccrh-intersection-target-node]')?.value||'';
+    const savedTurnId=document.querySelector('[data-ccrh-intersection-target-turn]')?.value||'';
+    if(story&&savedStoryId&&savedStoryId!==story.id&&savedNodeId)return {storyId:savedStoryId,nodeId:savedNodeId,turnId:savedTurnId};
     const selected=document.querySelector('[data-ccrh-story-point]')?.value||'';
-    if(!story||!selected)return {storyId:'',nodeId:''};
+    if(!story||!selected)return {storyId:'',nodeId:'',turnId:''};
     const parsed=parseStoryRouteValue(selected);
     const storyId=parsed.storyId||story.id;
     const nodeId=parsed.nodeId||(selected.includes('~')?'':selected);
-    return storyId&&storyId!==story.id?{storyId,nodeId}:{storyId:'',nodeId:''};
+    return storyId&&storyId!==story.id?{storyId,nodeId,turnId:''}:{storyId:'',nodeId:'',turnId:''};
   }
 
   function ccIntersectionTargetMeta(){
     const {story}=ccrhStoryFromRoute();
     const stateStoryId=String(ccIntersectionState?.targetStoryId||'');
     const stateNodeId=String(ccIntersectionState?.targetNodeId||'');
+    const stateTurnId=String(ccIntersectionState?.targetTurnId||'');
     if(story&&stateStoryId){
       const targetStory=storyById(stateStoryId);
       const targetNode=(targetStory?.nodes||[]).find(node=>node.id===stateNodeId);
-      if(targetStory&&targetNode&&targetStory.id!==story.id)return {linked:true,label:`${targetStory.name} · ${storyPointTitle(targetStory,targetNode)}`,story:targetStory,node:targetNode};
+      const targetTurn=ensureStoryDocument(targetStory).find(turn=>turn.id===stateTurnId)||null;
+      if(targetStory&&targetNode&&targetTurn&&targetStory.id!==story.id){
+        const speaker=storySpeakerMeta(targetTurn).name||'Narrator';
+        return {linked:true,label:`${targetStory.name} · ${storyPointTitle(targetStory,targetNode)} · ${speaker}`,story:targetStory,node:targetNode,turn:targetTurn};
+      }
+      if(targetStory&&targetNode&&!stateTurnId)return {linked:false,label:`Choose the exact RP post in ${storyPointTitle(targetStory,targetNode)}`,story:targetStory,node:targetNode};
       if(targetStory&&!stateNodeId)return {linked:false,label:`Choose a Story Point in ${targetStory.name}`,story:targetStory};
     }
     const selected=document.querySelector('[data-ccrh-story-point]')?.value||'';
@@ -17174,7 +17233,7 @@ initFirebase();
     const targetNode=(targetStory.nodes||[]).find(node=>node.id===(parsed.nodeId||(selected.includes('~')?'':selected)));
     if(!targetNode)return {linked:false,label:'Choose the other story and Story Point below'};
     const external=targetStory.id!==story.id;
-    return {linked:external,label:external?`${targetStory.name} · ${storyPointTitle(targetStory,targetNode)}`:'Choose a Story Point from another story',story:targetStory,node:targetNode};
+    return {linked:false,label:external?`Choose the exact RP post in ${targetStory.name} · ${storyPointTitle(targetStory,targetNode)}`:'Choose a Story Point from another story',story:targetStory,node:targetNode};
   }
   function ccIntersectionAutoPreview(value){
     return shortText(ccrhExportPlainText(String(value||'')),180);
@@ -17201,7 +17260,7 @@ initFirebase();
       <div class="cc-intersection-guide">
         <div class="cc-intersection-step"><b>1</b><span><strong>Select text</strong>Highlight the exact words where the stories cross.</span></div>
         <div class="cc-intersection-step"><b>2</b><span><strong>Confirm selection</strong>Review the passage Codex will use.</span></div>
-        <div class="cc-intersection-step"><b>3</b><span><strong>Connect stories</strong>Choose the other story and exact Story Point here.</span></div>
+        <div class="cc-intersection-step"><b>3</b><span><strong>Connect stories</strong>Choose the other story, Story Point, and exact RP post.</span></div>
         <div class="cc-intersection-step"><b>4</b><span><strong>Save</strong>The post keeps normal formatting; the tag stays invisible.</span></div>
       </div>
       <div class="cc-intersection-builder-grid">
@@ -17221,9 +17280,10 @@ initFirebase();
             <div class="cc-intersection-link-grid">
               <label><span>Other story</span><select class="select" data-cc-intersection-target-story>${ccIntersectionTargetStoryOptions(ccIntersectionState?.targetStoryId||'')}</select></label>
               <label><span>Story Point</span><select class="select" data-cc-intersection-target-point ${ccIntersectionState?.targetStoryId?'':'disabled'}>${ccIntersectionTargetPointOptions(ccIntersectionState?.targetStoryId||'',ccIntersectionState?.targetNodeId||'')}</select></label>
+              <label class="intersection-wide"><span>Exact RP post</span><select class="select" data-cc-intersection-target-post ${(ccIntersectionState?.targetStoryId&&ccIntersectionState?.targetNodeId)?'':'disabled'}>${ccIntersectionTargetPostOptions(ccIntersectionState?.targetStoryId||'',ccIntersectionState?.targetNodeId||'',ccIntersectionState?.targetTurnId||'')}</select></label>
             </div>
             <div class="cc-intersection-link-status ${target.linked?'is-linked':''}"><strong>${target.linked?'Stories connected':'Connection needed'}</strong><span>${esc(target.label)}</span></div>
-            <div class="cc-intersection-link-help">Saving sets this post’s Context → Story Point automatically. You do not need to link it separately with the pin menu.</div>
+            <div class="cc-intersection-link-help">Saving stores both sides of the crossover: this exact post and the exact RP post you chose in the other story. Context → Story Point is still filled automatically for navigation.</div>
           </div>
         </div>
       </div>
@@ -17254,7 +17314,7 @@ initFirebase();
     const selectedSavedPassage=!!existing&&start===existing.bodyStart&&end===existing.bodyEnd;
     const savedPreview=selectedSavedPassage?String(hidden?.value||''):'';
     const currentLink=ccIntersectionCurrentLink();
-    ccIntersectionState={start,end,text:selected,existing,preview:String(savedPreview||ccIntersectionAutoPreview(selected)||''),previewEdited:Boolean(savedPreview),hadExplicitSelection,targetStoryId:currentLink.storyId,targetNodeId:currentLink.nodeId};
+    ccIntersectionState={start,end,text:selected,existing,preview:String(savedPreview||ccIntersectionAutoPreview(selected)||''),previewEdited:Boolean(savedPreview),hadExplicitSelection,targetStoryId:currentLink.storyId,targetNodeId:currentLink.nodeId,targetTurnId:currentLink.turnId||''};
     ccrhCloseComposerPopovers();
     ccIntersectionRefreshBuilder();
     mount.scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -17289,6 +17349,9 @@ initFirebase();
     if(!existing){toast('This post does not have a saved intersection passage.');return;}
     editor.value=editor.value.slice(0,existing.fullStart)+existing.text+editor.value.slice(existing.fullEnd);
     const hidden=document.querySelector('[data-ccrh-intersection-preview]');if(hidden)hidden.value='';
+    const hiddenTargetStory=document.querySelector('[data-ccrh-intersection-target-story]');if(hiddenTargetStory)hiddenTargetStory.value='';
+    const hiddenTargetNode=document.querySelector('[data-ccrh-intersection-target-node]');if(hiddenTargetNode)hiddenTargetNode.value='';
+    const hiddenTargetTurn=document.querySelector('[data-ccrh-intersection-target-turn]');if(hiddenTargetTurn)hiddenTargetTurn.value='';
     const {story}=ccrhStoryFromRoute();if(ccrhEditingPostId)ccIntersectionPreviewSession={storyId:story?.id||'',turnId:ccrhEditingPostId,value:''};
     editor.dispatchEvent(new Event('input',{bubbles:true}));
     ccrhPersistComposerDraft();
@@ -17302,7 +17365,8 @@ initFirebase();
     const {story}=ccrhStoryFromRoute();
     const targetStory=storyById(ccIntersectionState.targetStoryId||'');
     const targetNode=(targetStory?.nodes||[]).find(node=>node.id===ccIntersectionState.targetNodeId);
-    if(!targetStory||targetStory.id===story?.id||!targetNode){toast('Choose the other story and its Story Point before saving the intersection.','error');return;}
+    const targetTurn=ensureStoryDocument(targetStory).find(turn=>turn.id===ccIntersectionState.targetTurnId)||null;
+    if(!targetStory||targetStory.id===story?.id||!targetNode||!targetTurn){toast('Choose the other story, its Story Point, and the exact RP post before saving the intersection.','error');return;}
     let start=ccIntersectionState.start,end=ccIntersectionState.end;
     if(start===end){toast('Select the exact crossover passage first.','error');return;}
     let raw=editor.value;
@@ -17338,6 +17402,9 @@ initFirebase();
     const previewField=document.querySelector('[data-cc-intersection-preview-text]');
     const previewValue=String(previewField?.value||ccIntersectionAutoPreview(editor.value.slice(start,end))||'').trim();
     const hidden=document.querySelector('[data-ccrh-intersection-preview]');if(hidden)hidden.value=previewValue;
+    const hiddenTargetStory=document.querySelector('[data-ccrh-intersection-target-story]');if(hiddenTargetStory)hiddenTargetStory.value=targetStory.id;
+    const hiddenTargetNode=document.querySelector('[data-ccrh-intersection-target-node]');if(hiddenTargetNode)hiddenTargetNode.value=targetNode.id;
+    const hiddenTargetTurn=document.querySelector('[data-ccrh-intersection-target-turn]');if(hiddenTargetTurn)hiddenTargetTurn.value=targetTurn.id;
     const contextPoint=document.querySelector('[data-ccrh-story-point]');
     if(contextPoint){
       const targetRef=storyRouteValue(targetStory.id,targetNode.id);
@@ -17351,7 +17418,7 @@ initFirebase();
     ccrhPersistComposerDraft();
     ccIntersectionClose();
     editor.focus();
-    toast(`Intersection saved to ${targetStory.name} · ${storyPointTitle(targetStory,targetNode)}.`);
+    toast(`Intersection saved to ${targetStory.name} · ${storyPointTitle(targetStory,targetNode)} · ${storySpeakerMeta(targetTurn).name}.`);
   }
   function ccrhSpeakerOptions(story){
     const allCharacters=(state.characters||[]).filter(Boolean);
@@ -17588,6 +17655,9 @@ initFirebase();
     const composerIntersectionPreview=editingTurn
       ? ((ccIntersectionPreviewSession.storyId===story.id&&ccIntersectionPreviewSession.turnId===editingTurn.id)?ccIntersectionPreviewSession.value:String(editingTurn.intersectionPreviewOverride||''))
       : String(storedDraft.intersectionPreview||'');
+    const composerIntersectionTargetStoryId=editingTurn?String(editingTurn.intersectionTargetStoryId||editingTurn.storyPointStoryId||''):String(storedDraft.intersectionTargetStoryId||'');
+    const composerIntersectionTargetNodeId=editingTurn?String(editingTurn.intersectionTargetNodeId||editingTurn.storyPointId||''):String(storedDraft.intersectionTargetNodeId||'');
+    const composerIntersectionTargetTurnId=editingTurn?String(editingTurn.intersectionTargetTurnId||''):String(storedDraft.intersectionTargetTurnId||'');
     const composerLocationChoice=editingTurn?ccrhLocationChoice(editingTurn):(storedDraft.locationChoice||'inherit');
     const composerStoryPointId=editingTurn?ccrhTurnStoryPointRef(story,editingTurn):(storedDraft.storyPointId||(node?storyRouteValue(story.id,node.id):''));
     const composerTimelineEventId=editingTurn?String(editingTurn.timelineEventId||editingTurn.timelineEventIds?.[0]||''):(storedDraft.timelineEventId||'');
@@ -17710,7 +17780,7 @@ initFirebase();
         </div>
         <div class="ccrh-editor-tabs"><div class="ccrh-editor-tab-buttons"><button class="${ccrhPreviewMode?'':'active'}" type="button" data-ccrh-tab="write">Write (BBCode)</button><button class="${ccrhPreviewMode?'active':''}" type="button" data-ccrh-tab="preview">Preview</button></div><div class="ccrh-history-actions" aria-label="Editor history"><button class="ccrh-history-button" type="button" data-ccrh-undo aria-label="Undo" title="Undo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7H4v5"/><path d="M4 12c1.8-3.7 5.4-6 9.5-6 5.8 0 10.5 4.7 10.5 10.5S19.3 27 13.5 27c-3.5 0-6.6-1.7-8.5-4.3" transform="translate(0 -3)"/></svg></button><button class="ccrh-history-button" type="button" data-ccrh-redo aria-label="Redo" title="Redo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7h5v5"/><path d="M20 12c-1.8-3.7-5.4-6-9.5-6C4.7 6 0 10.7 0 16.5S4.7 27 10.5 27c3.5 0 6.6-1.7 8.5-4.3" transform="translate(2 -3)"/></svg></button></div></div>
         <div class="ccrh-editor-wrap"><textarea class="ccrh-editor" data-ccrh-editor maxlength="50000" ${ccrhPreviewMode?'hidden':''} placeholder="Write your roleplay post here. BBCode and images or GIF URLs are supported.">${esc(draft)}</textarea><div class="ccrh-preview ccrh-post-body" data-ccrh-preview ${ccrhPreviewMode?'':'hidden'}>${ccrhBbcode(draft)||'<span class="muted">Your preview will appear here.</span>'}</div></div>
-        <input type="hidden" data-ccrh-intersection-preview value="${esc(composerIntersectionPreview)}"><div class="cc-dialogue-builder-mount" data-cc-dialogue-builder-mount hidden></div><div class="cc-intersection-builder-mount" data-cc-intersection-builder-mount hidden></div><div class="ccrh-compose-foot"><span class="ccrh-char-count"><span data-ccrh-count>${(draft||'').length.toLocaleString()}</span></span><div class="ccrh-compose-actions">${editingTurn?`<button class="button secondary" type="button" data-ccrh-cancel-edit>Cancel edit</button>`:`<button class="button secondary" type="button" data-ccrh-clear-reply>Clear</button><button class="button secondary" type="button" data-ccrh-save-draft>Save draft</button>`}<button class="button" type="button" data-ccrh-submit>${editingTurn?'Save changes':'Submit post'}</button></div></div>
+        <input type="hidden" data-ccrh-intersection-preview value="${esc(composerIntersectionPreview)}"><input type="hidden" data-ccrh-intersection-target-story value="${esc(composerIntersectionTargetStoryId)}"><input type="hidden" data-ccrh-intersection-target-node value="${esc(composerIntersectionTargetNodeId)}"><input type="hidden" data-ccrh-intersection-target-turn value="${esc(composerIntersectionTargetTurnId)}"><div class="cc-dialogue-builder-mount" data-cc-dialogue-builder-mount hidden></div><div class="cc-intersection-builder-mount" data-cc-intersection-builder-mount hidden></div><div class="ccrh-compose-foot"><span class="ccrh-char-count"><span data-ccrh-count>${(draft||'').length.toLocaleString()}</span></span><div class="ccrh-compose-actions">${editingTurn?`<button class="button secondary" type="button" data-ccrh-cancel-edit>Cancel edit</button>`:`<button class="button secondary" type="button" data-ccrh-clear-reply>Clear</button><button class="button secondary" type="button" data-ccrh-save-draft>Save draft</button>`}<button class="button" type="button" data-ccrh-submit>${editingTurn?'Save changes':'Submit post'}</button></div></div>
       </section>`;
 
     const storyScrollRail=document.querySelector('[data-ccrh-story-scroll-jump]');
@@ -17810,6 +17880,13 @@ initFirebase();
     turn.timelineEventId=selectedTimelineEventId;
     turn.timelineEventIds=selectedTimelineEventId?[selectedTimelineEventId]:[];
     turn.intersectionPreviewOverride=document.querySelector('[data-ccrh-intersection-preview]')?.value.trim()||'';
+    turn.intersectionTargetStoryId=document.querySelector('[data-ccrh-intersection-target-story]')?.value||'';
+    turn.intersectionTargetNodeId=document.querySelector('[data-ccrh-intersection-target-node]')?.value||'';
+    turn.intersectionTargetTurnId=document.querySelector('[data-ccrh-intersection-target-turn]')?.value||'';
+    if(ccrhFirstIntersectionBlock(turn.text)&&turn.intersectionTargetStoryId&&turn.intersectionTargetNodeId){
+      turn.storyPointStoryId=turn.intersectionTargetStoryId;
+      turn.storyPointId=turn.intersectionTargetNodeId;
+    }
     if(existing){
       ccrhEditingPostId='';
       ccrhTypingStoryId='';
@@ -17952,7 +18029,7 @@ initFirebase();
     const tag=event.target.closest('[data-ccrh-tag]'); if(tag){event.preventDefault();const t=tag.dataset.ccrhTag;ccrhInsert(`[${t}]`,`[/${t}]`);return;}
     const wrap=event.target.closest('[data-ccrh-wrap]'); if(wrap){event.preventDefault();const [a,b='']=wrap.dataset.ccrhWrap.split('|');ccrhInsert(a,b);return;}
     const tab=event.target.closest('[data-ccrh-tab]'); if(tab){event.preventDefault();ccrhPreviewMode=tab.dataset.ccrhTab==='preview';const area=document.querySelector('[data-ccrh-editor]');if(area&&!ccrhEditingPostId)ccrhSaveDraft(ccrhStoryFromRoute().story,area.value,ccrhComposerDraftMeta());ccrhRenderReader();return;}
-    if(event.target.closest('[data-ccrh-clear-reply]')){event.preventDefault();const {story,node}=ccrhStoryFromRoute();const area=document.querySelector('[data-ccrh-editor]');if(!story||!area)return;if(area.value&&!window.confirm('Clear this reply? This will remove the text in the reply box and reset its draft options.'))return;area.value='';ccrhTypingStoryId='';ccrhTypingValue='';const speaker=document.querySelector('[data-ccrh-speaker]');if(speaker){if([...speaker.options].some(option=>option.value==='narrator'))speaker.value='narrator';else speaker.selectedIndex=0;}const customWrap=document.querySelector('[data-ccrh-custom-wrap]');if(customWrap)customWrap.hidden=true;const customName=document.querySelector('[data-ccrh-custom-name]');if(customName)customName.value='';const locationSelect=document.querySelector('[data-ccrh-location]');if(locationSelect)locationSelect.value='inherit';const pointSelect=document.querySelector('[data-ccrh-story-point]');if(pointSelect)pointSelect.value=node?storyRouteValue(story.id,node.id):'';const eventSelect=document.querySelector('[data-ccrh-timeline-event]');if(eventSelect)eventSelect.value='';const intersectionPreview=document.querySelector('[data-ccrh-intersection-preview]');if(intersectionPreview)intersectionPreview.value='';ccrhClearDraft(story);ccIntersectionPreviewSession={storyId:'',turnId:'',value:''};ccIntersectionClose();ccrhResetEditorHistory('');ccrhUpdateComposerPreview('');ccrhSyncToolbarLabels();area.focus();toast('Reply cleared.');return;}
+    if(event.target.closest('[data-ccrh-clear-reply]')){event.preventDefault();const {story,node}=ccrhStoryFromRoute();const area=document.querySelector('[data-ccrh-editor]');if(!story||!area)return;if(area.value&&!window.confirm('Clear this reply? This will remove the text in the reply box and reset its draft options.'))return;area.value='';ccrhTypingStoryId='';ccrhTypingValue='';const speaker=document.querySelector('[data-ccrh-speaker]');if(speaker){if([...speaker.options].some(option=>option.value==='narrator'))speaker.value='narrator';else speaker.selectedIndex=0;}const customWrap=document.querySelector('[data-ccrh-custom-wrap]');if(customWrap)customWrap.hidden=true;const customName=document.querySelector('[data-ccrh-custom-name]');if(customName)customName.value='';const locationSelect=document.querySelector('[data-ccrh-location]');if(locationSelect)locationSelect.value='inherit';const pointSelect=document.querySelector('[data-ccrh-story-point]');if(pointSelect)pointSelect.value=node?storyRouteValue(story.id,node.id):'';const eventSelect=document.querySelector('[data-ccrh-timeline-event]');if(eventSelect)eventSelect.value='';const intersectionPreview=document.querySelector('[data-ccrh-intersection-preview]');if(intersectionPreview)intersectionPreview.value='';const intersectionTargetStory=document.querySelector('[data-ccrh-intersection-target-story]');if(intersectionTargetStory)intersectionTargetStory.value='';const intersectionTargetNode=document.querySelector('[data-ccrh-intersection-target-node]');if(intersectionTargetNode)intersectionTargetNode.value='';const intersectionTargetTurn=document.querySelector('[data-ccrh-intersection-target-turn]');if(intersectionTargetTurn)intersectionTargetTurn.value='';ccrhClearDraft(story);ccIntersectionPreviewSession={storyId:'',turnId:'',value:''};ccIntersectionClose();ccrhResetEditorHistory('');ccrhUpdateComposerPreview('');ccrhSyncToolbarLabels();area.focus();toast('Reply cleared.');return;}
     if(event.target.closest('[data-ccrh-save-draft]')){event.preventDefault();const {story}=ccrhStoryFromRoute();const area=document.querySelector('[data-ccrh-editor]');ccrhSaveDraft(story,area?.value||'',ccrhComposerDraftMeta());toast('Draft saved.');return;}
     if(event.target.closest('[data-ccrh-submit]')){event.preventDefault();await ccrhSubmit();return;}
     const quote=event.target.closest('[data-ccrh-quote]'); if(quote){event.preventDefault();const {story}=ccrhStoryFromRoute();const turn=ensureStoryDocument(story).find(x=>x.id===quote.dataset.ccrhQuote);if(turn){const speaker=storySpeakerMeta(turn);document.getElementById('rp-composer')?.scrollIntoView({behavior:'smooth'});setTimeout(()=>ccrhInsert(`[quote="${speaker.name}"]\n${turn.text}\n[/quote]\n\n`,''),250);}return;}
