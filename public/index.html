@@ -24790,5 +24790,67 @@ initFirebase();
 }
 </style>
 
+
+<style id="cc-intersection-roster-full-art-fix">
+/* Finished intersection roster: artwork fills the whole card width; caption stays compact. */
+.cc-int2-person{
+  grid-template-columns:1fr!important;
+  grid-template-rows:minmax(280px,1fr) auto!important;
+  min-height:334px!important;
+  gap:0!important;
+  align-items:stretch!important;
+  overflow:hidden!important;
+}
+.cc-int2-person-art{
+  grid-column:1!important;
+  grid-row:1!important;
+  width:100%!important;
+  height:280px!important;
+  min-height:280px!important;
+  border-bottom:1px solid color-mix(in srgb,var(--cc-int-accent) 44%,var(--border))!important;
+}
+.cc-int2-person-art img{
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover!important;
+  display:block!important;
+}
+.cc-int2-person-copy{
+  grid-column:1!important;
+  grid-row:2!important;
+  min-height:52px!important;
+  padding:8px 12px!important;
+  gap:2px!important;
+  align-content:center!important;
+}
+.cc-int2-person-copy strong{font-size:.92rem!important;line-height:1.15!important}
+.cc-int2-person-copy small{font-size:.74rem!important;line-height:1.15!important;margin:0!important}
+/* Keep the edit-page live preview true to the finished card. */
+.cc-int3-preview .cc-int2-person{
+  grid-template-columns:1fr!important;
+  grid-template-rows:210px auto!important;
+  min-height:260px!important;
+}
+.cc-int3-preview .cc-int2-person-art{
+  height:210px!important;
+  min-height:210px!important;
+}
+@media(max-width:720px){
+  .cc-int2-person{
+    grid-template-columns:1fr!important;
+    grid-template-rows:240px auto!important;
+    min-height:294px!important;
+  }
+  .cc-int2-person-art{height:240px!important;min-height:240px!important}
+}
+@media(max-width:460px){
+  .cc-int2-person{
+    grid-template-rows:300px auto!important;
+    min-height:354px!important;
+  }
+  .cc-int2-person-art{height:300px!important;min-height:300px!important}
+}
+</style>
+
 </body>
 </html>
