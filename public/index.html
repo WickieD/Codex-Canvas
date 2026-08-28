@@ -13507,6 +13507,21 @@ function ccIntersectionParticipantsHtml(sourceIds,targetIds,sourceStory,targetSt
     return `<div class="cc-int2-person" style="--cc-int-accent:${esc(ccIntersectionSafeColor(accent,ccIntersectionCharacterAccent(character)))}">${ccIntersectionPortraitCard(character,{accent,large:false})}<div><strong>${esc(character.name||'Character')}</strong><small>${esc(storyLabel)}</small></div></div>`;
   }).join('')}</div></section>`;
 }
+function ccIntersectionSuggestedHandoff(a,b){
+  const left=String(a||'').replace(/\s+/g,' ').trim();
+  const right=String(b||'').replace(/\s+/g,' ').trim();
+  if(!left||!right)return '';
+  const aw=left.split(' '),bw=right.split(' ');
+  let best=[];
+  for(let i=0;i<aw.length;i++){
+    for(let j=0;j<bw.length;j++){
+      let k=0;
+      while(aw[i+k]&&bw[j+k]&&aw[i+k].toLowerCase()===bw[j+k].toLowerCase())k++;
+      if(k>best.length)best=aw.slice(i,i+k);
+    }
+  }
+  return best.length>=4?best.join(' '):'';
+}
 function renderStoryPostIntersectionCard(item,{compact=false,currentStoryId=''}={}){
   const source=storyById(item.sourceStoryId),target=storyById(item.targetStoryId);
   const sourceTurns=ensureStoryDocument(source);
@@ -18135,7 +18150,8 @@ initFirebase();
     if(editIntersection){
       event.preventDefault();
       event.stopImmediatePropagation();
-      ccOpenIntersectionEditorPage(String(editIntersection.dataset.ccIntersectionEdit||''));
+      if(typeof window.ccOpenIntersectionEditorPage==='function') window.ccOpenIntersectionEditorPage(String(editIntersection.dataset.ccIntersectionEdit||''));
+      else toast('The intersection editor is still loading. Please try again.','error');
       return;
     }
     const linkedPost=event.target.closest('[data-ccrh-open-linked-post]');
@@ -23576,6 +23592,7 @@ initFirebase();
       requestAnimationFrame(()=>window.scrollTo({top:0,behavior:'smooth'}));
     }catch(error){console.error('Could not open intersection editor',error);toast('The intersection editor could not open. Please try again.','error');}
   }
+  window.ccOpenIntersectionEditorPage=ccOpenIntersectionEditorPage;
   function ccRenderIntersectionEditorPage(){
     const s=ccIntersectionEditorState;if(!s)return;
     const sourceStory=storyById(s.sourceStoryId),sourceNode=(sourceStory?.nodes||[]).find(node=>node.id===s.sourceNodeId),sourceTurn=sourceStory?ensureStoryDocument(sourceStory).find(turn=>turn.id===s.sourceTurnId)||null:null;
