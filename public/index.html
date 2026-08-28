@@ -10053,13 +10053,22 @@ window.CODEX_BUILD = "graph-modes-scope-fix-2026-08-21";
   window.addEventListener('scroll',()=>{
     const rail=document.querySelector('[data-ccrh-story-scroll-jump]');
     if(!rail)return;
-    const doc=document.scrollingElement||document.documentElement;
-    const maxScroll=Math.max(0,doc.scrollHeight-window.innerHeight);
+    const posts=[...document.querySelectorAll('.ccrh-posts .ccrh-post')];
+    const firstPost=posts[0];
+    const lastPost=posts[posts.length-1];
     const topButton=rail.querySelector('[data-ccrh-story-scroll="top"]');
     const bottomButton=rail.querySelector('[data-ccrh-story-scroll="bottom"]');
-    if(topButton)topButton.disabled=window.scrollY<=4;
-    if(bottomButton)bottomButton.disabled=window.scrollY>=maxScroll-4;
-    rail.hidden=maxScroll<=8;
+    if(!firstPost||!lastPost){
+      if(topButton)topButton.disabled=true;
+      if(bottomButton)bottomButton.disabled=true;
+      rail.hidden=true;
+      return;
+    }
+    const firstTop=window.scrollY+firstPost.getBoundingClientRect().top;
+    const lastTop=window.scrollY+lastPost.getBoundingClientRect().top;
+    if(topButton)topButton.disabled=window.scrollY<=firstTop+4;
+    if(bottomButton)bottomButton.disabled=window.scrollY>=lastTop-4;
+    rail.hidden=false;
   },{passive:true});
 
   document.addEventListener('input',event=>{
@@ -17089,8 +17098,8 @@ initFirebase();
       <div class="ccrh-anchor-strip">${anchorChips}</div>
       <section class="ccrh-posts">${turns.length?turns.map((turn,index)=>ccrhPostHtml(turn,index,story)).join(''):'<div class="ccrh-thread-empty"><h3>No posts yet</h3><p>Use the reply editor below to begin this roleplay.</p></div>'}</section>
       <div class="ccrh-story-scroll-jump" data-ccrh-story-scroll-jump aria-label="Story scroll shortcuts">
-        <button type="button" data-ccrh-story-scroll="top" title="Go to the top of this story">↑ Top</button>
-        <button type="button" data-ccrh-story-scroll="bottom" title="Go to the bottom of this story">↓ Bottom</button>
+        <button type="button" data-ccrh-story-scroll="top" title="Go to the first post">↑ First post</button>
+        <button type="button" data-ccrh-story-scroll="bottom" title="Go to the beginning of the last post">↓ Last post</button>
       </div>
       <section class="ccrh-composer" id="rp-composer">
         <div class="ccrh-composer-title">${editingTurn?'Edit post':'Post a reply'}</div>
@@ -17202,11 +17211,20 @@ initFirebase();
     const storyScrollBottom=storyScrollRail?.querySelector('[data-ccrh-story-scroll="bottom"]');
     const syncStoryScrollButtons=()=>{
       if(!storyScrollRail)return;
-      const doc=document.scrollingElement||document.documentElement;
-      const maxScroll=Math.max(0,doc.scrollHeight-window.innerHeight);
-      if(storyScrollTop)storyScrollTop.disabled=window.scrollY<=4;
-      if(storyScrollBottom)storyScrollBottom.disabled=window.scrollY>=maxScroll-4;
-      storyScrollRail.hidden=maxScroll<=8;
+      const posts=[...document.querySelectorAll('.ccrh-posts .ccrh-post')];
+      const firstPost=posts[0];
+      const lastPost=posts[posts.length-1];
+      if(!firstPost||!lastPost){
+        if(storyScrollTop)storyScrollTop.disabled=true;
+        if(storyScrollBottom)storyScrollBottom.disabled=true;
+        storyScrollRail.hidden=true;
+        return;
+      }
+      const firstTop=window.scrollY+firstPost.getBoundingClientRect().top;
+      const lastTop=window.scrollY+lastPost.getBoundingClientRect().top;
+      if(storyScrollTop)storyScrollTop.disabled=window.scrollY<=firstTop+4;
+      if(storyScrollBottom)storyScrollBottom.disabled=window.scrollY>=lastTop-4;
+      storyScrollRail.hidden=false;
     };
     requestAnimationFrame(syncStoryScrollButtons);
     setTimeout(syncStoryScrollButtons,120);
@@ -17408,7 +17426,9 @@ initFirebase();
     const storyScroll=event.target.closest('[data-ccrh-story-scroll]');
     if(storyScroll){
       event.preventDefault();
-      window.scrollTo({top:storyScroll.dataset.ccrhStoryScroll==='top'?0:(document.scrollingElement||document.documentElement).scrollHeight,behavior:'smooth'});
+      const posts=[...document.querySelectorAll('.ccrh-posts .ccrh-post')];
+      const target=storyScroll.dataset.ccrhStoryScroll==='top'?posts[0]:posts[posts.length-1];
+      target?.scrollIntoView({behavior:'smooth',block:'start'});
       return;
     }
     const tag=event.target.closest('[data-ccrh-tag]'); if(tag){event.preventDefault();const t=tag.dataset.ccrhTag;ccrhInsert(`[${t}]`,`[/${t}]`);return;}
